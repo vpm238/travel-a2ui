@@ -56,7 +56,27 @@ CATALOG_ID = str(CATALOG["catalogId"])
 # Conversation id → managed session id. In memory on purpose: the durable half
 # already lives in the managed session. Persist this map if you want a
 # conversation to survive a restart of *this* process.
+#
+# Bounded because reloading the page starts a new conversation, so a long-lived
+# process would otherwise accumulate one entry per reload forever. Oldest out
+# first — Python dicts keep insertion order, which is all the recency this needs.
 SESSIONS: dict[str, str] = {}
+TURNS: dict[str, int] = {}
+MAX_SESSIONS = 500
+
+
+def remember_session(conversation_id: str, session_id: str) -> None:
+    SESSIONS[conversation_id] = session_id
+    while len(SESSIONS) > MAX_SESSIONS:
+        oldest = next(iter(SESSIONS))
+        SESSIONS.pop(oldest)
+        TURNS.pop(oldest, None)
+
+
+def next_turn(conversation_id: str) -> int:
+    """Turn number within *this* conversation, which is what names a surface."""
+    TURNS[conversation_id] = TURNS.get(conversation_id, 0) + 1
+    return TURNS[conversation_id]
 
 
 def sse(event: dict[str, Any]) -> str:
@@ -182,7 +202,9 @@ def build_app(state: AgentState, compiler: Compiler):  # noqa: C901 - one route,
     @app.post("/api/session/reset")
     async def reset(request: Request) -> dict[str, bool]:
         body = await request.json()
-        SESSIONS.pop(str(body.get("sessionId", "")), None)
+        conversation_id = str(body.get("sessionId", ""))
+        SESSIONS.pop(conversation_id, None)
+        TURNS.pop(conversation_id, None)
         return {"ok": True}
 
     @app.post("/api/compile")
@@ -219,7 +241,7 @@ def build_app(state: AgentState, compiler: Compiler):  # noqa: C901 - one route,
             environment_id=state.environment_id,
             title=f"Trip {conversation_id}",
         )
-        SESSIONS[conversation_id] = session.id
+        remember_session(conversation_id, session.id)
         return session.id
 
     @app.post("/api/chat")
@@ -240,8 +262,12 @@ def build_app(state: AgentState, compiler: Compiler):  # noqa: C901 - one route,
             return JSONResponse({"error": "sessionId and message are required"}, status_code=400)
 
         surface = body.get("surface") or "inline"
+        # Inline surfaces are numbered per conversation, so `inline-2` means the
+        # second answer in *this* conversation. Numbering them off the size of
+        # the session map instead — as this did — made the id depend on how many
+        # other people happened to be using the server.
         surface_id = body.get("surfaceId") or (
-            f"inline-{len(SESSIONS) + 1}" if surface == "inline" else surface
+            f"inline-{next_turn(conversation_id)}" if surface == "inline" else surface
         )
         surface_state = body.get("surfaceState") or {}
 

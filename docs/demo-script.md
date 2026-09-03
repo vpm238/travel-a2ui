@@ -15,6 +15,10 @@ open http://127.0.0.1:8787/#key=sk-ant-...
 Model **Opus 5**, skill **Express · one skill**, effort **Medium** unless a flow
 says otherwise. Roughly 4–8 seconds per turn.
 
+**Reloading starts a new conversation.** The transcript and the trip are gone;
+your key is not. That is the fastest way to get back to a clean slate between
+flows, and the ⟲ button in the header does the same without a reload.
+
 ---
 
 ## Flow 1 · Inline — choosing, in the conversation

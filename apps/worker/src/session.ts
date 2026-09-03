@@ -39,8 +39,24 @@ const MAX_STORED_MESSAGES = 40;
 
 const EMPTY: SessionState = { history: [], trip: {}, createdAt: 0, updatedAt: 0, turns: 0 };
 
+/**
+ * How long an untouched conversation is kept.
+ *
+ * Reloading the page starts a new conversation, which is what a person means by
+ * reloading — and it means every reload leaves a Durable Object behind that
+ * nothing will ever ask for again. Each one holds a transcript. So every write
+ * pushes an alarm out to here, and the alarm deletes the session; a live
+ * conversation keeps rearming it, an abandoned one expires.
+ */
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
 export class TripSession {
   constructor(private readonly state: DurableObjectState) {}
+
+  /** Deletes an abandoned conversation. Rearmed by every write. */
+  async alarm(): Promise<void> {
+    await this.state.storage.deleteAll();
+  }
 
   private async load(): Promise<SessionState> {
     const stored = await this.state.storage.get<SessionState>('state');
@@ -51,6 +67,7 @@ export class TripSession {
 
   private async save(next: SessionState): Promise<void> {
     await this.state.storage.put('state', { ...next, updatedAt: Date.now() });
+    await this.state.storage.setAlarm(Date.now() + SESSION_TTL_MS);
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -81,6 +98,8 @@ export class TripSession {
     }
 
     if (url.pathname.endsWith('/reset')) {
+      // deleteAll clears the alarm too, which is what we want: there is nothing
+      // left to expire.
       await this.state.storage.deleteAll();
       return Response.json({ ok: true });
     }

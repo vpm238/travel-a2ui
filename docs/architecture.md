@@ -69,6 +69,7 @@ rather than discovered at runtime.
 | Layout chrome | a chat feed, a 340 px panel and an iframe are different shapes |
 | The runtime picker | only the web app chooses its backend; inside Claude, Claude *is* the runtime |
 | Session storage | the Worker uses a Durable Object; the managed agent's session holds its own history |
+| Conversation lifetime | a reload starts a new one in the web app; in Claude, the host owns the thread |
 | Tool execution | the Worker calls its own functions; the managed agent calls the MCP server |
 
 ---
@@ -200,6 +201,13 @@ draws, and says another. Rendering all the prose above all the surfaces puts
 them in arrival order. Each tool round starts a new text part, because two
 sentences separated by a tool call are two paragraphs — concatenated they read
 as `…anything.Nothing nonstop is showing`, which looks like a typo.
+
+**A reload is a new conversation.** The session id is generated per page load
+and deliberately not persisted, so reloading clears the transcript and the trip
+— which is what a person means by reloading a demo. The API key does persist;
+losing that would be a more annoying kind of forgetting. Every write to a
+session pushes a 24-hour alarm out, and the alarm deletes it, so the abandoned
+Durable Object each reload leaves behind expires instead of accumulating.
 
 **Clicking is a turn.** An interface event becomes
 `[interface] select_flight (id: "IB6250", price: "$412")` plus the surface's
