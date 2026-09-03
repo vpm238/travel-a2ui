@@ -150,6 +150,12 @@ export function Chat({ agent }: { agent: Agent }) {
                 ),
               )}
 
+              {turn.retrying ? (
+                <p className="turn__retry">
+                  <Spinner /> That layout did not compile — rewriting it.
+                </p>
+              ) : null}
+
               {turn.streaming && turn.parts.length === 0 && turn.tools.length === 0 ? (
                 <Spinner label="Thinking" />
               ) : null}

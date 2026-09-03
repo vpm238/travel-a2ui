@@ -214,6 +214,20 @@ class Parser {
         this.next(); // '='
         kwargs[key] = this.parseExpression();
         hasKwargs = true;
+      } else if (this.at(T.IDENTIFIER) && this.peek(1).type === T.COLON) {
+        // `variant: "h3"` instead of `variant="h3"`. By far the most common
+        // thing a model writes wrong here, because `:` is right two lines
+        // earlier inside a `{ }` and the habit carries. Left to the generic
+        // path it becomes "expected ')' but found ':'", which names the symbol
+        // and not the mistake — and a model told that tends to restructure the
+        // whole call rather than change one character.
+        const key = this.peek(0);
+        throw new ExpressSyntaxError(
+          `keyword arguments use '=', not ':' — write ${key.text}=… rather than ${key.text}: …. ` +
+            "':' is for object literals, inside { }",
+          key.line,
+          key.column,
+        );
       } else {
         args.push(this.parseExpression());
       }

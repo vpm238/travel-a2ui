@@ -186,6 +186,22 @@ When the model forgets a commit button, the host draws its own — a bar naming
 how many values are unsent and a Send. A card of sliders you cannot submit is
 worse than no card.
 
+### One turn, one job
+
+A rule worth stating because getting it wrong was invisible from the code and
+obvious from a live run: **the panel turn and the inline turn are told different
+things**.
+
+The agent is instructed to lead — never end a turn without moving the trip on.
+The panel is instructed to be read-only. Both reasonable; together, on a panel
+turn, contradictory. The model resolved it the way a model does: it advanced the
+plan, in the panel, with the controls the next step needed. The host ignored
+them, so nothing broke, and the panel showed three dead controls.
+
+So the "do this next" directive is scoped to inline turns. A panel turn is told
+plainly that advancing the plan is not its job this time, and what is
+outstanding is given as context rather than as an instruction.
+
 ### The conversation decides; the panel remembers
 
 The panel used to carry controls, which meant two places could change the same
@@ -394,6 +410,15 @@ losing that would be a more annoying kind of forgetting. Every write to a
 session pushes a 24-hour alarm out, and the alarm deletes it, so the abandoned
 Durable Object each reload leaves behind expires instead of accumulating.
 
+**A block that does not compile is told to the model.** Express the model wrote
+wrong used to end the turn with a hole where a surface should be, and nothing
+ever said so. Now the compile error and the offending block go back as the next
+message and it rewrites them — once, because a model that cannot fix it on the
+second attempt will not fix it on the fifth and the traveler is waiting. The
+parser helps: `variant: "h3"` instead of `variant="h3"` is the mistake a model
+actually makes, and it now says so instead of reporting `expected ')' but found
+':'`.
+
 **Clicking is a turn.** An interface event becomes
 `[interface] select_flight (id: "IB6250", price: "$412")` plus the surface's
 data model. Filling in a form *is* what the user said, so it goes in as the
@@ -519,11 +544,12 @@ server holds no credentials at all — which is also why it holds no trip data.
 | MCP server | real JSON-RPC through `handleMcp`, not unit calls into helpers |
 | Agent loop | scripted model output through the real stream splitter |
 | Web app | `tools/e2e/chat.mjs` — a real browser, a real turn, 14 assertions |
+| The agent itself | `tools/eval/live.mjs` — 10 scenarios against the real model, graded mechanically off the event stream. Not in CI; it costs about $2 a run |
 | Interaction model | `tools/e2e/interaction.mjs` — editing sends nothing, committing sends everything, spent surfaces go inert, the panel stays read-only, 19 assertions |
 | MCP app | `tools/e2e/mcp.mjs` — a live server, a sandboxed iframe, 24 assertions |
 | Freshness | `npm run check` fails if catalog, examples or skills drift |
 
-193 unit tests, 44 Python tests, 60 browser assertions across three end-to-end runs.
+197 unit tests, 44 Python tests, 60 browser assertions across three end-to-end runs, and a live evaluation of the agent — 33 checks, all passing.
 
 **Simulated:** flight and hotel inventory, weather, and destination highlights
 (`apps/worker/src/travel.ts`) are a deterministic generator over a real list of

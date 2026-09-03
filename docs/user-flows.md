@@ -163,3 +163,19 @@ So: **not all of it is better skills.** The prompt carries taste — what to dra
 what to say, when to have an opinion. The parts that must not vary are code,
 because the alternative is an app whose correctness depends on a model having a
 good day.
+
+And the skills are checked like anything else. `tools/eval/live.mjs` runs these
+flows against the real model and grades what comes back mechanically — which
+tools were called with what, which components a surface holds, whether an editor
+carries an action, what the trip ended up containing. Nothing is judged by
+another model, because a grader that is itself a language model makes the suite
+exactly as trustworthy as the thing it grades.
+
+It has already earned its keep. Three findings on the first two runs: a block
+that would not compile because the model wrote `duration:` where the grammar
+wants `duration=`; a compile error nobody was ever told about, least of all the
+model that could fix it; and a panel drawing controls because "lead the trip"
+and "the panel is read-only" contradicted each other on a panel turn. None of
+those were visible from the code, and none would have been caught by a scripted
+test — the scripted tests pass a model that behaves, and the question was
+whether it does.

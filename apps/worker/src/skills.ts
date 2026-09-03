@@ -222,9 +222,18 @@ A persistent panel beside the conversation showing the trip as it stands. It is
 - Show what is *decided*: the route stop by stop, the flight and stay chosen,
   the dates, the party, the budget against what it is estimated to cost. Text,
   StatTile, PriceSummary, ProgressMeter, ItineraryDay — components that display.
-- **Every locked decision gets one Button: "Change".** Its event is
-  \`Event("change", {field: "selectedFlight"})\` — name the trip field. That is
-  the panel's only interaction.
+- **The only button you may draw here is Change**, and its only event is
+  \`change\`. Nothing else. Not a question, not a confirmation, not "add a
+  hotel" — if something still needs deciding, that belongs in the conversation
+  and you will be asked for it there on the next turn. A button here that is not
+  a Change is a button the host ignores, so it sits on screen doing nothing.
+
+  One per decision, naming the trip field:
+
+  \`\`\`
+  flight = Text("Iberia IB614 · 08:39 → 12:51 · $257")
+  changeFlight = Button(Text("Change"), "borderless", Event("change", {field: "selectedFlight"}))
+  \`\`\`
 - Rebuild the whole panel each time. It is one surface, replaced, not appended.
 - If nothing is decided yet, say what you are about to ask rather than drawing
   an empty shell.
@@ -268,7 +277,11 @@ export interface PromptOptions {
  * All of it comes from `@travel-a2ui/trip`, which is also what the tools check
  * and what the browser pre-fills, so the prompt cannot disagree with the gate.
  */
-function describeTrip(trip: Record<string, unknown>, today: string): string {
+function describeTrip(
+  trip: Record<string, unknown>,
+  today: string,
+  surface: SurfaceKind,
+): string {
   const normalized = normalizeTrip(trip);
   const summary = summarizeTrip(normalized, today);
 
@@ -316,7 +329,22 @@ function describeTrip(trip: Record<string, unknown>, today: string): string {
         : '') +
       '.',
   );
-  lines.push(`- **Do this next.** ${nextStepFor(normalized)}`);
+  // "Lead the trip" and "the panel is read-only" are in direct conflict on a
+  // panel turn, and the model resolves it the way it was always going to: it
+  // advances the plan, in the panel, with the controls the next step needs.
+  // Which the host then ignores. So the instruction is scoped — on this turn
+  // the next step is somebody else's job.
+  lines.push(
+    surface === 'inline'
+      ? `- **Do this next.** ${nextStepFor(normalized)}`
+      : `- **Not this turn.** ${
+          surface === 'sidebar'
+            ? 'You are drawing the record, not advancing the plan. Ask for nothing here. ' +
+              'The next step is asked in the conversation, on the next inline turn.'
+            : 'You are drawing a standing summary, not advancing the plan. Ask for nothing ' +
+              'here; the next step is asked in the conversation.'
+        } For context, what is outstanding is: ${nextStepFor(normalized)}`,
+  );
 
   return lines.join('\n');
 }
@@ -353,7 +381,7 @@ export function buildSystemPrompt(options: PromptOptions): Array<{
     `- The host's catalog id is \`${options.catalogId}\`.`,
     ``,
     `## The trip so far`,
-    describeTrip(options.trip, options.today),
+    describeTrip(options.trip, options.today, options.surface),
     options.originHint && !options.trip['origin']
       ? `- The browser's timezone is ${options.originHint.timeZone}, so ${options.originHint.city} ` +
         `(${options.originHint.code}) is a reasonable *suggestion* for where they are flying from. ` +

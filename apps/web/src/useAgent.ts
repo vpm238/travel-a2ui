@@ -64,6 +64,8 @@ export interface Turn {
   parts: TurnPart[];
   tools: ToolCall[];
   error?: string;
+  /** Set while the agent is rewriting a block that did not compile. */
+  retrying?: string;
   streaming: boolean;
   /** True when this user turn came from tapping the interface, not typing. */
   fromSurface?: boolean;
@@ -435,6 +437,8 @@ export function useAgent() {
             }
             break;
           case 'ui':
+            // A block that compiles clears any retry note: it worked.
+            if (!options.silent) patchTurn(assistantId, { retrying: undefined });
             store.apply(event.messages);
             // Seeded on every ui event, not just the first: a surface streams in
             // and its data model can arrive after the components that read it.
@@ -446,7 +450,12 @@ export function useAgent() {
             }
             break;
           case 'ui_error':
-            if (!options.silent) patchTurn(assistantId, { error: event.message });
+            // Not surfaced as an error yet: the agent gets one attempt to
+            // rewrite the block, and a message that flashes red and then fixes
+            // itself is worse than no message.
+            break;
+          case 'retry':
+            if (!options.silent) patchTurn(assistantId, { retrying: event.reason });
             break;
           case 'tool':
             if (!options.silent) {
@@ -548,7 +557,12 @@ export function useAgent() {
           field
             ? `[interface] change ${String(field)} — release it and ask me again inline, ` +
               'pre-filled with what was there.'
-            : describeEvent(event),
+            : // Anything else in the panel is the agent having asked a question
+              // in the record rather than in the conversation. Answering it here
+              // would put the question in the one place that cannot hold one, so
+              // it is redirected instead of dropped.
+              `[interface] I pressed "${event.name.replace(/_/g, ' ')}" in the panel. The panel is ` +
+              'read-only — ask me that in the conversation instead, with the controls it needs.',
           { surface: 'inline', surfaceState: event.dataModel, fromSurface: true },
         );
         return;
