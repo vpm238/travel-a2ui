@@ -13,7 +13,7 @@ metadata:
 ## Positional Component Signatures
 
 Use these exact positional signatures to instantiate components. Do not output property keys:
-• ActivityItem(title, time?, category? (static), location?, duration?, note?, action? (static), done?)
+• ActivityItem(title, time?, category? (static only), location?, duration?, note?, action? (static only), done?)
   - Description: A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.
   - title: What it is, e.g. 'Prado Museum'.
   - time: Start time as a display string, e.g. '10:00'.
@@ -26,15 +26,15 @@ Use these exact positional signatures to instantiate components. Do not output p
 • AudioPlayer(url, description?)
   - url: The URL of the audio to be played.
   - description: A description of the audio, such as a title or summary.
-• Button(child (component ID), variant? (static), action (static), checks? (static))
+• Button(child (component ID), variant? (static only), action (static only), checks? (static only))
   - child: The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button.
   - variant: A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link. Must be one of: 'default', 'primary', 'borderless'
 • Card(child (component ID))
   - child: The ID of the single child component to be rendered inside the card. To display multiple elements, you MUST wrap them in a layout component (like Column or Row) and pass that container's ID here. Do NOT pass multiple IDs or a non-existent ID.
-• CheckBox(label, value, checks? (static))
+• CheckBox(label, value, checks? (static only))
   - label: The text to display next to the checkbox.
   - value: The current state of the checkbox (true for checked, false for unchecked).
-• ChoicePicker(label?, variant? (static), options (static), value, displayStyle? (static), filterable? (static), checks? (static))
+• ChoicePicker(label?, variant? (static only), options (static only), value, displayStyle? (static only), filterable? (static only), checks? (static only))
   - Description: A component that allows selecting one or more options from a list.
   - label: The label for the group of options.
   - variant: A hint for how the choice picker should be displayed and behave. Must be one of: 'multipleSelection', 'mutuallyExclusive'
@@ -45,28 +45,28 @@ Use these exact positional signatures to instantiate components. Do not output p
   - value: The list of currently selected values. This should be bound to a string array in the data model.
   - displayStyle: The display style of the component. Must be one of: 'checkbox', 'chips'
   - filterable: If true, displays a search input to filter the options.
-• Column(children, justify? (static), align? (static))
+• Column(children, justify? (static only), align? (static only))
   - Description: A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
   - justify: Defines the arrangement of children along the main axis (vertically). Use 'spaceBetween' to push items to the edges (e.g. header at top, footer at bottom), or 'start'/'end'/'center' to pack them together. Must be one of: 'start', 'center', 'end', 'spaceBetween', 'spaceAround', 'spaceEvenly', 'stretch'
   - align: Defines the alignment of children along the cross axis (horizontally). This is similar to the CSS 'align-items' property. Must be one of: 'center', 'end', 'start', 'stretch'
-• DateRangePicker(label, start, end, action? (static), nightsLabel?, checks? (static))
+• DateRangePicker(label, start, end, action? (static only), nightsLabel?, checks? (static only))
   - Description: Picks the trip's start and end dates. Both bound values are RFC 3339 timestamps with an offset, e.g. '2026-04-12T00:00:00Z'.
   - label: What the range is for, e.g. 'When are you going?'.
   - start: Bound path for the start date (RFC 3339).
   - end: Bound path for the end date (RFC 3339).
   - action: Fired when the traveler commits a new range.
   - nightsLabel: Derived caption, e.g. '6 nights'.
-• DateTimeInput(value, enableDate? (static), enableTime? (static), min?, max?, label?, checks? (static))
+• DateTimeInput(value, enableDate? (static only), enableTime? (static only), min?, max?, label?, checks? (static only))
   - value: The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string.
   - enableDate: If true, allows the user to select a date.
   - enableTime: If true, allows the user to select a time.
   - min: The minimum allowed date/time in ISO 8601 format.
   - max: The maximum allowed date/time in ISO 8601 format.
   - label: The text label for the input field.
-• Divider(axis? (static))
+• Divider(axis? (static only))
   - axis: The orientation of the divider. Must be one of: 'horizontal', 'vertical'
-• ExpenseSplit(title, total, participants (static), action? (static), actionLabel?)
+• ExpenseSplit(title, total, participants (static only), action? (static only), actionLabel?)
   - Description: Splits a shared trip cost between travelers and shows who owes what.
   - title: What was paid for, e.g. 'Dinner at Sobrino'.
   - total: Preformatted total, e.g. '€96'.
@@ -77,7 +77,7 @@ Use these exact positional signatures to instantiate components. Do not output p
     * status - One of 'paid', 'owes', 'settled'.
   - action: Fired when the traveler settles or edits the split.
   - actionLabel: Label for that action, e.g. 'Settle up'.
-• FlightOption(airline, departTime, arriveTime, origin, destination, price, action (static), duration?, stops?, flightNumber?, cabin? (static), selected?, badge?)
+• FlightOption(airline, departTime, arriveTime, origin, destination, price, action (static only), duration?, stops?, flightNumber?, cabin? (static only), selected?, badge?)
   - Description: A single selectable flight itinerary leg. Use one per option when presenting a choice of flights; do not build flight rows by hand out of Row and Text.
   - airline: Operating carrier, e.g. 'Iberia' or 'Delta'.
   - departTime: Local departure time as a display string, e.g. '07:15'.
@@ -92,7 +92,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - cabin: Cabin the price refers to. Must be one of: 'economy', 'premium', 'business', 'first'
   - selected: Whether this option is currently chosen. Bind it to the data model so the selection survives a re-render.
   - badge: Short editorial tag, e.g. 'Cheapest' or 'Fastest'.
-• HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities? (static), selected?, badge?)
+• HotelCard(name, price, action (static only), imageUrl?, neighborhood?, rating?, amenities? (static only), selected?, badge?)
   - Description: A place to stay, presented as a rich card with imagery, rating and nightly price.
   - name: Property name.
   - price: Preformatted nightly or total price, e.g. '$186 / night'.
@@ -105,23 +105,23 @@ Use these exact positional signatures to instantiate components. Do not output p
   - badge: Short editorial tag, e.g. 'Walkable' or 'Best value'.
 • Icon(name)
   - name: The name of the icon to display. Must be one of: 'accountCircle', 'add', 'arrowBack', 'arrowForward', 'attachFile', 'calendarToday', 'call', 'camera', 'check', 'close', 'delete', 'download', 'edit', 'event', 'error', 'fastForward', 'favorite', 'favoriteOff', 'folder', 'help', 'home', 'info', 'locationOn', 'lock', 'lockOpen', 'mail', 'menu', 'moreVert', 'moreHoriz', 'notificationsOff', 'notifications', 'pause', 'payment', 'person', 'phone', 'photo', 'play', 'print', 'refresh', 'rewind', 'search', 'send', 'settings', 'share', 'shoppingCart', 'skipNext', 'skipPrevious', 'star', 'starHalf', 'starOff', 'stop', 'upload', 'visibility', 'visibilityOff', 'volumeDown', 'volumeMute', 'volumeOff', 'volumeUp', 'warning'
-• Image(url, description?, fit? (static), variant? (static))
+• Image(url, description?, fit? (static only), variant? (static only))
   - url: The URL of the image to display.
   - description: Accessibility text for the image.
   - fit: Specifies how the image should be resized to fit its container. This corresponds to the CSS 'object-fit' property. Must be one of: 'contain', 'cover', 'fill', 'none', 'scaleDown'
   - variant: A hint for the image size and style. Must be one of: 'icon', 'avatar', 'smallFeature', 'mediumFeature', 'largeFeature', 'header'
-• ItineraryDay(title, children, date?, summary?, action? (static))
+• ItineraryDay(title, children, date?, summary?, action? (static only))
   - Description: One day of a trip. Its children are the day's ActivityItem components, in chronological order.
   - title: Day heading, e.g. 'Day 3 — Toledo'.
   - children: The day's activities, earliest first.
   - date: Date as a display string, e.g. 'Tue 14 Apr'.
   - summary: One-line character of the day, e.g. 'Old town, slow pace'.
   - action: Fired when the traveler opens or edits the whole day.
-• List(children, direction? (static), align? (static))
+• List(children, direction? (static only), align? (static only))
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list.
   - direction: The direction in which the list items are laid out. Must be one of: 'vertical', 'horizontal'
   - align: Defines the alignment of children along the cross axis. Must be one of: 'start', 'center', 'end', 'stretch'
-• MapPreview(markers (static), caption?, action? (static))
+• MapPreview(markers (static only), caption?, action? (static only))
   - Description: A lightweight schematic map of the places in play. Not a live map — it orients the traveler and is safe to render offline.
   - markers: Places to pin. Static values only — the host lays them out relative to each other.
     List of maps keys:
@@ -133,7 +133,7 @@ Use these exact positional signatures to instantiate components. Do not output p
 • Modal(trigger (component ID), content (component ID))
   - trigger: The ID of the component that opens the modal when interacted with (e.g., a button).
   - content: The ID of the component to be displayed inside the modal.
-• PriceSummary(lines (static), total, totalLabel?, action? (static), actionLabel?, caption?)
+• PriceSummary(lines (static only), total, totalLabel?, action? (static only), actionLabel?, caption?)
   - Description: The money view: an itemized breakdown and a total. Use this instead of a hand-built table whenever you show what a trip costs.
   - lines: Itemized cost lines in display order. Static values only.
     List of maps keys:
@@ -145,44 +145,44 @@ Use these exact positional signatures to instantiate components. Do not output p
   - action: Primary money action, e.g. hold or book.
   - actionLabel: Label for that action, e.g. 'Hold for 24h'.
   - caption: Fine print, e.g. 'Estimated, taxes included'.
-• ProgressMeter(label, value, max, caption?, tone? (static))
+• ProgressMeter(label, value, max, caption?, tone? (static only))
   - Description: How far along something is — budget spent, packing done, bookings confirmed. `value` and `max` are numbers, not display strings.
   - label: What is progressing.
   - value: Current amount.
   - max: Amount that counts as complete.
   - caption: Reading in words, e.g. '$1,320 of $2,000'.
   - tone: Colour role for the bar. Must be one of: 'neutral', 'positive', 'caution', 'critical', 'accent'
-• Row(children, justify? (static), align? (static))
+• Row(children, justify? (static only), align? (static only))
   - Description: A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
   - justify: Defines the arrangement of children along the main axis (horizontally). Use 'spaceBetween' to push items to the edges, or 'start'/'end'/'center' to pack them together. Must be one of: 'center', 'end', 'spaceAround', 'spaceBetween', 'spaceEvenly', 'start', 'stretch'
   - align: Defines the alignment of children along the cross axis (vertically). This is similar to the CSS 'align-items' property, but uses camelCase values (e.g., 'start'). Must be one of: 'start', 'center', 'end', 'stretch'
-• Slider(label?, min? (static), max (static), value, checks? (static))
+• Slider(label?, min? (static only), max (static only), value, checks? (static only))
   - label: The label for the slider.
   - min: The minimum value of the slider.
   - max: The maximum value of the slider.
   - value: The current value of the slider.
-• StatTile(label, value, caption?, tone? (static), action? (static))
+• StatTile(label, value, caption?, tone? (static only), action? (static only))
   - Description: One number that matters, sized for a dashboard grid. Home-surface staple: days until departure, budget left, bookings confirmed.
   - label: What the number measures.
   - value: The number as a display string, e.g. '17'.
   - caption: Context under the number, e.g. 'until Madrid'.
   - tone: Colour role for the tile. Must be one of: 'neutral', 'positive', 'caution', 'critical', 'accent'
   - action: Fired when the traveler taps the tile.
-• Tabs(tabs (static))
+• Tabs(tabs (static only))
   - tabs: An array of objects, where each object defines a tab with a title and a child component.
     List of maps keys:
     * title - The tab title.
     * child - The ID of the child component.
-• Text(text, variant? (static))
+• Text(text, variant? (static only))
   - text: The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation.
   - variant: A hint for the base text style. Must be one of: 'h1', 'h2', 'h3', 'h4', 'h5', 'caption', 'body'
-• TextField(label, value?, variant? (static), validationRegexp? (static), checks? (static))
+• TextField(label, value?, variant? (static only), validationRegexp? (static only), checks? (static only))
   - label: The text label for the input field.
   - value: The value of the text field.
   - variant: The type of input field to display. Must be one of: 'longText', 'number', 'shortText', 'obscured'
   - validationRegexp: A regular expression used for client-side validation of the input.
-• TravelerCounter(label, value, min? (static), max? (static), caption?, checks? (static))
+• TravelerCounter(label, value, min? (static only), max? (static only), caption?, checks? (static only))
   - Description: A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.
   - label: What is being counted, e.g. 'Adults'.
   - value: Bound path holding the current count.
@@ -191,7 +191,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - caption: Qualifier, e.g. 'Age 12+'.
 • Video(url)
   - url: The URL of the video to display.
-• WeatherStrip(days (static), place?, caption?)
+• WeatherStrip(days (static only), place?, caption?)
   - Description: A short forecast row for the destination. Purely informational.
   - days: Forecast entries in date order, at most seven. Static values only.
     List of maps keys:

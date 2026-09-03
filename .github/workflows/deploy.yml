@@ -51,6 +51,7 @@ jobs:
         run: npm run build
 
       - name: Deploy the Worker
+        id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -58,8 +59,42 @@ jobs:
           workingDirectory: apps/worker
           command: deploy
 
+      # The real URL, in the job summary, so nobody has to dig through wrangler's
+      # output or guess their subdomain to find what they just shipped.
       - name: Where it went
+        env:
+          URL: ${{ steps.deploy.outputs.deployment-url }}
         run: |
-          echo "Deployed. The app, the API and the MCP endpoint share one origin:"
-          echo "  https://travel-a2ui.<your-subdomain>.workers.dev"
-          echo "  https://travel-a2ui.<your-subdomain>.workers.dev/mcp"
+          BASE="${URL:-https://travel-a2ui.<your-subdomain>.workers.dev}"
+          {
+            echo "### Deployed"
+            echo
+            echo "The app, the API and the MCP endpoint share one origin:"
+            echo
+            echo "- app: $BASE"
+            echo "- MCP: \`$BASE/mcp\`"
+            echo
+            echo 'Install it in Claude Code:'
+            echo
+            echo '```'
+            echo "claude mcp add --transport http travel-a2ui $BASE/mcp"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Prove the thing that was just deployed actually answers, rather than
+      # trusting that a successful upload means a working server.
+      - name: Smoke-test the deployment
+        env:
+          URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          BASE="${URL:-}"
+          if [ -z "$BASE" ]; then
+            echo "No deployment URL to check; skipping." && exit 0
+          fi
+          for path in /api/meta /.well-known/mcp.json /mcp-view/app.js; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$BASE$path")
+            echo "$path -> $code"
+            [ "$code" = "200" ] || { echo "::error::$BASE$path returned $code"; exit 1; }
+          done
+          npx playwright install --with-deps chromium
+          BASE_URL="$BASE" CHROMIUM_PATH='' node tools/e2e/mcp.mjs

@@ -60,7 +60,7 @@ Rules that are not optional:
    component is rendered once per item, with relative paths resolving inside it.
 6. **Validation** is a `checks` array on the field it guards:
    `{"condition": {"call": "required", "args": {"value": {"path": "/x"}}}, "message": "…"}`.
-7. Properties marked `(static)` below take literal values only — never a
+7. Properties marked `(static only)` below take literal values only — never a
    `{"path": …}` binding.
 
 ## Emitting
@@ -71,52 +71,52 @@ between messages.
 
 ## Components
 
-Each entry lists the component's properties. `!` marks a required property, `(static)` one that cannot take a data binding, and `(component ID)` one that refers to another component by id.
+Each entry lists the component's properties. `!` marks a required property, `(static only)` one that cannot take a data binding, and `(component ID)` one that refers to another component by id.
 
-• ActivityItem: title!, time, category (static) = food|sight|transit|stay|outdoors|shopping|event|free, location, duration, note, action (static), done
+• ActivityItem: title!, time, category (static only) = food|sight|transit|stay|outdoors|shopping|event|free, location, duration, note, action (static only), done
   - A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.
 • AudioPlayer: url!, description
-• Button: child! (component ID), variant (static) = default|primary|borderless, action! (static), checks (static)
+• Button: child! (component ID), variant (static only) = default|primary|borderless, action! (static only), checks (static only)
 • Card: child! (component ID)
-• CheckBox: label!, value!, checks (static)
-• ChoicePicker: label, variant (static) = multipleSelection|mutuallyExclusive, options! (static), value!, displayStyle (static) = checkbox|chips, filterable (static), checks (static)
+• CheckBox: label!, value!, checks (static only)
+• ChoicePicker: label, variant (static only) = multipleSelection|mutuallyExclusive, options! (static only), value!, displayStyle (static only) = checkbox|chips, filterable (static only), checks (static only)
   - A component that allows selecting one or more options from a list.
-• Column: children!, justify (static) = start|center|end|spaceBetween|spaceAround|spaceEvenly|stretch, align (static) = center|end|start|stretch
+• Column: children!, justify (static only) = start|center|end|spaceBetween|spaceAround|spaceEvenly|stretch, align (static only) = center|end|start|stretch
   - A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.
-• DateRangePicker: label!, start!, end!, action (static), nightsLabel, checks (static)
+• DateRangePicker: label!, start!, end!, action (static only), nightsLabel, checks (static only)
   - Picks the trip's start and end dates. Both bound values are RFC 3339 timestamps with an offset, e.g. '2026-04-12T00:00:00Z'.
-• DateTimeInput: value!, enableDate (static), enableTime (static), min, max, label, checks (static)
-• Divider: axis (static) = horizontal|vertical
-• ExpenseSplit: title!, total!, participants! (static), action (static), actionLabel
+• DateTimeInput: value!, enableDate (static only), enableTime (static only), min, max, label, checks (static only)
+• Divider: axis (static only) = horizontal|vertical
+• ExpenseSplit: title!, total!, participants! (static only), action (static only), actionLabel
   - Splits a shared trip cost between travelers and shows who owes what.
-• FlightOption: airline!, departTime!, arriveTime!, origin!, destination!, price!, action! (static), duration, stops, flightNumber, cabin (static) = economy|premium|business|first, selected, badge
+• FlightOption: airline!, departTime!, arriveTime!, origin!, destination!, price!, action! (static only), duration, stops, flightNumber, cabin (static only) = economy|premium|business|first, selected, badge
   - A single selectable flight itinerary leg. Use one per option when presenting a choice of flights; do not build flight rows by hand out of Row and Text.
-• HotelCard: name!, price!, action! (static), imageUrl, neighborhood, rating, amenities (static), selected, badge
+• HotelCard: name!, price!, action! (static only), imageUrl, neighborhood, rating, amenities (static only), selected, badge
   - A place to stay, presented as a rich card with imagery, rating and nightly price.
 • Icon: name! = accountCircle|add|arrowBack|arrowForward|attachFile|calendarToday|call|camera|check|close|delete|download|edit|event|error|fastForward|favorite|favoriteOff|folder|help|home|info|locationOn|lock|lockOpen|mail|menu|moreVert|moreHoriz|notificationsOff|notifications|pause|payment|person|phone|photo|play|print|refresh|rewind|search|send|settings|share|shoppingCart|skipNext|skipPrevious|star|starHalf|starOff|stop|upload|visibility|visibilityOff|volumeDown|volumeMute|volumeOff|volumeUp|warning
-• Image: url!, description, fit (static) = contain|cover|fill|none|scaleDown, variant (static) = icon|avatar|smallFeature|mediumFeature|largeFeature|header
-• ItineraryDay: title!, children!, date, summary, action (static)
+• Image: url!, description, fit (static only) = contain|cover|fill|none|scaleDown, variant (static only) = icon|avatar|smallFeature|mediumFeature|largeFeature|header
+• ItineraryDay: title!, children!, date, summary, action (static only)
   - One day of a trip. Its children are the day's ActivityItem components, in chronological order.
-• List: children!, direction (static) = vertical|horizontal, align (static) = start|center|end|stretch
-• MapPreview: markers! (static), caption, action (static)
+• List: children!, direction (static only) = vertical|horizontal, align (static only) = start|center|end|stretch
+• MapPreview: markers! (static only), caption, action (static only)
   - A lightweight schematic map of the places in play. Not a live map — it orients the traveler and is safe to render offline.
 • Modal: trigger! (component ID), content! (component ID)
-• PriceSummary: lines! (static), total!, totalLabel, action (static), actionLabel, caption
+• PriceSummary: lines! (static only), total!, totalLabel, action (static only), actionLabel, caption
   - The money view: an itemized breakdown and a total. Use this instead of a hand-built table whenever you show what a trip costs.
-• ProgressMeter: label!, value!, max!, caption, tone (static) = neutral|positive|caution|critical|accent
+• ProgressMeter: label!, value!, max!, caption, tone (static only) = neutral|positive|caution|critical|accent
   - How far along something is — budget spent, packing done, bookings confirmed. `value` and `max` are numbers, not display strings.
-• Row: children!, justify (static) = center|end|spaceAround|spaceBetween|spaceEvenly|start|stretch, align (static) = start|center|end|stretch
+• Row: children!, justify (static only) = center|end|spaceAround|spaceBetween|spaceEvenly|start|stretch, align (static only) = start|center|end|stretch
   - A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.
-• Slider: label, min (static), max! (static), value!, checks (static)
-• StatTile: label!, value!, caption, tone (static) = neutral|positive|caution|critical|accent, action (static)
+• Slider: label, min (static only), max! (static only), value!, checks (static only)
+• StatTile: label!, value!, caption, tone (static only) = neutral|positive|caution|critical|accent, action (static only)
   - One number that matters, sized for a dashboard grid. Home-surface staple: days until departure, budget left, bookings confirmed.
-• Tabs: tabs! (static)
-• Text: text!, variant (static) = h1|h2|h3|h4|h5|caption|body
-• TextField: label!, value, variant (static) = longText|number|shortText|obscured, validationRegexp (static), checks (static)
-• TravelerCounter: label!, value!, min (static), max (static), caption, checks (static)
+• Tabs: tabs! (static only)
+• Text: text!, variant (static only) = h1|h2|h3|h4|h5|caption|body
+• TextField: label!, value, variant (static only) = longText|number|shortText|obscured, validationRegexp (static only), checks (static only)
+• TravelerCounter: label!, value!, min (static only), max (static only), caption, checks (static only)
   - A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.
 • Video: url!
-• WeatherStrip: days! (static), place, caption
+• WeatherStrip: days! (static only), place, caption
   - A short forecast row for the destination. Purely informational.
 
 ## Functions

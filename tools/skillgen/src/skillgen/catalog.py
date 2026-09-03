@@ -47,7 +47,7 @@ def find_enum(schema: Any) -> Optional[list[str]]:
 def allows_databinding(schema: Any) -> bool:
     """True when a property accepts a ``$path`` binding instead of a literal.
 
-    Properties that do not are marked ``(static)`` in generated signatures — the
+    Properties that do not are marked ``(static only)`` in generated signatures — the
     single most common compile failure a model hits, so it is worth the tokens.
     """
     if not isinstance(schema, dict):

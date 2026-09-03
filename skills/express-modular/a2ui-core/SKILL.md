@@ -82,7 +82,7 @@ could draw.
     same id again to replace that surface, and `deleteSurface("id")` to remove
     it.
 
-12. **`(static)` arguments take literals only.** They are marked in the
+12. **`(static only)` arguments take literals only.** They are marked in the
     signatures. Passing a `$` binding to one is a compile error.
 
 13. **Required `action` arguments are required.** If nothing sensible should

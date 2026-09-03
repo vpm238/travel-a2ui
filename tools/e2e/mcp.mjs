@@ -119,7 +119,16 @@ async function main() {
   );
 
   console.log('\nrendered in a host frame');
-  const browser = await chromium.launch({ executablePath });
+
+  // Testing a deployment from behind a corporate or sandbox proxy: curl picks
+  // HTTPS_PROXY up from the environment, Chromium does not.
+  const proxy = process.env.E2E_PROXY || process.env.HTTPS_PROXY || process.env.https_proxy;
+  const browser = await chromium.launch({
+    executablePath,
+    ...(proxy && !BASE.startsWith('http://127.') && !BASE.startsWith('http://localhost')
+      ? { proxy: { server: proxy } }
+      : {}),
+  });
 
   /**
    * The nearest thing to an MCP host we can build: a page that drops the tool
@@ -154,7 +163,10 @@ async function main() {
     return { frame, errors, posted: () => page.evaluate(() => window.__posted) };
   }
 
-  const page = await browser.newPage({ viewport: { width: 520, height: 800 } });
+  // A proxy that terminates TLS presents its own certificate; the surface under
+  // test is unaffected by whether this browser trusts that CA.
+  const context = { ignoreHTTPSErrors: Boolean(proxy) };
+  const page = await browser.newPage({ viewport: { width: 520, height: 800 }, ...context });
   const host = await renderInHost(page, html);
 
   await host.frame.locator('.tv-flight').first().waitFor({ timeout: 15_000 }).catch(() => {});
@@ -226,7 +238,7 @@ async function main() {
     (part) => part.resource?.mimeType === 'text/html',
   ).resource.text;
 
-  const composedPage = await browser.newPage({ viewport: { width: 520, height: 900 } });
+  const composedPage = await browser.newPage({ viewport: { width: 520, height: 900 }, ...context });
   const composedHost = await renderInHost(composedPage, composedHtml);
   await composedHost.frame.locator('.tv-price').first().waitFor({ timeout: 15_000 }).catch(() => {});
 
