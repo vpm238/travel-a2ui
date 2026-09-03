@@ -1,0 +1,3 @@
+surface("sidebar-filters", catalogId="https://travel-a2ui.dev/catalogs/other/catalog.json")
+h = Text("Filters", variant="h3")
+root = Column([h])

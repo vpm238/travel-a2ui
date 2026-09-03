@@ -1,0 +1,47 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "name",
+          "component": "TextField",
+          "label": "Traveler",
+          "value": {
+            "path": "/trip/name"
+          }
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "name"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateDataModel": {
+      "surfaceId": "parity-surface",
+      "path": "/",
+      "value": {
+        "trip": {
+          "adults": 2,
+          "destination": "Madrid",
+          "flexible": true,
+          "budget": 2400.5
+        }
+      }
+    }
+  }
+]

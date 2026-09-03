@@ -1,0 +1,47 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "s",
+          "component": "Slider",
+          "label": "Budget",
+          "min": 0,
+          "max": 100,
+          "value": {
+            "path": "/n/decimal"
+          }
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "s"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateDataModel": {
+      "surfaceId": "parity-surface",
+      "path": "/",
+      "value": {
+        "n": {
+          "negative": -12,
+          "decimal": 3.5
+        }
+      }
+    }
+  }
+]

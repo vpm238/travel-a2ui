@@ -1,0 +1,10 @@
+# Inline: answering "find me a flight to Madrid" inside the chat feed.
+# One surface, one job — three options and a way to pick one.
+surface("inline-flights")
+$/trip/selectedOutbound = ""
+heading = Text("Outbound · JFK → MAD · Sun 12 Apr", variant="h3")
+f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("select_flight", {id: "IB6250", price: "$412"}), duration="7h 35m", stops="Nonstop", flightNumber="IB6250", selected=$/trip/selectedOutbound, badge="Cheapest")
+f2 = FlightOption("Delta", "21:10", "10:50 +1", "JFK", "MAD", "$468", Event("select_flight", {id: "DL126", price: "$468"}), duration="7h 40m", stops="Nonstop", flightNumber="DL126")
+f3 = FlightOption("TAP", "17:25", "11:05 +1", "JFK", "MAD", "$367", Event("select_flight", {id: "TP208", price: "$367"}), duration="11h 40m", stops="1 stop · LIS", flightNumber="TP208", badge="Lowest fare")
+note = Text("Prices are per traveler, round trip.")
+root = Column([heading, f1, f2, f3, note])

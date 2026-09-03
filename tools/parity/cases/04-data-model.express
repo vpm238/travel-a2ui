@@ -1,0 +1,6 @@
+$/trip/adults = 2
+$/trip/destination = "Madrid"
+$/trip/flexible = true
+$/trip/budget = 2400.5
+name = TextField("Traveler", $/trip/name)
+root = Column([name])

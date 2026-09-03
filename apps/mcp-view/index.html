@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>A2UI surface</title>
+  </head>
+  <body>
+    <!--
+      The surface, inlined by the server before the resource is handed to the
+      host. No fetch: an MCP host may sandbox this frame with no network at all,
+      and a renderer that needs a round trip to show anything is a renderer that
+      shows nothing.
+    -->
+    <script id="a2ui-payload" type="application/json">{"messages":[],"surfaceId":"","summary":""}</script>
+    <div id="root">
+      <!-- Replaced on mount. Visible if the script never runs. -->
+      <noscript>This interface needs JavaScript. The tool's text summary has the same information.</noscript>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

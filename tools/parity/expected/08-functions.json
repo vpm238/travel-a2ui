@@ -1,0 +1,56 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "price",
+          "component": "Text",
+          "text": {
+            "call": "formatCurrency",
+            "args": {
+              "value": {
+                "path": "/trip/total"
+              },
+              "currency": "EUR"
+            }
+          }
+        },
+        {
+          "id": "link",
+          "component": "Button",
+          "child": "_inline_1",
+          "action": {
+            "functionCall": {
+              "call": "openUrl",
+              "args": {
+                "url": "https://example.com/trip"
+              }
+            }
+          }
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "price",
+            "link"
+          ]
+        },
+        {
+          "id": "_inline_1",
+          "component": "Text",
+          "text": "Open"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,52 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "root",
+          "component": "Card",
+          "child": "_inline_1"
+        },
+        {
+          "id": "_inline_2",
+          "component": "Text",
+          "text": "Nested",
+          "variant": "h3"
+        },
+        {
+          "id": "_inline_4",
+          "component": "Text",
+          "text": "Go"
+        },
+        {
+          "id": "_inline_3",
+          "component": "Button",
+          "child": "_inline_4",
+          "action": {
+            "event": {
+              "name": "go",
+              "context": {}
+            }
+          }
+        },
+        {
+          "id": "_inline_1",
+          "component": "Column",
+          "children": [
+            "_inline_2",
+            "_inline_3"
+          ]
+        }
+      ]
+    }
+  }
+]

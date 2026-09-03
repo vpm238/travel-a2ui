@@ -1,0 +1,130 @@
+name: travel-a2ui CI
+
+on:
+  push:
+    branches: ['**']
+    paths: ['**']
+  pull_request:
+    paths: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: travel-a2ui-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # Three artifacts in this repo are generated, and a stale one is a silent
+      # lie: a catalog the skills no longer describe, an example that no longer
+      # compiles, a skill missing a component the renderer supports. Each check
+      # regenerates and diffs rather than trusting the commit.
+      - name: Catalog is current
+        run: python3 scripts/build_catalog.py --check
+
+      - name: Examples compile and their JSON is current
+        run: |
+          npm run build -w @express
+          node scripts/build_examples.mjs --check
+
+      - name: Skills are current
+        run: |
+          PYTHONPATH=tools/skillgen/src python3 -m skillgen build --all --check \
+            --catalog catalogs/a2ui-travel/catalog.json \
+            --examples catalogs/a2ui-travel/examples \
+            --out skills
+
+      - name: Python tests
+        run: |
+          python3 -m pip install --quiet pytest
+          python3 -m pytest tools/skillgen/tests backends/claude-managed-agent/tests -q
+
+      - name: Build
+        run: npm run build
+
+      # The two browser paths, against one dev server and a scripted model, so
+      # they need no API key and cost nothing:
+      #
+      #   chat.mjs  a whole turn — typing, streaming, a surface appearing,
+      #             clicking it, the click becoming the next turn.
+      #   mcp.mjs   a real JSON-RPC tool call, rendered inside a sandboxed
+      #             iframe the way an MCP host renders it, plus a layout
+      #             composed on the fly from the component reference.
+      - name: End-to-end
+        run: |
+          npx playwright install --with-deps chromium
+          (cd apps/worker && npx wrangler dev --port 8787 --ip 127.0.0.1 &)
+          for _ in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8787/api/meta >/dev/null && break
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:8787/api/meta >/dev/null || {
+            echo "The dev server never came up." >&2; exit 1;
+          }
+          node tools/e2e/chat.mjs
+          node tools/e2e/mcp.mjs
+        env:
+          # Let Playwright use the browser it just installed.
+          CHROMIUM_PATH: ''
+          CLOUDFLARE_API_TOKEN: ''
+
+  reference-parity:
+    name: Parity with google/a2ui
+    runs-on: ubuntu-latest
+    # The reference SDK pulls in the whole ADK dependency tree, so it runs in
+    # its own job rather than slowing every build. It is the check that keeps
+    # the TypeScript compiler and the Python signature generator honest — a
+    # port nobody diffs is a fork.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - run: npm ci
+
+      - name: Install the reference A2UI SDK
+        run: python3 -m pip install --quiet pytest a2ui-agent-sdk
+
+      - name: Signature generation matches the reference
+        run: python3 -m pytest tools/skillgen/tests/test_sdk_parity.py -q
+
+      # Regenerate the goldens from the reference compiler and diff. This is the
+      # check that notices when *upstream* changes, which no offline test can.
+      - name: Goldens still match the reference compiler
+        run: |
+          python3 scripts/gen_parity.py
+          git diff --exit-code tools/parity/expected

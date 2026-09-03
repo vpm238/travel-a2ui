@@ -1,0 +1,21 @@
+{
+  "name": "@travel-a2ui/worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker: the travel agent backend, the MCP app, and the static site.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.123.0",
+    "@travel-a2ui/express": "0.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260903.1",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.128.0"
+  }
+}

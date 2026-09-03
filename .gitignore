@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+*.tsbuildinfo
+__pycache__/
+.venv/
+.pytest_cache/
+*.egg-info/
+.DS_Store
+
+# Provisioned managed-agent ids — per checkout, not per repo.
+backends/*/.agent.json
+
+# Staged by the mcp-view build so the web app ships the renderer.
+apps/web/public/mcp-view/

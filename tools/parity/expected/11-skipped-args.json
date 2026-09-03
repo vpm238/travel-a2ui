@@ -1,0 +1,38 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "img",
+          "component": "Image",
+          "url": "https://example.com/a.png",
+          "fit": "cover",
+          "variant": "largeFeature"
+        },
+        {
+          "id": "bare",
+          "component": "Image",
+          "url": "https://example.com/b.png",
+          "description": "A photo"
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "img",
+            "bare"
+          ]
+        }
+      ]
+    }
+  }
+]

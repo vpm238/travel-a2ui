@@ -1,0 +1,4 @@
+label = Text("Sign in")
+go = Button(label, "primary", Event("submit"))
+alt = Button(Text("Cancel"), action=Event("cancel"), variant="borderless")
+root = Column([go, alt], align="stretch")

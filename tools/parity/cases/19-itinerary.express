@@ -1,0 +1,4 @@
+d1a = ActivityItem("Land at MAD", "19:40", category="transit", location="Barajas T4", duration="1h")
+d1b = ActivityItem("Check in", "21:00", category="stay", location="Malasana")
+day1 = ItineraryDay("Day 1 - Arrival", [d1a, d1b], date="Sun 12 Apr", summary="Settle in, eat late")
+root = Column([day1])

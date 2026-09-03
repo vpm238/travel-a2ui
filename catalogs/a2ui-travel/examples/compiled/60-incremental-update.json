@@ -1,0 +1,15 @@
+[
+  {
+    "version": "v0.9.1",
+    "updateDataModel": {
+      "surfaceId": "home",
+      "path": "/",
+      "value": {
+        "home": {
+          "budgetUsed": 1480,
+          "budgetCaption": "$1,480 of $2,000"
+        }
+      }
+    }
+  }
+]

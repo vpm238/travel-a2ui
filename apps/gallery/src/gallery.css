@@ -1,0 +1,298 @@
+/*
+ * The frame around the gallery.
+ *
+ * Same tokens as everything else (`--tv-*` from the renderer's stylesheet), and
+ * the same discipline: the surfaces are the subject, so the chrome stays quiet
+ * and never competes with a flight card for attention.
+ */
+
+body {
+  margin: 0;
+  background: var(--tv-paper);
+  color: var(--tv-ink);
+  font-family: var(--tv-font);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.gallery {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 24px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.gallery__head h1 {
+  margin: 0 0 8px;
+  font-family: var(--tv-font-display);
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.gallery__head p {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--tv-ink-muted);
+  text-wrap: pretty;
+}
+
+.gallery__tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gallery__tabs button {
+  appearance: none;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 560;
+  color: var(--tv-ink);
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  padding: 8px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.gallery__tabs button:hover {
+  border-color: var(--tv-accent-line);
+  transform: translateY(-1px);
+}
+
+.gallery__tabs button.is-active {
+  border-color: var(--tv-accent);
+  background: var(--tv-accent-soft);
+}
+
+.gallery__flow {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: var(--tv-surface-2);
+  color: var(--tv-ink-muted);
+}
+
+.gallery__flow--inline {
+  background: var(--tv-accent-soft);
+  color: var(--tv-accent);
+}
+
+.gallery__flow--sidebar {
+  background: var(--tv-warm-soft);
+  color: var(--tv-warm);
+}
+
+.gallery__flow--home {
+  background: var(--tv-positive-soft);
+  color: var(--tv-positive);
+}
+
+.gallery__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 22px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .gallery__body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gallery__stage {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.gallery__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.gallery__meta p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--tv-ink-muted);
+  max-width: 60ch;
+  text-wrap: pretty;
+}
+
+.gallery__toggle {
+  appearance: none;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 560;
+  color: var(--tv-accent);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.gallery__toggle:hover {
+  text-decoration: underline;
+}
+
+.gallery__source {
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  overflow: hidden;
+  background: var(--tv-surface);
+}
+
+.gallery__sourceHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--tv-line);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tv-ink-faint);
+  font-weight: 600;
+}
+
+.gallery__sourceHead span:last-child {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--tv-accent);
+  font-weight: 500;
+}
+
+.gallery__source pre {
+  margin: 0;
+  padding: 14px;
+  overflow-x: auto;
+  font-family: var(--tv-font-mono);
+  font-size: 0.74rem;
+  line-height: 1.6;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/*
+ * The surface sits on the page background, not in a card: a card inside a card
+ * reads as a screenshot pasted in. The sidebar flow is the exception — it is a
+ * narrow column by definition, so it gets one.
+ */
+.gallery__surface {
+  min-width: 0;
+}
+
+.gallery__surface--sidebar {
+  max-width: 340px;
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  padding: 18px;
+}
+
+.gallery__log {
+  position: sticky;
+  top: 24px;
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  padding: 16px 18px;
+  min-width: 0;
+}
+
+.gallery__log h2 {
+  margin: 0 0 10px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tv-ink-faint);
+  font-weight: 640;
+}
+
+.gallery__hint {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--tv-ink-muted);
+  text-wrap: pretty;
+}
+
+.gallery__log ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gallery__log li {
+  border-top: 1px solid var(--tv-line);
+  padding-top: 10px;
+}
+
+.gallery__log li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.gallery__logHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.gallery__logHead strong {
+  font-family: var(--tv-font-mono);
+  font-size: 0.82rem;
+  color: var(--tv-accent);
+}
+
+.gallery__logHead span {
+  font-size: 0.7rem;
+  color: var(--tv-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.gallery__log pre {
+  margin: 6px 0 0;
+  font-family: var(--tv-font-mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  background: var(--tv-surface-2);
+  border-radius: var(--tv-radius-sm);
+  padding: 8px 10px;
+  overflow-x: auto;
+}
+
+.gallery__foot {
+  border-top: 1px solid var(--tv-line);
+  padding-top: 12px;
+  font-family: var(--tv-font-mono);
+  font-size: 0.72rem;
+  color: var(--tv-ink-faint);
+}

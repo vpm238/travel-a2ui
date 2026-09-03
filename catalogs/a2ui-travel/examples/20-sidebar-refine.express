@@ -1,0 +1,12 @@
+# Sidebar: controls that refine the trip currently in focus.
+# The sidebar is a persistent surface — target it by id and it replaces itself.
+surface("sidebar")
+$/filters/maxPrice = 600
+$/filters/adults = 2
+title = Text("Refine", variant="h3")
+dates = DateRangePicker("Travel dates", $/filters/start, $/filters/end, action=Event("dates_changed"), nightsLabel="6 nights")
+who = TravelerCounter("Adults", $/filters/adults, min=1, max=8)
+budget = Slider("Max fare", 150, 1500, $/filters/maxPrice)
+stops = ChoicePicker("Stops", "mutuallyExclusive", [{label: "Any", value: "any"}, {label: "Nonstop only", value: "nonstop"}], $/filters/stops)
+apply = Button(Text("Apply"), "primary", Event("apply_filters", {maxPrice: $/filters/maxPrice, adults: $/filters/adults, stops: $/filters/stops}))
+root = Column([title, dates, who, budget, stops, apply], align="stretch")

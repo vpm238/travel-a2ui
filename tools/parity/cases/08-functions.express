@@ -1,0 +1,3 @@
+price = Text(formatCurrency($/trip/total, "EUR"))
+link = Button(Text("Open"), action=openUrl("https://example.com/trip"))
+root = Column([price, link])

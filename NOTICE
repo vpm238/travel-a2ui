@@ -1,0 +1,40 @@
+Travel A2UI
+Copyright 2026 the Travel A2UI authors
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+these files except in compliance with the License. You may obtain a copy of the
+License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+--------------------------------------------------------------------------------
+
+This product includes software derived from the A2UI project by Google LLC,
+available at https://github.com/google/a2ui and licensed under the Apache
+License, Version 2.0.
+
+Specifically:
+
+  catalogs/basic/catalog.json
+  catalogs/basic/rules.txt
+      Vendored verbatim from google/a2ui `specification/v0_9_1/catalogs/basic`.
+
+  packages/express/
+      A TypeScript port of the A2UI Express lexer, parser, compiler and
+      decompiler from google/a2ui
+      `agent_sdks/python/a2ui_agent/src/a2ui/inference_formats/experimental/express`,
+      and of the lexical rules in
+      `specification/inference_formats/express/Express.g4`. Behavioural
+      equivalence is asserted by the parity suite in
+      `packages/express/test/parity.test.ts`, whose golden files are produced by
+      the reference implementation.
+
+  tools/skillgen/src/skillgen/catalog.py
+  tools/skillgen/src/skillgen/formats/express.py
+      Ports of `CatalogSchemaHelper` and the signature-generation half of
+      `ExpressPromptGenerator` from the same package. Output equivalence is
+      asserted by `tools/skillgen/tests/test_sdk_parity.py`.
+
+The A2UI protocol, its component catalogs and its specification are the work of
+the A2UI project. This repository is an independent application built on top of
+that work and is not affiliated with or endorsed by Google LLC.

@@ -1,0 +1,133 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "sidebar",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "sidebar",
+      "components": [
+        {
+          "id": "title",
+          "component": "Text",
+          "text": "Refine",
+          "variant": "h3"
+        },
+        {
+          "id": "dates",
+          "component": "DateRangePicker",
+          "label": "Travel dates",
+          "start": {
+            "path": "/filters/start"
+          },
+          "end": {
+            "path": "/filters/end"
+          },
+          "action": {
+            "event": {
+              "name": "dates_changed",
+              "context": {}
+            }
+          },
+          "nightsLabel": "6 nights"
+        },
+        {
+          "id": "who",
+          "component": "TravelerCounter",
+          "label": "Adults",
+          "value": {
+            "path": "/filters/adults"
+          },
+          "min": 1,
+          "max": 8
+        },
+        {
+          "id": "budget",
+          "component": "Slider",
+          "label": "Max fare",
+          "min": 150,
+          "max": 1500,
+          "value": {
+            "path": "/filters/maxPrice"
+          }
+        },
+        {
+          "id": "stops",
+          "component": "ChoicePicker",
+          "label": "Stops",
+          "variant": "mutuallyExclusive",
+          "options": [
+            {
+              "label": "Any",
+              "value": "any"
+            },
+            {
+              "label": "Nonstop only",
+              "value": "nonstop"
+            }
+          ],
+          "value": {
+            "path": "/filters/stops"
+          }
+        },
+        {
+          "id": "apply",
+          "component": "Button",
+          "child": "_inline_1",
+          "variant": "primary",
+          "action": {
+            "event": {
+              "name": "apply_filters",
+              "context": {
+                "maxPrice": {
+                  "path": "/filters/maxPrice"
+                },
+                "adults": {
+                  "path": "/filters/adults"
+                },
+                "stops": {
+                  "path": "/filters/stops"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "title",
+            "dates",
+            "who",
+            "budget",
+            "stops",
+            "apply"
+          ],
+          "align": "stretch"
+        },
+        {
+          "id": "_inline_1",
+          "component": "Text",
+          "text": "Apply"
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateDataModel": {
+      "surfaceId": "sidebar",
+      "path": "/",
+      "value": {
+        "filters": {
+          "maxPrice": 600,
+          "adults": 2
+        }
+      }
+    }
+  }
+]

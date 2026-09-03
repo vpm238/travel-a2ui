@@ -1,0 +1,1 @@
+root = Card(Column([Text("Nested", variant="h3"), Button(Text("Go"), action=Event("go"))]))

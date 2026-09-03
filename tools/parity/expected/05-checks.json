@@ -1,0 +1,81 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "email",
+          "component": "TextField",
+          "label": "Email",
+          "value": {
+            "path": "/form/email"
+          },
+          "checks": [
+            {
+              "condition": {
+                "call": "required",
+                "args": {
+                  "value": {
+                    "path": "/form/email"
+                  }
+                }
+              },
+              "message": "Required check failed"
+            },
+            {
+              "condition": {
+                "call": "regex",
+                "args": {
+                  "value": {
+                    "path": "/form/email"
+                  },
+                  "pattern": "^[^@]+@[^@]+$"
+                }
+              },
+              "message": "That does not look like an email"
+            }
+          ]
+        },
+        {
+          "id": "zip",
+          "component": "TextField",
+          "label": "Postal code",
+          "value": {
+            "path": "/form/zip"
+          },
+          "checks": [
+            {
+              "condition": {
+                "call": "length",
+                "args": {
+                  "value": {
+                    "path": "/form/zip"
+                  },
+                  "min": 5,
+                  "max": 5
+                }
+              },
+              "message": "Length check failed"
+            }
+          ]
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "email",
+            "zip"
+          ]
+        }
+      ]
+    }
+  }
+]

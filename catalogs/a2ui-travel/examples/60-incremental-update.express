@@ -1,0 +1,5 @@
+# Changing one value on a surface that is already on screen.
+# No components, no root — just the data. The host re-renders in place.
+surface("home")
+$/home/budgetUsed = 1480
+$/home/budgetCaption = "$1,480 of $2,000"

@@ -1,0 +1,75 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "t1",
+          "component": "StatTile",
+          "label": "Days to go",
+          "value": "17",
+          "caption": "until Madrid",
+          "tone": "accent"
+        },
+        {
+          "id": "p1",
+          "component": "ProgressMeter",
+          "label": "Budget used",
+          "value": 1320,
+          "max": 2000,
+          "caption": "$1,320 of $2,000",
+          "tone": "caution"
+        },
+        {
+          "id": "w",
+          "component": "WeatherStrip",
+          "days": [
+            {
+              "day": "Sun",
+              "high": "21",
+              "low": "9",
+              "condition": "sun"
+            },
+            {
+              "day": "Mon",
+              "high": "18",
+              "low": "8",
+              "condition": "cloud"
+            }
+          ],
+          "place": "Madrid",
+          "caption": "Pack a light jacket"
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "t1",
+            "p1",
+            "w"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateDataModel": {
+      "surfaceId": "parity-surface",
+      "path": "/",
+      "value": {
+        "home": {
+          "daysOut": 17
+        }
+      }
+    }
+  }
+]

@@ -1,0 +1,31 @@
+/*
+ * The frame around a surface inside an MCP host.
+ *
+ * Almost nothing: the host owns the chrome, and a card that arrives wrapped in
+ * a second border and a second background looks pasted in rather than rendered.
+ * `--tv-paper` is deliberately transparent here so the surface sits on whatever
+ * the host's own background is, in whatever theme the host is in.
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--tv-ink);
+  font-family: var(--tv-font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.view {
+  padding: 4px;
+}
+
+.view__empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--tv-ink-muted);
+  font-size: 0.9rem;
+}

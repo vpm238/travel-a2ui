@@ -1,0 +1,3 @@
+email = TextField("Email", $/form/email, ?required, ?regex("^[^@]+@[^@]+$", "That does not look like an email"))
+zip = TextField("Postal code", $/form/zip, ?length(5, 5))
+root = Column([email, zip])

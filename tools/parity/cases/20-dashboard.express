@@ -1,0 +1,5 @@
+$/home/daysOut = 17
+t1 = StatTile("Days to go", "17", caption="until Madrid", tone="accent")
+p1 = ProgressMeter("Budget used", 1320, 2000, caption="$1,320 of $2,000", tone="caution")
+w = WeatherStrip([{day: "Sun", high: "21", low: "9", condition: "sun"}, {day: "Mon", high: "18", low: "8", condition: "cloud"}], place="Madrid", caption="Pack a light jacket")
+root = Column([t1, p1, w])

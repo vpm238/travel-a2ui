@@ -1,0 +1,41 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "a",
+          "component": "Text",
+          "text": "Quote: \"hi\"\nSecond line\tTabbed"
+        },
+        {
+          "id": "b",
+          "component": "Text",
+          "text": "C:\\raw\\path"
+        },
+        {
+          "id": "c",
+          "component": "Text",
+          "text": "Triple \"quoted\" text"
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "a",
+            "b",
+            "c"
+          ]
+        }
+      ]
+    }
+  }
+]

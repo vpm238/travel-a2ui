@@ -1,0 +1,12 @@
+# Home: a generative dashboard, reassembled for what matters today.
+# Stat tiles first, then the thing that needs a decision, then context.
+surface("home")
+hello = Text("17 days to Madrid", variant="h1")
+t1 = StatTile("Booked", "3 of 5", caption="flights, hotel, transfer", tone="positive")
+t2 = StatTile("Budget left", "$680", caption="of $2,000", tone="caution")
+t3 = StatTile("Next up", "Pick dinner", caption="Sat 11 Apr", tone="accent", action=Event("open_task", {id: "dinner"}))
+tiles = Row([t1, t2, t3])
+budget = ProgressMeter("Budget used", 1320, 2000, caption="$1,320 of $2,000", tone="caution")
+weather = WeatherStrip([{day: "Sun", high: "21°", low: "9°", condition: "sun"}, {day: "Mon", high: "19°", low: "8°", condition: "sun"}, {day: "Tue", high: "16°", low: "7°", condition: "rain"}], place="Madrid", caption="Pack a light jacket for Tuesday")
+map = MapPreview([{label: "Hotel", kind: "stay"}, {label: "Prado", kind: "sight", day: "2"}, {label: "Sobrino", kind: "food", day: "2"}], caption="Everything on day 2 is walkable")
+root = Column([hello, tiles, budget, weather, map], align="stretch")

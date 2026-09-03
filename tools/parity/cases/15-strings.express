@@ -1,0 +1,4 @@
+a = Text("Quote: \"hi\"\nSecond line\tTabbed")
+b = Text(r"C:\raw\path")
+c = Text("""Triple "quoted" text""")
+root = Column([a, b, c])

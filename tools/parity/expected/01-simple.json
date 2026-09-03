@@ -1,0 +1,36 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "title",
+          "component": "Text",
+          "text": "Madrid in April",
+          "variant": "h1"
+        },
+        {
+          "id": "sub",
+          "component": "Text",
+          "text": "Six nights, two travelers"
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "title",
+            "sub"
+          ]
+        }
+      ]
+    }
+  }
+]

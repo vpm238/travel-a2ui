@@ -1,0 +1,40 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "travel-a2ui",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // The Worker serves the API, the MCP endpoint and the built React app from one
+  // origin. One deploy, one URL, no CORS to configure — and the browser's API key
+  // never crosses an origin boundary it did not intend to.
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Without this the SPA fallback would swallow /api and /mcp and answer them
+    // with index.html. /mcp-view/* is here for a different reason: those two
+    // files are loaded cross-origin by an iframe in someone else's app, so the
+    // Worker serves them itself in order to add the CORS header.
+    "run_worker_first": ["/api/*", "/mcp", "/mcp/*", "/mcp-view/*", "/.well-known/*"]
+  },
+
+  // Skills are markdown and the MCP view's shell is HTML. Both are imported as
+  // text, so the generated artifact on disk is the artifact that ships — there
+  // is no copy to forget to update.
+  "rules": [{ "type": "Text", "globs": ["**/*.md", "**/*.html"], "fallthrough": true }],
+
+  "durable_objects": {
+    "bindings": [{ "name": "TRIP_SESSION", "class_name": "TripSession" }]
+  },
+
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TripSession"] }],
+
+  "observability": { "enabled": true },
+
+  "vars": {
+    "DEFAULT_MODEL": "claude-opus-5",
+    "DEFAULT_SKILL": "express-monolithic",
+    "PUBLIC_NAME": "Travel A2UI"
+  }
+}

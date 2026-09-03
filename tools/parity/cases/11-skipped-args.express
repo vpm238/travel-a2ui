@@ -1,0 +1,3 @@
+img = Image("https://example.com/a.png", _, "cover", "largeFeature")
+bare = Image("https://example.com/b.png", "A photo")
+root = Column([img, bare])

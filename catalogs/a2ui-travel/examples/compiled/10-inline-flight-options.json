@@ -1,0 +1,122 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "inline-flights",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "inline-flights",
+      "components": [
+        {
+          "id": "heading",
+          "component": "Text",
+          "text": "Outbound · JFK → MAD · Sun 12 Apr",
+          "variant": "h3"
+        },
+        {
+          "id": "f1",
+          "component": "FlightOption",
+          "airline": "Iberia",
+          "departTime": "18:40",
+          "arriveTime": "08:15 +1",
+          "origin": "JFK",
+          "destination": "MAD",
+          "price": "$412",
+          "action": {
+            "event": {
+              "name": "select_flight",
+              "context": {
+                "id": "IB6250",
+                "price": "$412"
+              }
+            }
+          },
+          "duration": "7h 35m",
+          "stops": "Nonstop",
+          "flightNumber": "IB6250",
+          "selected": {
+            "path": "/trip/selectedOutbound"
+          },
+          "badge": "Cheapest"
+        },
+        {
+          "id": "f2",
+          "component": "FlightOption",
+          "airline": "Delta",
+          "departTime": "21:10",
+          "arriveTime": "10:50 +1",
+          "origin": "JFK",
+          "destination": "MAD",
+          "price": "$468",
+          "action": {
+            "event": {
+              "name": "select_flight",
+              "context": {
+                "id": "DL126",
+                "price": "$468"
+              }
+            }
+          },
+          "duration": "7h 40m",
+          "stops": "Nonstop",
+          "flightNumber": "DL126"
+        },
+        {
+          "id": "f3",
+          "component": "FlightOption",
+          "airline": "TAP",
+          "departTime": "17:25",
+          "arriveTime": "11:05 +1",
+          "origin": "JFK",
+          "destination": "MAD",
+          "price": "$367",
+          "action": {
+            "event": {
+              "name": "select_flight",
+              "context": {
+                "id": "TP208",
+                "price": "$367"
+              }
+            }
+          },
+          "duration": "11h 40m",
+          "stops": "1 stop · LIS",
+          "flightNumber": "TP208",
+          "badge": "Lowest fare"
+        },
+        {
+          "id": "note",
+          "component": "Text",
+          "text": "Prices are per traveler, round trip."
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "heading",
+            "f1",
+            "f2",
+            "f3",
+            "note"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateDataModel": {
+      "surfaceId": "inline-flights",
+      "path": "/",
+      "value": {
+        "trip": {
+          "selectedOutbound": ""
+        }
+      }
+    }
+  }
+]

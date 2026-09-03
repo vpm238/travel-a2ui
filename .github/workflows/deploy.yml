@@ -1,0 +1,65 @@
+name: travel-a2ui deploy
+
+# Deploys the Worker — which also serves the built React app and the MCP
+# endpoint — to Cloudflare. One deploy, one origin.
+#
+# Required repository secrets:
+#   CLOUDFLARE_API_TOKEN    a token with the "Edit Cloudflare Workers" template
+#   CLOUDFLARE_ACCOUNT_ID   from the Workers dashboard sidebar
+#
+# By default every visitor brings their own key, which is the safer choice for a
+# public URL. To run a shared deployment on one key instead, set it once by hand
+# rather than through this workflow — a secret that passes through a build log is
+# a secret you have to rotate:
+#
+#   npx wrangler secret put ANTHROPIC_API_KEY --cwd apps/worker
+
+on:
+  push:
+    branches: [main]
+    paths: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: travel-a2ui-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      # Never ship a build that does not pass. A deploy workflow that skips the
+      # tests is a deploy workflow that eventually ships a broken compiler.
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy the Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/worker
+          command: deploy
+
+      - name: Where it went
+        run: |
+          echo "Deployed. The app, the API and the MCP endpoint share one origin:"
+          echo "  https://travel-a2ui.<your-subdomain>.workers.dev"
+          echo "  https://travel-a2ui.<your-subdomain>.workers.dev/mcp"

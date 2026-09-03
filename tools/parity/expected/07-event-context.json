@@ -1,0 +1,48 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "save",
+          "component": "Button",
+          "child": "_inline_1",
+          "action": {
+            "event": {
+              "name": "save_trip",
+              "context": {
+                "dest": {
+                  "path": "/trip/destination"
+                },
+                "adults": {
+                  "path": "/trip/adults"
+                },
+                "note": "manual"
+              }
+            }
+          }
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "save"
+          ]
+        },
+        {
+          "id": "_inline_1",
+          "component": "Text",
+          "text": "Save"
+        }
+      ]
+    }
+  }
+]

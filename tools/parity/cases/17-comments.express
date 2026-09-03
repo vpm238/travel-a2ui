@@ -1,0 +1,5 @@
+# a leading comment
+a = Text("Kept")   // trailing comment
+/* block
+   comment */
+root = Column([a])
