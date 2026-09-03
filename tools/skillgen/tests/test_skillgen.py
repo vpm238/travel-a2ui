@@ -236,7 +236,7 @@ class TestSignatures:
     def test_static_properties_are_flagged(self, helper):
         signatures = ExpressFormat().generate_component_signatures(helper)
         line = next(line for line in signatures.splitlines() if line.startswith("• PriceSummary("))
-        assert "lines (static)" in line
+        assert "lines (static only)" in line
 
     def test_enum_values_are_listed(self, helper):
         signatures = ExpressFormat().generate_component_signatures(helper)

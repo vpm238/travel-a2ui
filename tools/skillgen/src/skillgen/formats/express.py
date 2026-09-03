@@ -100,7 +100,7 @@ could draw.
     same id again to replace that surface, and `deleteSurface("id")` to remove
     it.
 
-12. **`(static)` arguments take literals only.** They are marked in the
+12. **`(static only)` arguments take literals only.** They are marked in the
     signatures. Passing a `$` binding to one is a compile error.
 
 13. **Required `action` arguments are required.** If nothing sensible should
@@ -155,7 +155,7 @@ class ExpressFormat:
                 if is_component_id(schema):
                     label += " (component ID)"
                 elif not allows_databinding(schema):
-                    label += " (static)"
+                    label += " (static only)"
                 ordered_args.append(label)
 
                 prop_description = schema.get("description") if isinstance(schema, dict) else None

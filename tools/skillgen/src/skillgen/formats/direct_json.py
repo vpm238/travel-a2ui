@@ -79,7 +79,7 @@ Rules that are not optional:
    component is rendered once per item, with relative paths resolving inside it.
 6. **Validation** is a `checks` array on the field it guards:
    `{"condition": {"call": "required", "args": {"value": {"path": "/x"}}}, "message": "…"}`.
-7. Properties marked `(static)` below take literal values only — never a
+7. Properties marked `(static only)` below take literal values only — never a
    `{"path": …}` binding.
 
 ## Emitting
@@ -103,7 +103,7 @@ class DirectJsonFormat:
             "## Components",
             "",
             "Each entry lists the component's properties. `!` marks a required "
-            "property, `(static)` one that cannot take a data binding, and "
+            "property, `(static only)` one that cannot take a data binding, and "
             "`(component ID)` one that refers to another component by id.",
             "",
         ]
@@ -117,7 +117,7 @@ class DirectJsonFormat:
                 if is_component_id(schema):
                     label += " (component ID)"
                 elif not allows_databinding(schema):
-                    label += " (static)"
+                    label += " (static only)"
                 enum_values = find_enum(schema)
                 if enum_values:
                     label += " = " + "|".join(str(value) for value in enum_values)
