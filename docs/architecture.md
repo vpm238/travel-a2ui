@@ -186,6 +186,27 @@ When the model forgets a commit button, the host draws its own — a bar naming
 how many values are unsent and a Send. A card of sliders you cannot submit is
 worse than no card.
 
+### The conversation decides; the panel remembers
+
+The panel used to carry controls, which meant two places could change the same
+value and the transcript had no record of which one did — "when did the dates
+become the 19th?" had no answer. So the split is now absolute: **every editor
+lives inline**, and the panel is read-only.
+
+Its one interaction is **Change**, which does not edit anything. It *releases*
+the decision — clearing it, and whatever was decided because of it — and the
+agent re-opens it in the conversation, pre-filled with what was there. A new
+date range releases the flight priced against it, because a flight that looks
+settled and is priced for dates nobody holds any more is worse than no flight.
+`release()` owns that dependency map, one level deep and only where the
+dependency is real; cascading further would wipe an hour's work because someone
+moved a date by a day.
+
+The host enforces it rather than asking: an interaction on a non-inline surface
+is never treated as an answer, whatever component produced it, so a model that
+draws a slider in the panel produces something inert rather than a second way to
+change the trip.
+
 ### An answered surface goes grey
 
 Only the newest surface accepts input. Everything above it answered a message
@@ -498,11 +519,11 @@ server holds no credentials at all — which is also why it holds no trip data.
 | MCP server | real JSON-RPC through `handleMcp`, not unit calls into helpers |
 | Agent loop | scripted model output through the real stream splitter |
 | Web app | `tools/e2e/chat.mjs` — a real browser, a real turn, 14 assertions |
-| Interaction model | `tools/e2e/interaction.mjs` — editing sends nothing, committing sends everything, spent surfaces go inert, 17 assertions |
+| Interaction model | `tools/e2e/interaction.mjs` — editing sends nothing, committing sends everything, spent surfaces go inert, the panel stays read-only, 19 assertions |
 | MCP app | `tools/e2e/mcp.mjs` — a live server, a sandboxed iframe, 24 assertions |
 | Freshness | `npm run check` fails if catalog, examples or skills drift |
 
-184 unit tests, 44 Python tests, 58 browser assertions across three end-to-end runs.
+193 unit tests, 44 Python tests, 60 browser assertions across three end-to-end runs.
 
 **Simulated:** flight and hotel inventory, weather, and destination highlights
 (`apps/worker/src/travel.ts`) are a deterministic generator over a real list of

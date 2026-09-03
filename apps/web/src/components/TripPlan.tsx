@@ -48,7 +48,11 @@ export function TripPlan({ trip }: { trip: Trip }) {
                 <span className="plan__leggy">{leg.travelers}×</span>
               ) : null}
               {leg.purpose ? <span className="plan__leggy">{leg.purpose}</span> : null}
+              {leg.needsStay === false ? <span className="plan__leggy">no stay needed</span> : null}
               {!leg.startDate ? <span className="plan__leggy plan__leggy--todo">dates?</span> : null}
+              {leg.needsStay === true && !leg.selectedHotel ? (
+                <span className="plan__leggy plan__leggy--todo">stay?</span>
+              ) : null}
             </li>
           ))}
         </ol>
@@ -73,8 +77,8 @@ export function TripPlan({ trip }: { trip: Trip }) {
               </span>
               <span className="plan__label">{LABELS[step.stage] ?? step.stage}</span>
               {step.skipped ? <span className="plan__note">not needed</span> : null}
-              {step.incompleteLegs?.length ? (
-                <span className="plan__note">{step.incompleteLegs.join(', ')}</span>
+              {step.pending?.stops.length ? (
+                <span className="plan__note">{step.pending.stops.join(', ')}</span>
               ) : null}
             </li>
           );

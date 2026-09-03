@@ -23,12 +23,15 @@ import {
   askFor,
   basisOf,
   bindingFor,
+  isTripKey,
   merge as mergeTrip,
   missingFor,
   nights,
   normalize as normalizeTrip,
   problems,
+  release,
   summarize,
+  unskip,
   type Trip,
   type TripKey,
 } from '@travel-a2ui/trip';
@@ -217,12 +220,49 @@ export const TOOLS: Anthropic.Tool[] = [
                 type: 'string',
                 description: "Why this stop exists — 'the wedding', 'work'. It shapes what to plan.",
               },
+              needsStay: {
+                type: 'boolean',
+                description:
+                  'Whether this stop needs somewhere to stay. Three cities do not mean three ' +
+                  "hotels — a friend's spare room, a wedding block, a red-eye out the same " +
+                  'night. Ask per stop and record false for the ones that do not, so it is ' +
+                  'never asked about again.',
+              },
+              selectedHotel: { type: 'string', description: 'The stay chosen for this stop.' },
+              nightlyPrice: { type: 'number' },
               notes: { type: 'string' },
             },
             required: ['destination'],
           },
         },
         notes: { type: 'string', description: 'Anything else worth remembering, in one line.' },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'release_decision',
+    description:
+      "Lets go of something already decided, so it can be decided again. This is what 'Change' " +
+      'in the panel means, and what to call when the traveler says they want to move the dates ' +
+      'or pick a different flight. It clears the named fields *and* what depended on them — new ' +
+      'dates release the flight priced against them — and returns what was cleared, so you can ' +
+      'say so. Then re-ask inline, pre-filled with what was there. Clearing a stage that was ' +
+      'ruled out puts it back in the plan.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        fields: {
+          type: 'array',
+          items: { type: 'string' },
+          description: "Trip fields to release, e.g. ['startDate'] or ['selectedFlight'].",
+        },
+        stages: {
+          type: 'array',
+          items: { type: 'string', enum: ['route', 'dates', 'party', 'flight', 'stay', 'budget', 'plan'] },
+          description: 'Stages to un-rule-out, when the traveler changes their mind about skipping one.',
+        },
       },
       required: [],
       additionalProperties: false,
@@ -417,6 +457,43 @@ export async function runTool(
               endDate: trip.endDate ?? null,
               indicative: missing.length > 0,
             },
+          },
+          isError: false,
+        };
+      }
+
+      case 'release_decision': {
+        const asked = Array.isArray(input['fields'])
+          ? (input['fields'] as unknown[]).map(String).filter(isTripKey)
+          : [];
+        const stages = Array.isArray(input['stages'])
+          ? (input['stages'] as unknown[]).map(String)
+          : [];
+
+        let trip = normalizeTrip(context.trip);
+        const { trip: afterRelease, cleared } = release(trip, asked);
+        trip = afterRelease;
+        for (const stage of stages) trip = unskip(trip, stage as never);
+
+        // The context's trip is the live object the turn reads, so it is
+        // rewritten in place rather than replaced.
+        for (const key of Object.keys(context.trip)) delete context.trip[key];
+        Object.assign(context.trip, trip);
+        context.saveTrip({});
+
+        const today = new Date().toISOString().slice(0, 10);
+        return {
+          result: {
+            released: cleared,
+            unskipped: stages,
+            trip,
+            stillNeeded: summarize(trip, today).missing,
+            message:
+              cleared.length === 0 && stages.length === 0
+                ? 'Nothing to release — it was not set.'
+                : `Released ${cleared.join(', ') || 'nothing'}${
+                    stages.length > 0 ? `; put ${stages.join(', ')} back in the plan` : ''
+                  }. Re-ask inline, pre-filled with what was there, and say what else this undid.`,
           },
           isError: false,
         };
