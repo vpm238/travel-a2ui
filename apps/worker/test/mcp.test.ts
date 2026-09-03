@@ -122,7 +122,7 @@ describe('tools', () => {
     }
   });
 
-  it('returns a text summary, an A2UI payload and a rendered view', async () => {
+  it('returns a text summary and an A2UI payload', async () => {
     const result = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12', travelers: 2 });
     expect(result.isError).toBe(false);
 
@@ -133,14 +133,91 @@ describe('tools', () => {
       (part: any) => part.resource?.mimeType === 'application/vnd.a2ui+json',
     );
     expect(JSON.parse(payload.resource.text)).toEqual(result.structuredContent.messages);
-
-    const html = result.content.find((part: any) => part.resource?.mimeType === 'text/html');
-    expect(html.resource.uri).toMatch(/^ui:\/\/a2ui\/.+\.html$/);
-    expect(html.resource.text).toContain('<!doctype html>');
   });
 
-  it('the rendered view is a shell: surface inlined, renderer by reference', async () => {
-    const result = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' });
+  /**
+   * The three things that have to line up for a surface to render, and did not
+   * for a long time. A host does not look for HTML in a tool result — it reads
+   * the declared `ui://` template once and forwards each result to it.
+   */
+  describe('the contract that makes a host draw it', () => {
+    it('declares the view as a resource with the MIME type a host looks for', async () => {
+      const { body } = await rpc('resources/list');
+      const app = body.result.resources.find((entry: any) => entry.uri === 'ui://travel-a2ui/surface');
+      expect(app).toBeDefined();
+      expect(app.mimeType).toBe('text/html;profile=mcp-app');
+    });
+
+    it('and tells the sandbox it needs to fetch nothing', async () => {
+      const { body } = await rpc('resources/list');
+      const app = body.result.resources.find((entry: any) => entry.uri === 'ui://travel-a2ui/surface');
+      // Everything is inlined in the template, so no content policy can break
+      // it. An empty resourceDomains is the claim, and it has to stay true.
+      expect(app._meta.ui.csp.resourceDomains).toEqual([]);
+      expect(app._meta.ui.csp.connectDomains).toEqual(['https://example.test']);
+    });
+
+    it('serves that template self-contained, with no payload in it', async () => {
+      const { body } = await rpc('resources/read', { uri: 'ui://travel-a2ui/surface' });
+      const html = body.result.contents[0];
+      expect(html.mimeType).toBe('text/html;profile=mcp-app');
+      expect(html.text).toContain('<!doctype html>');
+      expect(html.text).not.toMatch(/<script[^>]+src=/);
+      expect(html.text).not.toMatch(/<link[^>]+stylesheet/);
+      // A template carries no surface: the surface arrives by notification.
+      expect(html.text).not.toContain('__A2UI_PAYLOAD__');
+      expect(html.text.length).toBeGreaterThan(50_000);
+    });
+
+    it('points every tool at it', async () => {
+      const { body } = await rpc('tools/list');
+      for (const tool of body.result.tools) {
+        expect(tool._meta.ui.resourceUri).toBe('ui://travel-a2ui/surface');
+      }
+    });
+
+    it('puts the surface where the host forwards it from', async () => {
+      const result = await callTool('show_flight_options', {
+        destination: 'Madrid',
+        origin: 'JFK',
+        date: '2026-04-12',
+      });
+      // `structuredContent` is what reaches the view as tool-result. Without
+      // it the template loads and has nothing to draw.
+      expect(result.structuredContent.messages.length).toBeGreaterThan(0);
+      expect(result._meta.ui.resourceUri).toBe('ui://travel-a2ui/surface');
+    });
+
+    it('does not also send a competing text/html view', async () => {
+      const result = await callTool('show_flight_options', {
+        destination: 'Madrid',
+        origin: 'JFK',
+        date: '2026-04-12',
+      });
+      const kinds = result.content.map((part: any) => part.resource?.mimeType ?? part.type);
+      expect(kinds).not.toContain('text/html');
+    });
+
+    it('speaks the version the client asked for', async () => {
+      const { body } = await rpc('initialize', { protocolVersion: '2025-11-25' });
+      expect(body.result.protocolVersion).toBe('2025-11-25');
+      expect(body.result.capabilities.extensions['io.modelcontextprotocol/ui']).toEqual({
+        mimeTypes: ['text/html;profile=mcp-app'],
+      });
+    });
+
+    it('and falls back to its own when the client asks for one it does not know', async () => {
+      const { body } = await rpc('initialize', { protocolVersion: '1999-01-01' });
+      expect(body.result.protocolVersion).toBe('2025-11-25');
+    });
+  });
+
+  it('the legacy view is a shell: surface inlined, renderer by reference', async () => {
+    const result = await callTool(
+      'show_flight_options',
+      { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' },
+      'legacy',
+    );
     const html = result.content.find((part: any) => part.resource?.mimeType === 'text/html')
       .resource.text as string;
 
@@ -168,7 +245,7 @@ describe('tools', () => {
 
   it('lets a proxied deployment say where the renderer lives', async () => {
     const response = await handleMcp(
-      new Request('https://internal.test/mcp?origin=https://travel.example.com', {
+      new Request('https://internal.test/mcp?view=legacy&origin=https://travel.example.com', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -187,7 +264,7 @@ describe('tools', () => {
 
   it('ignores an origin override that is not http(s)', async () => {
     const response = await handleMcp(
-      new Request('https://example.test/mcp?origin=javascript:alert(1)', {
+      new Request('https://example.test/mcp?view=legacy&origin=javascript:alert(1)', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -260,11 +337,25 @@ describe('tools', () => {
     expect(kinds).not.toContain('text/html');
   });
 
-  it('lets an HTML-only host skip the payload', async () => {
-    const result = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' }, 'html');
+  it('lets an MCP-UI host take the older shape instead', async () => {
+    const result = await callTool(
+      'show_flight_options',
+      { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' },
+      'legacy',
+    );
     const kinds = result.content.map((part: any) => part.resource?.mimeType ?? part.type);
     expect(kinds).toContain('text/html');
     expect(kinds).not.toContain('application/vnd.a2ui+json');
+  });
+
+  // An install that predates the rename should not break.
+  it('still understands the old ?view=html spelling', async () => {
+    const result = await callTool(
+      'show_flight_options',
+      { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' },
+      'html',
+    );
+    expect(result.content.map((p: any) => p.resource?.mimeType ?? p.type)).toContain('text/html');
   });
 
   it('renders flights as FlightOption components with actions', async () => {

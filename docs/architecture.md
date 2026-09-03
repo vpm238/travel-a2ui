@@ -89,7 +89,7 @@ pattern 2.
 | --- | --- | --- |
 | 1 | **A2UI over MCP** — the tool returns an A2UI payload and the *host* renders it with its own design system, no iframe | ✅ the `application/vnd.a2ui+json` resource |
 | 2 | **MCP Apps inside A2UI components** — a native surface embeds someone else's iframe for one state-heavy module | ❌ nothing here needs it |
-| 3 | **A2UI inside an MCP App** — the app bundle carries its own A2UI renderer and draws payloads inside its sandbox | ✅ the `text/html` shell |
+| 3 | **A2UI inside an MCP App** — the app bundle carries its own A2UI renderer and draws payloads inside its sandbox | ✅ the `ui://` app template |
 
 A single `tools/call` result carries a text summary, the pattern-1 payload, and
 the pattern-3 shell. A host takes whichever it understands and ignores the rest;
@@ -101,13 +101,45 @@ A2UI natively yet. Pattern 1 is the one worth having, because the moment a host
 does, the same server gets better without redeploying: the payload was always
 there.
 
-### The pattern-3 shell, in detail
+### Pattern 3, and the mistake that made it render nothing
 
-The obvious implementation of pattern 3 is to inline the whole renderer into
-every tool result. That is 230 kB of HTML per call, on every call, spent against
-the host's result budget — and the renderer is byte-identical each time.
+The first implementation returned a `text/html` resource in every tool result
+and assumed the host would draw it. It did not, and the plugin ran the tools and
+showed a blank panel.
 
-So the HTML resource is a **shell** of about 450 bytes:
+A host does not look inside a tool result for HTML. It looks for a `ui://`
+resource declared in `resources/list` with `mimeType: "text/html;profile=mcp-app"`,
+reads it **once per conversation** as a template, and then forwards each tool
+result to that template over a postMessage bridge. The template is an MCP client
+in its own right: it sends `ui/initialize`, waits for the host's capabilities and
+theme, sends `ui/notifications/initialized`, and only then receives
+`ui/notifications/tool-result` — which is where the surface is, under
+`structuredContent`. A view that renders before that handshake shows nothing,
+because nothing has arrived yet.
+
+Three things have to line up, and the absence of any one of them looks identical
+from the outside:
+
+| | Here |
+| --- | --- |
+| the template | `ui://travel-a2ui/surface`, with its CSP in `_meta.ui` |
+| the link | every tool carries `_meta.ui.resourceUri` naming it |
+| the surface | `structuredContent`, which is what the host forwards |
+
+Because the template is fetched once rather than per call, it has the whole
+renderer **inlined** — which is what makes `resourceDomains: []` possible, and a
+view that fetches nothing cannot be broken by a content policy. That also
+resolves the tension that produced the shell: the objection was 230 kB *per tool
+call*, and a template is not per call.
+
+`tools/e2e/mcp.mjs` plays the host's side of that handshake in a real
+`sandbox="allow-scripts"` iframe, in the right order, so the failure cannot come
+back quietly.
+
+### The legacy shell, in detail
+
+`?view=legacy` returns the older MCP-UI shape for a host that reads those: a
+`text/html` resource per tool result, about 450 bytes, with the payload inlined:
 
 ```html
 <link rel="stylesheet" href="__ORIGIN__/mcp-view/app.css">
@@ -549,7 +581,7 @@ server holds no credentials at all — which is also why it holds no trip data.
 | MCP app | `tools/e2e/mcp.mjs` — a live server, a sandboxed iframe, 24 assertions |
 | Freshness | `npm run check` fails if catalog, examples or skills drift |
 
-197 unit tests, 44 Python tests, 60 browser assertions across three end-to-end runs, and a live evaluation of the agent — 33 checks, all passing.
+206 unit tests, 44 Python tests, 67 browser assertions across three end-to-end runs, and a live evaluation of the agent — 33 checks, all passing.
 
 **Simulated:** flight and hotel inventory, weather, and destination highlights
 (`apps/worker/src/travel.ts`) are a deterministic generator over a real list of

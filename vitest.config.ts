@@ -9,8 +9,8 @@ const root = dirname(fileURLToPath(import.meta.url));
  * Loads the Worker's text imports as text.
  *
  * The Worker does this through a `rules` entry in `wrangler.jsonc`, so a
- * generated `SKILL.md` and the MCP view's shell are the same artifacts at test
- * time as at run time. Without it the tests would be checking a mock of the
+ * generated `SKILL.md`, the MCP view's shell and the built app template are the
+ * same artifacts at test time as at run time. Without it the tests would be checking a mock of the
  * thing they exist to check — and Vite would try to process the shell as an
  * HTML *page*, which it is not.
  *
@@ -24,7 +24,8 @@ function workerTextImports(): Plugin {
     load(id) {
       const path = id.split('?')[0]!;
       const isSkill = path.endsWith('.md');
-      const isView = path.endsWith('mcp-view/shell.html');
+      // The shell is source; app.html is built. Both reach the Worker as text.
+      const isView = path.endsWith('mcp-view/shell.html') || path.endsWith('mcp-view/dist/app.html');
       if (!isSkill && !isView) return null;
       return `export default ${JSON.stringify(readFileSync(path, 'utf8'))};`;
     },
