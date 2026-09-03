@@ -397,6 +397,61 @@ describe('failures', () => {
     expect(events.some((e) => e.type === 'error' && /declined/.test(e.message))).toBe(true);
     expect(result.stopReason).toBe('refusal');
   });
+
+  /**
+   * Express that does not compile used to end the turn with a broken surface
+   * and the model none the wiser — it had written something wrong and nothing
+   * ever told it. This is a live failure the eval suite caught: the model wrote
+   * `duration: "2h"` where the grammar wants `duration="2h"`.
+   */
+  describe('a block that does not compile', () => {
+    const BROKEN = 'root = Text("Madrid", variant: "h3")';
+    const FIXED = 'root = Text("Madrid", variant="h3")';
+
+    it('hands the error back and takes the corrected block', async () => {
+      script.push({ chunks: [`Here you go.\n<a2ui>\n${BROKEN}\n</a2ui>\n`] });
+      script.push({ chunks: [`<a2ui>\n${FIXED}\n</a2ui>\n`] });
+
+      const { events, result } = await collect();
+
+      expect(events.some((e) => e.type === 'ui_error')).toBe(true);
+      expect(events.some((e) => e.type === 'retry')).toBe(true);
+
+      // What it was told: the reason, and the block it wrote.
+      const correction = result.history.find(
+        (message: any) =>
+          message.role === 'user' && typeof message.content === 'string' &&
+          message.content.includes('did not compile'),
+      );
+      expect(correction!.content).toContain("keyword arguments use '='");
+      expect(correction!.content).toContain(BROKEN);
+
+      // And the second attempt drew.
+      const drawn = events.filter((e) => e.type === 'ui' && e.done);
+      expect(drawn.length).toBeGreaterThan(0);
+    });
+
+    it('says which mistake it was, not just where', async () => {
+      script.push({ chunks: [`<a2ui>\n${BROKEN}\n</a2ui>\n`] });
+      script.push({ chunks: ['Sorry.'] });
+
+      const { events } = await collect();
+      const failure = events.find((e) => e.type === 'ui_error');
+      expect(failure.message).toMatch(/keyword arguments use '=', not ':'/);
+      expect(failure.express).toContain('variant:');
+    });
+
+    // A model that cannot fix it on the second attempt will not fix it on the
+    // fifth, and the traveler is waiting.
+    it('retries once, not forever', async () => {
+      for (let attempt = 0; attempt < 4; attempt++) {
+        script.push({ chunks: [`<a2ui>\n${BROKEN}\n</a2ui>\n`] });
+      }
+
+      const { events } = await collect();
+      expect(events.filter((e) => e.type === 'retry')).toHaveLength(1);
+    });
+  });
 });
 
 describe('skills', () => {
@@ -449,6 +504,31 @@ describe('skills', () => {
     expect(panel).toContain('read-only');
     expect(panel).toContain('No editors here');
     expect(panel).toContain('Change');
+  });
+
+  /**
+   * The eval caught this: told to lead the trip *and* that the panel is
+   * read-only, the model advanced the plan in the panel, with the controls the
+   * next step needed. Both instructions were reasonable; together they were
+   * contradictory, and a model resolves a contradiction by picking one.
+   */
+  it('does not ask an inline turn and a panel turn to do the same job', () => {
+    const forSurface = (surface: 'inline' | 'sidebar' | 'home') =>
+      buildSystemPrompt({
+        variant: 'express-monolithic',
+        surface,
+        surfaceId: surface,
+        catalogId: 'c',
+        trip: { destination: 'Madrid', origin: 'LHR', startDate: '2027-04-12', endDate: '2027-04-19' },
+        today: '2026-09-03',
+      })[1]!.text;
+
+    expect(forSurface('inline')).toContain('**Do this next.**');
+    for (const panel of ['sidebar', 'home'] as const) {
+      expect(forSurface(panel)).toContain('**Not this turn.**');
+      expect(forSurface(panel)).not.toContain('**Do this next.**');
+      expect(forSurface(panel)).toContain('Ask for nothing');
+    }
   });
 
   const promptFor = (

@@ -1752,3 +1752,17 @@ a {
   color: var(--tv-warm);
   background: var(--tv-warm-soft);
 }
+
+/*
+ * The agent rewriting a block that did not compile. Stated plainly rather than
+ * hidden: something went wrong and is being fixed, which is more reassuring
+ * than a pause with no explanation.
+ */
+.turn__retry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 0.8rem;
+  color: var(--tv-ink-faint);
+}

@@ -38,11 +38,20 @@ export type AgentEvent =
    */
   | { type: 'text'; delta: string; round: number }
   | { type: 'ui'; surfaceId: string; messages: A2uiMessage[]; done: boolean }
-  | { type: 'ui_error'; message: string; source: string }
+  /**
+   * A block the model wrote that would not compile.
+   *
+   * `source` says where it happened — mid-stream or on the finished message —
+   * and `express` is the offending text, so a failure can be read rather than
+   * guessed at.
+   */
+  | { type: 'ui_error'; message: string; source: string; express?: string }
   | { type: 'tool'; name: string; input: unknown; status: 'running' }
   | { type: 'tool_result'; name: string; result: unknown; isError: boolean }
   | { type: 'trip'; trip: Record<string, unknown> }
   | { type: 'usage'; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number }
+  /** The model is being asked to rewrite a block that did not compile. */
+  | { type: 'retry'; reason: string }
   | { type: 'error'; message: string; retryable: boolean }
   | { type: 'done'; stopReason: string | null };
 
@@ -148,6 +157,18 @@ export async function runTurn(
 
   let stopReason: string | null = null;
 
+  /**
+   * A compile failure the model has not been told about yet.
+   *
+   * Until this existed, Express that did not compile ended the turn with a
+   * broken surface and the model none the wiser — it had written something
+   * wrong and nothing ever said so. The MCP tools have always answered a
+   * compile error by naming it, because there the model is on the other side of
+   * a tool call; here it is the same model, one message later.
+   */
+  let unreported: { message: string; express: string } | null = null;
+  let retriedCompile = false;
+
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const stream = new ExpressStreamParser(compiler, {
       surfaceId: request.surfaceId,
@@ -180,7 +201,13 @@ export async function runTurn(
               done: event.done,
             });
           } else if (event.type === 'error') {
-            emit({ type: 'ui_error', message: event.message, source: 'stream' });
+            unreported = { message: event.message, express: event.source };
+            emit({
+              type: 'ui_error',
+              message: event.message,
+              source: 'stream',
+              express: event.source,
+            });
           }
         }
       });
@@ -194,7 +221,8 @@ export async function runTurn(
         else if (event.type === 'ui') {
           emit({ type: 'ui', surfaceId: request.surfaceId, messages: event.messages, done: event.done });
         } else if (event.type === 'error') {
-          emit({ type: 'ui_error', message: event.message, source: 'final' });
+          unreported = { message: event.message, express: event.source };
+          emit({ type: 'ui_error', message: event.message, source: 'final', express: event.source });
         }
       }
 
@@ -225,6 +253,28 @@ export async function runTurn(
     const toolUses = assistantBlocks.filter(
       (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
     );
+
+    // Nothing left to do but a surface that did not compile: hand the error
+    // back and let it write the block again. Once — a model that cannot fix it
+    // on the second attempt will not fix it on the fifth, and the traveler is
+    // waiting.
+    if (toolUses.length === 0 && unreported && !retriedCompile) {
+      retriedCompile = true;
+      const failure = unreported;
+      unreported = null;
+      emit({ type: 'retry', reason: failure.message });
+      messages.push({
+        role: 'user',
+        content:
+          'That A2UI block did not compile, so nothing was drawn and the traveler is looking ' +
+          `at prose with a gap in it.\n\n${failure.message}\n\nThe block was:\n\n` +
+          `${failure.express.slice(0, 4000)}\n\n` +
+          'Write the whole block again, corrected. Do not repeat the prose — only the ' +
+          '<a2ui> block.',
+      });
+      continue;
+    }
+
     if (toolUses.length === 0) break;
 
     // Parallel tool calls come back in one assistant message and their results

@@ -21,7 +21,14 @@ import { A2UI_CLOSE, A2UI_OPEN, type A2uiMessage } from './types.js';
 export type StreamEvent =
   | { type: 'text'; delta: string }
   | { type: 'ui'; blockIndex: number; messages: A2uiMessage[]; done: boolean }
-  | { type: 'error'; blockIndex: number; message: string };
+  /**
+   * A finished block that did not compile.
+   *
+   * `source` is the Express that failed. Without it a compile error is a line
+   * and column into text nobody kept — the host cannot show what broke, and the
+   * model cannot be told what to fix.
+   */
+  | { type: 'error'; blockIndex: number; message: string; source: string };
 
 /** Longest prefix of `text`'s tail that is also a proper prefix of `token`. */
 function danglingPrefixLength(text: string, token: string): number {
@@ -124,6 +131,7 @@ export class ExpressStreamParser {
         type: 'error',
         blockIndex: this.blockIndex,
         message: error instanceof Error ? error.message : String(error),
+        source,
       };
     }
   }

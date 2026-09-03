@@ -23,7 +23,8 @@ export type AgentEvent =
   | { type: 'start'; model: string; skill: SkillVariant; surfaceId: string }
   | { type: 'text'; delta: string; round?: number }
   | { type: 'ui'; surfaceId: string; messages: A2uiMessage[]; done: boolean }
-  | { type: 'ui_error'; message: string; source: string }
+  | { type: 'ui_error'; message: string; source: string; express?: string }
+  | { type: 'retry'; reason: string }
   | { type: 'tool'; name: string; input: unknown; status: 'running' }
   | { type: 'tool_result'; name: string; result: unknown; isError: boolean }
   | { type: 'trip'; trip: Record<string, unknown> }
