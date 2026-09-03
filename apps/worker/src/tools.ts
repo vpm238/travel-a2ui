@@ -191,15 +191,32 @@ export const TOOLS: Anthropic.Tool[] = [
         legs: {
           type: 'array',
           description:
-            'Stops after the first, each with its own dates. This is how a multi-city trip is ' +
-            'held; the top-level fields describe the first leg.',
+            'Stops after the first, in order, each with its own dates and — where it differs — ' +
+            'its own party size. This is how a real route is held: SFO to New York via Chicago ' +
+            'for two nights, then home with a second ticket because a friend is coming back too, ' +
+            'is one trip with three legs and two party sizes. The top-level fields are the first ' +
+            'leg. A leg with no origin departs from the previous stop.',
           items: {
             type: 'object',
             properties: {
               destination: { type: 'string' },
               startDate: { type: 'string', description: 'YYYY-MM-DD.' },
               endDate: { type: 'string', description: 'YYYY-MM-DD.' },
-              origin: { type: 'string', description: 'Departure airport for this leg, if it differs.' },
+              origin: {
+                type: 'string',
+                description: 'Departure airport. Omit and it departs from the previous stop.',
+              },
+              travelers: {
+                type: 'integer',
+                description:
+                  'Only when this leg carries a different number of people than the trip — ' +
+                  'someone joining for the way home, someone flying back early. Omit and it ' +
+                  "inherits the trip's party size.",
+              },
+              purpose: {
+                type: 'string',
+                description: "Why this stop exists — 'the wedding', 'work'. It shapes what to plan.",
+              },
               notes: { type: 'string' },
             },
             required: ['destination'],

@@ -10,7 +10,7 @@
  * read, so the panel cannot disagree with what the agent thinks is left.
  */
 
-import { plan, stops, type Trip } from '@travel-a2ui/trip';
+import { partyVaries, plan, stops, type Trip } from '@travel-a2ui/trip';
 
 const LABELS: Record<string, string> = {
   route: 'Where to, and from',
@@ -25,6 +25,7 @@ const LABELS: Record<string, string> = {
 export function TripPlan({ trip }: { trip: Trip }) {
   const state = plan(trip);
   const legs = stops(trip);
+  const varies = partyVaries(trip);
   if (state.done === 0 && !trip.destination) return null;
 
   return (
@@ -37,7 +38,20 @@ export function TripPlan({ trip }: { trip: Trip }) {
       </h3>
 
       {legs.length > 1 ? (
-        <p className="plan__legs">{legs.map((leg) => leg.destination).join(' → ')}</p>
+        <ol className="plan__route">
+          {legs.map((leg, index) => (
+            <li key={`${leg.destination}-${index}`}>
+              <span className="plan__place">{leg.destination}</span>
+              {/* Only the details that are actually different, so the route
+                  stays readable when nothing unusual is going on. */}
+              {leg.travelers !== undefined && varies ? (
+                <span className="plan__leggy">{leg.travelers}×</span>
+              ) : null}
+              {leg.purpose ? <span className="plan__leggy">{leg.purpose}</span> : null}
+              {!leg.startDate ? <span className="plan__leggy plan__leggy--todo">dates?</span> : null}
+            </li>
+          ))}
+        </ol>
       ) : null}
 
       <ol>

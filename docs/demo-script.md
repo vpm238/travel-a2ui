@@ -141,6 +141,17 @@ hotel; most trips are not that.
 
 **Type:**
 
+> SFO to NYC with 1 stop in Chicago for 2 nights to attend a wedding and then
+> come back to SFO from NYC, but coming back it's 2 tickets because I'm
+> travelling back with my friend.
+
+**Expect** the whole route recorded in one go — three legs in the sidebar's plan
+(Chicago → New York → San Francisco), the return marked `2×`, the wedding kept
+as the reason for the stop — and then a single question about the dates. Not a
+stop-at-a-time interrogation, and not a return priced for one person.
+
+Then a simpler variant:
+
 > Lisbon then Madrid, two weeks in April. We're staying with my sister in
 > Lisbon.
 

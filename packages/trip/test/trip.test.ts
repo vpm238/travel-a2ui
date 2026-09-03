@@ -18,6 +18,7 @@ import {
   nextStepFor,
   nights,
   normalize,
+  partyVaries,
   plan,
   problems,
   stops,
@@ -221,6 +222,51 @@ describe('trips that do not fit the usual shape', () => {
     expect(step?.stage).toBe('dates');
     expect(step?.incompleteLegs).toEqual(['Madrid']);
     expect(nextStepFor(trip)).toContain('Madrid');
+  });
+
+  /**
+   * The trip that broke the model, kept as the case to hold it honest.
+   *
+   * "SFO to New York with a stop in Chicago for two nights for a wedding, then
+   * back to SFO — but two tickets coming home, because I'm travelling back with
+   * a friend." One trip, three legs, two party sizes, and a return that is not
+   * a mirror of the outbound.
+   */
+  const wedding: Trip = {
+    destination: 'Chicago',
+    origin: 'SFO',
+    startDate: '2026-10-09',
+    endDate: '2026-10-11',
+    travelers: 1,
+    legs: [
+      { destination: 'New York', startDate: '2026-10-11', endDate: '2026-10-15', purpose: 'the wedding' },
+      { destination: 'San Francisco', startDate: '2026-10-15', endDate: '2026-10-15', travelers: 2 },
+    ],
+  };
+
+  it('holds a route with a stopover and a return', () => {
+    expect(stops(wedding).map((leg) => `${leg.origin}→${leg.destination}`)).toEqual([
+      'SFO→Chicago',
+      'Chicago→New York',
+      'New York→San Francisco',
+    ]);
+  });
+
+  // Without this the return is priced for one person and the friend has no seat.
+  it('carries a different party size on the leg that has one', () => {
+    expect(stops(wedding).map((leg) => leg.travelers)).toEqual([1, 1, 2]);
+    expect(partyVaries(wedding)).toBe(true);
+    expect(partyVaries({ ...wedding, legs: [] })).toBe(false);
+  });
+
+  it('keeps why a stop exists', () => {
+    expect(stops(wedding)[1]?.purpose).toBe('the wedding');
+  });
+
+  it('coerces a leg party size the way it coerces everything else', () => {
+    expect(coerce('legs', [{ destination: 'NYC', travelers: '2' }])).toEqual([
+      { destination: 'NYC', travelers: 2 },
+    ]);
   });
 
   it('ignores a leg that names no place', () => {

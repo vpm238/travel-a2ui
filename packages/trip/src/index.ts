@@ -238,16 +238,26 @@ export type Trip = Partial<{
 /**
  * One stop on a trip that has more than one.
  *
- * Kept deliberately thin. A leg is a place and a span; the flight, the stay and
- * the budget are still decided for the trip as a whole, because that is how
- * people talk about them ("about £2,000 all in", not "£900 for the Lisbon
- * portion"). When that stops being true this is the type that grows.
+ * A leg is a place, a span, and — where it differs from the rest of the trip —
+ * who is on it and why. That last part is not decoration: "SFO to New York via
+ * Chicago for a wedding, coming back with two of us" is one trip with three
+ * legs and two different party sizes, and a model with a single `travelers`
+ * silently prices the return for the wrong number of people.
+ *
+ * Money stays trip-level. People say "about $2,000 all in", not "$900 for the
+ * Chicago portion", and splitting the budget per leg would model an accounting
+ * exercise nobody asked for.
  */
 export interface Leg {
   destination: string;
   startDate?: string;
   endDate?: string;
+  /** Where this leg departs from, when it is not the previous stop. */
   origin?: string;
+  /** Only when it differs from the trip's party size. */
+  travelers?: number;
+  /** Why this stop exists — 'the wedding', 'work'. Shapes what gets planned. */
+  purpose?: string;
   notes?: string;
 }
 
@@ -323,14 +333,22 @@ function toLeg(value: unknown): Leg | undefined {
     typeof raw['origin'] === 'string' && /^[A-Za-z]{3}$/.test(raw['origin'].trim())
       ? raw['origin'].trim().toUpperCase()
       : undefined;
-  const notes = typeof raw['notes'] === 'string' && raw['notes'].trim() ? raw['notes'].trim() : undefined;
+  const text = (key: string) =>
+    typeof raw[key] === 'string' && (raw[key] as string).trim()
+      ? (raw[key] as string).trim().slice(0, 200)
+      : undefined;
+
+  const party = toNumber(raw['travelers']);
+  const travelers = party === undefined ? undefined : Math.max(1, Math.round(party));
 
   return {
     destination: destination.slice(0, 120),
     ...(start ? { startDate: start } : {}),
     ...(end ? { endDate: end } : {}),
     ...(origin ? { origin } : {}),
-    ...(notes ? { notes } : {}),
+    ...(travelers === undefined ? {} : { travelers }),
+    ...(text('purpose') ? { purpose: text('purpose') } : {}),
+    ...(text('notes') ? { notes: text('notes') } : {}),
   };
 }
 
@@ -627,7 +645,14 @@ export interface Plan {
   complete: boolean;
 }
 
-/** Stops in order: the flat fields are the first leg, `legs` are the rest. */
+/**
+ * Stops in order, each resolved against the trip and the stop before it.
+ *
+ * Two defaults are filled in here so nothing downstream has to reimplement
+ * them: a leg with no origin departs from wherever the previous leg ended, and
+ * a leg with no party size carries the trip's. Both are what a person means
+ * when they leave it out.
+ */
 export function stops(trip: Trip): Leg[] {
   const first: Leg | undefined = trip.destination
     ? {
@@ -635,9 +660,25 @@ export function stops(trip: Trip): Leg[] {
         ...(trip.origin ? { origin: trip.origin } : {}),
         ...(trip.startDate ? { startDate: trip.startDate } : {}),
         ...(trip.endDate ? { endDate: trip.endDate } : {}),
+        ...(trip.travelers === undefined ? {} : { travelers: trip.travelers }),
       }
     : undefined;
-  return [...(first ? [first] : []), ...(trip.legs ?? [])];
+
+  const all = [...(first ? [first] : []), ...(trip.legs ?? [])];
+
+  return all.map((leg, index) => ({
+    ...leg,
+    origin: leg.origin ?? (index > 0 ? all[index - 1]!.destination : trip.origin),
+    travelers: leg.travelers ?? trip.travelers,
+  }));
+}
+
+/** True when the legs do not all carry the same number of people. */
+export function partyVaries(trip: Trip): boolean {
+  const counts = stops(trip)
+    .map((leg) => leg.travelers)
+    .filter((count): count is number => count !== undefined);
+  return new Set(counts).size > 1;
 }
 
 /**
