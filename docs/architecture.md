@@ -230,6 +230,28 @@ The header's **Runtime** picker switches between them mid-conversation.
 | Compiler | `packages/express` in-process | `/api/compile` on the Worker |
 | Needs | one deploy | a second service, and a **public** MCP URL |
 
+### The agent is not the memory
+
+Worth stating plainly, because "the conversation was forgotten" sounds like
+something needs re-provisioning and it never does:
+
+| | What it is | Lifetime |
+| --- | --- | --- |
+| **the agent** | a stored, versioned *configuration* — model, system prompt, tools, MCP servers. Holds no memory. | created once by `setup_agent`, shared by every conversation |
+| **the session** | the memory: the transcript and the trip | one per conversation, created on first message |
+
+A reload starts a new session against the same agent. Nothing is provisioned, no
+setup cost is paid, and nothing is remembered. Re-run
+`setup_agent --update` only when the *configuration* changes — a different
+model, another skill variant, a moved MCP URL — which bumps the agent's version;
+sessions already running stay pinned to the version they started on. If the
+agent or environment has genuinely been deleted upstream, session creation says
+so and names the command to run.
+
+The Worker works the same way with different nouns: the system prompt is
+assembled per request from the generated skill, and the Durable Object is the
+memory.
+
 They are interchangeable because they emit the same SSE event stream against the
 same `/api/chat` contract. `probeBackend()` calls the target's `/api/meta`
 before switching, so choosing a runtime that is not running says so in the

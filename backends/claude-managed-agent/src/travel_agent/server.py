@@ -232,15 +232,43 @@ def build_app(state: AgentState, compiler: Compiler):  # noqa: C901 - one route,
             return JSONResponse({"error": str(error), "source": "decompile"}, status_code=422)
 
     async def session_for(client: Any, conversation_id: str) -> str:
+        """The managed session backing one conversation, created on first use.
+
+        Worth being precise about what is what, because "the agent forgot"
+        suggests re-running setup and that is never the answer:
+
+            the agent    a stored, versioned *configuration* — model, system
+                         prompt, tools, MCP servers. It holds no memory at all.
+                         Created once by `setup_agent`, reused by everyone.
+            the session  the memory. One per conversation, created here, and
+                         the thing a new conversation gets a fresh one of.
+
+        So a reload starts a new session against the same agent: nothing to
+        provision, no setup cost, and no recollection of the last trip. Re-run
+        `setup_agent --update` only when the *configuration* changes — a new
+        skill variant, a different model, a moved MCP URL — which bumps the
+        agent's version; existing sessions stay pinned to the version they
+        started on.
+        """
         existing = SESSIONS.get(conversation_id)
         if existing:
             return existing
-        session = await asyncio.to_thread(
-            client.beta.sessions.create,
-            agent={"type": "agent", "id": state.agent_id, "version": state.agent_version},
-            environment_id=state.environment_id,
-            title=f"Trip {conversation_id}",
-        )
+        try:
+            session = await asyncio.to_thread(
+                client.beta.sessions.create,
+                agent={"type": "agent", "id": state.agent_id, "version": state.agent_version},
+                environment_id=state.environment_id,
+                title=f"Trip {conversation_id}",
+            )
+        except Exception as error:
+            # The stored ids outlive the objects they name. Say which one is
+            # gone and what to run, rather than surfacing a bare 404.
+            raise RuntimeError(
+                f"Could not start a session on agent {state.agent_id} "
+                f"(version {state.agent_version}) in environment {state.environment_id}: "
+                f"{error}\n\nIf the agent or environment no longer exists, re-provision "
+                f"with: python -m travel_agent.setup_agent --mcp-url {state.mcp_url}"
+            ) from error
         remember_session(conversation_id, session.id)
         return session.id
 
