@@ -19,12 +19,23 @@
  */
 
 import { chromium } from 'playwright';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const BASE = (process.env.BASE_URL ?? 'http://127.0.0.1:8787').replace(/\/$/, '');
+/**
+ * Which Chromium to drive.
+ *
+ * CHROMIUM_PATH wins; otherwise a preinstalled browser is used if one is
+ * actually on disk, and failing that Playwright resolves its own — which is the
+ * case on a CI runner after `playwright install`. Naming a path that does not
+ * exist fails with "executable doesn't exist", which says nothing about why.
+ */
+const PREINSTALLED = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const executablePath =
-  process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+  process.env.CHROMIUM_PATH || (existsSync(PREINSTALLED) ? PREINSTALLED : undefined);
+const launchBrowser = (options = {}) =>
+  chromium.launch({ ...(executablePath ? { executablePath } : {}), ...options });
 
 const shotIndex = process.argv.indexOf('--screenshot');
 const SHOT = shotIndex === -1 ? null : process.argv[shotIndex + 1];
@@ -123,12 +134,11 @@ async function main() {
   // Testing a deployment from behind a corporate or sandbox proxy: curl picks
   // HTTPS_PROXY up from the environment, Chromium does not.
   const proxy = process.env.E2E_PROXY || process.env.HTTPS_PROXY || process.env.https_proxy;
-  const browser = await chromium.launch({
-    executablePath,
-    ...(proxy && !BASE.startsWith('http://127.') && !BASE.startsWith('http://localhost')
+  const browser = await launchBrowser(
+    proxy && !BASE.startsWith('http://127.') && !BASE.startsWith('http://localhost')
       ? { proxy: { server: proxy } }
-      : {}),
-  });
+      : {},
+  );
 
   /**
    * The nearest thing to an MCP host we can build: a page that drops the tool
