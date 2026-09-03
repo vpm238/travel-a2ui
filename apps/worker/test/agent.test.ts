@@ -440,8 +440,15 @@ describe('skills', () => {
       })[1]!.text;
 
     expect(brief('inline')).toContain('inline, in the conversation');
-    expect(brief('sidebar')).toContain('the sidebar');
     expect(brief('home')).toContain('home screen');
+
+    // The panel is read-only, and the brief has to say so in a way the model
+    // cannot read past — it is the one surface where drawing a control would
+    // produce something that visibly does nothing.
+    const panel = brief('sidebar');
+    expect(panel).toContain('read-only');
+    expect(panel).toContain('No editors here');
+    expect(panel).toContain('Change');
   });
 
   const promptFor = (

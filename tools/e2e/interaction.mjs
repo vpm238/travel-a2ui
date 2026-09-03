@@ -75,13 +75,20 @@ head = Text("How much are you spending?", variant="h3")
 budget = Slider("Total budget", 500, 6000, $/trip/budget)
 root = Column([head, budget], align="stretch")`;
 
-/** The sidebar: filters plus exactly one commit. */
+/**
+ * The panel: what is settled, and one way to change each of it.
+ *
+ * A slider is included deliberately. The panel is read-only, and the host has
+ * to hold that line even when the model draws a control it should not have —
+ * otherwise the rule is a request rather than a guarantee.
+ */
 const PANEL = `surface("sidebar")
-$/trip/maxPrice = 700
-title = Text("Refine", variant="h3")
-cap = Slider("Max fare", 150, 2000, $/trip/maxPrice)
-apply = Button(Text("Update the trip"), "primary", Event("apply_filters", {maxPrice: $/trip/maxPrice}))
-root = Column([title, cap, apply], align="stretch")`;
+$/trip/maxFare = 700
+title = Text("The trip", variant="h3")
+flight = Text("Iberia IB614 · $257", variant="body")
+changeFlight = Button(Text("Change"), "borderless", Event("change", {field: "selectedFlight"}))
+stray = Slider("Max fare", 150, 2000, $/trip/maxFare)
+root = Column([title, flight, changeFlight, stray], align="stretch")`;
 
 const sse = (events) => events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('');
 
@@ -221,30 +228,46 @@ check(
   JSON.stringify(sent.at(-1)?.surfaceState?.trip ?? {}),
 );
 
-// --- the sidebar behaves the same way -------------------------------------
-console.log('\nthe sidebar');
+// --- the panel is a record, not a form ------------------------------------
+console.log('\nthe panel');
 await page.waitForSelector('.sidebar .a2-surface', { timeout: 20000 }).catch(() => {});
 if ((await page.locator('.sidebar .a2-surface').count()) === 0) {
   await page.locator('.sidebar__placeholder button').click().catch(() => {});
   await page.waitForSelector('.sidebar .a2-surface', { timeout: 20000 }).catch(() => {});
 }
 
-if ((await page.locator('.sidebar input[type="range"]').count()) > 0) {
+if ((await page.locator('.sidebar .a2-surface').count()) > 0) {
   const beforePanel = chatTurns();
-  await page.locator('.sidebar input[type="range"]').fill('420');
-  await page.waitForTimeout(400);
-  check('moving a filter sends nothing', chatTurns() === beforePanel);
-  check('the panel says it has unsent changes', (await page.locator('.sidebar .pending').count()) > 0);
 
+  // The model drew a slider it should not have. Nothing there may send.
+  if ((await page.locator('.sidebar input[type="range"]').count()) > 0) {
+    await page.locator('.sidebar input[type="range"]').fill('420');
+    await page.waitForTimeout(400);
+    check('a control in the panel sends nothing, whatever the model drew', chatTurns() === beforePanel);
+  }
+  check(
+    'and the panel never offers to submit',
+    (await page.locator('.sidebar .pending').count()) === 0,
+  );
+
+  // Change is the panel's only interaction, and it reopens the decision in the
+  // conversation rather than editing it here.
   await page.locator('.sidebar .a2-button').first().click();
   await page.waitForTimeout(900);
-  check('committing the panel sends one message', chatTurns() === beforePanel + 1);
+  check('Change sends exactly one message', chatTurns() === beforePanel + 1);
+
+  const asked = sent.at(-1);
   check(
-    'and it appears in the conversation like any other',
+    'asking to reopen the decision, in the conversation',
+    asked?.surface === 'inline' && /change selectedFlight/.test(String(asked?.message)),
+    `${asked?.surface}: ${String(asked?.message).slice(0, 70)}`,
+  );
+  check(
+    'and it reads as a message like any other',
     (await page.locator('.bubble--event').count()) >= 2,
   );
 } else {
-  check('the sidebar rendered its controls', false, 'no panel appeared');
+  check('the panel rendered', false, 'no panel appeared');
 }
 
 await browser.close();

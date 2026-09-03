@@ -21,8 +21,11 @@ import {
   partyVaries,
   plan,
   problems,
+  release,
+  stayStatus,
   stops,
   summarize,
+  unskip,
   type Trip,
 } from '../src/index.js';
 
@@ -131,6 +134,64 @@ describe('readiness', () => {
   });
 });
 
+/**
+ * Changing your mind, which is the reason the panel is read-only.
+ *
+ * Pressing Change releases a decision back into the conversation. The part
+ * worth testing is that it takes what depended on it — a flight priced against
+ * dates that no longer apply is worse than no flight, because it looks settled.
+ */
+describe('releasing a decision', () => {
+  const booked: Trip = {
+    destination: 'Madrid',
+    origin: 'LHR',
+    startDate: '2026-04-12',
+    endDate: '2026-04-19',
+    travelers: 2,
+    selectedFlight: 'IB614',
+    flightPrice: 257,
+    selectedHotel: 'h1',
+    nightlyPrice: 180,
+    budget: 2600,
+    planned: true,
+  };
+
+  it('takes what was decided because of it', () => {
+    const { trip, cleared } = release(booked, ['startDate']);
+    expect(cleared).toContain('startDate');
+    expect(cleared).toContain('selectedFlight');
+    expect(cleared).toContain('selectedHotel');
+    expect(trip.selectedFlight).toBeUndefined();
+    expect(trip.startDate).toBeUndefined();
+    // Not a cascade: the route and the party survive a date change.
+    expect(trip.destination).toBe('Madrid');
+    expect(trip.travelers).toBe(2);
+  });
+
+  it('takes only the fare when the flight itself changes', () => {
+    const { trip, cleared } = release(booked, ['selectedFlight']);
+    expect(cleared).toEqual(['selectedFlight', 'flightPrice']);
+    expect(trip.selectedHotel).toBe('h1');
+    expect(trip.startDate).toBe('2026-04-12');
+  });
+
+  it('reports nothing when there was nothing to release', () => {
+    expect(release({ destination: 'Madrid' }, ['selectedFlight']).cleared).toEqual([]);
+  });
+
+  it('reopens the plan at the released step', () => {
+    expect(plan(booked).complete).toBe(true);
+    expect(plan(release(booked, ['selectedFlight']).trip).next?.stage).toBe('flight');
+  });
+
+  // "Actually, we do need a hotel in Madrid" is the same gesture.
+  it('puts a ruled-out stage back', () => {
+    const skipped: Trip = { destination: 'Brighton', skip: ['stay', 'budget'] };
+    expect(unskip(skipped, 'stay').skip).toEqual(['budget']);
+    expect(unskip(unskip(skipped, 'stay'), 'budget').skip).toBeUndefined();
+  });
+});
+
 describe('the plan the agent follows', () => {
   const planned: Trip = {
     destination: 'Madrid',
@@ -220,7 +281,7 @@ describe('trips that do not fit the usual shape', () => {
     };
     const step = plan(trip).next;
     expect(step?.stage).toBe('dates');
-    expect(step?.incompleteLegs).toEqual(['Madrid']);
+    expect(step?.pending).toEqual({ stops: ['Madrid'], want: 'dates' });
     expect(nextStepFor(trip)).toContain('Madrid');
   });
 
@@ -267,6 +328,71 @@ describe('trips that do not fit the usual shape', () => {
     expect(coerce('legs', [{ destination: 'NYC', travelers: '2' }])).toEqual([
       { destination: 'NYC', travelers: 2 },
     ]);
+  });
+
+  /**
+   * Three cities does not mean three hotels. This is the question that has to
+   * be asked per stop, and answered per stop, or the agent nags about a city
+   * where someone is staying with family.
+   */
+  describe('somewhere to stay, stop by stop', () => {
+    const route: Trip = {
+      destination: 'Lisbon',
+      origin: 'LHR',
+      startDate: '2026-04-12',
+      endDate: '2026-04-15',
+      travelers: 2,
+      selectedFlight: 'TP1',
+      legs: [{ destination: 'Madrid', startDate: '2026-04-15', endDate: '2026-04-19' }],
+    };
+
+    it('asks about every stop before it asks about a hotel', () => {
+      const step = plan(route).next;
+      expect(step?.stage).toBe('stay');
+      expect(step?.pending?.stops).toEqual(['Lisbon', 'Madrid']);
+      expect(step?.pending?.want).toMatch(/whether a stay is needed/);
+    });
+
+    it('stops asking about a stop that does not need one', () => {
+      const withSister: Trip = {
+        ...route,
+        legs: [{ ...route.legs![0]!, needsStay: true }],
+        // The flat fields are Lisbon; a leg-level answer lives on the leg.
+      };
+      const status = stayStatus({
+        ...withSister,
+        legs: [{ destination: 'Lisbon', needsStay: false }, ...withSister.legs!.slice(0)],
+      });
+      expect(status.notNeeded).toContain('Lisbon');
+      expect(status.needed).toContain('Madrid');
+    });
+
+    it('is finished once every stop is answered', () => {
+      const settled: Trip = {
+        ...route,
+        selectedHotel: 'h_lisbon',
+        legs: [{ ...route.legs![0]!, needsStay: false }],
+      };
+      const stayStep = plan(settled).steps.find((step) => step.stage === 'stay');
+      expect(stayStep?.done).toBe(true);
+      expect(stayStatus(settled).booked).toEqual(['Lisbon']);
+      expect(stayStatus(settled).notNeeded).toEqual(['Madrid']);
+    });
+
+    it('offers what is actually left once the trip is planned', () => {
+      const done: Trip = {
+        ...route,
+        selectedHotel: 'h_lisbon',
+        budget: 2600,
+        planned: true,
+        legs: [{ ...route.legs![0]!, needsStay: false }],
+      };
+      expect(plan(done).complete).toBe(true);
+      const closing = nextStepFor(done);
+      expect(closing).toMatch(/adding more to the days/);
+      expect(closing).toMatch(/sharing the plan/);
+      expect(closing).toMatch(/good trip/);
+    });
   });
 
   it('ignores a leg that names no place', () => {

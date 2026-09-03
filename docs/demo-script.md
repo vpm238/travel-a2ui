@@ -79,27 +79,28 @@ Watch for three things:
 The first card stays live and clickable. Scroll back and pick a different
 flight; it works, because inline surfaces are per-turn and permanent.
 
-## Flow 2 · Sidebar — adjusting the trip as a whole
+## Flow 2 · The panel, and changing your mind
 
-**The job.** Controls that belong to the trip, not to one message. Replaced on
-every write, so it is a panel and not a feed.
+**The job.** The panel is the record of what is settled — read-only on purpose.
+Deciding happens in the conversation, so there is one place to edit a value and
+one history of when it changed.
 
-**Type:**
+**Look at the panel** after picking a flight: the route stop by stop, the flight
+and its fare, the dates, and a checklist of the plan with the next step
+highlighted. No sliders, no date pickers.
 
-> Actually, keep it under $500 each and nonstop only. And make it 5 nights.
+**Then press Change** on the flight.
 
-**Expect:** the sidebar rebuilds — a fare slider now at 500, stops set to
-*Nonstop only*, a traveller counter, a date range, neighbourhood chips, and one
-**Update the trip** button. Move the slider and press it: the button's event
-carries every value in the panel at once, and the next search reflects all of
-them.
+**Expect:** it disappears from the panel, and a flight picker comes back *in the
+conversation*, pre-filled — the agent will say what else that undid, because
+releasing the flight also releases the fare it contributed to the total.
 
-**The thing to notice.** Ask for something the panel does not have:
+Now change something with dependents:
 
-> Add a cabin class control to the sidebar.
+> Actually let's go a week later.
 
-The panel comes back with one. Nothing in `Sidebar.tsx` knows what a cabin class
-is — the agent composed it from the catalog.
+The dates release the flight priced against them, and the agent says so rather
+than leaving a stale choice on screen looking settled.
 
 ## Flow 3 · Home — where the trip stands today
 

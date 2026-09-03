@@ -534,8 +534,26 @@ export function useAgent() {
     (event: A2uiEvent) => {
       if (busy) return;
       if (event.source && VALUE_EDITORS.has(event.source.component)) return;
+
       const surface: SurfaceKind =
         event.surfaceId === 'sidebar' ? 'sidebar' : event.surfaceId === 'home' ? 'home' : 'inline';
+
+      // The panel is read-only, so an interaction there is not an answer — it
+      // is a request to re-open a decision. Deciding happens in the
+      // conversation, where there is a record of it, and one place to edit a
+      // value rather than two that can disagree.
+      if (surface !== 'inline') {
+        const field = event.context['field'];
+        void send(
+          field
+            ? `[interface] change ${String(field)} — release it and ask me again inline, ` +
+              'pre-filled with what was there.'
+            : describeEvent(event),
+          { surface: 'inline', surfaceState: event.dataModel, fromSurface: true },
+        );
+        return;
+      }
+
       void send(describeEvent(event), {
         surface,
         surfaceState: event.dataModel,

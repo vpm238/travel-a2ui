@@ -258,6 +258,19 @@ export interface Leg {
   travelers?: number;
   /** Why this stop exists — 'the wedding', 'work'. Shapes what gets planned. */
   purpose?: string;
+  /**
+   * Whether this stop needs somewhere to stay.
+   *
+   * Undefined means nobody has asked yet, and that is the point: a trip through
+   * three cities does not need three hotels, and the difference — a friend's
+   * spare room, a wedding block, a red-eye out the same night — is a question
+   * per stop, not one for the trip. `false` settles the stop without a booking;
+   * `true` means it is still waiting on one.
+   */
+  needsStay?: boolean;
+  /** The stay chosen for this stop. */
+  selectedHotel?: string;
+  nightlyPrice?: number;
   notes?: string;
 }
 
@@ -340,6 +353,8 @@ function toLeg(value: unknown): Leg | undefined {
 
   const party = toNumber(raw['travelers']);
   const travelers = party === undefined ? undefined : Math.max(1, Math.round(party));
+  const needsStay = toFlag(raw['needsStay']);
+  const nightly = toNumber(raw['nightlyPrice']);
 
   return {
     destination: destination.slice(0, 120),
@@ -347,6 +362,9 @@ function toLeg(value: unknown): Leg | undefined {
     ...(end ? { endDate: end } : {}),
     ...(origin ? { origin } : {}),
     ...(travelers === undefined ? {} : { travelers }),
+    ...(needsStay === undefined ? {} : { needsStay }),
+    ...(text('selectedHotel') ? { selectedHotel: text('selectedHotel') } : {}),
+    ...(nightly === undefined ? {} : { nightlyPrice: Math.round(nightly) }),
     ...(text('purpose') ? { purpose: text('purpose') } : {}),
     ...(text('notes') ? { notes: text('notes') } : {}),
   };
@@ -428,6 +446,63 @@ export function normalize(value: unknown): Trip {
 /** A patch applied to a trip, with the patch normalised first. */
 export function merge(trip: Trip, patch: unknown): Trip {
   return { ...trip, ...normalize(patch) };
+}
+
+/**
+ * What else has to be let go when one decision is released.
+ *
+ * Changing the dates does not just change the dates: the flight was priced
+ * against them and the stay was booked for those nights, and leaving either in
+ * place means the panel keeps showing a decision that is no longer true. So
+ * releasing a value releases what was decided *because* of it.
+ *
+ * Deliberately shallow — one level, and only where the dependency is real.
+ * Cascading further would clear a trip someone spent an hour on because they
+ * moved a date by a day.
+ */
+const DEPENDENTS: Partial<Record<TripKey, readonly TripKey[]>> = {
+  destination: ['selectedFlight', 'flightPrice', 'selectedHotel', 'nightlyPrice', 'neighborhood', 'planned'],
+  origin: ['selectedFlight', 'flightPrice'],
+  startDate: ['selectedFlight', 'flightPrice', 'selectedHotel', 'nightlyPrice', 'planned'],
+  endDate: ['selectedHotel', 'nightlyPrice', 'planned'],
+  travelers: ['selectedFlight', 'flightPrice', 'selectedHotel', 'nightlyPrice'],
+  selectedFlight: ['flightPrice'],
+  selectedHotel: ['nightlyPrice'],
+};
+
+/** The fields a release clears: the one named, plus what depended on it. */
+export function released(keys: readonly TripKey[]): TripKey[] {
+  const out = new Set<TripKey>();
+  for (const key of keys) {
+    out.add(key);
+    for (const dependent of DEPENDENTS[key] ?? []) out.add(dependent);
+  }
+  return [...out];
+}
+
+/**
+ * Lets go of a decision so it can be made again.
+ *
+ * The panel is read-only; changing something means releasing it back into the
+ * conversation, where it is re-asked pre-filled. Clearing it here is what stops
+ * the rest of the app pricing against a choice the traveler has withdrawn — and
+ * clearing a skipped stage un-skips it, because "actually we do need a hotel"
+ * is the same gesture.
+ */
+export function release(trip: Trip, keys: readonly TripKey[]): { trip: Trip; cleared: TripKey[] } {
+  const cleared = released(keys).filter((key) => trip[key as keyof Trip] !== undefined);
+  const next: Record<string, unknown> = { ...trip };
+  for (const key of cleared) delete next[key];
+  return { trip: next as Trip, cleared };
+}
+
+/** Puts a ruled-out stage back into the plan. */
+export function unskip(trip: Trip, stage: Stage): Trip {
+  const remaining = (trip.skip ?? []).filter((entry) => entry !== stage);
+  const next: Record<string, unknown> = { ...trip };
+  if (remaining.length > 0) next['skip'] = remaining;
+  else delete next['skip'];
+  return next as Trip;
 }
 
 // ---------------------------------------------------------------- derived
@@ -616,13 +691,15 @@ export interface Step {
   /** True when the traveler ruled this stage out rather than completing it. */
   skipped: boolean;
   /**
-   * Legs still missing dates, for the stages that are per-stop.
+   * Stops this stage is still waiting on, and what it is waiting for.
    *
-   * A trip through Lisbon and Madrid has one route stage and two places that
-   * each need a span. Reporting them here is what stops the agent declaring the
-   * dates settled because the *first* leg has some.
+   * Some stages are per-stop rather than per-trip. A trip through Lisbon and
+   * Madrid has two places that each need a span, and somewhere to stay is a
+   * question *per city* — three cities do not mean three hotels, because one of
+   * them might be a friend's spare room. Reporting the stops here is what stops
+   * the agent declaring a stage settled because the first leg is.
    */
-  incompleteLegs?: string[];
+  pending?: { stops: string[]; want: string };
 }
 
 const STEPS: ReadonlyArray<{ stage: Stage; label: string; needs: readonly TripKey[] }> = [
@@ -630,7 +707,9 @@ const STEPS: ReadonlyArray<{ stage: Stage; label: string; needs: readonly TripKe
   { stage: 'dates', label: 'settle the dates', needs: ['startDate', 'endDate'] },
   { stage: 'party', label: 'settle how many are travelling', needs: ['travelers'] },
   { stage: 'flight', label: 'choose a flight', needs: ['selectedFlight'] },
-  { stage: 'stay', label: 'choose somewhere to stay', needs: ['selectedHotel'] },
+  // No trip-level field: whether a stay is needed, and which one, is decided
+  // per stop. `pendingFor` is what makes this step complete.
+  { stage: 'stay', label: 'sort out where you are sleeping, stop by stop', needs: [] },
   { stage: 'budget', label: 'agree what the trip should cost', needs: ['budget'] },
   { stage: 'plan', label: 'plan the days', needs: ['planned'] },
 ];
@@ -670,7 +749,35 @@ export function stops(trip: Trip): Leg[] {
     ...leg,
     origin: leg.origin ?? (index > 0 ? all[index - 1]!.destination : trip.origin),
     travelers: leg.travelers ?? trip.travelers,
+    // The trip's own hotel choice belongs to the first stop, which is what the
+    // flat fields describe.
+    ...(index === 0 && leg.selectedHotel === undefined && trip.selectedHotel
+      ? { selectedHotel: trip.selectedHotel }
+      : {}),
   }));
+}
+
+/** Stops grouped by where the question of somewhere to stay has got to. */
+export function stayStatus(trip: Trip): {
+  unasked: string[];
+  needed: string[];
+  booked: string[];
+  notNeeded: string[];
+} {
+  const unasked: string[] = [];
+  const needed: string[] = [];
+  const booked: string[] = [];
+  const notNeeded: string[] = [];
+
+  for (const leg of stops(trip)) {
+    // A stay already chosen answers the question, whether or not anyone asked.
+    if (leg.selectedHotel) booked.push(leg.destination);
+    else if (leg.needsStay === false) notNeeded.push(leg.destination);
+    else if (leg.needsStay === true) needed.push(leg.destination);
+    else unasked.push(leg.destination);
+  }
+
+  return { unasked, needed, booked, notNeeded };
 }
 
 /** True when the legs do not all carry the same number of people. */
@@ -690,6 +797,40 @@ export function partyVaries(trip: Trip): boolean {
  * stages are evaluated per stop, so a two-city trip is not declared dated
  * because the first city has dates.
  */
+/**
+ * What a per-stop stage is still waiting on, if anything.
+ *
+ * Only two stages are per-stop. Dates, because every place needs a span. And
+ * somewhere to stay, because that is a question you ask city by city — and the
+ * answer "not there, I'm at my sister's" has to be recordable, or the agent
+ * asks about it forever.
+ */
+function pendingFor(
+  trip: Trip,
+  stage: Stage,
+  legs: Leg[],
+): { stops: string[]; want: string } | undefined {
+  if (stage === 'dates') {
+    const undated = legs.filter((leg) => !leg.startDate || !leg.endDate).map((l) => l.destination);
+    return undated.length > 0 ? { stops: undated, want: 'dates' } : undefined;
+  }
+
+  if (stage === 'stay') {
+    // A per-stop stage cannot be settled before there are stops. Without this
+    // an empty trip counts "somewhere to stay" as done, and the plan opens at
+    // step two of a trip nobody has started.
+    if (legs.length === 0) return { stops: [], want: 'a destination first' };
+
+    const status = stayStatus(trip);
+    if (status.unasked.length > 0) {
+      return { stops: status.unasked, want: 'to know whether a stay is needed' };
+    }
+    if (status.needed.length > 0) return { stops: status.needed, want: 'somewhere to stay' };
+  }
+
+  return undefined;
+}
+
 export function plan(trip: Trip): Plan {
   const skipped = new Set(trip.skip ?? []);
   const legs = stops(trip);
@@ -706,17 +847,13 @@ export function plan(trip: Trip): Plan {
       return isBlank(value) || (BY_KEY.get(key)?.kind === 'flag' && value !== true);
     });
 
-    // Later stops need their own dates; the flat fields only cover the first.
-    const incompleteLegs =
-      step.stage === 'dates'
-        ? legs.filter((leg) => !leg.startDate || !leg.endDate).map((leg) => leg.destination)
-        : [];
+    const pending = pendingFor(trip, step.stage, legs);
 
     return {
       ...step,
       missing,
-      incompleteLegs: incompleteLegs.length > 0 ? incompleteLegs : undefined,
-      done: missing.length === 0 && incompleteLegs.length === 0,
+      ...(pending ? { pending } : {}),
+      done: missing.length === 0 && !pending,
       skipped: false,
     };
   });
@@ -747,17 +884,23 @@ export function nextStepFor(trip: Trip): string {
     return (
       `The trip is planned — every stage is settled or ruled out${
         legs.length > 1 ? `, across all ${legs.length} stops` : ''
-      }. Do not invent another question. Show them the finished trip and wish them a good trip.`
+      }. Do not invent another question about it. Show them the whole trip on one surface, ` +
+      'offer the two things that are actually left — adding more to the days, or sharing the ' +
+      'plan with whoever else is coming — and wish them a good trip.'
     );
   }
 
   const step = state.next!;
   const parts = [`Step ${state.done + 1} of ${state.total}: ${step.label}.`];
 
-  if (step.incompleteLegs?.length) {
+  if (step.pending && step.pending.stops.length > 0) {
     parts.push(
-      `These stops still need dates: ${step.incompleteLegs.join(', ')}. A trip with several ` +
-        'stops needs a span for each, not one range covering all of them.',
+      `Waiting on ${step.pending.stops.join(', ')} — ${step.pending.want}. ` +
+        (step.stage === 'stay'
+          ? 'Ask per stop, in one surface: which of these need somewhere to stay and which do ' +
+            'not. Record a stop that does not with needsStay: false on its leg, and stop ' +
+            'asking about it.'
+          : 'A trip with several stops needs one for each, not one covering all of them.'),
     );
   }
   if (step.missing.length > 0) {
@@ -766,7 +909,7 @@ export function nextStepFor(trip: Trip): string {
         `${step.missing.map((key) => `$${bindingFor(key)}`).join(', ')}, with one button.`,
     );
   }
-  if (step.missing.length === 0 && !step.incompleteLegs?.length) {
+  if (step.missing.length === 0 && !step.pending) {
     parts.push('Draw what it needs and move it forward.');
   }
 

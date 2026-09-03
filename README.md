@@ -43,9 +43,12 @@ The interesting problems turned out to be:
    sidebar, a generated home screen — and then all three again inside Claude,
    through an MCP server that carries the same React renderer.
 
-Two documents worth having open: **[docs/architecture.md](docs/architecture.md)**
-for how it is put together, and **[docs/demo-script.md](docs/demo-script.md)**
-for six user flows with the exact things to type and what should come back.
+Three documents worth having open:
+**[docs/user-flows.md](docs/user-flows.md)** for the flows and the edge cases
+that shaped them — including which rules are enforced in code rather than asked
+of the model; **[docs/architecture.md](docs/architecture.md)** for how it is put
+together; and **[docs/demo-script.md](docs/demo-script.md)** for the exact things
+to type and what should come back.
 
 The architecture document is the long version: what is
 built once and shared, where this sits among the three A2UI × MCP Apps
@@ -131,20 +134,22 @@ The user asked something; this is the answer, drawn under it.
 - **User flow**: *"Find me a flight to Madrid"* → three `FlightOption`s → tap one
   → the agent saves it and asks about hotels.
 
-### 2 · Sidebar — the trip as a whole
+### 2 · The panel — what is settled
 
-Persistent, beside the conversation. Where the trip is *adjusted* rather than
-discussed.
+Persistent, beside the conversation. **Read-only**, and that is the design
+rather than a limitation.
 
-- **Scope**: controls, not content. Dates, party size, budget, filters, what is
-  chosen so far. Long prose does not belong here.
-- **Lifetime**: singular and replaced. Writing to `sidebar` again rebuilds the
-  panel; it is not a feed.
-- **Context-aware**: it is regenerated when the trip changes, so a panel of
-  destination options becomes a panel of flight filters once a destination is
-  settled. Nothing in the app decides that — the agent does, from the trip state.
-- **User flow**: change the fare cap and the party size, hit Apply, and the next
-  search reflects both.
+- **Scope**: decisions, not controls. The route stop by stop, the flight and
+  stay chosen, the dates, what it comes to, how far through the plan you are.
+- **Lifetime**: singular and replaced. Writing to `sidebar` again rebuilds it;
+  it is not a feed. Values sync from the trip with no model in the path, so
+  changing the route on an inline card updates it immediately.
+- **One interaction: Change.** It releases that decision — and whatever was
+  decided because of it — and the agent re-opens it *inline*, pre-filled. Two
+  places that can edit one value is how a conversation loses track of its own
+  history, so the conversation is where you decide and this is the record.
+- **User flow**: press Change on the flight; it disappears from the panel and
+  comes back as a picker in the conversation, with the fare you had highlighted.
 
 ### 3 · Home — where the trip stands today
 

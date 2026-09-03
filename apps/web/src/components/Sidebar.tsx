@@ -1,15 +1,21 @@
 /**
- * Modality 2 — the sidebar.
+ * Modality 2 — the panel.
  *
- * One surface, id `sidebar`, that persists across turns and is replaced rather
- * than appended to. Where the inline card answers the message, this panel holds
- * the controls for the trip as a whole: dates, party size, budget, filters, what
- * has been chosen.
+ * One surface, id `sidebar`, persistent across turns and replaced rather than
+ * appended to. Where the inline card asks the question, this shows the answers:
+ * the route stop by stop, the flight and stay chosen, the dates, what it comes
+ * to.
  *
- * The interesting property is that it is *context-aware*: it is regenerated when
- * the trip changes, so a panel that showed destination options becomes a panel
- * of flight filters once a destination is settled. Nothing here decides that —
- * the agent does, from the trip state.
+ * **It is read-only**, and that is a design decision rather than a limitation.
+ * It used to carry controls, which meant two places could change the same value
+ * and the conversation had no record of which one did. Now deciding happens in
+ * one place — inline, in the conversation — and this is the record. The panel's
+ * only interaction is *Change*, which releases a decision and re-opens it
+ * inline, pre-filled.
+ *
+ * Values sync into it from the trip with no model in the path, so changing the
+ * route on an inline card updates it immediately. The agent is only asked to
+ * rebuild when the panel should be a different *shape*.
  */
 
 import { useEffect, useRef } from 'react';
@@ -17,7 +23,6 @@ import { A2uiSurface, useSurface } from '@travel-a2ui/renderer';
 
 import type { Agent } from '../useAgent.js';
 import { Spinner } from './bits.js';
-import { PendingEdits } from './PendingEdits.js';
 import { TripPlan } from './TripPlan.js';
 
 /**
@@ -54,14 +59,15 @@ export function Sidebar({ agent }: { agent: Agent }) {
 
     lastBuilt.current = signature;
     void agent.send(
-      'Rebuild the sidebar for where the trip stands now. Controls only — no prose.',
+      'Rebuild the panel for where the trip stands now: what is settled, with a Change button ' +
+        'on each decision. Read-only — no editors, no prose.',
       { surface: 'sidebar', surfaceId: 'sidebar', silent: true },
     );
   }, [agent, hasSurface, signature]);
 
   const build = () => {
     lastBuilt.current = signature;
-    void agent.send('Build the sidebar for this trip.', {
+    void agent.send('Build the panel for this trip: what is settled so far, read-only.', {
       surface: 'sidebar',
       surfaceId: 'sidebar',
       silent: true,
@@ -71,25 +77,24 @@ export function Sidebar({ agent }: { agent: Agent }) {
   return (
     <aside className="sidebar" aria-label="Trip controls">
       <header className="sidebar__head">
-        <h2>Refine</h2>
+        <h2>The trip</h2>
         {agent.liveSurface === 'sidebar' ? <Spinner /> : null}
       </header>
 
       {hasSurface ? (
         <div className="sidebar__body">
+          {/* No PendingEdits: there is nothing to edit here. The panel shows
+              what is settled, and its only interaction is asking to change
+              something — which re-opens it in the conversation. */}
           <A2uiSurface store={agent.store} surfaceId="sidebar" onEvent={agent.handleSurfaceEvent} />
-          <PendingEdits
-            store={agent.store}
-            surfaceId="sidebar"
-            busy={agent.busy}
-            onSubmit={agent.submitSurface}
-          />
         </div>
       ) : (
         <div className="sidebar__placeholder">
           <p>
-            A control panel the agent builds for whatever stage the trip is at — dates and party
-            size at first, flight and budget filters once there is a destination.
+            What you have settled, as you settle it — the route, the flight, where you are
+            staying, what it comes to. Read-only on purpose: changing something sends it back
+            to the conversation, pre-filled, so there is one place to decide and one record of
+            when you did.
           </p>
           <button type="button" className="button" onClick={build} disabled={agent.busy}>
             Build the panel
