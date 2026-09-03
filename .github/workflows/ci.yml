@@ -49,7 +49,7 @@ jobs:
 
       - name: Examples compile and their JSON is current
         run: |
-          npm run build -w @express
+          npm run build -w @travel-a2ui/express
           node scripts/build_examples.mjs --check
 
       - name: Skills are current

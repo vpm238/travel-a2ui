@@ -51,12 +51,20 @@ for source in "$PARENT"/.github/workflows/travel-a2ui-*.yml; do
   # Drop the `defaults: run: working-directory: travel-a2ui` block, the
   # `cache-dependency-path` and `workingDirectory` prefixes, and the path
   # filters that only make sense in a monorepo.
+  #
+  # The last substitution strips `travel-a2ui/` wherever it appears as a path
+  # prefix — but the workspace packages are called `@travel-a2ui/express` and
+  # friends, and blindly stripping the same string turns `-w @travel-a2ui/express`
+  # into `-w @express`, which npm rejects with an error that says nothing about
+  # why. So package scopes are parked under a sentinel first and restored after.
   sed \
     -e '/^defaults:$/,/^$/d' \
+    -e 's#@travel-a2ui/#\x01#g' \
     -e 's#travel-a2ui/package-lock.json#package-lock.json#' \
     -e 's#workingDirectory: travel-a2ui/apps/worker#workingDirectory: apps/worker#' \
     -e "s#paths: \['travel-a2ui/\*\*', '.github/workflows/travel-a2ui-\(.*\)'\]#paths: ['**']#" \
     -e "s#travel-a2ui/##g" \
+    -e 's#\x01#@travel-a2ui/#g' \
     "$source" > "$TARGET/.github/workflows/$name"
   echo "  .github/workflows/$name"
 done
