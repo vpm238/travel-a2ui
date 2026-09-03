@@ -35,11 +35,11 @@ export function FlightOption({ node, scope, ctx }: ComponentProps) {
       className={cx('tv-flight', selected && 'is-selected', interactive && 'is-interactive')}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
-      onClick={() => runAction(node['action'], scope, ctx)}
+      onClick={() => runAction(node['action'], scope, ctx, node)}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          runAction(node['action'], scope, ctx);
+          runAction(node['action'], scope, ctx, node);
         }
       }}
     >
@@ -94,9 +94,9 @@ export function HotelCard({ node, scope, ctx }: ComponentProps) {
       className={cx('tv-hotel', selected && 'is-selected')}
       role="button"
       tabIndex={0}
-      onClick={() => runAction(node['action'], scope, ctx)}
+      onClick={() => runAction(node['action'], scope, ctx, node)}
       onKeyDown={(event) => {
-        if (event.key === 'Enter') runAction(node['action'], scope, ctx);
+        if (event.key === 'Enter') runAction(node['action'], scope, ctx, node);
       }}
     >
       <div className="tv-hotel__media" data-seed={name.length % 6}>
@@ -151,7 +151,7 @@ export function ActivityItem({ node, scope, ctx }: ComponentProps) {
   return (
     <div
       className={cx('tv-activity', done && 'is-done', interactive && 'is-interactive')}
-      onClick={() => runAction(node['action'], scope, ctx)}
+      onClick={() => runAction(node['action'], scope, ctx, node)}
     >
       <span className="tv-activity__time">{resolveText(node['time'], scope)}</span>
       <span className={`tv-activity__icon tv-activity__icon--${category}`} aria-hidden>
@@ -199,7 +199,7 @@ export function MapPreview({ node, scope, ctx }: ComponentProps) {
   });
 
   return (
-    <div className="tv-map" onClick={() => runAction(node['action'], scope, ctx)}>
+    <div className="tv-map" onClick={() => runAction(node['action'], scope, ctx, node)}>
       <div className="tv-map__canvas" aria-hidden>
         {placed.map((marker, index) => (
           <span
@@ -243,7 +243,7 @@ export function PriceSummary({ node, scope, ctx }: ComponentProps) {
         <button
           type="button"
           className="a2-button a2-button--primary tv-price__cta"
-          onClick={() => runAction(node['action'], scope, ctx)}
+          onClick={() => runAction(node['action'], scope, ctx, node)}
         >
           {actionLabel || 'Continue'}
         </button>
@@ -258,10 +258,18 @@ export function DateRangePicker({ node, scope, ctx }: ComponentProps) {
   const start = resolveText(node['start'], scope).slice(0, 10);
   const end = resolveText(node['end'], scope).slice(0, 10);
 
+  /**
+   * Writes the date and stops there.
+   *
+   * This used to run the component's action on every change, which meant typing
+   * a date sent a turn — and then a *second* turn when you filled in the other
+   * one, each arriving with half an answer. An editor edits; sending is a
+   * separate, deliberate act, the same way Slider and TravelerCounter already
+   * behaved. The host commits the surface when the traveler says so.
+   */
   const commit = (pointer: string | undefined, value: string) => {
     if (!pointer) return;
     ctx.setValue(pointer, value ? `${value}T00:00:00Z` : '');
-    runAction(node['action'], scope, ctx);
   };
 
   return (
@@ -332,7 +340,7 @@ export function StatTile({ node, scope, ctx }: ComponentProps) {
       className={cx('tv-stat', `tv-stat--${tone}`, interactive && 'is-interactive')}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
-      onClick={() => runAction(node['action'], scope, ctx)}
+      onClick={() => runAction(node['action'], scope, ctx, node)}
     >
       <span className="tv-stat__label">{resolveText(node['label'], scope)}</span>
       <strong className="tv-stat__value">{resolveText(node['value'], scope)}</strong>
@@ -409,7 +417,7 @@ export function ExpenseSplit({ node, scope, ctx }: ComponentProps) {
         <button
           type="button"
           className="a2-button a2-button--default"
-          onClick={() => runAction(node['action'], scope, ctx)}
+          onClick={() => runAction(node['action'], scope, ctx, node)}
         >
           {resolveText(node['actionLabel'], scope) || 'Settle up'}
         </button>

@@ -123,7 +123,7 @@ describe('tools', () => {
   });
 
   it('returns a text summary, an A2UI payload and a rendered view', async () => {
-    const result = await callTool('show_flight_options', { destination: 'Madrid', travelers: 2 });
+    const result = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12', travelers: 2 });
     expect(result.isError).toBe(false);
 
     const text = result.content.find((part: any) => part.type === 'text');
@@ -140,7 +140,7 @@ describe('tools', () => {
   });
 
   it('the rendered view is a shell: surface inlined, renderer by reference', async () => {
-    const result = await callTool('show_flight_options', { destination: 'Madrid' });
+    const result = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' });
     const html = result.content.find((part: any) => part.resource?.mimeType === 'text/html')
       .resource.text as string;
 
@@ -175,7 +175,7 @@ describe('tools', () => {
           jsonrpc: '2.0',
           id: 1,
           method: 'tools/call',
-          params: { name: 'show_flight_options', arguments: { destination: 'Madrid' } },
+          params: { name: 'show_flight_options', arguments: { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' } },
         }),
       }),
     );
@@ -194,7 +194,7 @@ describe('tools', () => {
           jsonrpc: '2.0',
           id: 1,
           method: 'tools/call',
-          params: { name: 'show_flight_options', arguments: { destination: 'Madrid' } },
+          params: { name: 'show_flight_options', arguments: { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' } },
         }),
       }),
     );
@@ -254,21 +254,21 @@ describe('tools', () => {
   });
 
   it('lets an A2UI-native host opt out of the rendered view', async () => {
-    const result = await callTool('show_flight_options', { destination: 'Madrid' }, 'payload');
+    const result = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' }, 'payload');
     const kinds = result.content.map((part: any) => part.resource?.mimeType ?? part.type);
     expect(kinds).toContain('application/vnd.a2ui+json');
     expect(kinds).not.toContain('text/html');
   });
 
   it('lets an HTML-only host skip the payload', async () => {
-    const result = await callTool('show_flight_options', { destination: 'Madrid' }, 'html');
+    const result = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' }, 'html');
     const kinds = result.content.map((part: any) => part.resource?.mimeType ?? part.type);
     expect(kinds).toContain('text/html');
     expect(kinds).not.toContain('application/vnd.a2ui+json');
   });
 
   it('renders flights as FlightOption components with actions', async () => {
-    const result = await callTool('show_flight_options', { destination: 'Madrid' });
+    const result = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' });
     const flights = componentsOf(result.structuredContent.messages).filter(
       (component) => component.component === 'FlightOption',
     );
@@ -281,7 +281,7 @@ describe('tools', () => {
   });
 
   it('says how many options it is actually showing', async () => {
-    const result = await callTool('show_flight_options', { destination: 'Madrid' });
+    const result = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' });
     const shown = componentsOf(result.structuredContent.messages).filter(
       (component) => component.component === 'FlightOption',
     ).length;
@@ -359,9 +359,9 @@ describe('tools', () => {
   });
 
   it('writes each flow to its own surface, and the panels are singular', async () => {
-    const inline = await callTool('show_flight_options', { destination: 'Madrid' });
-    const sidebar = await callTool('show_flight_options', { destination: 'Madrid', surface: 'sidebar' });
-    const home = await callTool('show_flight_options', { destination: 'Madrid', surface: 'home' });
+    const inline = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' });
+    const sidebar = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12', surface: 'sidebar' });
+    const home = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12', surface: 'home' });
 
     expect(inline.structuredContent.surfaceId).toBe('mcp-flights');
     expect(sidebar.structuredContent.surfaceId).toBe('mcp-sidebar');
@@ -372,6 +372,8 @@ describe('tools', () => {
     const count = async (surface?: string) => {
       const result = await callTool('show_flight_options', {
         destination: 'Madrid',
+        origin: 'JFK',
+        date: '2026-04-12',
         ...(surface ? { surface } : {}),
       });
       return componentsOf(result.structuredContent.messages).filter(
@@ -433,9 +435,53 @@ describe('tools', () => {
   });
 
   it('is deterministic: the same arguments give the same surface', async () => {
-    const first = await callTool('show_flight_options', { destination: 'Madrid', date: '2026-04-12' });
-    const second = await callTool('show_flight_options', { destination: 'Madrid', date: '2026-04-12' });
+    const first = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' });
+    const second = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK', date: '2026-04-12' });
     expect(first.structuredContent).toEqual(second.structuredContent);
+  });
+});
+
+describe('inputs a host must supply', () => {
+  it('refuses to price flights against a date nobody gave', async () => {
+    const result = await callTool('show_flight_options', { destination: 'Madrid', origin: 'JFK' });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/when you are leaving/);
+    // The error is addressed to the host's model, so it names the way out.
+    expect(result.content[0].text).toMatch(/\$\/trip\/startDate/);
+    expect(result.content[0].text).toMatch(/flexible/);
+  });
+
+  it('refuses to price flights from an airport nobody gave', async () => {
+    const result = await callTool('show_flight_options', {
+      destination: 'Madrid',
+      date: '2026-04-12',
+    });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/which airport you are flying from/);
+  });
+
+  it('answers a deliberately rough question, marked as rough', async () => {
+    const result = await callTool('show_flight_options', {
+      destination: 'Madrid',
+      flexible: true,
+    });
+    expect(result.isError).toBe(false);
+    expect(result.content[0].text).toMatch(/[Ii]ndicative/);
+  });
+
+  it('puts the route, date and party size in the heading it draws', async () => {
+    const result = await callTool('show_flight_options', {
+      destination: 'Madrid',
+      origin: 'JFK',
+      date: '2026-04-12',
+      travelers: 2,
+    });
+    const heading = componentsOf(result.structuredContent.messages).find(
+      (component) => component.id === 'head',
+    );
+    expect(heading.text).toContain('JFK → Madrid');
+    expect(heading.text).toContain('12 Apr');
+    expect(heading.text).toContain('2 travellers');
   });
 });
 

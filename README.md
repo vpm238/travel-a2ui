@@ -461,6 +461,7 @@ travel-a2ui/
 │   └── a2ui-travel/            generated: basic + 12 travel components, and the examples
 ├── packages/
 │   ├── express/                A2UI Express: lexer, parser, compiler, decompiler, streaming
+│   ├── trip/                   what a trip is: schema, coercion, readiness, the plan
 │   └── renderer/               React host for both catalogs, and the design system
 ├── apps/
 │   ├── worker/                 Cloudflare Worker: agent loop, Durable Object, MCP server

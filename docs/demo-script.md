@@ -1,11 +1,11 @@
 # User flows, and how to demo them
 
-Six flows. Each one has a job, a script you can type verbatim, and what you
+Seven flows. Each one has a job, a script you can type verbatim, and what you
 should see if it is working — so a reviewer can check it rather than take a
 screenshot's word for it.
 
-Flows 1–4 need the web app and an Anthropic key. Flow 5 needs nothing at all.
-Flow 6 runs inside Claude.
+Flows 1–5 need the web app and an Anthropic key. Flow 6 needs nothing at all.
+Flow 7 runs inside Claude.
 
 ```bash
 npm run setup && npm run dev:worker
@@ -21,6 +21,26 @@ flows, and the ⟲ button in the header does the same without a reload.
 
 ---
 
+## How the interface behaves
+
+Worth knowing before you judge any flow, because it is deliberate:
+
+- **Editing a control sends nothing.** Sliders, date pickers, counters, text
+  fields and checkboxes change the surface and wait. A bar appears saying how
+  many values are unsent.
+- **Committing sends everything at once** — the agent's button, or the host's
+  Send in that bar when the agent forgot one. It appears in the conversation as
+  a message, tagged *from the interface*.
+- **Tapping a card is a decision** and sends immediately, because picking a
+  flight *is* the answer.
+- **Answered surfaces go grey** and stop responding once you send. They stay as
+  the record of what was chosen.
+- **What you set on one card is filled in on the next.** Trip facts are shared;
+  the sidebar updates the moment you change a route, without a model turn.
+- **The agent leads.** There is a plan — route, dates, party, flight, stay,
+  budget, days — shown as a checklist in the sidebar. Every turn moves it on or
+  asks exactly what it takes to. When it is finished it says so and stops.
+
 ## Flow 1 · Inline — choosing, in the conversation
 
 **The job.** The user is picking between options. Prose makes them hold five
@@ -30,18 +50,26 @@ flights in their head; an interface lets them look.
 
 > I want to fly to Madrid in April with my partner. Show me options.
 
-**Expect** — in this order, interleaved, not prose-then-UI:
+**Expect it to ask before it prices.** It does not know your dates or where you
+are flying from, and it must not invent them. So the first card is a short form:
+a departure airport pre-filled from your browser's timezone (a *suggestion* —
+change it), a date range, a traveller count, and one **Search flights** button.
 
-1. A line of reasoning before the tools run.
-2. Three tool chips: `search flights`, `get destination`, `save trip`.
-3. A sentence about what it found.
-4. A card: heading, three or four `FlightOption`s with airline, times, duration,
-   stops, price, and a badge on the notable ones.
-5. Often a `DateRangePicker` underneath — the model adds it unprompted when the
-   dates are still soft. That is generative layout, not a template.
-6. A closing question.
+Set all three. Nothing sends while you do; a bar says *3 unsent changes*. Press
+the button once and you get one message.
 
-**Then click a flight card.** Watch for three things:
+**Then expect the flights**, with a heading that says what they are priced
+against — `LHR → Madrid · 12–19 Apr · 3 travellers`, not just "Flights to
+Madrid" — and the form above them now greyed out and unclickable.
+
+If you want a rough figure without committing to dates, say so:
+
+> Roughly what does Madrid cost in April?
+
+It will answer, and label the answer indicative.
+
+**Then click a flight card.** That is a decision, so it sends immediately.
+Watch for three things:
 
 - A new user turn appears reading `[interface] select_flight (id: "IB6250",
   price: "$412")`. The click *is* the next turn — that is the whole round trip.
@@ -106,7 +134,29 @@ Open the **Wire** tab afterwards and press *Show the A2UI Express*: you get the
 source back, decompiled from the JSON, with the byte difference between the two.
 Typically 60–70% smaller, which is why the model writes Express and not JSON.
 
-## Flow 5 · No key, no model — the catalog and the MCP console
+## Flow 5 · A trip that does not fit the usual shape
+
+**The job.** Proving the plan bends. Most demos assume one city, a flight and a
+hotel; most trips are not that.
+
+**Type:**
+
+> Lisbon then Madrid, two weeks in April. We're staying with my sister in
+> Lisbon.
+
+**Expect** it to record Madrid as a second leg rather than losing it, note that
+Lisbon needs no hotel, and ask only for what is missing — dates, airport, party
+size — in one surface. Watch the checklist in the sidebar: the stay step should
+narrow to Madrid rather than being asked twice.
+
+Then rule something out:
+
+> We're driving, no flights.
+
+The flight step should go struck-through and *not needed*, and the agent should
+move to the next step rather than asking about flights again.
+
+## Flow 6 · No key, no model — the catalog and the MCP console
 
 **The job.** Seeing A2UI render with nothing in the path. Good for a reviewer
 who has no key, and the fastest way to prove the renderer is real.
@@ -130,7 +180,7 @@ Every surface there was compiled at build time from the catalog's own examples
 by the real compiler, and every interaction is logged as the agent would receive
 it.
 
-## Flow 6 · The same three flows, inside Claude
+## Flow 7 · The same three flows, inside Claude
 
 **The job.** The interface layer travelling to a host that is not ours.
 

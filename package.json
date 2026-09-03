@@ -16,7 +16,7 @@
     "build": "npm run build -w @travel-a2ui/express && npm run build -w @travel-a2ui/renderer && npm run build -w @travel-a2ui/mcp-view && npm run build -w @travel-a2ui/web && npm run build -w @travel-a2ui/gallery",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "node tools/e2e/chat.mjs && node tools/e2e/mcp.mjs",
+    "e2e": "node tools/e2e/chat.mjs && node tools/e2e/interaction.mjs && node tools/e2e/mcp.mjs",
     "typecheck": "tsc -b packages/express packages/renderer && tsc -p apps/web --noEmit && tsc -p apps/mcp-view --noEmit && tsc -p apps/gallery --noEmit && tsc -p apps/worker --noEmit",
     "generate": "python3 scripts/build_catalog.py && npm run build -w @travel-a2ui/express && node scripts/build_examples.mjs && PYTHONPATH=tools/skillgen/src python3 -m skillgen build --all --catalog catalogs/a2ui-travel/catalog.json --examples catalogs/a2ui-travel/examples --out skills",
     "check": "python3 scripts/build_catalog.py --check && node scripts/build_examples.mjs --check && PYTHONPATH=tools/skillgen/src python3 -m skillgen build --all --check --catalog catalogs/a2ui-travel/catalog.json --examples catalogs/a2ui-travel/examples --out skills",

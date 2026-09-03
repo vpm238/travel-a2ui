@@ -206,6 +206,60 @@ const AMENITIES = ['Breakfast', 'Rooftop', 'Air-con', 'Kitchenette', 'Late check
 
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: '€', USD: '$', JPY: '¥', MXN: 'MX$', GBP: '£' };
 
+/**
+ * Departure airports, and the IANA timezones they serve.
+ *
+ * Used to turn a browser's timezone into a *suggestion* — never a default. The
+ * app used to price every trip out of JFK regardless of who was asking, which
+ * is wrong in the same way inventing a date is wrong: it produces a real-looking
+ * number for a journey nobody described.
+ */
+export interface OriginAirport {
+  code: string;
+  city: string;
+  zones: string[];
+}
+
+const ORIGINS: OriginAirport[] = [
+  { code: 'JFK', city: 'New York', zones: ['America/New_York', 'America/Detroit', 'America/Toronto'] },
+  { code: 'ORD', city: 'Chicago', zones: ['America/Chicago', 'America/Winnipeg'] },
+  { code: 'DEN', city: 'Denver', zones: ['America/Denver', 'America/Edmonton', 'America/Phoenix'] },
+  { code: 'LAX', city: 'Los Angeles', zones: ['America/Los_Angeles', 'America/Vancouver', 'America/Tijuana'] },
+  { code: 'MIA', city: 'Miami', zones: ['America/Bogota', 'America/Lima', 'America/Panama'] },
+  { code: 'GRU', city: 'São Paulo', zones: ['America/Sao_Paulo', 'America/Argentina/Buenos_Aires'] },
+  { code: 'LHR', city: 'London', zones: ['Europe/London', 'Europe/Dublin', 'Europe/Lisbon'] },
+  { code: 'CDG', city: 'Paris', zones: ['Europe/Paris', 'Europe/Brussels', 'Europe/Madrid', 'Europe/Amsterdam'] },
+  { code: 'FRA', city: 'Frankfurt', zones: ['Europe/Berlin', 'Europe/Zurich', 'Europe/Vienna', 'Europe/Prague', 'Europe/Rome'] },
+  { code: 'DXB', city: 'Dubai', zones: ['Asia/Dubai', 'Asia/Riyadh', 'Asia/Qatar'] },
+  { code: 'DEL', city: 'Delhi', zones: ['Asia/Kolkata', 'Asia/Calcutta', 'Asia/Karachi', 'Asia/Kathmandu'] },
+  { code: 'SIN', city: 'Singapore', zones: ['Asia/Singapore', 'Asia/Kuala_Lumpur', 'Asia/Jakarta', 'Asia/Bangkok'] },
+  { code: 'HKG', city: 'Hong Kong', zones: ['Asia/Hong_Kong', 'Asia/Shanghai', 'Asia/Taipei', 'Asia/Manila'] },
+  { code: 'NRT', city: 'Tokyo', zones: ['Asia/Tokyo', 'Asia/Seoul'] },
+  { code: 'SYD', city: 'Sydney', zones: ['Australia/Sydney', 'Australia/Melbourne', 'Australia/Brisbane'] },
+  { code: 'JNB', city: 'Johannesburg', zones: ['Africa/Johannesburg', 'Africa/Nairobi', 'Africa/Lagos'] },
+];
+
+export function knownOrigins(): OriginAirport[] {
+  return ORIGINS;
+}
+
+/**
+ * The airport a timezone suggests, or nothing.
+ *
+ * Returning nothing is a perfectly good answer — better than reaching for the
+ * nearest continent. The caller offers what it gets as a pre-filled choice the
+ * traveler confirms, and asks outright when there is nothing to offer.
+ */
+export function originForTimeZone(timeZone: string | undefined): OriginAirport | undefined {
+  if (!timeZone) return undefined;
+  const exact = ORIGINS.find((entry) => entry.zones.includes(timeZone));
+  if (exact) return exact;
+  // Fall back to the region only: 'Europe/Warsaw' is not listed, but a European
+  // hub is a far better prompt than New York.
+  const region = timeZone.split('/')[0];
+  return ORIGINS.find((entry) => entry.zones.some((zone) => zone.split('/')[0] === region));
+}
+
 /** Resolves whatever the model typed into an airport code we know about. */
 export function resolveDestination(query: string): Destination | undefined {
   const trimmed = (query ?? '').trim();

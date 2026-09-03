@@ -16,6 +16,15 @@ export interface A2uiEvent {
   context: JsonObject;
   /** The surface's whole data model at the moment of the interaction. */
   dataModel: JsonObject;
+  /**
+   * Which component fired it.
+   *
+   * A host needs this to tell an edit from a decision. Dragging a slider and
+   * pressing Apply both arrive here as events, and only one of them is the
+   * traveler saying something — the sidebar's whole behaviour depends on being
+   * able to distinguish them.
+   */
+  source?: { id: string; component: string };
   timestamp: number;
 }
 
@@ -48,6 +57,8 @@ export function runAction(
   action: Json | undefined,
   scope: ResolveScope,
   ctx: RenderContext,
+  /** The component the action hangs off, so the event can name its source. */
+  node?: ComponentNode,
 ): boolean {
   if (!isAction(action)) return false;
 
@@ -69,6 +80,9 @@ export function runAction(
       name: action.event.name,
       context,
       dataModel: ctx.dataModel,
+      ...(node
+        ? { source: { id: String(node['id'] ?? ''), component: String(node['component'] ?? '') } }
+        : {}),
       timestamp: Date.now(),
     });
     return true;

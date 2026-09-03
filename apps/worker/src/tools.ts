@@ -20,6 +20,20 @@
 import type Anthropic from '@anthropic-ai/sdk';
 
 import {
+  askFor,
+  basisOf,
+  bindingFor,
+  merge as mergeTrip,
+  missingFor,
+  nights,
+  normalize as normalizeTrip,
+  problems,
+  summarize,
+  type Trip,
+  type TripKey,
+} from '@travel-a2ui/trip';
+
+import {
   estimateTrip,
   getWeather,
   knownDestinations,
@@ -39,7 +53,10 @@ export const TOOLS: Anthropic.Tool[] = [
     name: 'search_flights',
     description:
       'Finds flights to a destination. Returns fare, timing and stop data — not UI. ' +
-      'Call it before showing flight options so the numbers on screen are real.',
+      'Call it before showing flight options so the numbers on screen are real. ' +
+      'Needs a date: with none given and none saved on the trip, it returns a request to ' +
+      'ask the traveler rather than pricing a week nobody chose. Set flexible only when ' +
+      'they explicitly asked for a rough or seasonal figure.',
     input_schema: {
       type: 'object',
       properties: {
@@ -53,6 +70,12 @@ export const TOOLS: Anthropic.Tool[] = [
         cabin: { type: 'string', enum: ['economy', 'premium', 'business', 'first'] },
         maxPrice: { type: 'number', description: 'Highest acceptable per-traveler fare.' },
         nonstopOnly: { type: 'boolean', description: 'Exclude itineraries with a stop.' },
+        flexible: {
+          type: 'boolean',
+          description:
+            'Only when the traveler asked for a rough or seasonal figure rather than their trip. ' +
+            'Prices an indicative date, which you must then label as indicative on screen.',
+        },
       },
       required: ['destination'],
       additionalProperties: false,
@@ -71,6 +94,7 @@ export const TOOLS: Anthropic.Tool[] = [
         travelers: { type: 'integer' },
         maxNightly: { type: 'number', description: 'Highest acceptable nightly rate.' },
         neighborhood: { type: 'string', description: 'Preferred area, if the traveler named one.' },
+        flexible: { type: 'boolean', description: 'Only for an explicitly rough figure. See search_flights.' },
       },
       required: ['destination'],
       additionalProperties: false,
@@ -110,7 +134,9 @@ export const TOOLS: Anthropic.Tool[] = [
     name: 'estimate_cost',
     description:
       'Breaks a trip into itemised costs and a total. Pass the chosen fare and nightly rate when ' +
-      'the traveler has picked them, so the estimate reflects their actual trip rather than an average.',
+      'the traveler has picked them, so the estimate reflects their actual trip rather than an average. ' +
+      'Needs dates and party size, from the arguments or the saved trip; without them it returns a ' +
+      'request to ask instead of a total that means nothing.',
     input_schema: {
       type: 'object',
       properties: {
@@ -119,6 +145,7 @@ export const TOOLS: Anthropic.Tool[] = [
         nights: { type: 'integer' },
         flightPrice: { type: 'number', description: 'Chosen per-traveler fare, if any.' },
         nightlyPrice: { type: 'number', description: 'Chosen nightly rate, if any.' },
+        flexible: { type: 'boolean', description: 'Only for an explicitly rough figure. See search_flights.' },
       },
       required: ['destination'],
       additionalProperties: false,
@@ -130,7 +157,9 @@ export const TOOLS: Anthropic.Tool[] = [
     description:
       "Records what the traveler has decided — destination, dates, party size, the flight and stay they " +
       'picked, their budget. Call it as soon as something is settled: later turns and the other surfaces ' +
-      'read this, and anything not saved here is forgotten when the turn ends.',
+      'read this, and anything not saved here is forgotten when the turn ends. Also how a trip is told ' +
+      'it does not need a stage (skip) and how a multi-city trip is held (legs). Returns what is still ' +
+      'needed, so the reply tells you what to do next.',
     input_schema: {
       type: 'object',
       properties: {
@@ -140,7 +169,42 @@ export const TOOLS: Anthropic.Tool[] = [
         travelers: { type: 'integer' },
         budget: { type: 'number' },
         selectedFlight: { type: 'string', description: 'Flight id the traveler chose.' },
+        flightPrice: { type: 'number', description: 'Per-traveler fare of that flight.' },
         selectedHotel: { type: 'string', description: 'Hotel id the traveler chose.' },
+        nightlyPrice: { type: 'number', description: 'Nightly rate of that stay.' },
+        cabin: { type: 'string', enum: ['economy', 'premium', 'business', 'first'] },
+        nonstopOnly: { type: 'boolean' },
+        neighborhood: { type: 'string' },
+        spent: { type: 'number', description: 'What is actually committed, not estimated.' },
+        planned: {
+          type: 'boolean',
+          description: 'True once the day-by-day plan is drawn and the traveler is happy with it.',
+        },
+        skip: {
+          type: 'array',
+          items: { type: 'string', enum: ['route', 'dates', 'party', 'flight', 'stay', 'budget', 'plan'] },
+          description:
+            'Stages this trip does not need — driving rather than flying, staying with family, ' +
+            'no fixed budget. A skipped stage counts as settled and is never asked about again. ' +
+            'Record it the moment the traveler rules something out.',
+        },
+        legs: {
+          type: 'array',
+          description:
+            'Stops after the first, each with its own dates. This is how a multi-city trip is ' +
+            'held; the top-level fields describe the first leg.',
+          items: {
+            type: 'object',
+            properties: {
+              destination: { type: 'string' },
+              startDate: { type: 'string', description: 'YYYY-MM-DD.' },
+              endDate: { type: 'string', description: 'YYYY-MM-DD.' },
+              origin: { type: 'string', description: 'Departure airport for this leg, if it differs.' },
+              notes: { type: 'string' },
+            },
+            required: ['destination'],
+          },
+        },
         notes: { type: 'string', description: 'Anything else worth remembering, in one line.' },
       },
       required: [],
@@ -161,6 +225,57 @@ const str = (value: unknown, fallback = ''): string =>
 const num = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 
+/**
+ * What to answer when a tool was asked to price a trip with no dates.
+ *
+ * A prompt rule saying "ask first" is a suggestion; a model in a hurry prices
+ * a plausible week and calls it a sample, and the traveler ends up looking at
+ * fares for a date they never chose. This is the same rule expressed where the
+ * model cannot talk past it: no dates, no prices — here is what to draw instead.
+ *
+ * `flexible: true` is the deliberate way through, for "roughly what does Madrid
+ * cost in April". The result is then labelled indicative, so what is on screen
+ * still says what it is.
+ */
+function needsInput(what: string, missing: readonly TripKey[]): {
+  result: unknown;
+  isError: boolean;
+} {
+  return {
+    result: {
+      needs: missing,
+      message:
+        `Cannot ${what} without ${askFor(missing)}, and inventing a plausible answer is ` +
+        'worse than asking. Draw the controls for all of it in one surface — bound to ' +
+        `${missing.map((key) => `$${bindingFor(key)}`).join(', ')} so the host pre-fills ` +
+        'them — with a single commit button, and wait. If the traveler explicitly asked ' +
+        'for a rough or seasonal figure, call again with flexible: true and label what ' +
+        'you draw as indicative.',
+    },
+    isError: false,
+  };
+}
+
+/**
+ * The trip a tool should reason about: what is saved, plus what this call says.
+ *
+ * A model that passes `date` explicitly is describing the same trip as one that
+ * relies on the saved `startDate`, and neither should be handled specially.
+ */
+function effectiveTrip(input: ToolInput, context: ToolContext): Trip {
+  return mergeTrip(normalizeTrip(context.trip), {
+    destination: input['destination'],
+    origin: input['origin'],
+    startDate: input['date'] ?? input['startDate'],
+    endDate: input['endDate'],
+    travelers: input['travelers'],
+    cabin: input['cabin'],
+    maxFare: input['maxPrice'],
+    maxNightly: input['maxNightly'],
+    neighborhood: input['neighborhood'],
+  });
+}
+
 /** Runs one tool call. Never throws: a thrown tool is a dead turn. */
 export async function runTool(
   name: string,
@@ -169,31 +284,69 @@ export async function runTool(
 ): Promise<{ result: unknown; isError: boolean }> {
   try {
     switch (name) {
-      case 'search_flights':
-        return {
-          result: searchFlights({
-            destination: str(input['destination']),
-            origin: str(input['origin']) || undefined,
-            date: str(input['date']) || undefined,
-            travelers: num(input['travelers']),
-            cabin: str(input['cabin']) || undefined,
-            maxPrice: num(input['maxPrice']),
-            nonstopOnly: input['nonstopOnly'] === true,
-          }),
-          isError: false,
-        };
+      case 'search_flights': {
+        const trip = effectiveTrip(input, context);
+        const missing = missingFor(trip, 'priceFlights');
+        if (missing.length > 0 && input['flexible'] !== true) {
+          return needsInput('price flights', missing);
+        }
 
-      case 'search_hotels':
+        const found = searchFlights({
+          destination: trip.destination ?? str(input['destination']),
+          origin: trip.origin,
+          date: trip.startDate,
+          travelers: trip.travelers,
+          cabin: trip.cabin,
+          maxPrice: trip.maxFare,
+          nonstopOnly: input['nonstopOnly'] === true || trip.nonstopOnly === true,
+        });
+
+        // Echoed back so the surface can say what it is showing. A price with
+        // nothing beside it is the thing that made this untrustworthy.
         return {
-          result: searchHotels({
-            destination: str(input['destination']),
-            nights: num(input['nights']),
-            travelers: num(input['travelers']),
-            maxNightly: num(input['maxNightly']),
-            neighborhood: str(input['neighborhood']) || undefined,
-          }),
+          result: {
+            ...found,
+            searchedFor: {
+              basis: basisOf(trip),
+              date: trip.startDate ?? null,
+              origin: trip.origin ?? null,
+              travelers: trip.travelers ?? null,
+              cabin: trip.cabin ?? 'economy',
+              indicative: missing.length > 0,
+            },
+          },
           isError: false,
         };
+      }
+
+      case 'search_hotels': {
+        const trip = effectiveTrip(input, context);
+        const missing = missingFor(trip, 'priceStay');
+        const stayNights = num(input['nights']) ?? nights(trip);
+        if (missing.length > 0 && stayNights === undefined && input['flexible'] !== true) {
+          return needsInput('price a stay', missing);
+        }
+        const found = searchHotels({
+          destination: trip.destination ?? str(input['destination']),
+          nights: stayNights,
+          travelers: trip.travelers,
+          maxNightly: trip.maxNightly,
+          neighborhood: trip.neighborhood,
+        });
+        return {
+          result: {
+            ...found,
+            searchedFor: {
+              basis: basisOf(trip),
+              nights: stayNights ?? null,
+              travelers: trip.travelers ?? null,
+              checkIn: trip.startDate ?? null,
+              indicative: stayNights === undefined,
+            },
+          },
+          isError: false,
+        };
+      }
 
       case 'get_destination': {
         const query = str(input['destination']);
@@ -220,25 +373,72 @@ export async function runTool(
           isError: false,
         };
 
-      case 'estimate_cost':
+      case 'estimate_cost': {
+        const trip = effectiveTrip(input, context);
+        const missing = missingFor(trip, 'totalTrip');
+        const stayNights = num(input['nights']) ?? nights(trip);
+        if (missing.length > 0 && input['flexible'] !== true) {
+          return needsInput('total up a trip', missing);
+        }
+        const estimate = estimateTrip({
+          destination: trip.destination ?? str(input['destination']),
+          travelers: trip.travelers,
+          nights: stayNights,
+          flightPrice: num(input['flightPrice']) ?? trip.flightPrice,
+          nightlyPrice: num(input['nightlyPrice']) ?? trip.nightlyPrice,
+        });
         return {
-          result: estimateTrip({
-            destination: str(input['destination']),
-            travelers: num(input['travelers']),
-            nights: num(input['nights']),
-            flightPrice: num(input['flightPrice']),
-            nightlyPrice: num(input['nightlyPrice']),
-          }),
+          result: {
+            ...estimate,
+            // The caption the surface should carry. A total is meaningless
+            // without the party size and length it totals.
+            basis: {
+              summary: basisOf(trip),
+              nights: stayNights ?? null,
+              travelers: trip.travelers ?? null,
+              startDate: trip.startDate ?? null,
+              endDate: trip.endDate ?? null,
+              indicative: missing.length > 0,
+            },
+          },
           isError: false,
         };
+      }
 
       case 'save_trip': {
-        const patch: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(input)) {
-          if (value !== undefined && value !== null && value !== '') patch[key] = value;
+        // Normalised on the way in, so what is stored is in the trip's own
+        // shapes rather than whatever the model happened to type.
+        const next = mergeTrip(normalizeTrip(context.trip), input);
+        const today = new Date().toISOString().slice(0, 10);
+        const wrong = problems(next, today);
+
+        // Refused rather than recorded: everything downstream prices against
+        // these, and a range that ends before it starts produces numbers that
+        // look authoritative and are not. An over-budget trip is a real state,
+        // not a mistake, so it is reported and saved.
+        const blocking = wrong.filter((problem) => problem.field !== 'spent');
+        if (blocking.length > 0) {
+          return {
+            result: {
+              saved: false,
+              problems: blocking,
+              message: `Not saved: ${blocking.map((p) => p.message).join(' ')} Ask the traveler to confirm.`,
+            },
+            isError: true,
+          };
         }
-        context.saveTrip(patch);
-        return { result: { saved: true, trip: context.trip }, isError: false };
+
+        context.saveTrip(normalizeTrip(input));
+        const saved = mergeTrip(normalizeTrip(context.trip), {});
+        return {
+          result: {
+            saved: true,
+            trip: saved,
+            stillNeeded: summarize(saved, today).missing,
+            ...(wrong.length > 0 ? { warnings: wrong } : {}),
+          },
+          isError: false,
+        };
       }
 
       case 'get_trip':

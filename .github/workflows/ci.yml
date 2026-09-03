@@ -72,6 +72,11 @@ jobs:
       #
       #   chat.mjs  a whole turn — typing, streaming, a surface appearing,
       #             clicking it, the click becoming the next turn.
+      #   interaction.mjs
+      #             the rules that decide whether the app feels coherent:
+      #             editing sends nothing, committing sends everything once,
+      #             answered surfaces go grey and inert, and what you set on
+      #             one card is pre-filled on the next.
       #   mcp.mjs   a real JSON-RPC tool call, rendered inside a sandboxed
       #             iframe the way an MCP host renders it, plus a layout
       #             composed on the fly from the component reference.
@@ -87,6 +92,7 @@ jobs:
             echo "The dev server never came up." >&2; exit 1;
           }
           node tools/e2e/chat.mjs
+          node tools/e2e/interaction.mjs
           node tools/e2e/mcp.mjs
         env:
           # Let Playwright use the browser it just installed.

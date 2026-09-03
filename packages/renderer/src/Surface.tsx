@@ -85,6 +85,17 @@ export interface A2uiSurfaceProps {
   /** Rendered when the surface does not exist yet. */
   fallback?: ReactNode;
   className?: string;
+  /**
+   * Whether the surface still accepts input. Default true.
+   *
+   * A card answers the message it was drawn under. Once the conversation has
+   * moved past it, clicking it re-answers a question that was already settled —
+   * and the surface it belongs to no longer describes where the trip is. So a
+   * spent surface stays readable, as the record of what was chosen, and stops
+   * being operable. `inert` takes it out of the tab order too, which a dimmed
+   * div would not.
+   */
+  interactive?: boolean;
 }
 
 export function A2uiSurface({
@@ -93,11 +104,15 @@ export function A2uiSurface({
   onEvent,
   fallback = null,
   className,
+  interactive = true,
 }: A2uiSurfaceProps) {
   const surface = useSurface(store, surfaceId);
   const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set());
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
+  // A ref so toggling interactivity does not rebuild the whole render context.
+  const interactiveRef = useRef(interactive);
+  interactiveRef.current = interactive;
 
   const ctx = useMemo<RenderContext | null>(() => {
     if (!surface) return null;
@@ -106,7 +121,10 @@ export function A2uiSurface({
       surfaceId,
       components: surface.components,
       dataModel: surface.dataModel,
-      emit: (event: A2uiEvent) => onEventRef.current?.(event),
+      emit: (event: A2uiEvent) => {
+        if (!interactiveRef.current) return;
+        onEventRef.current?.(event);
+      },
       setValue: (pointer, value) => store.setValue(surfaceId, pointer, value),
       touch: (pointer) =>
         setTouched((previous) => {
@@ -178,7 +196,13 @@ export function A2uiSurface({
   const root = ctx.renderChild('root', scope);
 
   return (
-    <div className={['a2-surface', className].filter(Boolean).join(' ')} data-surface={surfaceId}>
+    <div
+      className={['a2-surface', interactive ? null : 'a2-surface--spent', className]
+        .filter(Boolean)
+        .join(' ')}
+      data-surface={surfaceId}
+      inert={interactive ? undefined : true}
+    >
       {root ?? fallback}
     </div>
   );

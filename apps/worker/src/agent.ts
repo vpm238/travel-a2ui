@@ -22,6 +22,8 @@ import { ExpressCompiler, ExpressStreamParser, type A2uiMessage } from '@travel-
 import catalog from '../../../catalogs/a2ui-travel/catalog.json';
 import { buildSystemPrompt, type SkillVariant, type SurfaceKind } from './skills.js';
 import { TOOLS, runTool, type ToolContext } from './tools.js';
+import { originForTimeZone } from './travel.js';
+import { normalize as normalizeTrip, type Trip } from '@travel-a2ui/trip';
 
 export const CATALOG = catalog as unknown as import('@travel-a2ui/express').CatalogSchema;
 export const CATALOG_ID = String(CATALOG.catalogId);
@@ -50,6 +52,8 @@ export interface TurnRequest {
   message: string;
   history: Anthropic.MessageParam[];
   trip: Record<string, unknown>;
+  /** The browser's timezone and locale, as a hint about the departure city. */
+  client?: { timeZone?: string; locale?: string };
   surface: SurfaceKind;
   surfaceId: string;
   skill: SkillVariant;
@@ -76,6 +80,20 @@ function textOf(blocks: Anthropic.ContentBlock[]): string {
     .join('');
 }
 
+/**
+ * The trip facts inside a committed surface's data model.
+ *
+ * Surfaces put shared facts under `/trip` by convention, so this is where a
+ * date the traveler typed becomes a date the trip knows. `normalize` does the
+ * filtering and the coercion: a surface's data model also holds whatever local
+ * scratch the model invented for that card, and the values that *are* trip
+ * fields arrive in whatever shape the control produced — a ChoicePicker's
+ * `["economy"]`, a date input's RFC 3339 instant, a budget typed as "$2,600".
+ */
+function tripFromSurface(state: Record<string, unknown> | undefined): Trip {
+  return normalizeTrip(state?.['trip']);
+}
+
 export async function runTurn(
   request: TurnRequest,
   emit: (event: AgentEvent) => void,
@@ -89,7 +107,10 @@ export async function runTurn(
   });
 
   const compiler = new ExpressCompiler(CATALOG, 'v0.9.1');
-  const trip = { ...request.trip };
+  // Values the traveler set on screen are facts, and the host records them
+  // rather than depending on the model to notice and call `save_trip`. That
+  // dependency is what made a second card forget what the first one asked.
+  const trip = { ...request.trip, ...tripFromSurface(request.surfaceState) };
   const toolContext: ToolContext = {
     trip,
     saveTrip: (patch) => Object.assign(trip, patch),
@@ -106,6 +127,7 @@ export async function runTurn(
 
   emit({ type: 'start', model: request.model, skill: request.skill, surfaceId: request.surfaceId });
 
+  const suggested = originForTimeZone(request.client?.timeZone);
   const system = buildSystemPrompt({
     variant: request.skill,
     surface: request.surface,
@@ -113,6 +135,15 @@ export async function runTurn(
     catalogId: CATALOG_ID,
     trip,
     today: new Date().toISOString().slice(0, 10),
+    ...(suggested && request.client?.timeZone
+      ? {
+          originHint: {
+            code: suggested.code,
+            city: suggested.city,
+            timeZone: request.client.timeZone,
+          },
+        }
+      : {}),
   });
 
   let stopReason: string | null = null;
