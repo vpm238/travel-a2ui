@@ -267,6 +267,7 @@ interface ChatBody {
   model?: string;
   effort?: string;
   surfaceState?: Record<string, unknown>;
+  client?: { timeZone?: string; locale?: string };
 }
 
 async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -324,6 +325,7 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
     skill,
     effort,
     ...(body.surfaceState ? { surfaceState: body.surfaceState } : {}),
+    ...(body.client ? { client: body.client } : {}),
   };
 
   return streamTurn(turn, session, ctx);

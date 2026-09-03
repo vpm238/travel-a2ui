@@ -17,10 +17,23 @@ import { A2uiSurface, useSurface } from '@travel-a2ui/renderer';
 
 import type { Agent } from '../useAgent.js';
 import { Spinner } from './bits.js';
+import { PendingEdits } from './PendingEdits.js';
+import { TripPlan } from './TripPlan.js';
 
-/** Fingerprint of the decisions that should trigger a rebuild. */
+/**
+ * Fingerprint of the decisions that should make the panel a *different panel*.
+ *
+ * Deliberately not every trip field. Values sync into the panel live — change
+ * the departure airport on an inline card and the sidebar's origin updates
+ * immediately, with no model in the path. What warrants a rebuild is the panel
+ * needing different *controls*: once there is a destination it should show
+ * flight filters, once a flight is chosen it should show what is left to book.
+ *
+ * Rebuilding on a slider value would mean a model turn every time someone
+ * dragged something, which is both slow and pointless.
+ */
 function tripSignature(trip: Record<string, unknown>): string {
-  const keys = ['destination', 'startDate', 'endDate', 'travelers', 'budget', 'selectedFlight', 'selectedHotel'];
+  const keys = ['destination', 'selectedFlight', 'selectedHotel'];
   return keys.map((key) => `${key}=${String(trip[key] ?? '')}`).join('|');
 }
 
@@ -65,6 +78,12 @@ export function Sidebar({ agent }: { agent: Agent }) {
       {hasSurface ? (
         <div className="sidebar__body">
           <A2uiSurface store={agent.store} surfaceId="sidebar" onEvent={agent.handleSurfaceEvent} />
+          <PendingEdits
+            store={agent.store}
+            surfaceId="sidebar"
+            busy={agent.busy}
+            onSubmit={agent.submitSurface}
+          />
         </div>
       ) : (
         <div className="sidebar__placeholder">
@@ -77,6 +96,8 @@ export function Sidebar({ agent }: { agent: Agent }) {
           </button>
         </div>
       )}
+
+      <TripPlan trip={agent.trip} />
 
       {Object.keys(agent.trip).length > 0 ? (
         <div className="sidebar__trip">

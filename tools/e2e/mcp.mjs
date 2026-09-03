@@ -95,10 +95,34 @@ async function main() {
   );
 
   console.log('\ntool call');
+
+  // The gate first: a host that gives no dates gets asked, not given numbers.
+  const ungated = await rpc('tools/call', {
+    name: 'show_flight_options',
+    arguments: { destination: 'Madrid', surface: 'inline' },
+  });
+  check('refuses to price a trip nobody described', ungated.isError === true);
+  check(
+    'and tells the host model exactly what to ask for, and where to bind it',
+    /which airport you are flying from/.test(ungated.content?.[0]?.text ?? '') &&
+      /\$\/trip\/origin/.test(ungated.content?.[0]?.text ?? ''),
+    ungated.content?.[0]?.text?.slice(0, 80),
+  );
+
   const result = await rpc('tools/call', {
     name: 'show_flight_options',
-    arguments: { destination: 'Madrid', travelers: 2, surface: 'inline' },
+    arguments: {
+      destination: 'Madrid',
+      origin: 'LHR',
+      date: '2026-04-12',
+      travelers: 2,
+      surface: 'inline',
+    },
   });
+  check(
+    'a priced surface says what it is priced against',
+    /LHR → Madrid/.test(JSON.stringify(result.structuredContent.messages)),
+  );
 
   const summary = result.content.find((part) => part.type === 'text');
   const payload = result.content.find(

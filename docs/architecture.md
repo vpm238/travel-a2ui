@@ -50,6 +50,10 @@ thin adapter around them.
    └──────────────────┴─────────────────────────────────────────────────┘
 ```
 
+There is a fifth, `packages/trip`, which the catalog does not generate: what a
+trip *is*, shared by the agent, the tools, the prompt and the browser. See
+[The trip is a model](#the-trip-is-a-model-not-a-bag-of-keys).
+
 **The catalog is the single source of truth.** `scripts/build_catalog.py` is the
 only file you edit to add a component; `npm run generate` then regenerates the
 catalog JSON, the compiled examples, and all four `SKILL.md` files. `npm run
@@ -154,7 +158,152 @@ kind of layout.
 
 ---
 
-## 4 · A turn, end to end
+## 4 · The interaction model
+
+Three rules, and every one of them was learned by getting it wrong first.
+
+### Editing is not deciding
+
+| | Components | What a change does |
+| --- | --- | --- |
+| **Editors** | Slider, CheckBox, ChoicePicker, TextField, DateTimeInput, DateRangePicker, TravelerCounter | writes the data model, sends nothing |
+| **Decisions** | Button, and tappable cards — FlightOption, HotelCard, ActivityItem | sends the whole surface back as a turn |
+
+The first version fired a turn on every interaction. Choosing a departure
+airport, a date and a party size was three turns, each answered with a *new*
+surface that had forgotten the previous two — so the third question arrived
+under a card that had lost the first two answers. It felt like arguing with
+something that had no memory, because it was.
+
+So: **one thing to choose → tappable cards, no button**; picking the flight is
+the answer. **More than one → editors and a commit button**; the traveler sets
+them all and presses once. It is enforced in three places, because a rule this
+load-bearing should not depend on the model complying: editors do not call
+`runAction`, the host drops editor events if one ever does, and the prompt
+tells the model which is which.
+
+When the model forgets a commit button, the host draws its own — a bar naming
+how many values are unsent and a Send. A card of sliders you cannot submit is
+worse than no card.
+
+### An answered surface goes grey
+
+Only the newest surface accepts input. Everything above it answered a message
+the conversation has moved past; clicking it would answer a settled question
+against a data model describing a trip that no longer exists. Spent surfaces
+stay on screen as the record of what was chosen and get `inert` plus a
+greyscale filter — the greying matters, because a control that looks live and
+does nothing is worse than one that looks finished.
+
+### The trip is a model, not a bag of keys
+
+`packages/trip` is the schema, and it is the only definition. Before it existed
+the agent, the tools, the prompt and the browser each had their own opinion
+about what a trip was, and every bug worth reporting came out of that gap: dates
+in two formats, `cabin` arriving from a picker as `["economy"]` and reaching a
+tool expecting `"economy"`, "is this priceable yet" answered three different
+ways, two copies of the field list drifting apart.
+
+It carries four things:
+
+- **`FIELDS`** — what a trip is made of. Seventeen fields across seven stages,
+  each with the kind it holds and how to name it when asking a person for it.
+- **`normalize`** — the only way values get in. It coerces the shapes a real
+  interface produces: a picker's single-item array, an RFC 3339 instant from a
+  date input, `"$2,600"` typed into a text field.
+- **`missingFor` / `canDo`** — "can this be priced yet", answered once for
+  everyone. The tool gate, the prompt and the UI all call it.
+- **`plan`** — the trip as a sequence of steps, which is what makes the agent
+  lead instead of wait.
+
+It has no dependencies and no I/O, because it is imported by a Cloudflare
+Worker, a browser bundle and a test suite alike.
+
+### The agent leads, and finishes
+
+A planner that answers questions is a search box with better manners. So the
+model knows the order things get decided — route, dates, party, flight, stay,
+budget, days — and `nextStepFor(trip)` goes into every prompt as an instruction:
+here is where the trip stands, here is the next thing, end the turn having moved
+it on or having asked exactly what it takes to. When every stage is settled it
+says so, and the agent stops inventing questions and wishes them a good trip.
+
+The sidebar shows the same sequence as a checklist, read from the same model, so
+the panel cannot disagree with what the agent thinks is left.
+
+**Real trips bend the plan**, and the model bends with them:
+
+- **`skip`** — stages this trip does not need. Driving rather than flying,
+  staying with family, no fixed budget. A skipped stage counts as settled and is
+  never asked about again, which is the difference between a planner and a form.
+- **`legs`** — stops after the first, each with its own dates. The flat fields
+  describe leg one. A two-city trip is not "dated" because the first city has a
+  range, and the plan reports which stops still need one.
+
+### `/trip` is shared; everything else is per-surface
+
+This is the fix for "it forgot what I told you", and it is structural rather
+than a prompt instruction.
+
+```
+  the trip (durable, server-side)
+        │  seeded into every new surface, and synced live into the panels
+        ▼
+  surface data model  →  /trip/startDate, /trip/origin, /trip/travelers, …
+        │  merged back on commit, before the model sees the turn
+        ▼
+  the trip
+```
+
+A surface is born with `/trip` already filled in from what is decided, so a
+`DateRangePicker` bound to `$/trip/startDate` shows the agreed date without the
+model doing anything. Committing sends those values back, and the Worker merges
+them into the trip *before* building the prompt — so what the traveler set on
+screen is recorded because the host recorded it, not because the model
+remembered to call `save_trip`.
+
+The sidebar and home surfaces are synced on every trip change, with no model in
+the path: change the route on an inline card and the panel updates immediately.
+The model is only asked to rebuild a panel when it should be a *different
+shape* — a destination appearing, a flight being chosen — not when a value
+moves.
+
+---
+
+## 5 · What the agent may not assume
+
+An agent that invents an input produces a real-looking answer to a question
+nobody asked. The two that came up:
+
+- **Dates.** It priced "a sample 12 April departure" and showed the fares as if
+  they were the traveler's.
+- **Where they are.** Every trip departed from JFK, because that was the
+  default.
+
+Prompt rules were not enough — a model in a hurry prices the plausible week and
+calls it a sample. So the tools enforce it: `search_flights`, `search_hotels`
+and `estimate_cost` return `{ needs: 'dates' }` and an instruction to draw a
+picker rather than returning numbers. `flexible: true` is the deliberate way
+through for "roughly what does Madrid cost in April", and what comes back is
+labelled indicative. `save_trip` refuses a range that ends before it starts.
+
+For location the browser sends its timezone, which the Worker maps to a
+departure airport and offers to the model as an explicit *suggestion* — London
+for `Europe/London`, Delhi for `Asia/Kolkata`, a regional hub when the zone is
+not listed, and nothing at all when it cannot tell. The model must offer it
+pre-filled and let the traveler change it.
+
+The per-turn prompt names the fields still missing rather than dumping the trip
+as JSON, because a model asked to infer what is absent tends to fill the gap in
+itself.
+
+Every surface showing a price states what it is priced against — route, dates,
+party size — in its heading. `LHR → Madrid · 12–19 Apr · 3 travellers`, not
+`Flights to Madrid`.
+
+---
+
+## 6 · A turn, end to end
 
 ```
  browser                    Worker                       Anthropic
@@ -216,7 +365,7 @@ user's message rather than as an out-of-band state update.
 
 ---
 
-## 5 · Two runtimes, one wire protocol
+## 7 · Two runtimes, one wire protocol
 
 The header's **Runtime** picker switches between them mid-conversation.
 
@@ -274,7 +423,7 @@ a discovery.
 
 ---
 
-## 6 · The MCP server
+## 8 · The MCP server
 
 Stateless Streamable HTTP: every POST is self-contained, which is all a Worker
 wants to be and means no session affinity to arrange.
@@ -303,7 +452,7 @@ act on.
 
 ---
 
-## 7 · Where the API key lives
+## 9 · Where the API key lives
 
 Nowhere on the server. The browser holds it, sends it in `x-anthropic-key` on
 each request, and the Worker passes it to the SDK and forgets it. It is never
@@ -323,20 +472,22 @@ server holds no credentials at all — which is also why it holds no trip data.
 
 ---
 
-## 8 · Testing, and what is simulated
+## 10 · Testing, and what is simulated
 
 | Layer | How |
 | --- | --- |
+| Trip model | 24 cases: coercion from real interface shapes, readiness, the plan, skipped stages, multi-leg |
 | Compiler | 20 golden cases byte-checked against the reference Python compiler |
 | Skill generator | output byte-identical to the reference generator |
 | Renderer store | bindings, checks, templates, surface lifecycle |
 | MCP server | real JSON-RPC through `handleMcp`, not unit calls into helpers |
 | Agent loop | scripted model output through the real stream splitter |
 | Web app | `tools/e2e/chat.mjs` — a real browser, a real turn, 14 assertions |
+| Interaction model | `tools/e2e/interaction.mjs` — editing sends nothing, committing sends everything, spent surfaces go inert, 17 assertions |
 | MCP app | `tools/e2e/mcp.mjs` — a live server, a sandboxed iframe, 24 assertions |
 | Freshness | `npm run check` fails if catalog, examples or skills drift |
 
-139 unit tests, 38 Python tests, 38 browser assertions.
+180 unit tests, 44 Python tests, 58 browser assertions across three end-to-end runs.
 
 **Simulated:** flight and hotel inventory, weather, and destination highlights
 (`apps/worker/src/travel.ts`) are a deterministic generator over a real list of

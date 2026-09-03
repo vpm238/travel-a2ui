@@ -95,6 +95,8 @@ vi.mock('@anthropic-ai/sdk', () => {
 const { runTurn } = await import('../src/agent.js');
 const { buildSystemPrompt, describeAllSkills, describeSkill } = await import('../src/skills.js');
 const { trimHistory } = await import('../src/session.js');
+const { runTool } = await import('../src/tools.js');
+const { originForTimeZone } = await import('../src/travel.js');
 
 function baseRequest(overrides: Record<string, unknown> = {}) {
   return {
@@ -170,6 +172,104 @@ describe('prose and UI', () => {
     const { events } = await collect();
     expect(events.some((e) => e.type === 'ui_error')).toBe(true);
     expect(events.some((e) => e.type === 'done')).toBe(true);
+  });
+});
+
+/**
+ * The rules that stop the agent making things up.
+ *
+ * These live in the tools rather than in the prompt because a prompt rule is
+ * advice: a model that wants to be helpful prices a plausible week, calls it a
+ * sample, and the traveler is looking at fares for a date they never chose.
+ * Here it cannot get numbers without asking first.
+ */
+describe('inputs the traveler has to give', () => {
+  const run = (name: string, input: Record<string, unknown>, trip: Record<string, unknown> = {}) => {
+    const context = { trip, saveTrip: (patch: Record<string, unknown>) => Object.assign(trip, patch) };
+    return runTool(name, input, context);
+  };
+
+  it('names exactly what it is missing rather than refusing vaguely', async () => {
+    const { result } = await run('search_flights', { destination: 'Madrid' });
+    expect((result as any).needs).toEqual(['origin', 'startDate']);
+    expect((result as any).flights).toBeUndefined();
+    // Addressed to a model that has to fix it, so it names the binding paths.
+    expect((result as any).message).toMatch(/\$\/trip\/origin/);
+    expect((result as any).message).toMatch(/\$\/trip\/startDate/);
+  });
+
+  it('uses what is already saved without being handed it again', async () => {
+    const { result } = await run(
+      'search_flights',
+      { destination: 'Madrid' },
+      { origin: 'LHR', startDate: '2026-04-12', travelers: 2 },
+    );
+    expect((result as any).flights.length).toBeGreaterThan(0);
+    expect((result as any).searchedFor.date).toBe('2026-04-12');
+    expect((result as any).searchedFor.origin).toBe('LHR');
+    expect((result as any).searchedFor.travelers).toBe(2);
+    expect((result as any).searchedFor.indicative).toBe(false);
+    expect((result as any).searchedFor.basis).toBe('LHR → Madrid · from 12 Apr · 2 travellers');
+  });
+
+  it('answers a deliberately rough question, and marks it as rough', async () => {
+    const { result } = await run('search_flights', { destination: 'Madrid', flexible: true });
+    expect((result as any).flights.length).toBeGreaterThan(0);
+    expect((result as any).searchedFor.indicative).toBe(true);
+  });
+
+  it('will not total a trip whose length it does not know', async () => {
+    const { result } = await run('estimate_cost', { destination: 'Madrid' });
+    expect((result as any).needs).toEqual(['startDate', 'endDate', 'travelers']);
+    expect((result as any).total).toBeUndefined();
+  });
+
+  it('totals against the saved range and says what it assumed', async () => {
+    const { result } = await run(
+      'estimate_cost',
+      { destination: 'Madrid' },
+      { startDate: '2026-04-12', endDate: '2026-04-19', travelers: 2 },
+    );
+    expect((result as any).total).toMatch(/^\$/);
+    expect((result as any).basis).toEqual({
+      summary: 'Madrid · 12–19 Apr · 2 travellers',
+      nights: 7,
+      travelers: 2,
+      startDate: '2026-04-12',
+      endDate: '2026-04-19',
+      indicative: false,
+    });
+  });
+
+  it('refuses to record a date range that ends before it starts', async () => {
+    const trip: Record<string, unknown> = {};
+    const { result, isError } = await run(
+      'save_trip',
+      { startDate: '2026-04-19', endDate: '2026-04-12' },
+      trip,
+    );
+    expect(isError).toBe(true);
+    expect((result as any).saved).toBe(false);
+    expect(trip.startDate).toBeUndefined();
+  });
+});
+
+describe('where the traveler is', () => {
+  it('suggests a departure airport from a timezone it knows', () => {
+    expect(originForTimeZone('Europe/Madrid')?.code).toBe('CDG');
+    expect(originForTimeZone('Asia/Kolkata')?.code).toBe('DEL');
+    expect(originForTimeZone('America/Los_Angeles')?.code).toBe('LAX');
+  });
+
+  // Better a hub on the right continent than a confident wrong hemisphere.
+  it('falls back to the region rather than to New York', () => {
+    expect(originForTimeZone('Europe/Warsaw')?.code).toBe('LHR');
+    expect(originForTimeZone('Asia/Ulaanbaatar')?.code).toBe('DXB');
+  });
+
+  it('suggests nothing when it knows nothing', () => {
+    expect(originForTimeZone(undefined)).toBeUndefined();
+    expect(originForTimeZone('Mars/Olympus_Mons')).toBeUndefined();
   });
 });
 
@@ -344,26 +444,69 @@ describe('skills', () => {
     expect(brief('home')).toContain('home screen');
   });
 
-  it('tells the model when nothing is decided yet', () => {
-    const empty = buildSystemPrompt({
+  const promptFor = (
+    trip: Record<string, unknown>,
+    extra: Partial<Parameters<typeof buildSystemPrompt>[0]> = {},
+  ) =>
+    buildSystemPrompt({
       variant: 'express-monolithic',
       surface: 'inline',
       surfaceId: 'i',
       catalogId: 'c',
-      trip: {},
+      trip,
       today: '2026-04-01',
-    })[1]!.text;
-    const settled = buildSystemPrompt({
-      variant: 'express-monolithic',
-      surface: 'inline',
-      surfaceId: 'i',
-      catalogId: 'c',
-      trip: { destination: 'Madrid' },
-      today: '2026-04-01',
+      ...extra,
     })[1]!.text;
 
-    expect(empty).toContain('Nothing is settled yet');
-    expect(settled).toContain('Build on what is already decided');
+  it('tells the model when nothing is decided yet', () => {
+    expect(promptFor({})).toContain('Nothing is settled yet');
+  });
+
+  // The whole reason this is spelled out rather than dumped as JSON: a model
+  // asked to infer what is absent tends to fill the gap in itself, and the gap
+  // it fills in is a departure date nobody chose.
+  it('names the fields that are still missing, not just the ones that are set', () => {
+    const prompt = promptFor({ destination: 'Madrid' });
+    expect(prompt).toContain('destination="Madrid"');
+    expect(prompt).toMatch(/Not yet known:.*startDate/);
+    expect(prompt).toMatch(/Not yet known:.*travelers/);
+    expect(prompt).not.toMatch(/Not yet known:.*destination/);
+  });
+
+  it('stops asking once everything is settled', () => {
+    const prompt = promptFor({
+      destination: 'Madrid',
+      origin: 'JFK',
+      startDate: '2026-04-12',
+      endDate: '2026-04-19',
+      travelers: 2,
+      budget: 2600,
+      cabin: 'economy',
+      nonstopOnly: false,
+      selectedFlight: 'IB6250',
+      selectedHotel: 'h1',
+    });
+    expect(prompt).toContain('Everything needed is known');
+    expect(prompt).not.toContain('Not yet known');
+  });
+
+  it('offers a departure airport as a suggestion, never as an answer', () => {
+    const prompt = promptFor(
+      { destination: 'Madrid' },
+      { originHint: { code: 'LHR', city: 'London', timeZone: 'Europe/London' } },
+    );
+    expect(prompt).toContain('Europe/London');
+    expect(prompt).toContain('London (LHR)');
+    expect(prompt).toContain('suggestion');
+    expect(prompt).toContain('Do not treat it as their answer');
+  });
+
+  it('says nothing about a departure airport once one is chosen', () => {
+    const prompt = promptFor(
+      { destination: 'Madrid', origin: 'CDG' },
+      { originHint: { code: 'LHR', city: 'London', timeZone: 'Europe/London' } },
+    );
+    expect(prompt).not.toContain('LHR');
   });
 });
 

@@ -43,6 +43,17 @@
 
 import { ExpressCompiler, type A2uiMessage } from '@travel-a2ui/express';
 
+import {
+  askFor,
+  basisOf,
+  bindingFor,
+  missingFor,
+  nights,
+  normalize as normalizeTrip,
+  type Trip,
+  type TripKey,
+} from '@travel-a2ui/trip';
+
 import { CATALOG, CATALOG_ID } from './agent.js';
 import { estimateTrip, getWeather, resolveDestination, searchFlights, searchHotels } from './travel.js';
 import skillExpress from '../../../skills/express-monolithic/a2ui/SKILL.md';
@@ -124,6 +135,50 @@ interface Surface {
   express: string;
   summary: string;
   surfaceId: string;
+}
+
+/**
+ * Raised when a tool was asked to price a trip nobody has described.
+ *
+ * The same rule the web app enforces, for the same reason: a fare for a week
+ * the traveler never chose looks exactly like a fare for one they did. Here it
+ * is a tool error naming what is missing, which the host's model can act on —
+ * by asking, or by calling again with `flexible: true` for a rough figure.
+ */
+class NeedsInput extends Error {
+  constructor(missing: readonly TripKey[], what: string) {
+    super(
+      `Cannot ${what} without ${askFor(missing)}. Ask the traveler — draw the controls for ` +
+        `all of it in one surface with render_a2ui_express, bound to ` +
+        `${missing.map((key) => `$${bindingFor(key)}`).join(', ')} with a single commit ` +
+        'button — or pass the values as arguments. For a deliberately rough figure, call ' +
+        'again with flexible: true and say on screen that it is indicative.',
+    );
+  }
+}
+
+/**
+ * The trip a tool call describes.
+ *
+ * The MCP server is stateless, so the host's arguments *are* the trip. Running
+ * them through the same model the web app uses means a date arrives in one
+ * shape, a cabin picked from a list is a string rather than a one-item array,
+ * and "can this be priced yet" has the same answer in both places.
+ */
+function tripOf(args: Record<string, unknown>): Trip {
+  return normalizeTrip({
+    destination: args['destination'],
+    origin: args['origin'],
+    startDate: args['date'] ?? args['startDate'],
+    endDate: args['endDate'],
+    travelers: args['travelers'],
+    cabin: args['cabin'],
+    maxFare: args['maxPrice'],
+    maxNightly: args['maxNightly'],
+    neighborhood: args['neighborhood'],
+    budget: args['budget'],
+    spent: args['spent'],
+  });
 }
 
 type Flow = 'inline' | 'sidebar' | 'home';
@@ -634,20 +689,32 @@ function flightSurface(args: Record<string, unknown>): Surface {
   const flow = flowOf(args);
   const surfaceId = surfaceIdFor(flow, 'mcp-flights');
   const destination = str(args['destination']);
+
+  const flexible = args['flexible'] === true;
+  const trip = tripOf(args);
+  const missing = missingFor(trip, 'priceFlights');
+  if (missing.length > 0 && !flexible) throw new NeedsInput(missing, 'price flights');
+
   const { flights: all, note } = searchFlights({
     destination,
-    origin: str(args['origin']) || undefined,
-    date: str(args['date']) || undefined,
-    cabin: str(args['cabin']) || undefined,
-    maxPrice: typeof args['maxPrice'] === 'number' ? args['maxPrice'] : undefined,
+    origin: trip.origin,
+    date: trip.startDate,
+    cabin: trip.cabin,
+    maxPrice: trip.maxFare,
     nonstopOnly: args['nonstopOnly'] === true,
   });
 
   const flights = all.slice(0, limitFor(flow));
   const place = resolveDestination(destination)?.city ?? destination;
+
+  // The heading names what these fares are for. A price with no route, date or
+  // party size beside it is the thing that makes an answer untrustworthy.
+  const heading =
+    basisOf({ ...trip, destination: place }) || `Flights to ${place} · indicative`;
+
   const lines = [
     `surface(${q(surfaceId)})`,
-    `head = Text(${q(`Flights to ${place}`)}, variant=${q(flow === 'home' ? 'h4' : 'h3')})`,
+    `head = Text(${q(heading)}, variant=${q(flow === 'home' ? 'h4' : 'h3')})`,
   ];
 
   flights.forEach((flight, index) => {
@@ -660,15 +727,18 @@ function flightSurface(args: Record<string, unknown>): Surface {
     );
   });
 
-  lines.push(`foot = Text(${q(note)}, variant="caption")`);
+  lines.push(
+    `foot = Text(${q(missing.length > 0 ? `${note} Indicative dates — not priced for a specific trip.` : note)}, variant="caption")`,
+  );
   lines.push(`root = Column([head, ${flights.map((_f, i) => `f${i}`).join(', ')}, foot])`);
 
   return {
     express: lines.join('\n'),
     surfaceId,
     summary: flights.length
-      ? `${flights.length} flight option(s) to ${place}, cheapest ${flights[0]!.price}.`
-      : `No flights matched for ${place}.`,
+      ? `${flights.length} flight option(s), ${heading}, cheapest ${flights[0]!.price}.` +
+        (missing.length > 0 ? ' Indicative — no date was given.' : '')
+      : `No flights matched for ${heading}.`,
   };
 }
 

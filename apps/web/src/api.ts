@@ -78,6 +78,28 @@ export interface ChatRequest {
   model: string;
   effort?: 'low' | 'medium' | 'high';
   surfaceState?: Record<string, unknown>;
+  /**
+   * What the browser knows about where and when the traveler is.
+   *
+   * A *hint*, never a decision. The agent used to price every trip out of JFK
+   * because that was the default, which is the same failure as inventing a
+   * departure date: an authoritative-looking number for a journey nobody
+   * described. This gives it something better to offer, pre-filled, for the
+   * traveler to confirm or change.
+   */
+  client?: { timeZone?: string; locale?: string };
+}
+
+/** The browser's own timezone and locale, read once. */
+export function clientHints(): ChatRequest['client'] {
+  try {
+    return {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      locale: navigator.language,
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 /**

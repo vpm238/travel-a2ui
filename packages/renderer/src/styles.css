@@ -1365,3 +1365,19 @@
     animation-duration: 0.01ms !important;
   }
 }
+
+/*
+ * A spent surface. `inert` already blocks input; this says so visually, since a
+ * control that looks live and does nothing is worse than one that looks done.
+ */
+.a2-surface--spent,
+.a2-surface--spent * {
+  cursor: default !important;
+}
+
+.a2-surface--spent .a2-button,
+.a2-surface--spent .tv-flight,
+.a2-surface--spent .tv-hotel {
+  box-shadow: none;
+  transform: none;
+}

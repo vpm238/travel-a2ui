@@ -1,0 +1,23 @@
+{
+  "name": "@travel-a2ui/trip",
+  "version": "0.1.0",
+  "description": "The trip: what planning one actually requires, as a typed model shared by the agent, the app and the tools.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}

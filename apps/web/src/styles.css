@@ -1513,3 +1513,181 @@ a {
 .runtime__note {
   color: var(--tv-ink-faint);
 }
+
+/* -------------------------------------------------------------- unsent edits
+ *
+ * Sits directly under the surface it belongs to. Deliberately quiet — it is a
+ * reminder, not an alarm — but it holds a button, because a card of controls
+ * whose values cannot be sent is worse than no card at all.
+ */
+
+.pending {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 7px 10px 7px 12px;
+  border: 1px dashed var(--tv-accent-line);
+  border-radius: var(--tv-radius-sm);
+  background: var(--tv-accent-soft);
+  font-size: 0.8rem;
+  color: var(--tv-ink-muted);
+}
+
+.pending strong {
+  color: var(--tv-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.pending__fields {
+  color: var(--tv-ink-faint);
+  font-family: var(--tv-font-mono);
+  font-size: 0.94em;
+}
+
+.pending button {
+  appearance: none;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--tv-accent-ink);
+  background: var(--tv-accent);
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pending button:hover {
+  filter: brightness(1.08);
+}
+
+/*
+ * A surface the conversation has moved past: readable, not operable.
+ *
+ * Greyed rather than merely dimmed, because dimming reads as "loading" and this
+ * is the opposite — it is finished. `inert` on the surface itself does the
+ * actual blocking; this is the part that says so before anyone clicks.
+ */
+.turn__surface--spent {
+  opacity: 0.7;
+  filter: grayscale(0.72);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.turn__surface--spent:hover {
+  opacity: 0.85;
+  filter: grayscale(0.4);
+}
+
+.turn__spentNote {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  color: var(--tv-ink-faint);
+  letter-spacing: 0.02em;
+}
+
+/* --------------------------------------------------------------- the plan
+ *
+ * The agent's own sequence, made visible. Quiet by default — the one row that
+ * matters is the next one, so that is the only one that gets any colour.
+ */
+
+.plan {
+  border-top: 1px solid var(--tv-line);
+  padding: 14px 0 4px;
+}
+
+.plan h3 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tv-ink-faint);
+  font-weight: 640;
+}
+
+.plan__count {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  color: var(--tv-ink-muted);
+}
+
+.plan__legs {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--tv-ink-muted);
+}
+
+.plan ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.plan li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--tv-ink-faint);
+  padding: 3px 6px;
+  border-radius: var(--tv-radius-sm);
+}
+
+.plan li.is-done {
+  color: var(--tv-ink-muted);
+}
+
+.plan li.is-next {
+  color: var(--tv-ink);
+  background: var(--tv-accent-soft);
+  font-weight: 560;
+}
+
+.plan li.is-skipped .plan__label {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.plan__mark {
+  width: 0.9em;
+  text-align: center;
+  color: var(--tv-ink-faint);
+}
+
+.plan li.is-done .plan__mark {
+  color: var(--tv-positive);
+}
+
+.plan li.is-next .plan__mark {
+  color: var(--tv-accent);
+}
+
+.plan__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.plan__note {
+  font-size: 0.72rem;
+  color: var(--tv-ink-faint);
+  font-style: italic;
+}
+
+.plan__done {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  font-weight: 560;
+  color: var(--tv-positive);
+}

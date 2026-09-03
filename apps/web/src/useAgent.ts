@@ -15,9 +15,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SurfaceStore, type A2uiEvent } from '@travel-a2ui/renderer';
+import { TRIP_KEYS, plan as planTrip, type Trip } from '@travel-a2ui/trip';
 
 import { consumeKeyFromUrl } from './apiKey.js';
 import {
+  clientHints,
   fetchMeta,
   getApiOrigin,
   probeBackend,
@@ -132,6 +134,93 @@ function newSessionId(): string {
   return `s_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 }
 
+/**
+ * Trip facts that live at `/trip` in every surface's data model.
+ *
+ * The old arrangement was the root of "it forgot what I picked": each surface
+ * had its own data model, born empty, while the trip was durable and lived
+ * somewhere else entirely. So the second card had no idea what you answered on
+ * the first unless the model happened to remember to write it back in.
+ *
+ * Now the host bridges the two. A surface is seeded from the trip as it arrives,
+ * so a control bound to `$/trip/startDate` is pre-filled with the dates already
+ * agreed, on every surface, without the model doing anything. And committing a
+ * surface sends its `/trip` values back, where the Worker merges them into the
+ * durable trip. What you set on screen is remembered because the host remembers
+ * it, not because the model was asked nicely.
+ */
+/** Read once, at module load: it does not change while the tab is open. */
+const HINTS = clientHints();
+
+const TRIP_FIELDS = TRIP_KEYS;
+
+/**
+ * Fills a new surface's `/trip` with what is already known.
+ *
+ * Only fields the surface left undefined: a model that deliberately set a value
+ * — a suggested date, a widened budget — is proposing something, and that
+ * proposal should win over the older fact it is proposing to change.
+ */
+function seedTrip(store: SurfaceStore, surfaceId: string, trip: Record<string, unknown>): void {
+  const current = (store.snapshot(surfaceId)['trip'] ?? {}) as Record<string, unknown>;
+  for (const field of TRIP_FIELDS) {
+    const value = trip[field];
+    if (value === undefined || value === null || value === '') continue;
+    if (current[field] !== undefined) continue;
+    store.setValue(surfaceId, `/trip/${field}`, value as never);
+  }
+}
+
+/**
+ * Pushes the trip into a standing panel, overwriting what is there.
+ *
+ * The panels are meant to show where the trip *is*. Changing the departure
+ * airport on an inline card and watching the sidebar carry on displaying the
+ * old one is the panel lying about the trip — and rebuilding it through the
+ * model to fix that costs a round trip and several seconds for values the host
+ * already has.
+ *
+ * So: values sync here, immediately and for free. The model is only asked to
+ * rebuild when the panel should be a *different shape*, which is a much rarer
+ * event than a value changing.
+ *
+ * Only `sidebar` and `home` — a spent inline card is the record of what was
+ * asked at the time, and rewriting history under it would be worse than stale.
+ */
+function syncTrip(store: SurfaceStore, surfaceId: string, trip: Record<string, unknown>): void {
+  if (!store.get(surfaceId)) return;
+  const current = (store.snapshot(surfaceId)['trip'] ?? {}) as Record<string, unknown>;
+  for (const field of TRIP_FIELDS) {
+    const value = trip[field];
+    if (value === undefined || value === null || value === '') continue;
+    if (current[field] === value) continue;
+    store.setValue(surfaceId, `/trip/${field}`, value as never);
+  }
+}
+
+/**
+ * Components that edit a value rather than make a decision.
+ *
+ * The distinction runs the whole interaction model. Dragging a slider, picking
+ * a date, ticking a box, typing a name — those are someone composing an answer,
+ * and sending a turn on each one means the third choice arrives in a surface
+ * that has forgotten the first two. Tapping a flight, or pressing a button, is
+ * someone *finishing*. Only the second kind starts a turn.
+ *
+ * The renderer already declines to fire actions from these; this is the host
+ * saying the same thing, so a component added later cannot quietly reintroduce
+ * the behaviour.
+ */
+const VALUE_EDITORS = new Set([
+  'TextField',
+  'CheckBox',
+  'ChoicePicker',
+  'Slider',
+  'DateTimeInput',
+  'DateRangePicker',
+  'TravelerCounter',
+]);
+
 /** Turns an interface event into the sentence the model receives. */
 function describeEvent(event: A2uiEvent): string {
   const entries = Object.entries(event.context ?? {}).filter(
@@ -199,7 +288,7 @@ export function useAgent() {
   const [backendError, setBackendError] = useState<string | null>(null);
 
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [trip, setTrip] = useState<Record<string, unknown>>({});
+  const [trip, setTrip] = useState<Trip>({});
   const [usage, setUsage] = useState<Usage>(EMPTY_USAGE);
   const [busy, setBusy] = useState(false);
   const [liveSurface, setLiveSurface] = useState<SurfaceKind | null>(null);
@@ -210,6 +299,21 @@ export function useAgent() {
   prefsRef.current = prefs;
   const keyRef = useRef(apiKey);
   keyRef.current = apiKey;
+  // Read while a turn is streaming, where `trip` in the closure is stale.
+  const tripRef = useRef(trip);
+  tripRef.current = trip;
+
+  /**
+   * Keeps the standing panels showing the trip as it actually stands.
+   *
+   * Runs on every trip change, which is cheap — a handful of pointer writes —
+   * and is why editing the route on an inline card is visible in the sidebar
+   * before the next turn finishes rather than after a rebuild.
+   */
+  useEffect(() => {
+    syncTrip(store, 'sidebar', trip);
+    syncTrip(store, 'home', trip);
+  }, [store, trip]);
 
   // Persist a URL-supplied key so a reload does not lose it.
   useEffect(() => {
@@ -332,6 +436,9 @@ export function useAgent() {
             break;
           case 'ui':
             store.apply(event.messages);
+            // Seeded on every ui event, not just the first: a surface streams in
+            // and its data model can arrive after the components that read it.
+            seedTrip(store, event.surfaceId, tripRef.current);
             if (!options.silent) {
               patchTurn(assistantId, (turn) => ({
                 parts: withSurface(turn.parts, event.surfaceId),
@@ -395,6 +502,7 @@ export function useAgent() {
             effort: prefsRef.current.effort,
             ...(options.surfaceId ? { surfaceId: options.surfaceId } : {}),
             ...(options.surfaceState ? { surfaceState: options.surfaceState } : {}),
+            ...(HINTS ? { client: HINTS } : {}),
           },
           { apiKey: keyRef.current, signal: controller.signal, onEvent: handle },
         );
@@ -415,10 +523,17 @@ export function useAgent() {
     setLiveSurface(null);
   }, []);
 
-  /** Wired to every surface: an interaction is the user's next turn. */
+  /**
+   * Wired to every surface. A *decision* is the user's next turn; an edit is not.
+   *
+   * An edit still lands in the surface's data model, where it stays until the
+   * traveler commits — so three choices on one card are three choices, not three
+   * turns against three surfaces that each forgot the last.
+   */
   const handleSurfaceEvent = useCallback(
     (event: A2uiEvent) => {
       if (busy) return;
+      if (event.source && VALUE_EDITORS.has(event.source.component)) return;
       const surface: SurfaceKind =
         event.surfaceId === 'sidebar' ? 'sidebar' : event.surfaceId === 'home' ? 'home' : 'inline';
       void send(describeEvent(event), {
@@ -428,6 +543,28 @@ export function useAgent() {
       });
     },
     [busy, send],
+  );
+
+  /**
+   * Sends a surface's current values without a specific decision attached.
+   *
+   * The escape hatch for a card full of editors and no commit button: the model
+   * is supposed to draw one, and when it does not, the traveler is otherwise
+   * stuck holding an answer with no way to hand it over.
+   */
+  const submitSurface = useCallback(
+    (surfaceId: string, label = 'submitted the panel') => {
+      if (busy) return;
+      const surface: SurfaceKind =
+        surfaceId === 'sidebar' ? 'sidebar' : surfaceId === 'home' ? 'home' : 'inline';
+      const values = store.snapshot(surfaceId);
+      void send(`[interface] ${label} ${JSON.stringify(values)}`, {
+        surface,
+        surfaceState: values,
+        fromSurface: true,
+      });
+    },
+    [busy, send, store],
   );
 
   const reset = useCallback(async () => {
@@ -463,6 +600,7 @@ export function useAgent() {
     stop,
     reset,
     handleSurfaceEvent,
+    submitSurface,
   };
 }
 

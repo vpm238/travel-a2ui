@@ -15,6 +15,7 @@ import { A2uiSurface } from '@travel-a2ui/renderer';
 
 import type { Agent } from '../useAgent.js';
 import { Disclosure, Empty, Spinner } from './bits.js';
+import { PendingEdits } from './PendingEdits.js';
 
 const OPENERS = [
   'Six days in Madrid in April, two of us, around $2,500 all in',
@@ -46,6 +47,26 @@ export function Chat({ agent }: { agent: Agent }) {
   useEffect(() => {
     if (stickToBottom.current) bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [agent.turns]);
+
+  /**
+   * The one surface still open to input: the newest one in the feed.
+   *
+   * Every earlier card answered a message the conversation has since moved
+   * past. Leaving them clickable meant a tap could answer a question that was
+   * settled three turns ago, against a data model describing a trip that no
+   * longer exists. They stay on screen as the record of what was chosen; they
+   * just stop being controls.
+   */
+  const liveSurfaceId = (() => {
+    for (let index = agent.turns.length - 1; index >= 0; index--) {
+      const parts = agent.turns[index]!.parts;
+      for (let part = parts.length - 1; part >= 0; part--) {
+        const entry = parts[part]!;
+        if (entry.kind === 'surface') return entry.surfaceId;
+      }
+    }
+    return null;
+  })();
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -105,12 +126,26 @@ export function Chat({ agent }: { agent: Agent }) {
                     </div>
                   ) : null
                 ) : (
-                  <div key={index} className="turn__surface">
+                  <div
+                    key={index}
+                    className={`turn__surface${part.surfaceId === liveSurfaceId ? '' : ' turn__surface--spent'}`}
+                  >
                     <A2uiSurface
                       store={agent.store}
                       surfaceId={part.surfaceId}
                       onEvent={agent.handleSurfaceEvent}
+                      interactive={part.surfaceId === liveSurfaceId && !agent.busy}
                     />
+                    {part.surfaceId === liveSurfaceId ? (
+                      <PendingEdits
+                        store={agent.store}
+                        surfaceId={part.surfaceId}
+                        busy={agent.busy}
+                        onSubmit={agent.submitSurface}
+                      />
+                    ) : (
+                      <p className="turn__spentNote">Answered · scroll down to continue</p>
+                    )}
                   </div>
                 ),
               )}
