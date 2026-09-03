@@ -46,7 +46,7 @@ import { ExpressCompiler, type A2uiMessage } from '@travel-a2ui/express';
 import { CATALOG, CATALOG_ID } from './agent.js';
 import { estimateTrip, getWeather, resolveDestination, searchFlights, searchHotels } from './travel.js';
 import skillExpress from '../../../skills/express-monolithic/a2ui/SKILL.md';
-import viewShell from '../../mcp-view/dist/shell.html';
+import viewShell from '../../mcp-view/shell.html';
 
 const PROTOCOL_VERSION = '2025-06-18';
 const SERVER_INFO = { name: 'travel-a2ui', title: 'Travel A2UI', version: '0.1.0' };
