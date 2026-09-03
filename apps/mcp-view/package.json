@@ -5,7 +5,7 @@
   "description": "The A2UI renderer as a single self-contained HTML file, for MCP hosts that render an HTML resource.",
   "type": "module",
   "scripts": {
-    "build": "vite build && node scripts/inline.mjs",
+    "build": "vite build && node scripts/stage.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
