@@ -86,7 +86,7 @@ from the catalog rather than picking from a menu.
 
 ## What Claude gets
 
-**Eight tools.**
+**Eight tools**, each pointed at the view by `_meta.ui.resourceUri`.
 
 | Tool | Returns |
 | --- | --- |
@@ -115,25 +115,56 @@ context; `@travel-a2ui` in Claude Code lists them.
 Code it appears as `/mcp__travel-a2ui__a2ui-express`. The tool version exists
 because most hosts only expose prompts to the *user*, never to the model.
 
-## What actually renders, and when it doesn't
+## What actually renders, and how
 
-A tool result carries a summary, an A2UI payload, and a `text/html` shell of
-about 450 bytes: the surface inlined, plus a `<script src>` back to your
-deployment for the renderer. If a host draws the HTML, you get real components.
-If it doesn't, the summary still answers the question.
+Worth understanding, because getting it wrong produces a plugin that runs the
+tools and shows nothing — which is exactly what this did until it was fixed.
 
-Two consequences worth knowing:
+A host does **not** look for HTML inside a tool result. It looks for a `ui://`
+resource declared in `resources/list` with the MIME type
+`text/html;profile=mcp-app`, reads it once per conversation as a *template*, and
+then forwards each tool result to that template over a postMessage bridge. Three
+things have to line up, and all three now do:
 
-- **The frame fetches from your Worker.** The renderer is served from
-  `/mcp-view/app.js` with `access-control-allow-origin: *`, because the frame
-  it loads into has an opaque origin. If your deployment is behind something
-  that blocks that, surfaces will not draw. `?origin=https://…` on the MCP URL
-  points the shell somewhere else if your public origin differs from the one
-  the host calls.
-- **MCP Apps support varies by host and is still moving.** A host that hasn't
-  shipped HTML resources shows the summary text instead. That is the intended
-  floor, not a failure — and a host with its own A2UI renderer can take the
-  payload directly with `?view=payload` on the URL you installed.
+| | What this server sends |
+| --- | --- |
+| the template | `ui://travel-a2ui/surface`, `text/html;profile=mcp-app`, with its CSP in `_meta.ui` |
+| the link | every tool carries `_meta.ui.resourceUri` naming it |
+| the surface | the A2UI messages in `structuredContent`, which is what the host forwards |
+
+The template has the whole renderer inlined — React and the component library —
+so it declares `resourceDomains: []` and fetches nothing. Nothing to fetch means
+no content policy can break it. Because the template is read once rather than
+per call, inlining costs nothing per tool result: the per-call payload is a few
+kilobytes of A2UI.
+
+Interactions come back as `ui/message`, a user turn in your conversation. Tapping
+a flight *is* you answering, phrased in the interface rather than in prose.
+
+**Other hosts.** `?view=payload` sends the A2UI payload alone, for a host with
+its own renderer. `?view=legacy` returns the older MCP-UI shape — a `text/html`
+resource per result with the payload inlined — for a host that reads those. A
+host that draws neither still gets the text summary, which is the intended
+floor.
+
+## If nothing renders
+
+In order:
+
+1. **Check the connector is enabled *in this chat*, not just installed.** A
+   connector can be connected at the org level and switched off for the
+   conversation, and the symptom is identical to a broken app: no tools, no UI.
+2. **Ask the host what it supports.** `resources/list` should show
+   `ui://travel-a2ui/surface` with `text/html;profile=mcp-app`. If your host
+   advertises a different MIME type, it is speaking a different revision.
+3. **Check the tools carry `_meta.ui.resourceUri`.** Without it the host has a
+   template and a tool and no reason to connect them.
+4. Run the end-to-end check against your deployment, which exercises the whole
+   handshake in a real sandboxed iframe:
+
+   ```bash
+   BASE_URL=https://travel-a2ui.<subdomain>.workers.dev node tools/e2e/mcp.mjs
+   ```
 
 ## Verifying a deployment end to end
 
@@ -141,8 +172,9 @@ Two consequences worth knowing:
 BASE_URL=https://travel-a2ui.<subdomain>.workers.dev node tools/e2e/mcp.mjs
 ```
 
-24 checks: the handshake, the tool list, the three parts of a tool result, the
-shell's size, that the renderer is served and CORS-readable, that flight cards
-draw inside a `sandbox="allow-scripts"` iframe, that clicking one posts the
-intent a host forwards to its model, and that a composed layout compiles and
-draws every component it asked for.
+34 checks. It plays the host's side properly: reads the declared template,
+answers `ui/initialize`, waits for `ui/notifications/initialized`, and only then
+sends the tool result — in a real `sandbox="allow-scripts"` iframe with an
+opaque origin. Then it asserts the handshake happened, the flight cards drew,
+tapping one produced a `ui/message` in the conversation, and a layout composed
+on the fly from the component reference drew every kind it asked for.

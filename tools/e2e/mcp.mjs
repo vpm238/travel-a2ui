@@ -87,7 +87,20 @@ async function main() {
 
   const { resources } = await rpc('resources/list');
   const skill = await rpc('resources/read', { uri: 'a2ui://skill/express' });
-  check('the catalog and the skill are readable', resources.length === 2);
+  check('the catalog, the skill and the app are listed', resources.length === 3);
+
+  const app = resources.find((entry) => entry.mimeType === 'text/html;profile=mcp-app');
+  check('the view is declared as an MCP app', Boolean(app), JSON.stringify(resources.map((r) => r.mimeType)));
+  check(
+    'and claims to fetch nothing, so no content policy can break it',
+    app?._meta?.ui?.csp?.resourceDomains?.length === 0,
+    JSON.stringify(app?._meta?.ui?.csp ?? {}),
+  );
+  check(
+    'every tool points at it',
+    tools.every((entry) => entry._meta?.ui?.resourceUri === app?.uri),
+    tools.map((t) => t._meta?.ui?.resourceUri).join(', '),
+  );
   check(
     'the skill it serves is the generated one',
     skill.contents[0].text.includes('A2UI Express') && skill.contents[0].text.length > 4000,
@@ -128,11 +141,37 @@ async function main() {
   const payload = result.content.find(
     (part) => part.resource?.mimeType === 'application/vnd.a2ui+json',
   );
-  const view = result.content.find((part) => part.resource?.mimeType === 'text/html');
 
   check('a plain-text summary for a host that cannot draw', /flight option/i.test(summary?.text ?? ''));
   check('an A2UI payload for a host that can', Boolean(payload));
-  check('an HTML view for everyone else', Boolean(view));
+  check(
+    'the surface where an MCP Apps host forwards it from',
+    (result.structuredContent?.messages ?? []).length > 0,
+  );
+  check(
+    'and no competing text/html view',
+    !result.content.some((part) => part.resource?.mimeType === 'text/html'),
+  );
+
+  // The legacy shape is opt-in, and still has to work for an MCP-UI host.
+  const legacy = await (async () => {
+    const response = await fetch(`${BASE}/mcp?view=legacy`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: nextId++,
+        method: 'tools/call',
+        params: {
+          name: 'show_flight_options',
+          arguments: { destination: 'Madrid', origin: 'LHR', date: '2026-04-12', travelers: 2 },
+        },
+      }),
+    });
+    return (await response.json()).result;
+  })();
+  const view = legacy.content.find((part) => part.resource?.mimeType === 'text/html');
+  check('an older host can still ask for the inlined shape', Boolean(view));
 
   const html = view.resource.text;
   const embedded = JSON.parse(
@@ -165,13 +204,81 @@ async function main() {
   );
 
   /**
-   * The nearest thing to an MCP host we can build: a page that drops the tool
-   * result into a sandboxed iframe and listens for what comes back.
+   * The nearest thing to an MCP host we can build.
+   *
+   * It does what a real one does: loads the declared template into a sandboxed
+   * iframe, answers `ui/initialize`, waits for `ui/notifications/initialized`,
+   * and only then sends `ui/notifications/tool-result`. The order is the point
+   * — a view that renders before the handshake shows nothing, and that is
+   * exactly the failure this whole path had.
    *
    * `sandbox="allow-scripts"` without `allow-same-origin` is what the hosts
-   * actually use, and it is the strictest case — the frame has an opaque origin,
+   * actually use, and it is the strictest case: the frame has an opaque origin,
    * so a same-origin assumption anywhere in the renderer fails here.
    */
+  async function renderInApp(page, template, result) {
+    const errors = [];
+    page.on('pageerror', (error) => errors.push(String(error)));
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+
+    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(
+      ({ srcdoc, toolResult }) => {
+        document.body.innerHTML = '';
+        document.body.style.margin = '0';
+        window.__posted = [];
+        window.__handshake = [];
+
+        const frame = document.createElement('iframe');
+        frame.id = 'surface';
+        frame.setAttribute('sandbox', 'allow-scripts');
+        frame.style.cssText = 'width:100%;height:100vh;border:0;display:block';
+
+        window.addEventListener('message', (event) => {
+          const message = event.data;
+          window.__posted.push(message);
+          if (!message || message.jsonrpc !== '2.0') return;
+          window.__handshake.push(message.method);
+
+          const reply = (result) =>
+            frame.contentWindow?.postMessage({ jsonrpc: '2.0', id: message.id, result }, '*');
+
+          if (message.method === 'ui/initialize') {
+            reply({
+              hostContext: { theme: 'light', displayMode: 'inline' },
+              capabilities: {},
+            });
+          } else if (message.method === 'ui/notifications/initialized') {
+            // Only now does a real host hand over the result.
+            frame.contentWindow?.postMessage(
+              {
+                jsonrpc: '2.0',
+                method: 'ui/notifications/tool-result',
+                params: { result: toolResult },
+              },
+              '*',
+            );
+          } else if (message.id !== undefined) {
+            reply({});
+          }
+        });
+
+        frame.srcdoc = srcdoc;
+        document.body.appendChild(frame);
+      },
+      { srcdoc: template, toolResult: result },
+    );
+
+    return {
+      frame: page.frameLocator('#surface'),
+      errors,
+      posted: () => page.evaluate(() => window.__posted),
+      handshake: () => page.evaluate(() => window.__handshake),
+    };
+  }
+
   async function renderInHost(page, document) {
     const errors = [];
     page.on('pageerror', (error) => errors.push(String(error)));
@@ -201,11 +308,22 @@ async function main() {
   // test is unaffected by whether this browser trusts that CA.
   const context = { ignoreHTTPSErrors: Boolean(proxy) };
   const page = await browser.newPage({ viewport: { width: 520, height: 800 }, ...context });
-  const host = await renderInHost(page, html);
+
+  // The path a real host takes: read the template, then send the result.
+  const template = (await rpc('resources/read', { uri: app.uri })).contents[0].text;
+  const host = await renderInApp(page, template, result);
 
   await host.frame.locator('.tv-flight').first().waitFor({ timeout: 15_000 }).catch(() => {});
+
+  const handshake = await host.handshake();
+  check(
+    'the view opens the handshake the host is waiting for',
+    handshake.includes('ui/initialize') && handshake.includes('ui/notifications/initialized'),
+    handshake.join(', '),
+  );
+
   const cards = await host.frame.locator('.tv-flight').count();
-  check('real flight cards drew inside the sandbox', cards >= 3, `${cards} cards`);
+  check('and the surface arrives and draws', cards >= 3, `${cards} cards`);
   check('the renderer booted without errors', host.errors.length === 0, host.errors[0] ?? '');
 
   const styled = await host.frame
@@ -219,17 +337,26 @@ async function main() {
   check('it told the host how tall it wants to be', heights.length > 0);
 
   await host.frame.locator('.tv-flight').first().click();
-  await page.waitForTimeout(200);
-  const actions = (await host.posted()).filter(
-    (m) => m?.type === 'ui/action' || m?.type === 'a2ui.event',
-  );
-  const intent = actions.find((message) => message.type === 'ui/action');
-  check('clicking a card posts an intent to the host', Boolean(intent), JSON.stringify(actions[0] ?? {}));
+  await page.waitForTimeout(300);
+  const posted = await host.posted();
+
+  // The MCP Apps way: a tap becomes a user turn in the host's conversation.
+  const said = posted.find((m) => m?.jsonrpc === '2.0' && m.method === 'ui/message');
   check(
-    'and it carries what the model needs to act on',
-    intent?.payload?.intent === 'select_flight' && Boolean(intent.payload.params?.context?.id),
-    JSON.stringify(intent?.payload ?? {}),
+    'tapping a card speaks in the conversation',
+    said?.params?.role === 'user' && /select_flight/.test(String(said?.params?.content)),
+    JSON.stringify(said?.params ?? {}),
   );
+  check(
+    'and hands the model the state behind the tap',
+    posted.some(
+      (m) => m?.method === 'ui/update-model-context' && m.params?.structuredContent?.context?.id,
+    ),
+  );
+
+  // And the older shape, for a host that reads those.
+  const intent = posted.find((message) => message?.type === 'ui/action');
+  check('the legacy intent still goes out too', Boolean(intent), JSON.stringify(posted[0] ?? {}));
 
   if (SHOT) {
     mkdirSync(dirname(SHOT), { recursive: true });
@@ -268,12 +395,8 @@ async function main() {
   });
   check('a composed layout compiles', composed.isError === false, JSON.stringify(composed.content?.[0] ?? {}));
 
-  const composedHtml = composed.content.find(
-    (part) => part.resource?.mimeType === 'text/html',
-  ).resource.text;
-
   const composedPage = await browser.newPage({ viewport: { width: 520, height: 900 }, ...context });
-  const composedHost = await renderInHost(composedPage, composedHtml);
+  const composedHost = await renderInApp(composedPage, template, composed);
   await composedHost.frame.locator('.tv-price').first().waitFor({ timeout: 15_000 }).catch(() => {});
 
   const drew = {};

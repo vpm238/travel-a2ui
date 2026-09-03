@@ -21,24 +21,32 @@
  * Transport is stateless Streamable HTTP: every POST is self-contained, which
  * is all a Worker wants to be, and it means no session affinity to arrange.
  *
- * ## Two ways to hand over a surface
+ * ## How a surface actually reaches the screen
  *
- * Every tool result carries the A2UI payload, which is small and is what a host
- * with its own A2UI renderer wants. Most hosts today do not have one, so the
- * result *also* carries the surface as a `text/html` resource the host renders
- * in an iframe.
+ * This part was wrong for a long time and produced a plugin that rendered
+ * nothing, so it is worth stating exactly.
  *
- * That HTML is a **shell**, under a kilobyte: the payload inlined, and a script
- * tag pointing back at this deployment for the renderer itself. The renderer is
- * the same React component library the web app uses — around 230 kB — and it is
- * fetched once and cached, rather than riding along on every tool call and
- * eating the host's result budget each time.
+ * A host does **not** look for HTML inside a tool result. It looks for a
+ * `ui://` resource declared in `resources/list` with the MIME type
+ * `text/html;profile=mcp-app`, reads it once as a *template*, and then forwards
+ * each tool result to that template over a postMessage bridge as
+ * `ui/notifications/tool-result`. Three things have to line up:
  *
- * The payload stays inlined because it is the only part that varies and it is
- * small, so the surface has everything it needs the moment the script boots.
- * Neither is read by the model: the text summary in the same result is what the
- * model sees. A host that renders A2UI natively can drop the HTML entirely with
- * `POST /mcp?view=payload`.
+ *   1. the resource is declared, with its CSP in `_meta.ui`;
+ *   2. each tool names it in `_meta.ui.resourceUri`;
+ *   3. the result carries the surface in `structuredContent`, because that is
+ *      what gets forwarded.
+ *
+ * Returning a `text/html` resource per call — which is what this used to do —
+ * produces a resource nothing is looking for, and a blank panel.
+ *
+ * Because the template is fetched once per conversation rather than per call,
+ * it has the whole renderer inlined: nothing to fetch means no `resourceDomains`
+ * and no way for a content policy to break it. The per-call cost is the
+ * `structuredContent` payload, which is a few kilobytes.
+ *
+ * `?view=payload` drops the view for a host with its own A2UI renderer.
+ * `?view=legacy` returns the older MCP-UI shape instead.
  */
 
 import { ExpressCompiler, type A2uiMessage } from '@travel-a2ui/express';
@@ -58,8 +66,33 @@ import { CATALOG, CATALOG_ID } from './agent.js';
 import { estimateTrip, getWeather, resolveDestination, searchFlights, searchHotels } from './travel.js';
 import skillExpress from '../../../skills/express-monolithic/a2ui/SKILL.md';
 import viewShell from '../../mcp-view/shell.html';
+import viewApp from '../../mcp-view/dist/app.html';
 
-const PROTOCOL_VERSION = '2025-06-18';
+/**
+ * Protocol versions this server can speak, newest first.
+ *
+ * Echoing the client's version when we know it, rather than announcing one and
+ * hoping, is what a stateless server owes a host that has moved on: Claude
+ * negotiates 2025-11-25, and answering 2025-06-18 to it is a quiet way to end
+ * up on an older contract than either side wanted.
+ */
+const PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
+const PROTOCOL_VERSION = PROTOCOL_VERSIONS[0]!;
+
+/**
+ * The MCP Apps view, declared once and read once per conversation.
+ *
+ * This is the piece whose absence made the plugin render nothing. The host does
+ * not look for HTML inside a tool result — it looks for a `ui://` resource with
+ * this exact MIME type, reads it as a *template*, and then sends each tool
+ * result to it over postMessage. Returning `text/html` per call, as this server
+ * used to, produces a resource nothing is looking for.
+ */
+const APP_URI = 'ui://travel-a2ui/surface';
+const APP_MIME = 'text/html;profile=mcp-app';
+
+/** The capability a host advertises when it can render one. */
+const UI_EXTENSION = 'io.modelcontextprotocol/ui';
 const SERVER_INFO = { name: 'travel-a2ui', title: 'Travel A2UI', version: '0.1.0' };
 
 /**
@@ -72,8 +105,16 @@ const SERVER_INFO = { name: 'travel-a2ui', title: 'Travel A2UI', version: '0.1.0
  */
 const A2UI_MIME = 'application/vnd.a2ui+json';
 
-/** What a tool result carries: the payload, the rendered view, or both. */
-export type ViewMode = 'payload' | 'html' | 'both';
+/**
+ * What a tool result carries.
+ *
+ *   app     the A2UI payload, drawn by the declared `ui://` template. The
+ *           default, and what Claude speaks.
+ *   payload the payload alone, for a host with its own A2UI renderer.
+ *   legacy  the older MCP-UI shape — a `text/html` resource per result with the
+ *           payload inlined. Opt in with `?view=legacy`.
+ */
+export type ViewMode = 'app' | 'payload' | 'legacy';
 
 /** Everything about a request that changes what a tool result looks like. */
 export interface RenderContext {
@@ -236,6 +277,21 @@ const SURFACE_ARG = {
     'It changes what is composed, not just where it goes.',
 } as const;
 
+/**
+ * Points a tool at the view that draws its result.
+ *
+ * Without this the host has a template and a tool and no reason to connect
+ * them: `_meta.ui.resourceUri` is the wire between them. Added here rather than
+ * written on each definition so a new tool cannot be added without one.
+ *
+ * `visibility` says the result is for both the model and the app — the model
+ * reads the text summary, the app draws the surface.
+ */
+const withView = <T extends { name: string }>(tool: T) => ({
+  ...tool,
+  _meta: { ui: { resourceUri: APP_URI, visibility: ['model', 'app'] } },
+});
+
 const TOOLS = [
   {
     name: 'show_flight_options',
@@ -387,6 +443,35 @@ const TOOLS = [
   },
 ] as const;
 
+/**
+ * Resources, with the app template first because it is the one that renders.
+ *
+ * `_meta.ui.csp` is the sandbox contract. `resourceDomains` is empty and stays
+ * empty: the template has React and the whole component library inlined, so it
+ * fetches nothing, and a view that fetches nothing cannot be broken by a
+ * content policy. `connectDomains` names this deployment for the one thing the
+ * view might legitimately reach for later.
+ */
+const appResource = (origin: string) => ({
+  uri: APP_URI,
+  name: 'travel-surface',
+  title: 'Travel A2UI surface',
+  description:
+    'The A2UI renderer these tools draw into — the same React components the web app uses.',
+  mimeType: APP_MIME,
+  _meta: {
+    ui: {
+      csp: {
+        connectDomains: origin ? [origin] : [],
+        resourceDomains: [],
+        frameDomains: [],
+        baseUriDomains: [],
+      },
+      prefersBorder: true,
+    },
+  },
+});
+
 const RESOURCES = [
   {
     uri: 'a2ui://catalog/travel',
@@ -425,7 +510,13 @@ export async function handleMcp(request: Request): Promise<Response> {
   // Chosen once, at install time, by whoever knows what their host can render.
   const requested = url.searchParams.get('view');
   const view: ViewMode =
-    requested === 'payload' || requested === 'html' || requested === 'both' ? requested : 'both';
+    requested === 'payload' || requested === 'legacy'
+      ? requested
+      : // `html` and `both` were the old spellings; keep them working rather
+        // than breaking an install that is out there.
+        requested === 'html'
+        ? 'legacy'
+        : 'app';
 
   // Normally the origin the host just called is the right one to load the
   // renderer from. `?origin=` covers the case where it is not — a tunnel, a
@@ -492,13 +583,18 @@ function handleRpc(request: JsonRpcRequest, context: RenderContext) {
   const isNotification = request?.id === undefined;
 
   switch (request?.method) {
-    case 'initialize':
+    case 'initialize': {
+      // Speak the version the client asked for when we know it. A stateless
+      // server that announces its own favourite ends up on an older contract
+      // than either side wanted.
+      const asked = str(params['protocolVersion']);
       return ok(id, {
-        protocolVersion: PROTOCOL_VERSION,
+        protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSION,
         capabilities: {
           tools: { listChanged: false },
           resources: { listChanged: false, subscribe: false },
           prompts: { listChanged: false },
+          extensions: { [UI_EXTENSION]: { mimeTypes: [APP_MIME] } },
         },
         serverInfo: SERVER_INFO,
         instructions:
@@ -518,6 +614,7 @@ function handleRpc(request: JsonRpcRequest, context: RenderContext) {
           'message, `sidebar` is a persistent panel of controls, `home` is a standing summary. ' +
           'It changes what gets composed, not just where it lands.',
       });
+    }
 
     case 'notifications/initialized':
     case 'notifications/cancelled':
@@ -527,16 +624,16 @@ function handleRpc(request: JsonRpcRequest, context: RenderContext) {
       return ok(id, {});
 
     case 'tools/list':
-      return ok(id, { tools: TOOLS });
+      return ok(id, { tools: TOOLS.map(withView) });
 
     case 'tools/call':
       return callTool(id, params, context);
 
     case 'resources/list':
-      return ok(id, { resources: RESOURCES });
+      return ok(id, { resources: [appResource(context.origin), ...RESOURCES] });
 
     case 'resources/read':
-      return readResource(id, params);
+      return readResource(id, params, context);
 
     case 'prompts/list':
       return ok(id, { prompts: PROMPTS });
@@ -556,8 +653,17 @@ function handleRpc(request: JsonRpcRequest, context: RenderContext) {
   }
 }
 
-function readResource(id: unknown, params: Record<string, unknown>) {
+function readResource(id: unknown, params: Record<string, unknown>, context: RenderContext) {
   const uri = str(params['uri']);
+
+  if (uri === APP_URI) {
+    // Self-contained: no payload, no script src. The surface arrives afterwards
+    // as `ui/notifications/tool-result`, which is the whole point of a template.
+    return ok(id, {
+      contents: [{ uri, mimeType: APP_MIME, text: viewApp, _meta: appResource(context.origin)._meta }],
+    });
+  }
+
   if (uri === 'a2ui://catalog/travel') {
     return ok(id, {
       contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(CATALOG) }],
@@ -642,7 +748,7 @@ function callTool(id: unknown, params: Record<string, unknown>, context: RenderC
 
   const content: Array<Record<string, unknown>> = [{ type: 'text', text: surface.summary }];
 
-  if (context.view !== 'html') {
+  if (context.view !== 'legacy') {
     content.push({
       type: 'resource',
       resource: {
@@ -653,10 +759,11 @@ function callTool(id: unknown, params: Record<string, unknown>, context: RenderC
     });
   }
 
-  if (context.view !== 'payload') {
-    // `ui://` + `text/html` is the MCP Apps / MCP-UI convention: the host
-    // renders the resource in a sandboxed iframe rather than reading it. Host
-    // support varies, which is why the text summary above is never optional.
+  if (context.view === 'legacy') {
+    // The older MCP-UI convention: a `text/html` resource per tool result with
+    // the payload already inside it. Opt-in, because a host that speaks MCP
+    // Apps has already read the template and would then have two candidate
+    // views for one result — and the one it picks is not ours to guess.
     content.push({
       type: 'resource',
       resource: {
@@ -667,9 +774,14 @@ function callTool(id: unknown, params: Record<string, unknown>, context: RenderC
     });
   }
 
+  // `structuredContent` is where an MCP Apps view reads the surface from: the
+  // host forwards this result to the template as `ui/notifications/tool-result`
+  // once the handshake is done. It is not decoration — without it the view has
+  // nothing to draw.
   return ok(id, {
     content,
     structuredContent: { surfaceId: surface.surfaceId, catalogId: CATALOG_ID, messages },
+    _meta: { ui: { resourceUri: APP_URI } },
     isError: false,
   });
 }
