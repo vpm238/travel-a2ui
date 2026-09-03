@@ -1,0 +1,4 @@
+$/n/negative = -12
+$/n/decimal = 3.5
+s = Slider("Budget", 0, 100, $/n/decimal)
+root = Column([s])

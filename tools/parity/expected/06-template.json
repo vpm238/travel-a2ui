@@ -1,0 +1,53 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "row",
+          "component": "Text",
+          "text": {
+            "path": "airline"
+          }
+        },
+        {
+          "id": "list",
+          "component": "List",
+          "children": {
+            "path": "/flights",
+            "componentId": "row"
+          }
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "list"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateDataModel": {
+      "surfaceId": "parity-surface",
+      "path": "/",
+      "value": {
+        "flights": {
+          "0": {
+            "airline": "Iberia"
+          }
+        }
+      }
+    }
+  }
+]

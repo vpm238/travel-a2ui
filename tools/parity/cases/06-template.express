@@ -1,0 +1,4 @@
+$/flights/0/airline = "Iberia"
+row = Text($airline)
+list = List(_template($/flights, row))
+root = Column([list])

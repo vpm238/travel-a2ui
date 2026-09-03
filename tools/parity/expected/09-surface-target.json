@@ -1,0 +1,30 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "sidebar-filters",
+      "catalogId": "https://travel-a2ui.dev/catalogs/other/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "sidebar-filters",
+      "components": [
+        {
+          "id": "h",
+          "component": "Text",
+          "text": "Filters",
+          "variant": "h3"
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "h"
+          ]
+        }
+      ]
+    }
+  }
+]

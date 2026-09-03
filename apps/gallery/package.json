@@ -1,0 +1,24 @@
+{
+  "name": "@travel-a2ui/gallery",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A self-contained gallery of real A2UI surfaces, for looking at the renderer without a backend.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/surfaces.mjs && vite build && node scripts/inline.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@travel-a2ui/express": "0.1.0",
+    "@travel-a2ui/renderer": "0.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.1.0",
+    "typescript": "^5.9.2",
+    "vite": "^8.2.2"
+  }
+}

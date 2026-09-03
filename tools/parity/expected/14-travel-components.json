@@ -1,0 +1,103 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "head",
+          "component": "Text",
+          "text": "Outbound options",
+          "variant": "h3"
+        },
+        {
+          "id": "f1",
+          "component": "FlightOption",
+          "airline": "Iberia",
+          "departTime": "07:15",
+          "arriveTime": "19:40 +1",
+          "origin": "JFK",
+          "destination": "MAD",
+          "price": "$412",
+          "action": {
+            "event": {
+              "name": "pick",
+              "context": {
+                "id": "IB6250"
+              }
+            }
+          },
+          "duration": "7h 25m",
+          "stops": "Nonstop",
+          "cabin": "economy",
+          "selected": {
+            "path": "/trip/pickedIb"
+          },
+          "badge": "Cheapest"
+        },
+        {
+          "id": "f2",
+          "component": "FlightOption",
+          "airline": "Delta",
+          "departTime": "18:05",
+          "arriveTime": "07:50 +1",
+          "origin": "JFK",
+          "destination": "MAD",
+          "price": "$468",
+          "action": {
+            "event": {
+              "name": "pick",
+              "context": {
+                "id": "DL126"
+              }
+            }
+          },
+          "duration": "7h 45m",
+          "stops": "Nonstop"
+        },
+        {
+          "id": "sum",
+          "component": "PriceSummary",
+          "lines": [
+            {
+              "label": "Flights (2)",
+              "amount": "$824"
+            },
+            {
+              "label": "Hotel",
+              "amount": "$1,116",
+              "note": "6 nights"
+            }
+          ],
+          "total": "$2,140",
+          "totalLabel": "Trip total",
+          "action": {
+            "event": {
+              "name": "hold",
+              "context": {}
+            }
+          },
+          "actionLabel": "Hold 24h",
+          "caption": "Estimated, taxes included"
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "head",
+            "f1",
+            "f2",
+            "sum"
+          ]
+        }
+      ]
+    }
+  }
+]

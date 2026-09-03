@@ -1,0 +1,52 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "d1a",
+          "component": "ActivityItem",
+          "title": "Land at MAD",
+          "time": "19:40",
+          "category": "transit",
+          "location": "Barajas T4",
+          "duration": "1h"
+        },
+        {
+          "id": "d1b",
+          "component": "ActivityItem",
+          "title": "Check in",
+          "time": "21:00",
+          "category": "stay",
+          "location": "Malasana"
+        },
+        {
+          "id": "day1",
+          "component": "ItineraryDay",
+          "title": "Day 1 - Arrival",
+          "children": [
+            "d1a",
+            "d1b"
+          ],
+          "date": "Sun 12 Apr",
+          "summary": "Settle in, eat late"
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "day1"
+          ]
+        }
+      ]
+    }
+  }
+]

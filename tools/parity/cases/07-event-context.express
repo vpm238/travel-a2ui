@@ -1,0 +1,2 @@
+save = Button(Text("Save"), action=Event("save_trip", {dest: $/trip/destination, adults: $/trip/adults, note: "manual"}))
+root = Column([save])

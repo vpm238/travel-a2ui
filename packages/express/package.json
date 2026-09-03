@@ -1,0 +1,23 @@
+{
+  "name": "@travel-a2ui/express",
+  "version": "0.1.0",
+  "description": "A2UI Express: lexer, parser, compiler and decompiler, in TypeScript. A faithful port of the reference implementation in google/a2ui.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}

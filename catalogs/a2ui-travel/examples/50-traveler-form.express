@@ -1,0 +1,8 @@
+# A form the host validates locally — checks travel with the field they guard.
+surface("inline-traveler")
+title = Text("Who is travelling?", variant="h3")
+name = TextField("Full name (as on passport)", $/traveler/name, ?required("We need the name on the passport"))
+email = TextField("Email", $/traveler/email, "shortText", ?required, ?email)
+seat = ChoicePicker("Seat", "mutuallyExclusive", [{label: "Window", value: "window"}, {label: "Aisle", value: "aisle"}], $/traveler/seat)
+save = Button(Text("Save traveller"), "primary", Event("save_traveler", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))
+root = Column([title, name, email, seat, save], align="stretch")

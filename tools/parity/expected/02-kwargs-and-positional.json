@@ -1,0 +1,60 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "label",
+          "component": "Text",
+          "text": "Sign in"
+        },
+        {
+          "id": "go",
+          "component": "Button",
+          "child": "label",
+          "variant": "primary",
+          "action": {
+            "event": {
+              "name": "submit",
+              "context": {}
+            }
+          }
+        },
+        {
+          "id": "alt",
+          "component": "Button",
+          "child": "_inline_1",
+          "action": {
+            "event": {
+              "name": "cancel",
+              "context": {}
+            }
+          },
+          "variant": "borderless"
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "go",
+            "alt"
+          ],
+          "align": "stretch"
+        },
+        {
+          "id": "_inline_1",
+          "component": "Text",
+          "text": "Cancel"
+        }
+      ]
+    }
+  }
+]

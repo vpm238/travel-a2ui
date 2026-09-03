@@ -1,0 +1,15 @@
+[
+  {
+    "version": "v0.9.1",
+    "updateDataModel": {
+      "surfaceId": "parity-surface",
+      "path": "/",
+      "value": {
+        "prefs": {
+          "theme": "dark",
+          "currency": "EUR"
+        }
+      }
+    }
+  }
+]

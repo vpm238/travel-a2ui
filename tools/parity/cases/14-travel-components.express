@@ -1,0 +1,5 @@
+head = Text("Outbound options", variant="h3")
+f1 = FlightOption("Iberia", "07:15", "19:40 +1", "JFK", "MAD", "$412", Event("pick", {id: "IB6250"}), duration="7h 25m", stops="Nonstop", cabin="economy", selected=$/trip/pickedIb, badge="Cheapest")
+f2 = FlightOption("Delta", "18:05", "07:50 +1", "JFK", "MAD", "$468", Event("pick", {id: "DL126"}), duration="7h 45m", stops="Nonstop")
+sum = PriceSummary([{label: "Flights (2)", amount: "$824"}, {label: "Hotel", amount: "$1,116", note: "6 nights"}], "$2,140", totalLabel="Trip total", action=Event("hold"), actionLabel="Hold 24h", caption="Estimated, taxes included")
+root = Column([head, f1, f2, sum])

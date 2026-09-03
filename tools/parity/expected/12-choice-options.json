@@ -1,0 +1,43 @@
+[
+  {
+    "version": "v0.9.1",
+    "createSurface": {
+      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9.1",
+    "updateComponents": {
+      "surfaceId": "parity-surface",
+      "components": [
+        {
+          "id": "pick",
+          "component": "ChoicePicker",
+          "label": "Cabin",
+          "variant": "mutuallyExclusive",
+          "options": [
+            {
+              "label": "economy",
+              "value": "economy"
+            },
+            {
+              "label": "business",
+              "value": "business"
+            }
+          ],
+          "value": {
+            "path": "/trip/cabin"
+          }
+        },
+        {
+          "id": "root",
+          "component": "Column",
+          "children": [
+            "pick"
+          ]
+        }
+      ]
+    }
+  }
+]

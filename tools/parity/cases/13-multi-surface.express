@@ -1,0 +1,6 @@
+surface("first")
+a = Text("One")
+root = Column([a])
+surface("second")
+b = Text("Two")
+root = Column([b])
