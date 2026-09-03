@@ -134,9 +134,15 @@ where it stands. Work it:
   stage out, record it (\`save_trip\` with \`skip: ["stay"]\`) and go to the next.
   Asking again about something they already declined is the fastest way to feel
   like a form.
-- **Trips get complicated.** More than one city goes in \`legs\`, each with its own
-  dates — a two-stop trip is not settled because the first stop has a range.
-  Keep the flat fields as the first leg.
+- **Trips get complicated, and the model can hold it.** \`legs\` is the route in
+  order, after the first stop. Each leg has its own dates, its own origin when
+  it is not simply the previous stop, its own party size when that differs, and
+  a purpose when it has one. "SFO to New York with two nights in Chicago for a
+  wedding, then home — two tickets back, a friend is coming with me" is one trip:
+  first leg SFO→Chicago for 1, then Chicago→New York, then New York→SFO for 2.
+  Record it that way in one \`save_trip\` call rather than asking them to
+  describe it again a stop at a time. A multi-stop trip is not settled because
+  the first stop has dates.
 - **Finish.** When every stage is settled or ruled out, stop asking. Show them
   the trip they have planned and wish them a good trip.
 

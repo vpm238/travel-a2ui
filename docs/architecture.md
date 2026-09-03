@@ -236,9 +236,24 @@ the panel cannot disagree with what the agent thinks is left.
 - **`skip`** — stages this trip does not need. Driving rather than flying,
   staying with family, no fixed budget. A skipped stage counts as settled and is
   never asked about again, which is the difference between a planner and a form.
-- **`legs`** — stops after the first, each with its own dates. The flat fields
-  describe leg one. A two-city trip is not "dated" because the first city has a
-  range, and the plan reports which stops still need one.
+- **`legs`** — the route after the first stop. Each leg carries its own dates,
+  its own origin when it is not simply the previous stop, its own party size
+  when that differs, and a purpose when it has one.
+
+The party size is the part worth dwelling on, because it is where a simpler
+model quietly gets the answer wrong:
+
+> SFO to New York with two nights in Chicago for a wedding, then home — two
+> tickets back, because a friend is coming with me.
+
+That is one trip, three legs, two party sizes and a return that is not a mirror
+of the outbound. With a single `travelers` the way home is priced for one person
+and the friend has no seat, silently. `stops()` resolves each leg against the
+trip and the leg before it — an omitted origin means "from wherever I just was",
+an omitted party size means "same as the rest" — so nothing downstream
+reimplements those defaults, and `partyVaries()` tells the interface when the
+difference is worth showing. The agent records the whole route in one
+`save_trip` and then asks only for the dates.
 
 ### `/trip` is shared; everything else is per-surface
 
@@ -476,7 +491,7 @@ server holds no credentials at all — which is also why it holds no trip data.
 
 | Layer | How |
 | --- | --- |
-| Trip model | 24 cases: coercion from real interface shapes, readiness, the plan, skipped stages, multi-leg |
+| Trip model | 28 cases: coercion from real interface shapes, readiness, the plan, skipped stages, and a three-leg route with two party sizes |
 | Compiler | 20 golden cases byte-checked against the reference Python compiler |
 | Skill generator | output byte-identical to the reference generator |
 | Renderer store | bindings, checks, templates, surface lifecycle |
@@ -487,7 +502,7 @@ server holds no credentials at all — which is also why it holds no trip data.
 | MCP app | `tools/e2e/mcp.mjs` — a live server, a sandboxed iframe, 24 assertions |
 | Freshness | `npm run check` fails if catalog, examples or skills drift |
 
-180 unit tests, 44 Python tests, 58 browser assertions across three end-to-end runs.
+184 unit tests, 44 Python tests, 58 browser assertions across three end-to-end runs.
 
 **Simulated:** flight and hotel inventory, weather, and destination highlights
 (`apps/worker/src/travel.ts`) are a deterministic generator over a real list of

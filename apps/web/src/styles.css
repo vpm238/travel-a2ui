@@ -1691,3 +1691,64 @@ a {
   font-weight: 560;
   color: var(--tv-positive);
 }
+
+/* The route, when there is more than one stop. */
+.plan__route {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.8rem;
+}
+
+.plan__route li {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex-wrap: wrap;
+  padding-left: 14px;
+  position: relative;
+  color: var(--tv-ink-muted);
+}
+
+/* A connector, so three stops read as a route rather than a list. */
+.plan__route li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0.5em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tv-accent);
+}
+
+.plan__route li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: calc(0.5em + 6px);
+  bottom: -4px;
+  width: 1px;
+  background: var(--tv-line-strong);
+}
+
+.plan__place {
+  color: var(--tv-ink);
+  font-weight: 560;
+}
+
+.plan__leggy {
+  font-size: 0.72rem;
+  color: var(--tv-ink-faint);
+  background: var(--tv-surface-2);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.plan__leggy--todo {
+  color: var(--tv-warm);
+  background: var(--tv-warm-soft);
+}
