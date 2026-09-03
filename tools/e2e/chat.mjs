@@ -217,6 +217,13 @@ check('token usage is reported', /cached/.test(status));
 // --- the wire inspector sees the same surface ----------------------------
 await page.click('button:has-text("Wire")');
 await page.waitForSelector('.protocol__tabs button', { timeout: 15000 });
+
+// Pick the surface deliberately. Which one the pane opens on depends on what
+// else exists — the panel rebuilds itself when the trip changes shape, so
+// relying on the default made this test fail for a reason that had nothing to
+// do with the wire view.
+await page.locator('.protocol__tabs button', { hasText: 'inline-1' }).click();
+
 // The catalog is fetched to decompile, so the pane starts as a placeholder.
 await page.waitForSelector('.protocol__pane .code', { timeout: 15000 });
 const express = (await page.locator('.protocol__pane').first().textContent()) ?? '';

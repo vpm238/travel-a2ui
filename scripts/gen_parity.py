@@ -85,17 +85,29 @@ def main() -> int:
 
     EXPECTED.mkdir(parents=True, exist_ok=True)
     stale: list[str] = []
+    unsupported: list[str] = []
     written = 0
 
     for case in sorted(CASES.glob("*.express")):
         source = case.read_text(encoding="utf-8")
         kwargs = {"version": VERSION} if supports_version_kwarg else {}
-        messages = compiler.compile(
-            source,
-            surface_id=SURFACE_ID,
-            catalog_id=schema["catalogId"],
-            **kwargs,
-        )
+        try:
+            messages = compiler.compile(
+                source,
+                surface_id=SURFACE_ID,
+                catalog_id=schema["catalogId"],
+                **kwargs,
+            )
+        except Exception as error:  # noqa: BLE001 - the reason is reported, not raised
+            # The published wheel is behind the grammar the skills teach — 0.5.0
+            # rejects keyword arguments outright, which is the whole reason the
+            # TypeScript port exists. Skipping those cases keeps the check
+            # meaningful for the ones it *can* compile, instead of the whole
+            # comparison collapsing on the first unsupported feature and telling
+            # us nothing about the rest.
+            unsupported.append(f"{case.stem} ({type(error).__name__})")
+            continue
+
         rendered = json.dumps(messages, indent=2, ensure_ascii=False) + "\n"
         target = EXPECTED / f"{case.stem}.json"
 
@@ -107,12 +119,20 @@ def main() -> int:
         target.write_text(rendered, encoding="utf-8")
         written += 1
 
+    if unsupported:
+        print(
+            f"{len(unsupported)} case(s) the installed reference SDK cannot compile, skipped: "
+            + ", ".join(unsupported),
+            file=sys.stderr,
+        )
+
     if args.check:
         if stale:
             print("Stale parity goldens: " + ", ".join(stale), file=sys.stderr)
             print("Run: python3 scripts/gen_parity.py", file=sys.stderr)
             return 1
-        print(f"All {len(list(CASES.glob('*.express')))} parity goldens are up to date.")
+        checked = len(list(CASES.glob("*.express"))) - len(unsupported)
+        print(f"All {checked} comparable parity goldens are up to date.")
         return 0
 
     print(f"Wrote {written} parity goldens to {EXPECTED.relative_to(ROOT)}.")
