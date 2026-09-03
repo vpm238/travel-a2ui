@@ -31,7 +31,6 @@ import {
   type SurfaceKind,
 } from './api.js';
 
-const SESSION_KEY = 'travel-a2ui:session';
 const API_KEY = 'travel-a2ui:key';
 const PREFS_KEY = 'travel-a2ui:prefs';
 const BACKEND_KEY = 'travel-a2ui:backend';
@@ -153,13 +152,19 @@ export function useAgent() {
   // before anything else can see it in `location`.
   const [urlKey] = useState(() => consumeKeyFromUrl());
   const [apiKey, setApiKeyState] = useState<string>(() => urlKey?.key ?? readStored(API_KEY) ?? '');
-  const [sessionId, setSessionId] = useState<string>(() => {
-    const stored = readStored(SESSION_KEY);
-    if (stored) return stored;
-    const created = newSessionId();
-    writeStored(SESSION_KEY, created);
-    return created;
-  });
+  /**
+   * A fresh conversation on every load, deliberately not persisted.
+   *
+   * The trip lives server-side keyed by this id, so a new id is a clean slate:
+   * no transcript, no half-decided destination from yesterday, no surface
+   * referring to a flight nobody remembers choosing. Reloading is how a person
+   * says "start over", and honouring that is worth more here than resuming —
+   * this is a demo of an interface, not a booking system with a saved cart.
+   *
+   * The API key does persist. Losing that on reload would be a different and
+   * much more annoying kind of forgetting.
+   */
+  const [sessionId, setSessionId] = useState<string>(newSessionId);
 
   const [prefs, setPrefsState] = useState<Prefs>(() => {
     try {
@@ -428,9 +433,7 @@ export function useAgent() {
   const reset = useCallback(async () => {
     abortRef.current?.abort();
     await resetSession(sessionId).catch(() => undefined);
-    const created = newSessionId();
-    writeStored(SESSION_KEY, created);
-    setSessionId(created);
+    setSessionId(newSessionId());
     setTurns([]);
     setTrip({});
     setUsage(EMPTY_USAGE);
