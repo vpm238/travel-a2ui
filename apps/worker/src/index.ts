@@ -80,7 +80,9 @@ export default {
     // The MCP endpoint is CORS-open on purpose: it is meant to be called by
     // other agent hosts, and it holds no credentials of its own.
     if (path === '/mcp' || path.startsWith('/mcp/')) {
-      const response = await handleMcp(request);
+      // The MCP app's view template is composed from this deployment's own
+      // assets, so the handler needs the binding.
+      const response = await handleMcp(request, env.ASSETS);
       const headers = new Headers(response.headers);
       headers.set('access-control-allow-origin', '*');
       return new Response(response.body, { status: response.status, headers });

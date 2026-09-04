@@ -1,28 +1,24 @@
 #!/usr/bin/env node
 /**
- * Builds the two shapes the view ships in, for the two kinds of host.
+ * Stages the renderer where the Worker serves it from, and guards the names.
  *
- *   dist/app.html   the whole renderer inlined, no payload. This is the **MCP
- *                   Apps** view: the host reads it once per conversation from
- *                   `ui://travel-a2ui/surface` and each tool result arrives
- *                   afterwards as a `ui/notifications/tool-result` message. So
- *                   inlining costs nothing per call — the objection that
- *                   produced the shell does not apply to a template — and it
- *                   means the sandbox needs no `resourceDomains` at all, which
- *                   is one whole class of CSP failure removed.
+ * The bundle has two consumers and neither imports it from `dist/`:
  *
- *   ../shell.html   a few hundred bytes with the payload inlined and a
- *                   `<script src>` back to this deployment, used by MCP-UI
- *                   hosts that take a `text/html` resource per tool result.
- *                   Source rather than output, so it is readable in a diff.
- *                   This script only stages the bundle it points at.
+ *   the MCP Apps template — composed by the Worker at request time from these
+ *   staged files, so it is always the renderer actually being served and the
+ *   Worker never imports a build artifact it cannot be tested without.
+ *
+ *   `../shell.html` — the older MCP-UI shape, a few hundred bytes with the
+ *   payload inlined and a `<script src>` back to this deployment. Source rather
+ *   than output, so it is readable in a diff; this script only stages the
+ *   bundle it points at.
  *
  * A mismatch between the shell and the built file names is a blank iframe in
  * someone else's app, which is the kind of failure nobody sees until a user
  * reports it — so it is checked here rather than discovered there.
  */
 
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -53,33 +49,11 @@ for (const name of [...scripts, ...styles]) {
   copyFileSync(join(dist, name), join(staged, name));
 }
 
-// The MCP Apps view: everything inlined, nothing to fetch, no payload — the
-// surface arrives by notification once the host has loaded this.
-const js = readFileSync(join(dist, scripts[0]), 'utf8').replaceAll('</script', '<\\/script');
-const css = styles.map((name) => readFileSync(join(dist, name), 'utf8')).join('\n');
-
-const app = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<title>A2UI surface</title>
-<style>${css}</style>
-</head>
-<body>
-<div id="root"></div>
-<script>${js}</script>
-</body>
-</html>
-`;
-
-writeFileSync(join(dist, 'app.html'), app, 'utf8');
-
 const kb = (value) => `${(value / 1024).toFixed(1)} kB`;
+const bundle = readFileSync(join(dist, scripts[0])).length;
+const css = styles.reduce((total, name) => total + readFileSync(join(dist, name)).length, 0);
 
 console.log(
-  `Wrote dist/app.html (${kb(app.length)}, self-contained) and staged the bundle into ` +
-    `apps/web/public/mcp-view/ (js ${kb(js.length)}, css ${kb(css.length)}); ` +
+  `Staged the renderer into apps/web/public/mcp-view/ (js ${kb(bundle)}, css ${kb(css)}); ` +
     `shell.html is ${shell.length} B and references both.`,
 );
