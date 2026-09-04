@@ -13,6 +13,22 @@ import { handleMcp } from '../src/mcp.js';
 
 const PROTOCOL_VERSION = '2025-06-18';
 
+/**
+ * The deployment's static assets, as the Worker sees them.
+ *
+ * The app template is composed from these rather than imported, so a test that
+ * wants to read it has to supply them — which is also the check that the
+ * composition works at all.
+ */
+const ASSETS = {
+  fetch: async (request: Request) => {
+    const path = new URL(request.url).pathname;
+    if (path === '/mcp-view/app.js') return new Response('/* renderer */ window.__a2ui = 1;');
+    if (path === '/mcp-view/app.css') return new Response('.tv-flight { border-radius: 12px }');
+    return new Response('not found', { status: 404 });
+  },
+} as unknown as Fetcher;
+
 async function rpc(method: string, params?: Record<string, unknown>, id: unknown = 1) {
   const response = await handleMcp(
     new Request('https://example.test/mcp', {
@@ -20,6 +36,7 @@ async function rpc(method: string, params?: Record<string, unknown>, id: unknown
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
     }),
+    ASSETS,
   );
   return { status: response.status, body: (await response.json()) as any };
 }
@@ -166,7 +183,11 @@ describe('tools', () => {
       expect(html.text).not.toMatch(/<link[^>]+stylesheet/);
       // A template carries no surface: the surface arrives by notification.
       expect(html.text).not.toContain('__A2UI_PAYLOAD__');
-      expect(html.text.length).toBeGreaterThan(50_000);
+
+      // Composed from the assets actually being served, so it can never be a
+      // stale copy of the renderer the rest of the app is using.
+      expect(html.text).toContain('window.__a2ui = 1;');
+      expect(html.text).toContain('.tv-flight { border-radius: 12px }');
     });
 
     it('points every tool at it', async () => {

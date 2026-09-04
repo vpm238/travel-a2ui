@@ -66,7 +66,6 @@ import { CATALOG, CATALOG_ID } from './agent.js';
 import { estimateTrip, getWeather, resolveDestination, searchFlights, searchHotels } from './travel.js';
 import skillExpress from '../../../skills/express-monolithic/a2ui/SKILL.md';
 import viewShell from '../../mcp-view/shell.html';
-import viewApp from '../../mcp-view/dist/app.html';
 
 /**
  * Protocol versions this server can speak, newest first.
@@ -121,6 +120,46 @@ export interface RenderContext {
   view: ViewMode;
   /** Absolute origin the shell loads the renderer from. No trailing slash. */
   origin: string;
+  /** The deployment's own static assets, for building the app template. */
+  assets?: Fetcher;
+}
+
+/**
+ * Builds the MCP Apps template from the deployment's own assets.
+ *
+ * Assembled here rather than imported as a build artifact, for two reasons. A
+ * checked-in Worker that imports `dist/` cannot be tested before it is built,
+ * which is a build-order trap that has already been fallen into once. And
+ * composing it from the assets actually being served means the template can
+ * never be a stale copy of the renderer the rest of the app is using.
+ *
+ * Everything is inlined, so the view fetches nothing and no content policy can
+ * break it — which is why the resource declares `resourceDomains: []`.
+ */
+async function buildAppTemplate(assets: Fetcher | undefined, origin: string): Promise<string> {
+  const read = async (path: string): Promise<string> => {
+    if (!assets) return '';
+    const response = await assets.fetch(new Request(`${origin || 'https://assets.local'}${path}`));
+    return response.ok ? await response.text() : '';
+  };
+
+  const [js, css] = await Promise.all([read('/mcp-view/app.js'), read('/mcp-view/app.css')]);
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>A2UI surface</title>
+<style>${css}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>${js.replaceAll('</script', '<\\/script')}</script>
+</body>
+</html>
+`;
 }
 
 const compiler = new ExpressCompiler(CATALOG, 'v0.9.1');
@@ -504,7 +543,7 @@ const PROMPTS = [
   },
 ] as const;
 
-export async function handleMcp(request: Request): Promise<Response> {
+export async function handleMcp(request: Request, assets?: Fetcher): Promise<Response> {
   const url = new URL(request.url);
 
   // Chosen once, at install time, by whoever knows what their host can render.
@@ -521,7 +560,7 @@ export async function handleMcp(request: Request): Promise<Response> {
   // Normally the origin the host just called is the right one to load the
   // renderer from. `?origin=` covers the case where it is not — a tunnel, a
   // proxy, a preview URL that differs from the public one.
-  const context: RenderContext = { view, origin: rendererOrigin(url) };
+  const context: RenderContext = { view, origin: rendererOrigin(url), ...(assets ? { assets } : {}) };
 
   if (request.method === 'GET') {
     // Streamable HTTP allows a server to decline the SSE channel. This one is
@@ -545,8 +584,33 @@ export async function handleMcp(request: Request): Promise<Response> {
 
   // A batch is a JSON array; either shape is valid JSON-RPC.
   const batch = Array.isArray(payload) ? payload : [payload];
-  const responses = batch
-    .map((entry) => handleRpc(entry as JsonRpcRequest, context))
+
+  // The app template is the one response that needs I/O — it is composed from
+  // the deployment's own assets rather than imported — so it is resolved here
+  // and everything else stays synchronous.
+  const resolved = await Promise.all(
+    batch.map(async (entry) => {
+      const request = entry as JsonRpcRequest;
+      if (
+        request?.method === 'resources/read' &&
+        str((request.params ?? {})['uri']) === APP_URI
+      ) {
+        return ok(request.id ?? null, {
+          contents: [
+            {
+              uri: APP_URI,
+              mimeType: APP_MIME,
+              text: await buildAppTemplate(context.assets, context.origin),
+              _meta: appResource(context.origin)._meta,
+            },
+          ],
+        });
+      }
+      return handleRpc(request, context);
+    }),
+  );
+
+  const responses = resolved
     .filter((response): response is NonNullable<typeof response> => response !== null);
 
   if (responses.length === 0) return new Response(null, { status: 202 });
@@ -656,13 +720,6 @@ function handleRpc(request: JsonRpcRequest, context: RenderContext) {
 function readResource(id: unknown, params: Record<string, unknown>, context: RenderContext) {
   const uri = str(params['uri']);
 
-  if (uri === APP_URI) {
-    // Self-contained: no payload, no script src. The surface arrives afterwards
-    // as `ui/notifications/tool-result`, which is the whole point of a template.
-    return ok(id, {
-      contents: [{ uri, mimeType: APP_MIME, text: viewApp, _meta: appResource(context.origin)._meta }],
-    });
-  }
 
   if (uri === 'a2ui://catalog/travel') {
     return ok(id, {
