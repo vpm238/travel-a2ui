@@ -55,8 +55,9 @@ are flying from, and it must not invent them. So the first card is a short form:
 a departure airport pre-filled from your browser's timezone (a *suggestion* —
 change it), a date range, a traveller count, and one **Search flights** button.
 
-Set all three. Nothing sends while you do; a bar says *3 unsent changes*. Press
-the button once and you get one message.
+Set all three. Nothing sends while you do — editing is not deciding. Press the
+button once and you get one message carrying all three values, because the
+server bound every path the card edits into that button before it was drawn.
 
 **Then expect the flights**, with a heading that says what they are priced
 against — `LHR → Madrid · 12–19 Apr · 3 travellers`, not just "Flights to

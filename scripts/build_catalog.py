@@ -366,6 +366,41 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
 }
 
 
+#: Travel arithmetic the client can do for itself.
+#:
+#: A2UI functions run *in the renderer*, so a label bound to one recomputes the
+#: instant a date changes — no model turn, no round trip, no token. Nights is the
+#: number every stay question hangs off ("3 nights, $291 a night"), and asking a
+#: language model to subtract two dates is the wrong tool by several orders of
+#: magnitude.
+TRAVEL_FUNCTIONS: dict[str, dict[str, Any]] = {
+    "calcNights": {
+        "type": "object",
+        "description": (
+            "Returns the number of nights between two ISO-8601 dates (yyyy-MM-dd), "
+            "counting the nights slept rather than the days spanned: a 12th-to-15th "
+            "stay is 3. Returns 0 when either date is missing or the range is "
+            "inverted, so a half-filled form shows a zero rather than nonsense."
+        ),
+        "properties": {
+            "call": {"const": "calcNights"},
+            "args": {
+                "type": "object",
+                "properties": {
+                    "start": dyn_str("The check-in date, as yyyy-MM-dd."),
+                    "end": dyn_str("The check-out date, as yyyy-MM-dd."),
+                },
+                "required": ["start", "end"],
+                "unevaluatedProperties": False,
+            },
+            "returnType": {"const": "number"},
+        },
+        "required": ["call", "args"],
+        "unevaluatedProperties": False,
+    },
+}
+
+
 def build() -> dict[str, Any]:
     basic = json.loads(BASIC.read_text(encoding="utf-8"))
 
@@ -378,7 +413,7 @@ def build() -> dict[str, Any]:
         "instructions": CATALOG_INSTRUCTIONS,
         "extends": basic["catalogId"],
         "components": {**basic["components"], **TRAVEL_COMPONENTS},
-        "functions": dict(basic["functions"]),
+        "functions": {**basic["functions"], **TRAVEL_FUNCTIONS},
         "$defs": dict(basic["$defs"]),
     }
 
@@ -392,6 +427,14 @@ def build() -> dict[str, Any]:
             ref = {"$ref": f"#/components/{name}"}
             if json.dumps(ref, sort_keys=True) not in existing:
                 any_component["oneOf"].append(ref)
+
+    any_function = catalog["$defs"].get("anyFunction")
+    if isinstance(any_function, dict) and "oneOf" in any_function:
+        existing = {json.dumps(x, sort_keys=True) for x in any_function["oneOf"]}
+        for name in TRAVEL_FUNCTIONS:
+            ref = {"$ref": f"#/functions/{name}"}
+            if json.dumps(ref, sort_keys=True) not in existing:
+                any_function["oneOf"].append(ref)
 
     return catalog
 

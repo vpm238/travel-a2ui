@@ -64,8 +64,8 @@ change the surface and wait. Three choices on one card are one answer.
 | Case | What happens |
 | --- | --- |
 | Several things to set at once | One surface, one button, all values sent together. |
-| The agent forgets a button | The host draws one — a bar saying how many values are unsent, with Send. A card of sliders you cannot submit is a dead end. |
-| Editing, then editing back | The bar disappears: "changed" means different from what arrived, not touched. |
+| The agent forgets a button | The server adds one before the surface is sent, bound to everything the card edits. A card of sliders you cannot submit is a dead end. |
+| The agent forgets to bind a field | The server binds it. Nothing the traveler set is dropped because the model named three paths out of four. |
 | Tapping an old card | Impossible. Only the newest surface is interactive. |
 | A multi-leg trip | One surface per leg, each labelled with its own route, dates and party size. Tapping a fare decides that leg only. |
 
@@ -82,7 +82,8 @@ change it.
 
 | Case | What happens |
 | --- | --- |
-| A value changes on an inline card | The panel updates immediately, with no model turn. Trip facts are shared state, not something the agent re-renders. |
+| A value changes on an inline card | The panel updates immediately, with no model turn — the server sends `updateDataModel`. Trip facts are shared state, not something the agent re-renders. |
+| The plan moves on | Same: the checklist is bound to `/plan`, which the server keeps current. The agent drew the shape once. |
 | Nothing decided yet | The panel says what the agent is about to ask, rather than showing an empty form. |
 | A stage the trip does not need | Struck through and marked *not needed*. Never asked about again. |
 | A stop still missing something | Flagged on that stop — `dates?`, `stay?` — not as a trip-wide gap. |
@@ -150,14 +151,36 @@ is a guarantee.
 
 | Rule | Enforced in | Why there |
 | --- | --- | --- |
-| Editors never send | the renderer, and again in the host | A model that adds an action to a slider should not be able to break the interaction model. |
+| Editors never send | the renderer | A model that adds an action to a slider should not be able to break the interaction model. |
 | Only the newest surface is interactive | the host (`inert`) | The agent has no idea what else is on screen. |
-| Trip values pre-fill every surface | the host | Prompting a model to remember state it cannot see is how it forgets. |
+| Trip values pre-fill every surface | **the server** (`createSurface.dataModel`) | Prompting a model to remember state it cannot see is how it forgets — and doing it in the browser is how only one client gets it right. |
+| A panel stays current as the trip moves | **the server** (`updateDataModel`) | Same reason. It is a message every renderer already applies, so it costs a mobile client nothing. |
+| Everything on a surface is sent together | **the server** (`bindCommitContext`) | Every path the editors write to is bound into the commit button before the surface leaves the Worker. |
+| A card of editors is never a dead end | **the server** (`bindCommitContext`) | A surface with editors and no button gets one. This used to be a bar the React app drew, which meant an iOS client shipped the dead end. |
 | No prices without dates and a route | the tools | A model in a hurry prices a plausible week and calls it a sample. |
 | A date range that ends before it starts | the tools | Silent corruption of everything downstream. |
-| One surface, one button, ask for everything | the skill | A judgement call about layout, which is the model's job. |
+| One surface, one button, ask for everything | the skill | A judgement call about layout, which is the model's job — and now one it cannot get *wrong* in a way that loses an answer. |
 | Say what a price is priced against | the skill, from a value the tools supply | The wording is the model's; the facts are not. |
 | Lead the trip; know when to stop | the skill, from the model's plan | Same split: the sequence is computed, the phrasing is not. |
+
+Four of those moved from the browser to the server, and the reason is the same
+in every case: a rule enforced in the web app is a rule only the web app obeys.
+The same session opened in a Swift or Kotlin renderer now gets pre-filled
+controls, a live panel, and a surface it can always submit — with no
+travel-specific client code, because there is none left to write.
+
+What crosses the wire when you press something is A2UI's own action envelope:
+
+```json
+{ "action": { "name": "search_flights", "surfaceId": "inline-1",
+              "sourceComponentId": "go", "timestamp": "…",
+              "context": { "origin": "JFK", "startDate": "2027-04-12" } } }
+```
+
+It used to be a sentence this app composed and nothing parsed. What that press
+*means* — that a tap on the read-only panel is a request to re-open a decision,
+say — is now said once, on the server, because it is a fact about this agent and
+not about the tap.
 
 So: **not all of it is better skills.** The prompt carries taste — what to draw,
 what to say, when to have an opinion. The parts that must not vary are code,

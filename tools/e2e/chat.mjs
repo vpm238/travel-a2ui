@@ -59,6 +59,19 @@ f3 = FlightOption("TAP", "17:25", "11:05 +1", "JFK", "MAD", "$367", Event("selec
 note = Text("Prices are per traveller, round trip.", variant="caption")
 root = Column([heading, f1, f2, f3, note])`;
 
+/**
+ * The panel the agent draws once, and the server keeps current.
+ *
+ * Bound to `$/trip/...` rather than carrying values as literal text — which is
+ * the whole point of rec 5: the agent decides the shape, and the values arrive
+ * afterwards as `updateDataModel`, with no model turn and no client-side code
+ * that knows what a trip is.
+ */
+const PANEL = `surface("sidebar")
+title = Text("The trip", variant="h3")
+flight = Text($/trip/selectedFlight)
+root = Column([title, flight], align="stretch")`;
+
 const SECOND_TURN = [
   { type: 'start', model: 'claude-opus-5', skill: 'express-monolithic', surfaceId: 'inline-2' },
   { type: 'tool', name: 'save_trip', input: { selectedFlight: 'IB6250' }, status: 'running' },
@@ -79,6 +92,9 @@ const catalog = JSON.parse(
   readFileSync(join(here, '..', '..', 'catalogs', 'a2ui-travel', 'catalog.json'), 'utf8'),
 );
 const compiler = new ExpressCompiler(catalog, 'v0.9.1');
+
+const compileFor = (surfaceId, source) =>
+  compiler.compile(source, { surfaceId, catalogId: catalog.catalogId, version: 'v0.9.1' });
 
 function toSse(events) {
   return events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('');
@@ -154,7 +170,28 @@ await page.route('**/api/chat', async (route) => {
           { type: 'usage', inputTokens: 4210, outputTokens: 380, cacheReadTokens: 3900, cacheWriteTokens: 0 },
           { type: 'done', stopReason: 'end_turn' },
         ])
-      : toSse(SECOND_TURN);
+      : toSse([
+          ...SECOND_TURN.slice(0, -1),
+          // Exactly what `tripUpdates('sidebar', trip)` produces on the server:
+          // the panel drawn once, then kept current as ordinary A2UI.
+          { type: 'ui', surfaceId: 'sidebar', messages: compileFor('sidebar', PANEL), done: true },
+          {
+            type: 'ui',
+            surfaceId: 'sidebar',
+            done: true,
+            messages: [
+              {
+                version: 'v0.9.1',
+                updateDataModel: {
+                  surfaceId: 'sidebar',
+                  path: '/trip/selectedFlight',
+                  value: 'IB6250',
+                },
+              },
+            ],
+          },
+          SECOND_TURN.at(-1),
+        ]);
 
   await route.fulfill({
     status: 200,
@@ -195,21 +232,28 @@ await page.waitForFunction(() => document.querySelectorAll('.bubble--event').len
 
 // Find the turn the click produced rather than assuming an index: the sidebar
 // rebuilds itself on its own schedule and may get there first.
-const fromClick = sent.find((body) => body.message?.includes('select_flight'));
+const fromClick = sent.find((body) => body.action?.name === 'select_flight');
 check('clicking a flight sends another turn', Boolean(fromClick));
+check('it goes out as an A2UI action, not a sentence', fromClick?.message === undefined);
 check(
-  `the event name reaches the model (${fromClick?.message?.slice(0, 40)}…)`,
-  Boolean(fromClick?.message?.includes('select_flight')),
+  'the chosen flight id travels in the action context',
+  JSON.stringify(fromClick?.action?.context ?? {}).includes('IB6250'),
+  JSON.stringify(fromClick?.action?.context ?? {}),
 );
-check('the chosen flight id travels with it', Boolean(fromClick?.message?.includes('IB6250')));
 check(
-  'the surface data model is attached',
-  Boolean(fromClick?.surfaceState && 'trip' in fromClick.surfaceState),
+  'and the surface it was pressed on is named',
+  typeof fromClick?.action?.surfaceId === 'string',
+  String(fromClick?.action?.surfaceId),
 );
 
-await page.waitForSelector('.sidebar__trip', { timeout: 15000 });
-const decided = (await page.locator('.sidebar__trip').textContent()) ?? '';
-check('trip state reaches the sidebar', decided.includes('IB6250'));
+// The panel is A2UI now — there is no React list of trip keys to read, so the
+// check is that the chosen flight reached the drawn surface.
+await page.waitForFunction(
+  () => (document.querySelector('.sidebar')?.textContent ?? '').includes('IB6250'),
+  { timeout: 20000 },
+).catch(() => {});
+const decided = (await page.locator('.sidebar').textContent()) ?? '';
+check('trip state reaches the sidebar', decided.includes('IB6250'), decided.slice(0, 80));
 
 const status = (await page.locator('.statusbar').textContent()) ?? '';
 check('token usage is reported', /cached/.test(status));

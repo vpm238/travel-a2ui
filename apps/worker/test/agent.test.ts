@@ -142,7 +142,9 @@ describe('prose and UI', () => {
     expect(text).toContain('Want me to hold one?');
     expect(text).not.toContain('Column');
 
-    const done = events.filter((e) => e.type === 'ui' && e.done);
+    // Scoped to the surface this turn drew: the panels also get `ui` events at
+    // the end of a turn, carrying `updateDataModel` rather than components.
+    const done = events.filter((e) => e.type === 'ui' && e.done && e.surfaceId === 'inline-1');
     expect(done).toHaveLength(1);
     const components = done[0].messages.flatMap((message: any) =>
       message.updateComponents ? message.updateComponents.components : [],
@@ -373,10 +375,100 @@ describe('the request the model receives', () => {
     expect(request.tools.map((tool: any) => tool.name)).toContain('search_flights');
   });
 
-  it('attaches on-screen values to the user turn', async () => {
+  it('turns a pressed action into the user turn', async () => {
     script.push({ chunks: ['ok'] });
-    await collect(baseRequest({ surfaceState: { filters: { maxPrice: 600 } } }));
-    expect(requests[0].messages[0].content).toContain('maxPrice');
+    await collect(
+      baseRequest({
+        message: '',
+        action: {
+          name: 'search_flights',
+          surfaceId: 'inline-1',
+          sourceComponentId: 'go',
+          context: { origin: 'SFO', maxPrice: 600 },
+        },
+      }),
+    );
+
+    const content = requests[0].messages[0].content as string;
+    expect(content).toContain('search_flights');
+    expect(content).toContain('maxPrice');
+    expect(content).toContain('SFO');
+  });
+
+  it('takes trip facts from the action context', async () => {
+    script.push({ chunks: ['ok'] });
+    const { events } = await collect(
+      baseRequest({
+        message: '',
+        action: {
+          name: 'commit',
+          surfaceId: 'inline-1',
+          context: { origin: 'SFO', destination: 'NYC' },
+        },
+      }),
+    );
+
+    const trip = events.filter((event) => event.type === 'trip').at(-1) as any;
+    expect(trip.trip.origin).toBe('SFO');
+    expect(trip.trip.destination).toBe('NYC');
+  });
+
+  it('prefers the context over the rest of the surface', async () => {
+    script.push({ chunks: ['ok'] });
+    const { events } = await collect(
+      baseRequest({
+        message: '',
+        action: {
+          name: 'commit',
+          surfaceId: 'inline-1',
+          // The button declared it was sending JFK; the data model still holds
+          // a stale SFO from before the traveler changed it.
+          context: { origin: 'JFK' },
+          dataModel: { trip: { origin: 'SFO', destination: 'NYC' } },
+        },
+      }),
+    );
+
+    const trip = events.filter((event) => event.type === 'trip').at(-1) as any;
+    expect(trip.trip.origin).toBe('JFK');
+    // ...and a field no binding named still survives.
+    expect(trip.trip.destination).toBe('NYC');
+  });
+
+  it('lets typing win when both arrive, and still banks the values', async () => {
+    // Someone can type while a surface is on screen. What they said is the
+    // turn; what the surface held still reaches the trip.
+    script.push({ chunks: ['ok'] });
+    const { events } = await collect(
+      baseRequest({
+        message: 'actually make it Lisbon',
+        action: {
+          name: 'commit',
+          surfaceId: 'inline-1',
+          context: { origin: 'SFO' },
+        },
+      }),
+    );
+
+    expect(requests[0].messages[0].content).toBe('actually make it Lisbon');
+    const trip = events.filter((event) => event.type === 'trip').at(-1) as any;
+    expect(trip.trip.origin).toBe('SFO');
+  });
+
+  it('reads a panel press as a request to re-open the decision', async () => {
+    script.push({ chunks: ['ok'] });
+    await collect(
+      baseRequest({
+        message: '',
+        surface: 'sidebar',
+        action: { name: 'change', surfaceId: 'sidebar', context: { field: 'startDate' } },
+      }),
+    );
+
+    const content = requests[0].messages[0].content as string;
+    expect(content).toContain('startDate');
+    expect(content).toMatch(/release/i);
+    expect(content).toMatch(/inline/i);
   });
 });
 

@@ -15,7 +15,6 @@ import { A2uiSurface } from '@travel-a2ui/renderer';
 
 import type { Agent } from '../useAgent.js';
 import { Disclosure, Empty, Spinner } from './bits.js';
-import { PendingEdits } from './PendingEdits.js';
 
 const OPENERS = [
   'Six days in Madrid in April, two of us, around $2,500 all in',
@@ -136,14 +135,7 @@ export function Chat({ agent }: { agent: Agent }) {
                       onEvent={agent.handleSurfaceEvent}
                       interactive={part.surfaceId === liveSurfaceId && !agent.busy}
                     />
-                    {part.surfaceId === liveSurfaceId ? (
-                      <PendingEdits
-                        store={agent.store}
-                        surfaceId={part.surfaceId}
-                        busy={agent.busy}
-                        onSubmit={agent.submitSurface}
-                      />
-                    ) : (
+                    {part.surfaceId === liveSurfaceId ? null : (
                       <p className="turn__spentNote">Answered · scroll down to continue</p>
                     )}
                   </div>

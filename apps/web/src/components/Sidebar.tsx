@@ -13,9 +13,14 @@
  * only interaction is *Change*, which releases a decision and re-opens it
  * inline, pre-filled.
  *
- * Values sync into it from the trip with no model in the path, so changing the
- * route on an inline card updates it immediately. The agent is only asked to
- * rebuild when the panel should be a different *shape*.
+ * There is no React in it any more — not a checklist, not a key/value list of
+ * what has been decided. All of it is A2UI the agent composed, which is what
+ * makes the panel portable: an iOS or Android renderer draws this exact panel
+ * with no travel-specific code, because there is none left to port.
+ *
+ * Values reach it as `updateDataModel` from the server, so changing the route on
+ * an inline card moves the panel with no model in the path. The agent is only
+ * asked to rebuild when the panel should be a different *shape*.
  */
 
 import { useEffect, useRef } from 'react';
@@ -23,7 +28,6 @@ import { A2uiSurface, useSurface } from '@travel-a2ui/renderer';
 
 import type { Agent } from '../useAgent.js';
 import { Spinner } from './bits.js';
-import { TripPlan } from './TripPlan.js';
 
 /**
  * Fingerprint of the decisions that should make the panel a *different panel*.
@@ -60,18 +64,23 @@ export function Sidebar({ agent }: { agent: Agent }) {
     lastBuilt.current = signature;
     void agent.send(
       'Rebuild the panel for where the trip stands now: what is settled, with a Change button ' +
-        'on each decision. Read-only — no editors, no prose.',
+        'on each decision, and the plan at the bottom bound to $/plan. Read-only — no editors, ' +
+        'no prose.',
       { surface: 'sidebar', surfaceId: 'sidebar', silent: true },
     );
   }, [agent, hasSurface, signature]);
 
   const build = () => {
     lastBuilt.current = signature;
-    void agent.send('Build the panel for this trip: what is settled so far, read-only.', {
-      surface: 'sidebar',
-      surfaceId: 'sidebar',
-      silent: true,
-    });
+    void agent.send(
+      'Build the panel for this trip: what is settled so far, and the plan at the bottom ' +
+        'bound to $/plan. Read-only.',
+      {
+        surface: 'sidebar',
+        surfaceId: 'sidebar',
+        silent: true,
+      },
+    );
   };
 
   return (
@@ -83,9 +92,9 @@ export function Sidebar({ agent }: { agent: Agent }) {
 
       {hasSurface ? (
         <div className="sidebar__body">
-          {/* No PendingEdits: there is nothing to edit here. The panel shows
-              what is settled, and its only interaction is asking to change
-              something — which re-opens it in the conversation. */}
+          {/* The whole panel, and nothing but the panel. What is settled, and
+              one way to ask to change each of it — which re-opens the decision
+              in the conversation rather than editing it here. */}
           <A2uiSurface store={agent.store} surfaceId="sidebar" onEvent={agent.handleSurfaceEvent} />
         </div>
       ) : (
@@ -102,21 +111,6 @@ export function Sidebar({ agent }: { agent: Agent }) {
         </div>
       )}
 
-      <TripPlan trip={agent.trip} />
-
-      {Object.keys(agent.trip).length > 0 ? (
-        <div className="sidebar__trip">
-          <h3>Decided so far</h3>
-          <dl>
-            {Object.entries(agent.trip).map(([key, value]) => (
-              <div key={key}>
-                <dt>{key.replace(/([A-Z])/g, ' $1').toLowerCase()}</dt>
-                <dd>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      ) : null}
     </aside>
   );
 }

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import json
 import pathlib
 import sys
 import tempfile
@@ -51,6 +52,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     build.add_argument("--no-examples", action="store_true", help="Omit the examples section.")
     build.add_argument(
+        "--prune",
+        type=pathlib.Path,
+        default=None,
+        metavar="FILE",
+        help="JSON file with an 'allowedComponents' list. Generates the skill from a "
+        "catalog narrowed to those components — the prompt shrinks, the renderers "
+        "are untouched.",
+    )
+    build.add_argument(
         "--check",
         action="store_true",
         help="Do not write; exit non-zero if any generated skill differs from disk.",
@@ -58,9 +68,31 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _allow_lists(
+    path: pathlib.Path | None,
+) -> tuple[tuple[str, ...] | None, tuple[str, ...] | None]:
+    """Reads `allowedComponents` and `allowedFunctions` from a pruning file."""
+    if path is None:
+        return None, None
+    document = json.loads(path.read_text(encoding="utf-8"))
+
+    def names(key: str, required: bool) -> tuple[str, ...] | None:
+        value = document.get(key)
+        if value is None:
+            if required:
+                raise SystemExit(f"{path} has no '{key}' list.")
+            return None
+        if not isinstance(value, list) or not value:
+            raise SystemExit(f"{path}: '{key}' must be a non-empty list.")
+        return tuple(str(name) for name in value)
+
+    return names("allowedComponents", True), names("allowedFunctions", False)
+
+
 def _requests(args: argparse.Namespace) -> list[GenerationRequest]:
     catalog_name = args.catalog_name or args.catalog.parent.name
     variants = DEFAULT_VARIANTS if args.all else [(args.inference_format, args.shape)]
+    allowed, allowed_functions = _allow_lists(args.prune)
     return [
         GenerationRequest(
             catalog_path=args.catalog,
@@ -71,6 +103,8 @@ def _requests(args: argparse.Namespace) -> list[GenerationRequest]:
             inference_format=inference_format,
             shape=shape,
             include_examples=not args.no_examples,
+            allowed_components=allowed,
+            allowed_functions=allowed_functions,
         )
         for inference_format, shape in variants
     ]

@@ -120,9 +120,6 @@ Use these exact positional signatures to instantiate components. Do not output p
   - note: One short practical note, e.g. 'Book the timed entry'.
   - action: Fired when the traveler taps the activity.
   - done: Whether the traveler has ticked this off.
-• AudioPlayer(url, description?)
-  - url: The URL of the audio to be played.
-  - description: A description of the audio, such as a title or summary.
 • Button(child (component ID), variant? (static only), action (static only), checks? (static only))
   - child: The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button.
   - variant: A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link. Must be one of: 'default', 'primary', 'borderless'
@@ -154,15 +151,6 @@ Use these exact positional signatures to instantiate components. Do not output p
   - end: Bound path for the end date (RFC 3339).
   - action: Fired when the traveler commits a new range.
   - nightsLabel: Derived caption, e.g. '6 nights'.
-• DateTimeInput(value, enableDate? (static only), enableTime? (static only), min?, max?, label?, checks? (static only))
-  - value: The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string.
-  - enableDate: If true, allows the user to select a date.
-  - enableTime: If true, allows the user to select a time.
-  - min: The minimum allowed date/time in ISO 8601 format.
-  - max: The maximum allowed date/time in ISO 8601 format.
-  - label: The text label for the input field.
-• Divider(axis? (static only))
-  - axis: The orientation of the divider. Must be one of: 'horizontal', 'vertical'
 • ExpenseSplit(title, total, participants (static only), action? (static only), actionLabel?)
   - Description: Splits a shared trip cost between travelers and shows who owes what.
   - title: What was paid for, e.g. 'Dinner at Sobrino'.
@@ -227,9 +215,6 @@ Use these exact positional signatures to instantiate components. Do not output p
     * day - Optional day number this marker belongs to.
   - caption: One line describing what the map shows.
   - action: Fired when the traveler taps the map.
-• Modal(trigger (component ID), content (component ID))
-  - trigger: The ID of the component that opens the modal when interacted with (e.g., a button).
-  - content: The ID of the component to be displayed inside the modal.
 • PriceSummary(lines (static only), total, totalLabel?, action? (static only), actionLabel?, caption?)
   - Description: The money view: an itemized breakdown and a total. Use this instead of a hand-built table whenever you show what a trip costs.
   - lines: Itemized cost lines in display order. Static values only.
@@ -266,11 +251,6 @@ Use these exact positional signatures to instantiate components. Do not output p
   - caption: Context under the number, e.g. 'until Madrid'.
   - tone: Colour role for the tile. Must be one of: 'neutral', 'positive', 'caution', 'critical', 'accent'
   - action: Fired when the traveler taps the tile.
-• Tabs(tabs (static only))
-  - tabs: An array of objects, where each object defines a tab with a title and a child component.
-    List of maps keys:
-    * title - The tab title.
-    * child - The ID of the child component.
 • Text(text, variant? (static only))
   - text: The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation.
   - variant: A hint for the base text style. Must be one of: 'h1', 'h2', 'h3', 'h4', 'h5', 'caption', 'body'
@@ -286,8 +266,6 @@ Use these exact positional signatures to instantiate components. Do not output p
   - min: Lowest allowed count.
   - max: Highest allowed count.
   - caption: Qualifier, e.g. 'Age 12+'.
-• Video(url)
-  - url: The URL of the video to display.
 • WeatherStrip(days (static only), place?, caption?)
   - Description: A short forecast row for the destination. Purely informational.
   - days: Forecast entries in date order, at most seven. Static values only.
@@ -302,11 +280,10 @@ Use these exact positional signatures to instantiate components. Do not output p
 ## Positional Function Signatures
 
 Use these exact positional signatures to instantiate check rules or logic functions:
-• and(values)
-  - Description: Performs a logical AND operation on a list of boolean values.
-  - values: The list of boolean values to evaluate.
-• email(value)
-  - Description: Checks that the value is a valid email address.
+• calcNights(start, end)
+  - Description: Returns the number of nights between two ISO-8601 dates (yyyy-MM-dd), counting the nights slept rather than the days spanned: a 12th-to-15th stay is 3. Returns 0 when either date is missing or the range is inverted, so a half-filled form shows a zero rather than nonsense.
+  - start: The check-in date, as yyyy-MM-dd.
+  - end: The check-out date, as yyyy-MM-dd.
 • formatCurrency(value, currency, decimals?, grouping?)
   - Description: Formats a number as a currency string.
   - value: The monetary amount.
@@ -340,23 +317,9 @@ Examples:
   - grouping: Optional. If true, uses locale-specific grouping separators (e.g. '1,000'). If false, returns raw digits (e.g. '1000'). Defaults to true.
 • formatString(value)
   - Description: Performs string interpolation of data model values and other functions in the catalog functions list and returns the resulting string. The value string can contain interpolated expressions in the `${expression}` format. Supported expression types include: JSON Pointer paths to the data model (e.g., `${/absolute/path}` or `${relative/path}`), and client-side function calls (e.g., `${now()}`). Function arguments must be named (e.g., `${formatDate(value:${/currentDate}, format:'MM-dd')}`). To include a literal `${` sequence, escape it as `\${`.
-• length(value, min?, max?)
-  - Description: Checks string length constraints.
-  - min: The minimum allowed length.
-  - max: The maximum allowed length.
-• not(value)
-  - Description: Performs a logical NOT operation on a boolean value.
-  - value: The boolean value to negate.
-• numeric(value, min?, max?)
-  - Description: Checks numeric range constraints.
-  - min: The minimum allowed value.
-  - max: The maximum allowed value.
 • openUrl(url)
   - Description: Opens the specified URL in a browser or handler. This function has no return value.
   - url: The URL to open.
-• or(values)
-  - Description: Performs a logical OR operation on a list of boolean values.
-  - values: The list of boolean values to evaluate.
 • pluralize(value, zero?, one?, two?, few?, many?, other)
   - Description: Returns a localized string based on the Common Locale Data Repository (CLDR) plural category of the count (zero, one, two, few, many, other). Requires an 'other' fallback. For English, just use 'one' and 'other'.
   - value: The numeric value used to determine the plural category.
@@ -366,12 +329,6 @@ Examples:
   - few: String for the 'few' category (e.g., small groups in Slavic languages).
   - many: String for the 'many' category (e.g., large groups in various languages).
   - other: The default/fallback string (used for general plural cases).
-• regex(value, pattern)
-  - Description: Checks that the value matches a regular expression string.
-  - pattern: The regex pattern to match against.
-• required(value)
-  - Description: Checks that the value is not null, undefined, or empty.
-  - value: The value to check.
 
 ## Catalog Instructions
 

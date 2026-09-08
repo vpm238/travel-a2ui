@@ -70,15 +70,38 @@ export interface Meta {
   runtime?: BackendId;
 }
 
+/**
+ * An interaction on a surface, as A2UI defines one.
+ *
+ * The shape of `client_to_server.json`'s `action`: what was pressed, where, and
+ * the context its bindings resolved to. Every A2UI renderer produces this
+ * without being taught — which is the point of sending it instead of a sentence
+ * this app made up.
+ *
+ * `dataModel` is the one addition, and it is opaque: the rest of the surface's
+ * values, forwarded so the server can keep trip state exact without any client
+ * knowing what a trip is. Leave it out and the agent still has `context`.
+ */
+export interface SurfaceAction {
+  name: string;
+  surfaceId: string;
+  sourceComponentId?: string;
+  timestamp?: string;
+  context: Record<string, unknown>;
+  dataModel?: Record<string, unknown>;
+}
+
 export interface ChatRequest {
   sessionId: string;
-  message: string;
+  /** What the traveler typed. Omitted when `action` carries the turn instead. */
+  message?: string;
+  /** What the traveler pressed. Omitted when they typed. */
+  action?: SurfaceAction;
   surface: SurfaceKind;
   surfaceId?: string;
   skill: SkillVariant;
   model: string;
   effort?: 'low' | 'medium' | 'high';
-  surfaceState?: Record<string, unknown>;
   /**
    * What the browser knows about where and when the traveler is.
    *

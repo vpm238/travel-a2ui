@@ -30,6 +30,7 @@ import {
   type BackendId,
   type Meta,
   type SkillVariant,
+  type SurfaceAction,
   type SurfaceKind,
 } from './api.js';
 
@@ -137,101 +138,65 @@ function newSessionId(): string {
 }
 
 /**
- * Trip facts that live at `/trip` in every surface's data model.
+ * Trip facts live at `/trip` in every surface's data model — and the server
+ * puts them there.
  *
- * The old arrangement was the root of "it forgot what I picked": each surface
- * had its own data model, born empty, while the trip was durable and lived
- * somewhere else entirely. So the second card had no idea what you answered on
- * the first unless the model happened to remember to write it back in.
+ * This file used to hold a list of travel field names and two functions that
+ * copied values between surfaces with it: `seedTrip` filled a new surface as it
+ * arrived, `syncTrip` pushed changes into the standing panels. That worked, and
+ * it made the web app the only client that could behave correctly, because the
+ * behaviour lived in the client rather than in the protocol.
  *
- * Now the host bridges the two. A surface is seeded from the trip as it arrives,
- * so a control bound to `$/trip/startDate` is pre-filled with the dates already
- * agreed, on every surface, without the model doing anything. And committing a
- * surface sends its `/trip` values back, where the Worker merges them into the
- * durable trip. What you set on screen is remembered because the host remembers
- * it, not because the model was asked nicely.
+ * The server does it now, in A2UI's own words: `dataModel` on the surface it
+ * creates, `updateDataModel` for the panels already on screen. Both are messages
+ * every renderer applies, so an iOS client gets pre-filled controls and a live
+ * panel with no travel-specific code at all — and this app forgets what a trip
+ * is, which is the point.
  */
+
 /** Read once, at module load: it does not change while the tab is open. */
 const HINTS = clientHints();
 
-const TRIP_FIELDS = TRIP_KEYS;
-
 /**
- * Fills a new surface's `/trip` with what is already known.
+ * An interaction, in the shape A2UI already defines for one.
  *
- * Only fields the surface left undefined: a model that deliberately set a value
- * — a suggested date, a widened budget — is proposing something, and that
- * proposal should win over the older fact it is proposing to change.
+ * This used to be a sentence — `[interface] search_flights (origin: "JFK")` —
+ * assembled here and parsed by nobody. It looked harmless and was not: a
+ * synthetic prose format is an application protocol layered on top of A2UI, and
+ * a Swift or Kotlin renderer has no idea it exists. What every A2UI renderer
+ * *does* already do is resolve an action's bound context and hand it over,
+ * which is this, with no host in the middle inventing anything.
+ *
+ * `context` is the answer the traveler is sending. `dataModel` is the rest of
+ * the surface, sent opaquely so the server can keep the trip exact without any
+ * client knowing what a trip is; a generic client that omits it still works,
+ * because the agent reads `context`.
  */
-function seedTrip(store: SurfaceStore, surfaceId: string, trip: Record<string, unknown>): void {
-  const current = (store.snapshot(surfaceId)['trip'] ?? {}) as Record<string, unknown>;
-  for (const field of TRIP_FIELDS) {
-    const value = trip[field];
-    if (value === undefined || value === null || value === '') continue;
-    if (current[field] !== undefined) continue;
-    store.setValue(surfaceId, `/trip/${field}`, value as never);
-  }
+/**
+ * How an interaction reads in the transcript.
+ *
+ * Display only. The wire carries the action; this is so the conversation has a
+ * line where the traveler's turn was, rather than a gap followed by an answer
+ * to a question nobody can see being asked.
+ */
+function describeForTranscript(action: SurfaceAction): string {
+  const said = Object.entries(action.context)
+    .filter(([, value]) => value !== null && value !== undefined && value !== '')
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+    .join(', ');
+  const name = action.name.replace(/_/g, ' ');
+  return said ? `${name} — ${said}` : name;
 }
 
-/**
- * Pushes the trip into a standing panel, overwriting what is there.
- *
- * The panels are meant to show where the trip *is*. Changing the departure
- * airport on an inline card and watching the sidebar carry on displaying the
- * old one is the panel lying about the trip — and rebuilding it through the
- * model to fix that costs a round trip and several seconds for values the host
- * already has.
- *
- * So: values sync here, immediately and for free. The model is only asked to
- * rebuild when the panel should be a *different shape*, which is a much rarer
- * event than a value changing.
- *
- * Only `sidebar` and `home` — a spent inline card is the record of what was
- * asked at the time, and rewriting history under it would be worse than stale.
- */
-function syncTrip(store: SurfaceStore, surfaceId: string, trip: Record<string, unknown>): void {
-  if (!store.get(surfaceId)) return;
-  const current = (store.snapshot(surfaceId)['trip'] ?? {}) as Record<string, unknown>;
-  for (const field of TRIP_FIELDS) {
-    const value = trip[field];
-    if (value === undefined || value === null || value === '') continue;
-    if (current[field] === value) continue;
-    store.setValue(surfaceId, `/trip/${field}`, value as never);
-  }
-}
-
-/**
- * Components that edit a value rather than make a decision.
- *
- * The distinction runs the whole interaction model. Dragging a slider, picking
- * a date, ticking a box, typing a name — those are someone composing an answer,
- * and sending a turn on each one means the third choice arrives in a surface
- * that has forgotten the first two. Tapping a flight, or pressing a button, is
- * someone *finishing*. Only the second kind starts a turn.
- *
- * The renderer already declines to fire actions from these; this is the host
- * saying the same thing, so a component added later cannot quietly reintroduce
- * the behaviour.
- */
-const VALUE_EDITORS = new Set([
-  'TextField',
-  'CheckBox',
-  'ChoicePicker',
-  'Slider',
-  'DateTimeInput',
-  'DateRangePicker',
-  'TravelerCounter',
-]);
-
-/** Turns an interface event into the sentence the model receives. */
-function describeEvent(event: A2uiEvent): string {
-  const entries = Object.entries(event.context ?? {}).filter(
-    ([, value]) => value !== null && value !== undefined && value !== '',
-  );
-  const detail = entries.length
-    ? ` (${entries.map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join(', ')})`
-    : '';
-  return `[interface] ${event.name}${detail}`;
+function actionFrom(event: A2uiEvent): SurfaceAction {
+  return {
+    name: event.name,
+    surfaceId: event.surfaceId,
+    ...(event.source?.id ? { sourceComponentId: event.source.id } : {}),
+    timestamp: new Date().toISOString(),
+    context: event.context ?? {},
+    dataModel: event.dataModel ?? {},
+  };
 }
 
 export function useAgent() {
@@ -305,18 +270,6 @@ export function useAgent() {
   const tripRef = useRef(trip);
   tripRef.current = trip;
 
-  /**
-   * Keeps the standing panels showing the trip as it actually stands.
-   *
-   * Runs on every trip change, which is cheap — a handful of pointer writes —
-   * and is why editing the route on an inline card is visible in the sidebar
-   * before the next turn finishes rather than after a rebuild.
-   */
-  useEffect(() => {
-    syncTrip(store, 'sidebar', trip);
-    syncTrip(store, 'home', trip);
-  }, [store, trip]);
-
   // Persist a URL-supplied key so a reload does not lose it.
   useEffect(() => {
     if (urlKey?.key) writeStored(API_KEY, urlKey.key);
@@ -385,20 +338,28 @@ export function useAgent() {
     );
   }, []);
 
+  /**
+   * One turn, whether the traveler typed it or pressed it.
+   *
+   * A string is a typed message. A `SurfaceAction` is an interaction, sent as
+   * the A2UI action it already is; the transcript still shows a sentence, but
+   * that sentence is written *here for display* and never goes on the wire.
+   */
   const send = useCallback(
     async (
-      message: string,
+      input: string | SurfaceAction,
       options: {
         surface?: SurfaceKind;
         surfaceId?: string;
-        surfaceState?: Record<string, unknown>;
         fromSurface?: boolean;
         /** Keep the transcript clean for background surfaces like the home screen. */
         silent?: boolean;
       } = {},
     ) => {
-      const text = message.trim();
-      if (!text || busy) return;
+      const action = typeof input === 'string' ? undefined : input;
+      const message = typeof input === 'string' ? input.trim() : '';
+      const text = action ? describeForTranscript(action) : message;
+      if ((!action && !message) || busy) return;
 
       const surface = options.surface ?? 'inline';
       const assistantId = `a_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -439,10 +400,10 @@ export function useAgent() {
           case 'ui':
             // A block that compiles clears any retry note: it worked.
             if (!options.silent) patchTurn(assistantId, { retrying: undefined });
+            // Everything the surface should show is already in these messages:
+            // the server seeds `/trip` into the surface it creates and sends
+            // `updateDataModel` for the panels. Applying them is the whole job.
             store.apply(event.messages);
-            // Seeded on every ui event, not just the first: a surface streams in
-            // and its data model can arrive after the components that read it.
-            seedTrip(store, event.surfaceId, tripRef.current);
             if (!options.silent) {
               patchTurn(assistantId, (turn) => ({
                 parts: withSurface(turn.parts, event.surfaceId),
@@ -504,13 +465,12 @@ export function useAgent() {
         await streamTurn(
           {
             sessionId,
-            message: text,
+            ...(action ? { action } : { message }),
             surface,
             skill: prefsRef.current.skill,
             model: prefsRef.current.model,
             effort: prefsRef.current.effort,
             ...(options.surfaceId ? { surfaceId: options.surfaceId } : {}),
-            ...(options.surfaceState ? { surfaceState: options.surfaceState } : {}),
             ...(HINTS ? { client: HINTS } : {}),
           },
           { apiKey: keyRef.current, signal: controller.signal, onEvent: handle },
@@ -542,7 +502,6 @@ export function useAgent() {
   const handleSurfaceEvent = useCallback(
     (event: A2uiEvent) => {
       if (busy) return;
-      if (event.source && VALUE_EDITORS.has(event.source.component)) return;
 
       const surface: SurfaceKind =
         event.surfaceId === 'sidebar' ? 'sidebar' : event.surfaceId === 'home' ? 'home' : 'inline';
@@ -551,52 +510,18 @@ export function useAgent() {
       // is a request to re-open a decision. Deciding happens in the
       // conversation, where there is a record of it, and one place to edit a
       // value rather than two that can disagree.
-      if (surface !== 'inline') {
-        const field = event.context['field'];
-        void send(
-          field
-            ? `[interface] change ${String(field)} — release it and ask me again inline, ` +
-              'pre-filled with what was there.'
-            : // Anything else in the panel is the agent having asked a question
-              // in the record rather than in the conversation. Answering it here
-              // would put the question in the one place that cannot hold one, so
-              // it is redirected instead of dropped.
-              `[interface] I pressed "${event.name.replace(/_/g, ' ')}" in the panel. The panel is ` +
-              'read-only — ask me that in the conversation instead, with the controls it needs.',
-          { surface: 'inline', surfaceState: event.dataModel, fromSurface: true },
-        );
-        return;
-      }
-
-      void send(describeEvent(event), {
-        surface,
-        surfaceState: event.dataModel,
+      //
+      // The redirection is a routing decision, not a rewrite: the same action
+      // goes out, aimed at the conversation. What it *means* — release this,
+      // ask me again inline — is the server's to say, in the sentence it builds
+      // for the model, because that sentence is about how this agent works and
+      // not about what the traveler pressed.
+      void send(actionFrom(event), {
+        surface: surface === 'inline' ? surface : 'inline',
         fromSurface: true,
       });
     },
     [busy, send],
-  );
-
-  /**
-   * Sends a surface's current values without a specific decision attached.
-   *
-   * The escape hatch for a card full of editors and no commit button: the model
-   * is supposed to draw one, and when it does not, the traveler is otherwise
-   * stuck holding an answer with no way to hand it over.
-   */
-  const submitSurface = useCallback(
-    (surfaceId: string, label = 'submitted the panel') => {
-      if (busy) return;
-      const surface: SurfaceKind =
-        surfaceId === 'sidebar' ? 'sidebar' : surfaceId === 'home' ? 'home' : 'inline';
-      const values = store.snapshot(surfaceId);
-      void send(`[interface] ${label} ${JSON.stringify(values)}`, {
-        surface,
-        surfaceState: values,
-        fromSurface: true,
-      });
-    },
-    [busy, send, store],
   );
 
   const reset = useCallback(async () => {
@@ -632,7 +557,6 @@ export function useAgent() {
     stop,
     reset,
     handleSurfaceEvent,
-    submitSurface,
   };
 }
 

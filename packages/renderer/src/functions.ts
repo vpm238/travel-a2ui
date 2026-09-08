@@ -119,6 +119,26 @@ export function callFunction(name: string, args: Args): Json {
         return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       }
 
+      /**
+       * Nights between two dates, counted the way a hotel counts them.
+       *
+       * The 12th to the 15th is three nights, not four days — the arithmetic
+       * every stay question depends on, and the reason this is a function
+       * rather than a value the agent computes: bound to a label, it
+       * recomputes as the date picker moves, with no turn in between.
+       */
+      case 'calcNights': {
+        const start = new Date(asString(args['start']));
+        const end = new Date(asString(args['end']));
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+        const DAY = 24 * 60 * 60 * 1000;
+        // UTC midnights, so a range spanning a daylight-saving change is still
+        // a whole number of nights rather than 2.958333.
+        const from = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+        const to = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+        return Math.max(0, Math.round((to - from) / DAY));
+      }
+
       case 'pluralize': {
         const count = asNumber(args['count'] ?? args['value']) ?? 0;
         const one = asString(args['one'] ?? args['singular']);

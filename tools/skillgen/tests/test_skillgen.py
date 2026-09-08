@@ -200,7 +200,17 @@ class TestBody:
         catalog = (SKILLS / "express-modular" / "a2ui-travel" / "SKILL.md").read_text(encoding="utf-8")
         combined = core + catalog
 
-        helper = CatalogHelper.from_path(CATALOG)
+        # Against the *pruned* catalog: the shipped skills are generated with an
+        # allow-list, so the question is whether splitting loses anything the
+        # agent is allowed to draw — not whether every component in the catalog
+        # made it in, which pruning deliberately decides against.
+        allow = json.loads(
+            (ROOT / "catalogs" / "a2ui-travel" / "agent-components.json").read_text("utf-8")
+        )
+        helper = CatalogHelper.from_path(CATALOG).with_pruning(
+            allowed_components=allow["allowedComponents"]
+        )
+        assert helper.components, "the allow-list matched nothing in the catalog"
         for name in helper.components:
             signature = f"• {name}("
             assert signature in mono, f"{name} missing from the monolithic skill"
@@ -339,3 +349,84 @@ class TestCoreSkill:
             catalog_id=helper.catalog_id,
         )
         assert skill.metadata["requires"] == ["a2ui-core"]
+
+
+class TestPruning:
+    """Narrowing the catalog the *model* sees, without touching a renderer."""
+
+    ALLOWED = ["Text", "Row", "Column", "Button", "FlightOption"]
+
+    def test_keeps_only_the_named_components(self, helper):
+        pruned = helper.with_pruning(allowed_components=self.ALLOWED)
+        assert set(pruned.components) == set(self.ALLOWED)
+        assert "Video" in helper.components, "the source catalog is not mutated"
+
+    def test_drops_the_component_from_the_union_too(self, helper):
+        pruned = helper.with_pruning(allowed_components=self.ALLOWED)
+        refs = {
+            entry.get("$ref")
+            for entry in pruned.schema["$defs"]["anyComponent"]["oneOf"]
+            if isinstance(entry, dict)
+        }
+        assert "#/components/FlightOption" in refs
+        assert "#/components/Video" not in refs
+
+    def test_keeps_only_the_named_functions(self, helper):
+        pruned = helper.with_pruning(allowed_functions=["formatCurrency", "calcNights"])
+        assert set(pruned.functions) == {"formatCurrency", "calcNights"}
+        # Components are untouched when only functions are named.
+        assert set(pruned.components) == set(helper.components)
+
+    def test_unknown_names_narrow_rather_than_raise(self, helper):
+        pruned = helper.with_pruning(allowed_components=["Text", "NoSuchComponent"])
+        assert set(pruned.components) == {"Text"}
+
+    def test_no_allow_list_is_the_whole_catalog(self, helper):
+        assert helper.with_pruning().schema is helper.schema
+
+    def test_unreachable_defs_are_pruned(self):
+        schema = {
+            "components": {"Kept": {"$ref": "#/$defs/Used"}},
+            "$defs": {
+                "Used": {"type": "string"},
+                "Chained": {"type": "number"},
+                "Orphan": {"type": "boolean"},
+            },
+        }
+        schema["$defs"]["Used"] = {"properties": {"x": {"$ref": "#/$defs/Chained"}}}
+        from skillgen.catalog import with_pruning as prune
+
+        result = prune(schema, allowed_components=["Kept"])
+        assert set(result["$defs"]) == {"Used", "Chained"}, "reachable through Used"
+
+    def test_examples_calling_a_pruned_component_are_dropped(self, tmp_path):
+        (tmp_path / "a.express").write_text('# Keeps\nColumn([Text("hi")])\n', encoding="utf-8")
+        (tmp_path / "b.express").write_text('# Drops\nColumn([Video("x")])\n', encoding="utf-8")
+        known = {"Column", "Text", "Video"}
+        titles = [
+            title for title, _ in load_express_examples(tmp_path, {"Column", "Text"}, known)
+        ]
+        assert titles == ["Keeps"]
+
+    def test_generated_skill_omits_the_pruned_component(self, tmp_path):
+        request = GenerationRequest(
+            catalog_path=CATALOG,
+            examples_dir=EXAMPLES,
+            out_dir=tmp_path,
+            catalog_name="a2ui-travel",
+            allowed_components=tuple(self.ALLOWED),
+        )
+        (skill, _path), = generate(request)
+        assert "FlightOption(" in skill.body
+        assert "Video(" not in skill.body and "AudioPlayer(" not in skill.body
+
+    def test_the_checked_in_skill_matches_the_allow_list(self):
+        """The shipped prompt documents exactly what the catalog allows."""
+        allow = json.loads(
+            (ROOT / "catalogs" / "a2ui-travel" / "agent-components.json").read_text("utf-8")
+        )
+        body = (SKILLS / "express-monolithic" / "a2ui" / "SKILL.md").read_text("utf-8")
+        for name in allow["excluded"]:
+            assert f"{name}(" not in body, f"{name} was pruned but still documented"
+        for name in allow["allowedComponents"]:
+            assert f"{name}(" in body, f"{name} is allowed but missing from the prompt"

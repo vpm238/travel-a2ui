@@ -162,6 +162,25 @@ describe('catalog functions', () => {
     expect(callFunction('pluralize', { count: 3, one: 'night', other: 'nights' })).toBe('nights');
   });
 
+  it('counts nights the way a hotel does', () => {
+    // Three nights slept, not four days spanned.
+    expect(callFunction('calcNights', { start: '2027-04-12', end: '2027-04-15' })).toBe(3);
+    expect(callFunction('calcNights', { start: '2027-04-12', end: '2027-04-12' })).toBe(0);
+  });
+
+  it('shows a zero rather than nonsense for a half-filled range', () => {
+    expect(callFunction('calcNights', { start: '2027-04-12', end: '' })).toBe(0);
+    expect(callFunction('calcNights', { start: '', end: '' })).toBe(0);
+    // Inverted — the picker is mid-drag, not broken.
+    expect(callFunction('calcNights', { start: '2027-04-15', end: '2027-04-12' })).toBe(0);
+  });
+
+  it('counts whole nights across a daylight-saving change', () => {
+    // 2027-03-14 is the US spring-forward; a naive millisecond division gives
+    // 2.958333 here and renders "2.958333 nights".
+    expect(callFunction('calcNights', { start: '2027-03-13', end: '2027-03-16' })).toBe(3);
+  });
+
   it('fills a template string', () => {
     expect(
       callFunction('formatString', { template: '{city} in {month}', values: { city: 'Madrid', month: 'April' } }),

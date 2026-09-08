@@ -20,7 +20,14 @@ import type Anthropic from '@anthropic-ai/sdk';
 
 import { ExpressCompiler, ExpressDecompiler } from '@travel-a2ui/express';
 
-import { CATALOG, CATALOG_ID, runTurn, type AgentEvent, type TurnRequest } from './agent.js';
+import {
+  CATALOG,
+  CATALOG_ID,
+  runTurn,
+  type AgentEvent,
+  type SurfaceAction,
+  type TurnRequest,
+} from './agent.js';
 import { handleMcp, MCP_TOOLS } from './mcp.js';
 import { SessionClient, TripSession } from './session.js';
 import { describeAllSkills, isSkillVariant, type SkillVariant, type SurfaceKind } from './skills.js';
@@ -263,12 +270,13 @@ async function handleReset(request: Request, env: Env): Promise<Response> {
 interface ChatBody {
   sessionId?: string;
   message?: string;
+  /** An interaction, in A2UI's shape. Sent instead of `message` when pressed. */
+  action?: SurfaceAction;
   surface?: string;
   surfaceId?: string;
   skill?: string;
   model?: string;
   effort?: string;
-  surfaceState?: Record<string, unknown>;
   client?: { timeZone?: string; locale?: string };
 }
 
@@ -290,7 +298,11 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
   }
 
   const message = (body.message ?? '').trim();
-  if (!message) return problem('message is required', 400);
+  const action = body.action;
+  if (action && typeof action.name !== 'string') {
+    return problem('action.name is required', 400);
+  }
+  if (!message && !action) return problem('message or action is required', 400);
   if (message.length > 8000) return problem('message is too long (8000 characters max)', 413);
 
   const sessionId = body.sessionId?.trim();
@@ -320,13 +332,13 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
     apiKey,
     model,
     message,
+    ...(action ? { action } : {}),
     history: state.history,
     trip: state.trip,
     surface,
     surfaceId,
     skill,
     effort,
-    ...(body.surfaceState ? { surfaceState: body.surfaceState } : {}),
     ...(body.client ? { client: body.client } : {}),
   };
 

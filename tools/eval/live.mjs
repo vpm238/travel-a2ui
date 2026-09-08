@@ -61,10 +61,10 @@ const DECIDERS = new Set(['Button', 'FlightOption', 'HotelCard', 'ActivityItem',
 /**
  * Sends one turn and collects everything observable about it.
  *
- * `trip` is delivered as `surfaceState`, which the Worker merges into the trip
- * before building the prompt — the same path a committed surface takes. It is
- * how a scenario starts from a half-planned trip without paying for the turns
- * that would have planned it.
+ * `trip` is delivered inside an A2UI action's `dataModel`, which is the same
+ * path a committed surface takes: the Worker merges it into the trip before it
+ * builds the prompt. It is how a scenario starts from a half-planned trip
+ * without paying for the turns that would have planned it.
  */
 async function turn({ message, surface = 'inline', surfaceId, trip, session }) {
   const response = await fetch(`${BASE}/api/chat`, {
@@ -78,7 +78,16 @@ async function turn({ message, surface = 'inline', surfaceId, trip, session }) {
       model: MODEL,
       effort: 'medium',
       client: { timeZone: 'America/Los_Angeles', locale: 'en-US' },
-      ...(trip ? { surfaceState: { trip } } : {}),
+      ...(trip
+        ? {
+            action: {
+              name: 'commit_surface',
+              surfaceId: surfaceId ?? (surface === 'inline' ? 'inline-1' : surface),
+              context: {},
+              dataModel: { trip },
+            },
+          }
+        : {}),
     }),
   });
 

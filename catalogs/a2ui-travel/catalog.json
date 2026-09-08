@@ -2186,6 +2186,41 @@
         "args"
       ],
       "unevaluatedProperties": false
+    },
+    "calcNights": {
+      "type": "object",
+      "description": "Returns the number of nights between two ISO-8601 dates (yyyy-MM-dd), counting the nights slept rather than the days spanned: a 12th-to-15th stay is 3. Returns 0 when either date is missing or the range is inverted, so a half-filled form shows a zero rather than nonsense.",
+      "properties": {
+        "call": {
+          "const": "calcNights"
+        },
+        "args": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+              "description": "The check-in date, as yyyy-MM-dd."
+            },
+            "end": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+              "description": "The check-out date, as yyyy-MM-dd."
+            }
+          },
+          "required": [
+            "start",
+            "end"
+          ],
+          "unevaluatedProperties": false
+        },
+        "returnType": {
+          "const": "number"
+        }
+      },
+      "required": [
+        "call",
+        "args"
+      ],
+      "unevaluatedProperties": false
     }
   },
   "$defs": {
@@ -2358,6 +2393,9 @@
         },
         {
           "$ref": "#/functions/not"
+        },
+        {
+          "$ref": "#/functions/calcNights"
         }
       ]
     }

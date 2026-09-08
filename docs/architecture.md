@@ -209,14 +209,32 @@ something that had no memory, because it was.
 
 So: **one thing to choose → tappable cards, no button**; picking the flight is
 the answer. **More than one → editors and a commit button**; the traveler sets
-them all and presses once. It is enforced in three places, because a rule this
-load-bearing should not depend on the model complying: editors do not call
-`runAction`, the host drops editor events if one ever does, and the prompt
-tells the model which is which.
+them all and presses once. Editors do not call `runAction`, and the prompt tells
+the model which is which.
 
-When the model forgets a commit button, the host draws its own — a bar naming
-how many values are unsent and a Send. A card of sliders you cannot submit is
-worse than no card.
+### The answer travels in the action, and the server guarantees it
+
+A commit button carries a *context* — the paths it is sending, resolved against
+the data model — which is A2UI's own mechanism for submitting a form and the one
+thing every renderer already does without being taught.
+
+It used to work differently, and worse. The browser kept a snapshot of each
+surface as it arrived, diffed it against the live data model on every change,
+and turned the result into a sentence: `[interface] search_flights (origin:
+"JFK")`. A hundred lines of recursive tree comparison, a synthetic prose format
+nothing parsed, and a bar counting "3 unsent changes" — all of it invented here,
+none of it in the protocol, and therefore none of it present in a Swift or
+Kotlin client, which would have shipped the dead end instead.
+
+What survives is the guarantee, moved to where it holds for everyone.
+`bindCommitContext` runs on the server after a surface compiles:
+
+- every path the surface's editors write to is bound into its commit buttons,
+  under the model's own key where it named one;
+- a surface with editors and **no** button at all gets one, attached to its root.
+
+The model is still asked to bind them, because it picks better key names than an
+algorithm splitting on slashes. It just no longer has to be right.
 
 ### One turn, one job
 
@@ -254,6 +272,40 @@ The host enforces it rather than asking: an interaction on a non-inline surface
 is never treated as an answer, whatever component produced it, so a model that
 draws a slider in the panel produces something inert rather than a second way to
 change the trip.
+
+The panel is also, now, **entirely A2UI**. It used to be half-and-half: an A2UI
+surface on top, and underneath a React checklist and a key/value dump of the
+trip, both reading `packages/trip` directly. They worked well and they were the
+one part of the panel a mobile client could not draw, because they were not in
+the protocol at all.
+
+The checklist is composed from catalog components now and bound to `/plan`,
+which the server publishes and keeps current — so the agent decides the shape
+once and the rows move as the trip moves, without a model turn. Each row arrives
+with its line already composed (`✓ Dates`, `→ Flight`, `– Somewhere to stay —
+not needed`), because a template row is a single component and cannot declare
+children inline. Opening the same session in a Swift renderer draws the same
+panel, and there is no travel-specific client code left to port.
+
+### The server owns the data model
+
+Surfaces read trip facts from `/trip`, and until recently the browser put them
+there: `seedTrip` filled each new surface as it arrived, `syncTrip` pushed
+changes into the standing panels, both walking a list of field names compiled
+into the client. Correct, fast, and the reason the web app was the only client
+that could behave properly — a second client would need the same list, and again
+every time the trip grew a field.
+
+The server says it in the protocol's own words instead:
+
+| | Message | For |
+| --- | --- | --- |
+| A new surface | `createSurface.dataModel` | complete when it first paints, never blank-then-filled |
+| A standing panel | `updateDataModel` | the sidebar and home screen, as the trip changes |
+
+A spent inline card is deliberately excluded. It is the record of what was asked
+at the time, and rewriting history underneath it is worse than letting it be
+old.
 
 ### An answered surface goes grey
 
@@ -514,6 +566,55 @@ skill generator is byte-checked against the reference generator
 installs the real `a2ui-agent-sdk` and diffs. Divergence is a test failure, not
 a discovery.
 
+### What is in-tree only until upstream ships, and how the swap will go
+
+Two components here duplicate work that belongs in the official SDK. Both are
+waiting on a release rather than on a decision, so both are written to be
+*replaced* rather than maintained: the local version keeps the upstream name and
+signature, and a parity test diffs the two whenever the SDK is installed.
+
+| In-tree | Upstream | Blocked on | The swap |
+| --- | --- | --- | --- |
+| `packages/express` — lexer, parser, compiler, decompiler, stream splitter | `a2ui_agent`'s Express format | a PyPI release carrying the merged keyword-argument, multi-version and `surface()` work. PyPI is still on **0.5.0 (2026-07-31)**, which rejects `Text("Hi", variant="h3")` outright | delete the port, point `ServiceCompiler` at the SDK; `sdk_supports_current_grammar()` already probes for exactly this and will start returning true on its own |
+| `tools/skillgen` — catalog crawler, prompt generator, skill packaging | `SkillGenerator` / `PromptGenerator` | the same release, plus the API landing | `CatalogHelper` mirrors `CatalogSchemaHelper` and `with_pruning` mirrors `A2uiCatalog.with_pruning` method-for-method, so the call sites do not move |
+
+Neither is a fork by preference. The port exists because the published SDK
+cannot compile the grammar the skills teach, and the generator exists because
+pulling the whole ADK dependency tree into CI to read a JSON file is a poor
+trade. `test_sdk_parity.py` is what keeps both honest — it skips when the SDK is
+absent and diffs character-for-character when it is present, so drift is a
+failing test rather than a surprise a year later.
+
+**One thing genuinely is ours.** `with_pruning` grew an `allowed_functions`
+argument that upstream does not have. That came out of measuring rather than
+guessing: pruning six components off this catalog saved 1.3 kB, while the
+function block — mostly check-rule validators for a `checks=` argument this
+agent has never written once — was three times that. It is marked in the
+docstring as the local extension it is, and becomes a rename too if upstream
+grows the same axis.
+
+**Also wanted upstream:** a streaming chunk-splitter in `a2ui_agent`. The Python
+backend currently has none, which is why `ExpressStreamParser` lives in
+TypeScript and the managed agent goes through `/api/compile` rather than
+splitting locally.
+
+### Designed for v1.0, running on v0.9.1
+
+The protocol version is one constant (`SurfaceOperation`, `ProtocolVersion`), and
+the places v1.0 changes things are already shaped for it:
+
+| v1.0 | Where it lands here |
+| --- | --- |
+| Components and data model in one `createSurface` | already done — `seedSurfaceTrip` writes `createSurface.dataModel` rather than following up with messages, so a surface never paints blank-then-filled |
+| `supportedCatalogIds` — catalog mixing | the catalog already `extends` the basic catalog; splitting `a2ui-basic` from `a2ui-travel` becomes a declaration instead of a merge in `build_catalog.py` |
+| `callAgentFunction` — bidirectional RPC | the tools it would replace (`get_destination`, `estimate_cost`) are already pure functions of the trip |
+| `updateDataModel` with `null` to delete | `release()` already computes exactly which keys a change clears; today they are cleared server-side, and this makes it a message |
+| `AccessibilityAttributes` | the renderer sets roles and labels per component today, which is where the attributes would bind |
+
+Nothing here is pre-built for v1.0 — a half-migration to a candidate spec is
+worse than a clean one later. These are the seams, named so the move is a diff
+rather than a rewrite.
+
 ---
 
 ## 8 · The MCP server
@@ -577,11 +678,11 @@ server holds no credentials at all — which is also why it holds no trip data.
 | Agent loop | scripted model output through the real stream splitter |
 | Web app | `tools/e2e/chat.mjs` — a real browser, a real turn, 14 assertions |
 | The agent itself | `tools/eval/live.mjs` — 10 scenarios against the real model, graded mechanically off the event stream. Not in CI; it costs about $2 a run |
-| Interaction model | `tools/e2e/interaction.mjs` — editing sends nothing, committing sends everything, spent surfaces go inert, the panel stays read-only, 19 assertions |
+| Interaction model | `tools/e2e/interaction.mjs` — editing sends nothing, committing sends everything as an A2UI action, spent surfaces go inert, the panel stays read-only and holds no React, 21 assertions |
 | MCP app | `tools/e2e/mcp.mjs` — a live server, a sandboxed iframe, 24 assertions |
 | Freshness | `npm run check` fails if catalog, examples or skills drift |
 
-206 unit tests, 44 Python tests, 67 browser assertions across three end-to-end runs, and a live evaluation of the agent — 33 checks, all passing.
+234 unit tests, 45 Python tests, 71 browser assertions across three end-to-end runs, and a live evaluation of the agent — 33 checks, all passing.
 
 **Simulated:** flight and hotel inventory, weather, and destination highlights
 (`apps/worker/src/travel.ts`) are a deterministic generator over a real list of

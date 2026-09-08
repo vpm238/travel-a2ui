@@ -12,3 +12,4 @@ export {
 export { ExpressCompiler, extractExpressBlock, type CompileOptions } from './compiler.js';
 export { ExpressDecompiler, decompileString, type DecompileOptions } from './decompiler.js';
 export { ExpressStreamParser, type StreamEvent } from './stream.js';
+export { bindCommitContext, VALUE_EDITORS } from './commit.js';

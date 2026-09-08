@@ -75,7 +75,6 @@ Each entry lists the component's properties. `!` marks a required property, `(st
 
 • ActivityItem: title!, time, category (static only) = food|sight|transit|stay|outdoors|shopping|event|free, location, duration, note, action (static only), done
   - A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.
-• AudioPlayer: url!, description
 • Button: child! (component ID), variant (static only) = default|primary|borderless, action! (static only), checks (static only)
 • Card: child! (component ID)
 • CheckBox: label!, value!, checks (static only)
@@ -85,8 +84,6 @@ Each entry lists the component's properties. `!` marks a required property, `(st
   - A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.
 • DateRangePicker: label!, start!, end!, action (static only), nightsLabel, checks (static only)
   - Picks the trip's start and end dates. Both bound values are RFC 3339 timestamps with an offset, e.g. '2026-04-12T00:00:00Z'.
-• DateTimeInput: value!, enableDate (static only), enableTime (static only), min, max, label, checks (static only)
-• Divider: axis (static only) = horizontal|vertical
 • ExpenseSplit: title!, total!, participants! (static only), action (static only), actionLabel
   - Splits a shared trip cost between travelers and shows who owes what.
 • FlightOption: airline!, departTime!, arriveTime!, origin!, destination!, price!, action! (static only), duration, stops, flightNumber, cabin (static only) = economy|premium|business|first, selected, badge
@@ -100,7 +97,6 @@ Each entry lists the component's properties. `!` marks a required property, `(st
 • List: children!, direction (static only) = vertical|horizontal, align (static only) = start|center|end|stretch
 • MapPreview: markers! (static only), caption, action (static only)
   - A lightweight schematic map of the places in play. Not a live map — it orients the traveler and is safe to render offline.
-• Modal: trigger! (component ID), content! (component ID)
 • PriceSummary: lines! (static only), total!, totalLabel, action (static only), actionLabel, caption
   - The money view: an itemized breakdown and a total. Use this instead of a hand-built table whenever you show what a trip costs.
 • ProgressMeter: label!, value!, max!, caption, tone (static only) = neutral|positive|caution|critical|accent
@@ -110,12 +106,10 @@ Each entry lists the component's properties. `!` marks a required property, `(st
 • Slider: label, min (static only), max! (static only), value!, checks (static only)
 • StatTile: label!, value!, caption, tone (static only) = neutral|positive|caution|critical|accent, action (static only)
   - One number that matters, sized for a dashboard grid. Home-surface staple: days until departure, budget left, bookings confirmed.
-• Tabs: tabs! (static only)
 • Text: text!, variant (static only) = h1|h2|h3|h4|h5|caption|body
 • TextField: label!, value, variant (static only) = longText|number|shortText|obscured, validationRegexp (static only), checks (static only)
 • TravelerCounter: label!, value!, min (static only), max (static only), caption, checks (static only)
   - A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.
-• Video: url!
 • WeatherStrip: days! (static only), place, caption
   - A short forecast row for the destination. Purely informational.
 
@@ -123,10 +117,8 @@ Each entry lists the component's properties. `!` marks a required property, `(st
 
 Used in `checks` conditions and dynamic values.
 
-• and(values!)
-  - Performs a logical AND operation on a list of boolean values.
-• email(value!)
-  - Checks that the value is a valid email address.
+• calcNights(start!, end!)
+  - Returns the number of nights between two ISO-8601 dates (yyyy-MM-dd), counting the nights slept rather than the days spanned: a 12th-to-15th stay is 3. Returns 0 when either date is missing or the range is inverted, so a half-filled form shows a zero rather than nonsense.
 • formatCurrency(value!, currency!, decimals, grouping)
   - Formats a number as a currency string.
 • formatDate(value!, format!)
@@ -135,22 +127,10 @@ Used in `checks` conditions and dynamic values.
   - Formats a number with the specified grouping and decimal precision.
 • formatString(value!)
   - Performs string interpolation of data model values and other functions in the catalog functions list and returns the resulting string. The value string can contain interpolated expressions in the `${expression}` format. Supported expression types include: JSON Pointer paths to the data model (e.g., `${/absolute/path}` or `${relative/path}`), and client-side function calls (e.g., `${now()}`). Function arguments must be named (e.g., `${formatDate(value:${/currentDate}, format:'MM-dd')}`). To include a literal `${` sequence, escape it as `\${`.
-• length(value!, min, max)
-  - Checks string length constraints.
-• not(value!)
-  - Performs a logical NOT operation on a boolean value.
-• numeric(value!, min, max)
-  - Checks numeric range constraints.
 • openUrl(url!)
   - Opens the specified URL in a browser or handler. This function has no return value.
-• or(values!)
-  - Performs a logical OR operation on a list of boolean values.
 • pluralize(value!, zero, one, two, few, many, other!)
   - Returns a localized string based on the Common Locale Data Repository (CLDR) plural category of the count (zero, one, two, few, many, other). Requires an 'other' fallback. For English, just use 'one' and 'other'.
-• regex(value!, pattern!)
-  - Checks that the value matches a regular expression string.
-• required(value!)
-  - Checks that the value is not null, undefined, or empty.
 
 ## Catalog Instructions
 

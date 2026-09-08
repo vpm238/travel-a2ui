@@ -198,7 +198,10 @@ export function Button({ node, scope, ctx }: ComponentProps) {
     <button
       type="button"
       className={cx('a2-button', `a2-button--${variant}`)}
-      onClick={() => runAction(action, scope, ctx)}
+      // `node` so the event can name what was pressed. A2UI's action envelope
+      // carries a sourceComponentId, and the agent uses it to tell two buttons
+      // on one surface apart.
+      onClick={() => runAction(action, scope, ctx, node)}
     >
       {label}
     </button>

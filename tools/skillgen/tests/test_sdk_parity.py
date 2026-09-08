@@ -80,3 +80,62 @@ def test_required_sets_match(reference_generator, helper):
     reference_helper = reference_generator.helper
     for name in helper.components:
         assert helper.get_component_required(name) == reference_helper.get_component_required(name)
+
+
+class TestPruningParity:
+    """Our `with_pruning` against `A2uiCatalog.with_pruning` from the SDK.
+
+    Pruning decides what the model is allowed to draw. Ours and the reference
+    disagreeing would mean the prompt documents one vocabulary while the
+    upstream tooling assumes another — so the two are diffed on the same
+    catalog, and this is the test that makes adopting the upstream call a
+    rename rather than a leap.
+    """
+
+    ALLOWED = ["Text", "Row", "Column", "Button", "FlightOption", "HotelCard"]
+
+    @staticmethod
+    def _reference(schema, allowed):
+        from a2ui.schema.catalog import A2uiCatalog
+
+        catalog = A2uiCatalog(
+            version="v0.9.1",
+            name="a2ui-travel",
+            s2c_schema={},
+            common_types_schema={},
+            catalog_schema=schema,
+        )
+        return catalog.with_pruning(allowed_components=allowed).catalog_schema
+
+    def test_same_components_survive(self):
+        from skillgen.catalog import with_pruning
+
+        schema = json.loads(CATALOG.read_text(encoding="utf-8"))
+        assert sorted(with_pruning(schema, allowed_components=self.ALLOWED)["components"]) == sorted(
+            self._reference(schema, self.ALLOWED)["components"]
+        )
+
+    def test_same_union_survives(self):
+        from skillgen.catalog import with_pruning
+
+        schema = json.loads(CATALOG.read_text(encoding="utf-8"))
+
+        def union(document):
+            return sorted(
+                entry["$ref"]
+                for entry in document["$defs"]["anyComponent"]["oneOf"]
+                if isinstance(entry, dict) and "$ref" in entry
+            )
+
+        assert union(with_pruning(schema, allowed_components=self.ALLOWED)) == union(
+            self._reference(schema, self.ALLOWED)
+        )
+
+    def test_neither_drops_a_structural_definition(self):
+        """`anyComponent` is pointed at from outside the catalog, never inside."""
+        from skillgen.catalog import with_pruning
+
+        schema = json.loads(CATALOG.read_text(encoding="utf-8"))
+        assert sorted(with_pruning(schema, allowed_components=self.ALLOWED)["$defs"]) == sorted(
+            self._reference(schema, self.ALLOWED)["$defs"]
+        )

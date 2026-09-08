@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import pathlib
+import re
 from typing import Any, Iterable
 
 from .catalog import CatalogHelper
@@ -27,6 +28,11 @@ class GenerationRequest:
     shape: str = "monolithic"
     catalog_prefix: str = "a2ui-"
     include_examples: bool = True
+    #: Components the agent is allowed to draw. ``None`` means the whole catalog.
+    #: Narrowing this prunes the *prompt*, never a renderer — see `with_pruning`.
+    allowed_components: tuple[str, ...] | None = None
+    #: Catalog functions the agent is allowed to call. ``None`` means all of them.
+    allowed_functions: tuple[str, ...] | None = None
 
     @property
     def variant(self) -> str:
@@ -40,16 +46,42 @@ class GenerationRequest:
         return f"{self.inference_format.replace('_', '-')}-{self.shape}"
 
 
-def load_express_examples(directory: pathlib.Path | None) -> list[tuple[str, str]]:
+#: `Name(` at the head of a call — how a component is spelled in Express.
+_CALL = re.compile(r"\b([A-Z][A-Za-z0-9]*)\s*\(")
+
+
+def uses_only(source: str, allowed: set[str], known: set[str]) -> bool:
+    """True when every catalog component the example calls survived pruning.
+
+    Only names the catalog knows are considered, so `Event(`, `_template(` and a
+    component from another catalog do not disqualify an example.
+    """
+    return all(name in allowed for name in _CALL.findall(source) if name in known)
+
+
+def load_express_examples(
+    directory: pathlib.Path | None,
+    allowed: set[str] | None = None,
+    known: set[str] | None = None,
+) -> list[tuple[str, str]]:
     if directory is None or not directory.is_dir():
         return []
     examples: list[tuple[str, str]] = []
     for path in sorted(directory.glob("*.express")):
-        examples.append(split_example(path.read_text(encoding="utf-8")))
+        source = path.read_text(encoding="utf-8")
+        # An example that draws a pruned component teaches the model to call
+        # something the prompt no longer documents.
+        if allowed is not None and not uses_only(source, allowed, known or set()):
+            continue
+        examples.append(split_example(source))
     return examples
 
 
-def load_json_examples(directory: pathlib.Path | None) -> list[tuple[str, Any]]:
+def load_json_examples(
+    directory: pathlib.Path | None,
+    allowed: set[str] | None = None,
+    known: set[str] | None = None,
+) -> list[tuple[str, Any]]:
     """Pairs each compiled example with the title from its Express source."""
     if directory is None or not directory.is_dir():
         return []
@@ -59,7 +91,10 @@ def load_json_examples(directory: pathlib.Path | None) -> list[tuple[str, Any]]:
     examples: list[tuple[str, Any]] = []
     for path in sorted(compiled.glob("*.json")):
         source = directory / f"{path.stem}.express"
-        title = split_example(source.read_text(encoding="utf-8"))[0] if source.exists() else path.stem
+        text = source.read_text(encoding="utf-8") if source.exists() else ""
+        if allowed is not None and text and not uses_only(text, allowed, known or set()):
+            continue
+        title = split_example(text)[0] if text else path.stem
         examples.append((title, json.loads(path.read_text(encoding="utf-8"))))
     return examples
 
@@ -77,6 +112,20 @@ def generate(request: GenerationRequest) -> list[tuple[Skill, pathlib.Path]]:
         )
 
     helper = CatalogHelper.from_path(request.catalog_path)
+    known = set(helper.components)
+
+    # Pruning happens here, before a single signature is rendered, so the
+    # savings land in every downstream artifact at once: the system prompt, the
+    # `get_a2ui_component_reference` contract, and the examples.
+    allowed: set[str] | None = None
+    if request.allowed_components is not None or request.allowed_functions is not None:
+        if request.allowed_components is not None:
+            allowed = set(request.allowed_components)
+        helper = helper.with_pruning(
+            allowed_components=request.allowed_components,
+            allowed_functions=request.allowed_functions,
+        )
+
     fmt = FORMATS[request.inference_format]()
 
     base_rules = fmt.generate_base_rules()
@@ -85,9 +134,13 @@ def generate(request: GenerationRequest) -> list[tuple[Skill, pathlib.Path]]:
     examples_block = ""
     if request.include_examples:
         if request.inference_format == "express":
-            examples_block = fmt.generate_examples(load_express_examples(request.examples_dir))
+            examples_block = fmt.generate_examples(
+                load_express_examples(request.examples_dir, allowed, known)
+            )
         else:
-            examples_block = fmt.generate_examples(load_json_examples(request.examples_dir))
+            examples_block = fmt.generate_examples(
+                load_json_examples(request.examples_dir, allowed, known)
+            )
 
     root = request.out_dir / request.variant
     skills: list[Skill] = []

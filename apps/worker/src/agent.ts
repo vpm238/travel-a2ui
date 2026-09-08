@@ -17,13 +17,19 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { ExpressCompiler, ExpressStreamParser, type A2uiMessage } from '@travel-a2ui/express';
+import {
+  ExpressCompiler,
+  ExpressStreamParser,
+  bindCommitContext,
+  type A2uiMessage,
+} from '@travel-a2ui/express';
 
 import catalog from '../../../catalogs/a2ui-travel/catalog.json';
 import { buildSystemPrompt, type SkillVariant, type SurfaceKind } from './skills.js';
 import { TOOLS, runTool, type ToolContext } from './tools.js';
 import { originForTimeZone } from './travel.js';
 import { normalize as normalizeTrip, type Trip } from '@travel-a2ui/trip';
+import { STANDING_SURFACES, seedSurfaceTrip, tripUpdates } from './surface.js';
 
 export const CATALOG = catalog as unknown as import('@travel-a2ui/express').CatalogSchema;
 export const CATALOG_ID = String(CATALOG.catalogId);
@@ -55,10 +61,35 @@ export type AgentEvent =
   | { type: 'error'; message: string; retryable: boolean }
   | { type: 'done'; stopReason: string | null };
 
+/**
+ * An interaction on a surface, in A2UI's own shape.
+ *
+ * This is what a renderer produces when someone presses something — any
+ * renderer, on any platform, with nothing taught to it. It replaced a sentence
+ * the browser used to compose (`[interface] search_flights (origin: "JFK")`),
+ * which was a private protocol wearing the costume of a user message.
+ *
+ * `context` is the answer: the action's bound paths, resolved. `dataModel` is
+ * the rest of the surface, opaque and optional — it keeps trip state exact
+ * without asking any client to know what a trip is, and a client that omits it
+ * still works.
+ */
+export interface SurfaceAction {
+  name: string;
+  surfaceId: string;
+  sourceComponentId?: string;
+  timestamp?: string;
+  context: Record<string, unknown>;
+  dataModel?: Record<string, unknown>;
+}
+
 export interface TurnRequest {
   apiKey: string;
   model: string;
+  /** What the traveler typed. Empty when `action` carries the turn instead. */
   message: string;
+  /** What the traveler pressed. */
+  action?: SurfaceAction;
   history: Anthropic.MessageParam[];
   trip: Record<string, unknown>;
   /** The browser's timezone and locale, as a hint about the departure city. */
@@ -67,8 +98,6 @@ export interface TurnRequest {
   surfaceId: string;
   skill: SkillVariant;
   effort: 'low' | 'medium' | 'high';
-  /** Values the user changed on screen since the last turn, if any. */
-  surfaceState?: Record<string, unknown>;
 }
 
 export interface TurnResult {
@@ -103,6 +132,53 @@ function tripFromSurface(state: Record<string, unknown> | undefined): Trip {
   return normalizeTrip(state?.['trip']);
 }
 
+/**
+ * The trip facts an action's own context carries.
+ *
+ * The context is the part of the surface the button *declared* it was sending,
+ * so it is the authoritative half of an interaction — and on a client that
+ * sends nothing else, the only half. Keys are matched against trip field names,
+ * which is exactly what `bindCommitContext` produces when it fills in a path
+ * the model left unbound.
+ */
+function tripFromContext(context: Record<string, unknown> | undefined): Trip {
+  return normalizeTrip(context);
+}
+
+/**
+ * What the model is told when someone presses something.
+ *
+ * The wire carries an action, not a sentence. The model still needs a sentence,
+ * and this is the one place that decides what it says — which is where it
+ * belongs: how this agent interprets a tap on a read-only panel is a fact about
+ * this agent, not about the tap, and a client should not be in the business of
+ * explaining it.
+ */
+function describeAction(action: SurfaceAction, surface: SurfaceKind): string {
+  const said = JSON.stringify(action.context ?? {});
+  const where = action.surfaceId;
+
+  // A panel is a record, not a form. An interaction there is a request to
+  // re-open a decision in the conversation, where there is one place to edit a
+  // value and a history of when it changed.
+  if (where === 'sidebar' || where === 'home') {
+    const field = action.context?.['field'];
+    if (field) {
+      return (
+        `[interface] The traveler pressed "${action.name}" on the ${where} for \`${String(field)}\`. ` +
+        'Release that decision and ask for it again inline, pre-filled with what was there, ' +
+        'along with anything that depended on it.'
+      );
+    }
+    return (
+      `[interface] The traveler pressed "${action.name}" on the ${where} (context ${said}). ` +
+      'The panel is read-only — ask them that in the conversation instead, with the controls it needs.'
+    );
+  }
+
+  return `[interface] ${action.name} on ${where} — context ${said}`;
+}
+
 export async function runTurn(
   request: TurnRequest,
   emit: (event: AgentEvent) => void,
@@ -119,7 +195,16 @@ export async function runTurn(
   // Values the traveler set on screen are facts, and the host records them
   // rather than depending on the model to notice and call `save_trip`. That
   // dependency is what made a second card forget what the first one asked.
-  const trip = { ...request.trip, ...tripFromSurface(request.surfaceState) };
+  //
+  // The action's own context first, then the rest of the surface: the context
+  // is what the button declared it was sending, so it wins where they disagree,
+  // and the surrounding data model fills in anything the traveler set that no
+  // binding named.
+  const trip = {
+    ...request.trip,
+    ...tripFromSurface(request.action?.dataModel),
+    ...tripFromContext(request.action?.context),
+  };
   const toolContext: ToolContext = {
     trip,
     saveTrip: (patch) => Object.assign(trip, patch),
@@ -127,11 +212,15 @@ export async function runTurn(
 
   const messages: Anthropic.MessageParam[] = [...request.history];
 
-  // Values the user changed on screen arrive as part of the user's turn: from
-  // the model's point of view, filling in a form *is* what they said.
-  const opening = request.surfaceState && Object.keys(request.surfaceState).length > 0
-    ? `${request.message}\n\n[The traveler's current on-screen values: ${JSON.stringify(request.surfaceState)}]`
-    : request.message;
+  // Pressing something *is* the traveler's turn, so it enters the conversation
+  // as one. The sentence is written here rather than in the browser: the wire
+  // carries the action, and what it means is the agent's to say.
+  //
+  // Typing wins when both arrive. Someone can type while a surface is on screen,
+  // and then what they said is the turn — the action's values still reached the
+  // trip above, which is the part that had to happen either way.
+  const opening =
+    request.message || (request.action ? describeAction(request.action, request.surface) : '');
   messages.push({ role: 'user', content: opening });
 
   emit({ type: 'start', model: request.model, skill: request.skill, surfaceId: request.surfaceId });
@@ -197,7 +286,7 @@ export async function runTurn(
             emit({
               type: 'ui',
               surfaceId: request.surfaceId,
-              messages: event.messages,
+              messages: bindCommitContext(seedSurfaceTrip(event.messages, trip)),
               done: event.done,
             });
           } else if (event.type === 'error') {
@@ -219,7 +308,12 @@ export async function runTurn(
       for (const event of stream.end()) {
         if (event.type === 'text') emit({ type: 'text', delta: event.delta, round });
         else if (event.type === 'ui') {
-          emit({ type: 'ui', surfaceId: request.surfaceId, messages: event.messages, done: event.done });
+          emit({
+            type: 'ui',
+            surfaceId: request.surfaceId,
+            messages: bindCommitContext(seedSurfaceTrip(event.messages, trip)),
+            done: event.done,
+          });
         } else if (event.type === 'error') {
           unreported = { message: event.message, express: event.source };
           emit({ type: 'ui_error', message: event.message, source: 'final', express: event.source });
@@ -310,6 +404,12 @@ export async function runTurn(
   }
 
   emit({ type: 'trip', trip: { ...trip } });
+  // The panels outlive the turn that drew them, so the trip reaches them as
+  // ordinary A2UI rather than as something the client works out for itself.
+  for (const surfaceId of STANDING_SURFACES) {
+    const updates = tripUpdates(surfaceId, trip);
+    if (updates.length > 0) emit({ type: 'ui', surfaceId, messages: updates, done: true });
+  }
   emit({ type: 'done', stopReason });
 
   return { history: messages, trip, stopReason };
