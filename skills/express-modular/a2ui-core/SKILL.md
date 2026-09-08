@@ -66,26 +66,20 @@ could draw.
 
        Event("book_flight", {flightId: "IB6250", adults: $/trip/adults})
 
-9. **Validation** uses `?rule`, written as an extra argument on the field it
-   guards. The field's own bound value is the implicit subject, and a trailing
-   string is the message shown on failure:
-
-       TextField("Email", $/traveler/email, ?required, ?email("Check that address"))
-
-10. **List templates** repeat one component over a bound list:
+9. **List templates** repeat one component over a bound list:
 
         row = Text($title)
         list = List(_template($/activities, row))
 
-11. **Surfaces.** `surface("id")` says which surface the block targets; without
+10. **Surfaces.** `surface("id")` says which surface the block targets; without
     it the block goes to the host's default surface for this turn. Write to the
     same id again to replace that surface, and `deleteSurface("id")` to remove
     it.
 
-12. **`(static only)` arguments take literals only.** They are marked in the
+11. **`(static only)` arguments take literals only.** They are marked in the
     signatures. Passing a `$` binding to one is a compile error.
 
-13. **Required `action` arguments are required.** If nothing sensible should
+12. **Required `action` arguments are required.** If nothing sensible should
     happen yet, pass `Event("noop")` rather than omitting it.
 
 ## Streaming

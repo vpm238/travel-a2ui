@@ -399,14 +399,43 @@ class TestPruning:
         result = prune(schema, allowed_components=["Kept"])
         assert set(result["$defs"]) == {"Used", "Chained"}, "reachable through Used"
 
-    def test_examples_calling_a_pruned_component_are_dropped(self, tmp_path):
+    def test_examples_calling_something_pruned_are_dropped(self, tmp_path):
+        from skillgen.generator import Vocabulary
+
         (tmp_path / "a.express").write_text('# Keeps\nColumn([Text("hi")])\n', encoding="utf-8")
-        (tmp_path / "b.express").write_text('# Drops\nColumn([Video("x")])\n', encoding="utf-8")
-        known = {"Column", "Text", "Video"}
-        titles = [
-            title for title, _ in load_express_examples(tmp_path, {"Column", "Text"}, known)
-        ]
-        assert titles == ["Keeps"]
+        (tmp_path / "b.express").write_text('# Component\nColumn([Video("x")])\n', encoding="utf-8")
+        (tmp_path / "c.express").write_text(
+            '# Rule\nTextField("Email", $/e, ?required, ?email)\n', encoding="utf-8"
+        )
+        (tmp_path / "d.express").write_text(
+            '# Function\nText(formatCurrency(value: 12, currency: "USD"))\n', encoding="utf-8"
+        )
+
+        vocabulary = Vocabulary(
+            allowed_components={"Column", "Text", "TextField"},
+            known_components={"Column", "Text", "Video", "TextField"},
+            allowed_functions={"formatCurrency"},
+            known_functions={"required", "email", "formatCurrency"},
+        )
+        titles = {title for title, _ in load_express_examples(tmp_path, vocabulary)}
+        # The component one and the `?rule` one both go; the surviving function
+        # is not a reason to drop anything.
+        assert titles == {"Keeps", "Function"}
+
+    def test_a_name_from_another_catalog_is_not_a_reason_to_drop(self, tmp_path):
+        from skillgen.generator import Vocabulary
+
+        (tmp_path / "a.express").write_text(
+            '# Keeps\nColumn([Text("hi")], action=Event("go"))\n', encoding="utf-8"
+        )
+        vocabulary = Vocabulary(
+            allowed_components={"Column", "Text"},
+            known_components={"Column", "Text"},
+            allowed_functions=set(),
+            known_functions=set(),
+        )
+        # `Event(` is grammar, not a catalog component.
+        assert [title for title, _ in load_express_examples(tmp_path, vocabulary)] == ["Keeps"]
 
     def test_generated_skill_omits_the_pruned_component(self, tmp_path):
         request = GenerationRequest(

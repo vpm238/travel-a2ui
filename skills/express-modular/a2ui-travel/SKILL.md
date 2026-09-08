@@ -323,14 +323,14 @@ root = Column([day2, packingTitle, packing])
 </a2ui>
 ```
 
-**A form the host validates locally — checks travel with the field they guard.**
+**Several things to set, one button. Every edited path is bound into its context.**
 
 ```
 <a2ui>
 surface("inline-traveler")
 title = Text("Who is travelling?", variant="h3")
-name = TextField("Full name (as on passport)", $/traveler/name, ?required("We need the name on the passport"))
-email = TextField("Email", $/traveler/email, "shortText", ?required, ?email)
+name = TextField("Full name (as on passport)", $/traveler/name)
+email = TextField("Email", $/traveler/email, "shortText")
 seat = ChoicePicker("Seat", "mutuallyExclusive", [{label: "Window", value: "window"}, {label: "Aisle", value: "aisle"}], $/traveler/seat)
 save = Button(Text("Save traveller"), "primary", Event("save_traveler", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))
 root = Column([title, name, email, seat, save], align="stretch")

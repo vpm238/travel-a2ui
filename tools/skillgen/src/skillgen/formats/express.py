@@ -126,13 +126,53 @@ those envelopes yourself — write Express and let the compiler produce them.\
 """
 
 
+
+def _without_validation(rules: str) -> str:
+    """Drops the `?rule` section and renumbers what follows it.
+
+    Numbered rules are load-bearing: the prompt refers to them by number, and a
+    gap where 9 used to be reads as a rule that was withheld.
+    """
+    lines = rules.split("\n")
+    out: list[str] = []
+    dropping = False
+    shift = 0
+
+    for line in lines:
+        match = re.match(r"^(\d+)\. \*\*", line)
+        if match:
+            number = int(match.group(1))
+            if "**Validation**" in line:
+                dropping, shift = True, shift + 1
+                continue
+            dropping = False
+            if shift:
+                line = re.sub(r"^\d+\.", f"{number - shift}.", line)
+        elif dropping:
+            # The rule's own indented continuation goes with it.
+            if line.strip() == "" or line.startswith(" "):
+                continue
+            dropping = False
+        out.append(line)
+
+    return "\n".join(out)
+
 class ExpressFormat:
     """Generates the Express half of a skill: rules, signatures, examples."""
 
     id = FORMAT_ID
 
-    def generate_base_rules(self) -> str:
-        """The format's core syntax specification, envelopes and streaming rules."""
+    def generate_base_rules(self, helper: CatalogHelper | None = None) -> str:
+        """The format's core syntax specification, envelopes and streaming rules.
+
+        When `helper` is given and its catalog has no check functions — which is
+        what pruning the validators off a catalog leaves — the `?rule` section
+        is dropped and the rules after it renumbered. Teaching a syntax whose
+        every operand has been pruned costs tokens to describe something the
+        model then cannot write.
+        """
+        if helper is not None and not helper.check_functions():
+            return _without_validation(BASE_RULES)
         return BASE_RULES
 
     # -- signature generation (ported from ExpressPromptGenerator) ----------

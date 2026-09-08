@@ -544,8 +544,8 @@
     "surfaceId": "inline-traveler",
     "title": "Traveller form",
     "flow": "inline",
-    "description": "A form the host validates locally — checks travel with the field they guard.",
-    "express": "surface(\"inline-traveler\")\ntitle = Text(\"Who is travelling?\", variant=\"h3\")\nname = TextField(\"Full name (as on passport)\", $/traveler/name, ?required(\"We need the name on the passport\"))\nemail = TextField(\"Email\", $/traveler/email, \"shortText\", ?required, ?email)\nseat = ChoicePicker(\"Seat\", \"mutuallyExclusive\", [{label: \"Window\", value: \"window\"}, {label: \"Aisle\", value: \"aisle\"}], $/traveler/seat)\nsave = Button(Text(\"Save traveller\"), \"primary\", Event(\"save_traveler\", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))\nroot = Column([title, name, email, seat, save], align=\"stretch\")",
+    "description": "Several things to set, one button. Every edited path is bound into its context.",
+    "express": "surface(\"inline-traveler\")\ntitle = Text(\"Who is travelling?\", variant=\"h3\")\nname = TextField(\"Full name (as on passport)\", $/traveler/name)\nemail = TextField(\"Email\", $/traveler/email, \"shortText\")\nseat = ChoicePicker(\"Seat\", \"mutuallyExclusive\", [{label: \"Window\", value: \"window\"}, {label: \"Aisle\", value: \"aisle\"}], $/traveler/seat)\nsave = Button(Text(\"Save traveller\"), \"primary\", Event(\"save_traveler\", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))\nroot = Column([title, name, email, seat, save], align=\"stretch\")",
     "messages": [
       {
         "version": "v0.9.1",
@@ -571,20 +571,7 @@
               "label": "Full name (as on passport)",
               "value": {
                 "path": "/traveler/name"
-              },
-              "checks": [
-                {
-                  "condition": {
-                    "call": "required",
-                    "args": {
-                      "value": {
-                        "path": "/traveler/name"
-                      }
-                    }
-                  },
-                  "message": "We need the name on the passport"
-                }
-              ]
+              }
             },
             {
               "id": "email",
@@ -593,31 +580,7 @@
               "value": {
                 "path": "/traveler/email"
               },
-              "variant": "shortText",
-              "checks": [
-                {
-                  "condition": {
-                    "call": "required",
-                    "args": {
-                      "value": {
-                        "path": "/traveler/email"
-                      }
-                    }
-                  },
-                  "message": "Required check failed"
-                },
-                {
-                  "condition": {
-                    "call": "email",
-                    "args": {
-                      "value": {
-                        "path": "/traveler/email"
-                      }
-                    }
-                  },
-                  "message": "Email check failed"
-                }
-              ]
+              "variant": "shortText"
             },
             {
               "id": "seat",
@@ -681,6 +644,6 @@
         }
       }
     ],
-    "bytes": 1488
+    "bytes": 1126
   }
 ]

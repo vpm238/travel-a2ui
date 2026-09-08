@@ -49,20 +49,48 @@ class GenerationRequest:
 #: `Name(` at the head of a call — how a component is spelled in Express.
 _CALL = re.compile(r"\b([A-Z][A-Za-z0-9]*)\s*\(")
 
+#: `?required`, `?email("…")` — how a check rule is spelled.
+_RULE = re.compile(r"\?([a-z][A-Za-z0-9]*)")
 
-def uses_only(source: str, allowed: set[str], known: set[str]) -> bool:
-    """True when every catalog component the example calls survived pruning.
+#: `formatCurrency(` — a catalog function called for its value.
+_FUNCTION = re.compile(r"\b([a-z][A-Za-z0-9]*)\s*\(")
 
-    Only names the catalog knows are considered, so `Event(`, `_template(` and a
-    component from another catalog do not disqualify an example.
+
+@dataclasses.dataclass(frozen=True)
+class Vocabulary:
+    """What the pruned catalog still offers, against what it ever offered.
+
+    Both halves are needed. `allowed` alone cannot tell a pruned component from
+    a name that was never in this catalog — `Event(`, `_template(`, a component
+    borrowed from another catalog — and rejecting those would throw away every
+    example.
     """
-    return all(name in allowed for name in _CALL.findall(source) if name in known)
+
+    allowed_components: set[str]
+    known_components: set[str]
+    allowed_functions: set[str]
+    known_functions: set[str]
+
+
+def uses_only(source: str, vocabulary: Vocabulary) -> bool:
+    """True when everything the example calls survived pruning.
+
+    Components and functions both: an example teaching `?required` after the
+    validators were pruned is an example teaching a call the prompt no longer
+    documents, which is the same failure whichever case the name starts with.
+    """
+    for name in _CALL.findall(source):
+        if name in vocabulary.known_components and name not in vocabulary.allowed_components:
+            return False
+    for name in _RULE.findall(source) + _FUNCTION.findall(source):
+        if name in vocabulary.known_functions and name not in vocabulary.allowed_functions:
+            return False
+    return True
 
 
 def load_express_examples(
     directory: pathlib.Path | None,
-    allowed: set[str] | None = None,
-    known: set[str] | None = None,
+    vocabulary: Vocabulary | None = None,
 ) -> list[tuple[str, str]]:
     if directory is None or not directory.is_dir():
         return []
@@ -71,7 +99,7 @@ def load_express_examples(
         source = path.read_text(encoding="utf-8")
         # An example that draws a pruned component teaches the model to call
         # something the prompt no longer documents.
-        if allowed is not None and not uses_only(source, allowed, known or set()):
+        if vocabulary is not None and not uses_only(source, vocabulary):
             continue
         examples.append(split_example(source))
     return examples
@@ -79,8 +107,7 @@ def load_express_examples(
 
 def load_json_examples(
     directory: pathlib.Path | None,
-    allowed: set[str] | None = None,
-    known: set[str] | None = None,
+    vocabulary: Vocabulary | None = None,
 ) -> list[tuple[str, Any]]:
     """Pairs each compiled example with the title from its Express source."""
     if directory is None or not directory.is_dir():
@@ -92,7 +119,7 @@ def load_json_examples(
     for path in sorted(compiled.glob("*.json")):
         source = directory / f"{path.stem}.express"
         text = source.read_text(encoding="utf-8") if source.exists() else ""
-        if allowed is not None and text and not uses_only(text, allowed, known or set()):
+        if vocabulary is not None and text and not uses_only(text, vocabulary):
             continue
         title = split_example(text)[0] if text else path.stem
         examples.append((title, json.loads(path.read_text(encoding="utf-8"))))
@@ -112,34 +139,45 @@ def generate(request: GenerationRequest) -> list[tuple[Skill, pathlib.Path]]:
         )
 
     helper = CatalogHelper.from_path(request.catalog_path)
-    known = set(helper.components)
+    known_components = set(helper.components)
+    known_functions = set(helper.functions)
 
     # Pruning happens here, before a single signature is rendered, so the
     # savings land in every downstream artifact at once: the system prompt, the
     # `get_a2ui_component_reference` contract, and the examples.
-    allowed: set[str] | None = None
+    vocabulary: Vocabulary | None = None
     if request.allowed_components is not None or request.allowed_functions is not None:
-        if request.allowed_components is not None:
-            allowed = set(request.allowed_components)
         helper = helper.with_pruning(
             allowed_components=request.allowed_components,
             allowed_functions=request.allowed_functions,
         )
+        vocabulary = Vocabulary(
+            allowed_components=set(helper.components),
+            known_components=known_components,
+            allowed_functions=set(helper.functions),
+            known_functions=known_functions,
+        )
 
     fmt = FORMATS[request.inference_format]()
 
-    base_rules = fmt.generate_base_rules()
+    # The pruned helper, so the grammar does not teach a syntax whose operands
+    # were all pruned away.
+    base_rules = (
+        fmt.generate_base_rules(helper)
+        if request.inference_format == "express"
+        else fmt.generate_base_rules()
+    )
     catalog_instructions = fmt.generate_catalog_instructions(helper)
 
     examples_block = ""
     if request.include_examples:
         if request.inference_format == "express":
             examples_block = fmt.generate_examples(
-                load_express_examples(request.examples_dir, allowed, known)
+                load_express_examples(request.examples_dir, vocabulary)
             )
         else:
             examples_block = fmt.generate_examples(
-                load_json_examples(request.examples_dir, allowed, known)
+                load_json_examples(request.examples_dir, vocabulary)
             )
 
     root = request.out_dir / request.variant

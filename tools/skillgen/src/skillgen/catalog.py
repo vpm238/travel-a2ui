@@ -375,6 +375,25 @@ class CatalogHelper:
                 return sub["description"]
         return None
 
+    def check_functions(self) -> list[str]:
+        """Functions usable as a `?rule` guard: the ones that return a boolean.
+
+        A catalog can legitimately have none — pruning the validators off a
+        travel agent leaves exactly that — and a prompt that still teaches
+        `?required` then documents a syntax with nothing to write in it.
+        """
+        found: list[str] = []
+        for name, schema in self.functions.items():
+            for sub in _sub_schemas(schema):
+                props = sub.get("properties")
+                if not isinstance(props, dict):
+                    continue
+                returns = props.get("returnType")
+                if isinstance(returns, dict) and returns.get("const") == "boolean":
+                    found.append(name)
+                    break
+        return found
+
     def get_function_description(self, name: str) -> Optional[str]:
         schema = self.functions.get(name)
         if not schema:

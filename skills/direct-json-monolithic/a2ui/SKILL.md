@@ -677,7 +677,7 @@ You are composing travel UI. A few house rules that matter more than anything el
 ]
 ```
 
-**A form the host validates locally — checks travel with the field they guard.**
+**Several things to set, one button. Every edited path is bound into its context.**
 
 ```json
 [
@@ -705,20 +705,7 @@ You are composing travel UI. A few house rules that matter more than anything el
           "label": "Full name (as on passport)",
           "value": {
             "path": "/traveler/name"
-          },
-          "checks": [
-            {
-              "condition": {
-                "call": "required",
-                "args": {
-                  "value": {
-                    "path": "/traveler/name"
-                  }
-                }
-              },
-              "message": "We need the name on the passport"
-            }
-          ]
+          }
         },
         {
           "id": "email",
@@ -727,31 +714,7 @@ You are composing travel UI. A few house rules that matter more than anything el
           "value": {
             "path": "/traveler/email"
           },
-          "variant": "shortText",
-          "checks": [
-            {
-              "condition": {
-                "call": "required",
-                "args": {
-                  "value": {
-                    "path": "/traveler/email"
-                  }
-                }
-              },
-              "message": "Required check failed"
-            },
-            {
-              "condition": {
-                "call": "email",
-                "args": {
-                  "value": {
-                    "path": "/traveler/email"
-                  }
-                }
-              },
-              "message": "Email check failed"
-            }
-          ]
+          "variant": "shortText"
         },
         {
           "id": "seat",
