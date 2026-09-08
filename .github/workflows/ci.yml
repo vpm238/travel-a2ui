@@ -44,20 +44,18 @@ jobs:
       # lie: a catalog the skills no longer describe, an example that no longer
       # compiles, a skill missing a component the renderer supports. Each check
       # regenerates and diffs rather than trusting the commit.
+      # One step each so a failure names the artifact that drifted, but the
+      # commands live in package.json. When they were spelled out here too the
+      # copies diverged, and CI checked the skills against an unpruned catalog
+      # and reported all three as stale.
       - name: Catalog is current
-        run: python3 scripts/build_catalog.py --check
+        run: npm run check:catalog
 
       - name: Examples compile and their JSON is current
-        run: |
-          npm run build -w @travel-a2ui/express
-          node scripts/build_examples.mjs --check
+        run: npm run check:examples
 
       - name: Skills are current
-        run: |
-          PYTHONPATH=tools/skillgen/src python3 -m skillgen build --all --check \
-            --catalog catalogs/a2ui-travel/catalog.json \
-            --examples catalogs/a2ui-travel/examples \
-            --out skills
+        run: npm run check:skills
 
       - name: Python tests
         run: |
