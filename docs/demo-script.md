@@ -246,7 +246,7 @@ kind it asked for.
 To point either at a deployment instead of localhost:
 
 ```bash
-BASE_URL=https://travel-a2ui.<subdomain>.workers.dev node tools/e2e/mcp.mjs
+BASE_URL=https://travel-a2ui-vy7stnte2a-uc.a.run.app node tools/e2e/mcp.mjs
 ```
 
 And to regenerate the README's screenshots from the same runs:

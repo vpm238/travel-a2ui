@@ -354,8 +354,13 @@ from the Actions tab with four settings in place:
 | `WIF_PROVIDER` *(secret)* | A Workload Identity provider, so no service-account key is ever stored |
 | `WIF_SERVICE_ACCOUNT` *(secret)* | The account it impersonates — needs Cloud Run Admin, Artifact Registry Writer and Service Account User |
 
-It is deliberately manual while the Worker is still on the public URL: two
-deploys racing to serve the same users is how a demo becomes unexplainable.
+Every push to `main` deploys. This was manual while the Cloudflare Worker still
+held the public URL — two deploys racing to serve the same users is how a demo
+becomes unexplainable — and with Cloud Run as the deployment that reason is
+gone. The live service is
+[travel-a2ui-vy7stnte2a-uc.a.run.app](https://travel-a2ui-vy7stnte2a-uc.a.run.app),
+and it serves all of it: the React client at `/`, the Flutter client at
+`/flutter`, the agent API, and the MCP endpoint at `/mcp`.
 
 **[docs/deploying.md](docs/deploying.md)** has the one-time setup for both
 targets — including the `gcloud` commands that create the Workload Identity
@@ -369,7 +374,8 @@ anything — so a second instance would hold a second set of conversations, and 
 traveller whose next request landed on it would find their trip gone. Raising
 the limit means giving the sessions somewhere shared to live first.
 
-**Cloudflare** (the Worker):
+**Cloudflare** (the Worker) — the original backend, now superseded by the
+Python server and kept only until it is removed:
 
 ```bash
 npx wrangler login
@@ -691,7 +697,7 @@ someone else's chat app.
 Claude Code, Claude Desktop, and claude.ai. The short version:
 
 ```bash
-claude mcp add --transport http travel-a2ui https://<your-worker>.workers.dev/mcp
+claude mcp add --transport http travel-a2ui https://travel-a2ui-vy7stnte2a-uc.a.run.app/mcp
 ```
 
 ### What comes back from a tool call

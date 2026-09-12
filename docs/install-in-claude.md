@@ -3,15 +3,15 @@
 This app has two front doors and both need a model behind them:
 
 - **the web app** — you open it in a browser, paste your own Gemini API key,
-  and talk to it. The key stays in that browser; the Worker forwards it and
-  forgets it.
+  and talk to it. The key stays in that browser; the server forwards it with
+  the request and keeps nothing.
 - **the MCP app** — you install it into Claude, and *Claude* becomes the model.
   There is no key to paste, because Claude is already the LLM in that
   conversation. The tools return interfaces and Claude renders them in the chat.
 
 This page is about the second one. You need the deployment's URL first — see
 [Deploy it](../README.md#deploy-it). Everywhere below, replace
-`https://travel-a2ui.<subdomain>.workers.dev` with yours.
+`https://travel-a2ui-vy7stnte2a-uc.a.run.app` with yours.
 
 ---
 
@@ -20,7 +20,7 @@ This page is about the second one. You need the deployment's URL first — see
 One command:
 
 ```bash
-claude mcp add --transport http travel-a2ui https://travel-a2ui.<subdomain>.workers.dev/mcp
+claude mcp add --transport http travel-a2ui https://travel-a2ui-vy7stnte2a-uc.a.run.app/mcp
 ```
 
 Check it connected:
@@ -37,7 +37,7 @@ at the repo root — everyone who opens that repo is prompted to enable it:
   "mcpServers": {
     "travel-a2ui": {
       "type": "http",
-      "url": "https://travel-a2ui.<subdomain>.workers.dev/mcp"
+      "url": "https://travel-a2ui-vy7stnte2a-uc.a.run.app/mcp"
     }
   }
 }
@@ -52,7 +52,7 @@ of its own, which is also why it holds no trip data of yours.
 Both take a **custom connector** pointed at the same URL.
 
 - **Claude Desktop** — Settings → Connectors → *Add custom connector* → paste
-  `https://travel-a2ui.<subdomain>.workers.dev/mcp`.
+  `https://travel-a2ui-vy7stnte2a-uc.a.run.app/mcp`.
 - **claude.ai** — Settings → Connectors → *Add custom connector* → same URL.
   (Custom connectors are a paid-plan feature; on a Team or Enterprise plan an
   owner may need to allow them first.)
@@ -163,13 +163,13 @@ In order:
    handshake in a real sandboxed iframe:
 
    ```bash
-   BASE_URL=https://travel-a2ui.<subdomain>.workers.dev node tools/e2e/mcp.mjs
+   BASE_URL=https://travel-a2ui-vy7stnte2a-uc.a.run.app node tools/e2e/mcp.mjs
    ```
 
 ## Verifying a deployment end to end
 
 ```bash
-BASE_URL=https://travel-a2ui.<subdomain>.workers.dev node tools/e2e/mcp.mjs
+BASE_URL=https://travel-a2ui-vy7stnte2a-uc.a.run.app node tools/e2e/mcp.mjs
 ```
 
 34 checks. It plays the host's side properly: reads the declared template,
