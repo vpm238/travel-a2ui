@@ -8,6 +8,8 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { providerFor } from '../src/providers/index.js';
+
 import { setupFrame, voiceTools, runVoiceTool, VOICE_MODEL } from '../src/voice.js';
 
 describe('the tools a voice turn gets', () => {
@@ -77,7 +79,11 @@ describe('running a tool on a call', () => {
       endDate: '2027-04-19',
       travelers: 2,
     };
-    return { trip, saveTrip: (patch: Record<string, unknown>) => Object.assign(trip, patch) };
+    return {
+      trip,
+      saveTrip: (patch: Record<string, unknown>) => Object.assign(trip, patch),
+      provider: providerFor(undefined),
+    };
   };
 
   it('draws a surface and hands the model only a summary', async () => {
@@ -91,7 +97,7 @@ describe('running a tool on a call', () => {
   });
 
   it('reports a refusal as a result rather than throwing mid-call', async () => {
-    const outcome = await runVoiceTool('show_flight_options', {}, { trip: {}, saveTrip: () => {} });
+    const outcome = await runVoiceTool('show_flight_options', {}, { trip: {}, saveTrip: () => {}, provider: providerFor(undefined) });
 
     expect(outcome.ui).toBeUndefined();
     expect(outcome.response).toMatchObject({ shown: false });

@@ -63,7 +63,8 @@ import {
 } from '@travel-a2ui/trip';
 
 import { CATALOG, CATALOG_ID } from './agent.js';
-import { estimateTrip, getWeather, resolveDestination, searchFlights, searchHotels } from './travel.js';
+import { estimateTrip } from './travel.js';
+import { providerFor, type NotFound, type TravelProvider } from './providers/index.js';
 import skillExpress from '../../../skills/express-monolithic/a2ui/SKILL.md';
 import viewShell from '../../mcp-view/shell.html';
 
@@ -122,6 +123,15 @@ export interface RenderContext {
   origin: string;
   /** The deployment's own static assets, for building the app template. */
   assets?: Fetcher;
+  /**
+   * Where travel data comes from.
+   *
+   * The MCP endpoint is stateless, so this is the one piece of deployment state
+   * a call carries. Without it every MCP tool would answer from fixtures even on
+   * a deployment configured for live inventory — and, worse, would answer
+   * differently from the same tool called through the web app.
+   */
+  provider: TravelProvider;
 }
 
 /**
@@ -238,6 +248,27 @@ class NeedsInput extends Error {
 }
 
 /**
+ * The provider had nothing, and said why.
+ *
+ * A sibling of `NeedsInput`, and thrown for the same reason: the MCP tool
+ * contract has one success shape — a compiled surface — so "there is no answer"
+ * has to leave by the error path to avoid becoming a surface with no rows. What
+ * the host model receives is the traveler-facing sentence plus the recoveries,
+ * which is enough to ask a useful follow-up.
+ */
+class NoData extends Error {
+  constructor(outcome: NotFound) {
+    super(
+      `${outcome.message} ` +
+        (outcome.recover.length
+          ? `Offer these as choices: ${outcome.recover.join(', ')}. `
+          : '') +
+        'Do not substitute a different city, invent an airport code, or draw an empty list.',
+    );
+  }
+}
+
+/**
  * The trip a tool call describes.
  *
  * The MCP server is stateless, so the host's arguments *are* the trip. Running
@@ -328,8 +359,65 @@ const SURFACE_ARG = {
  */
 const withView = <T extends { name: string }>(tool: T) => ({
   ...tool,
-  _meta: { ui: { resourceUri: APP_URI, visibility: ['model', 'app'] } },
+  _meta: {
+    ui: { resourceUri: APP_URI, visibility: ['model', 'app'] },
+    // Arguments that make this tool do something worth looking at, shipped with
+    // the tool so a client does not have to keep its own guesses in sync. The
+    // repo's own console did keep its own, and one of them was wrong.
+    example: toolExamples()[tool.name] ?? {},
+  },
 });
+
+/**
+ * Arguments that make each tool do something worth looking at.
+ *
+ * They live beside the tools rather than in the console that calls them,
+ * because they are part of describing a tool and because a test can then prove
+ * they work. They had been a private table in the web app, and the headline one
+ * omitted the date `show_flight_options` requires — so the first button anyone
+ * pressed in the MCP console answered with a refusal, on the deployed site, for
+ * as long as that console has existed.
+ *
+ * Dates are computed rather than written down. A literal would have fixed the
+ * bug until the day it went past.
+ */
+const soon = (daysOut: number): string =>
+  new Date(Date.now() + daysOut * 86_400_000).toISOString().slice(0, 10);
+
+export function toolExamples(): Record<string, Record<string, unknown>> {
+  return {
+    show_flight_options: {
+      destination: 'Madrid',
+      origin: 'JFK',
+      date: soon(45),
+      endDate: soon(52),
+      travelers: 2,
+      cabin: 'economy',
+    },
+    show_hotel_options: { destination: 'Madrid', nights: 6, maxNightly: 260 },
+    show_trip_controls: { destination: 'Madrid', travelers: 2 },
+    show_itinerary: { destination: 'Lisbon', days: 3 },
+    show_trip_dashboard: {
+      destination: 'Madrid',
+      nights: 6,
+      travelers: 2,
+      budget: 2600,
+      spent: 1320,
+    },
+    show_price_summary: { destination: 'Tokyo', travelers: 2, nights: 7 },
+    render_a2ui_express: {
+      surfaceId: 'mcp-custom',
+      source: [
+        'head = Text("Weekend in Lisbon", variant="h2")',
+        'a1 = ActivityItem("Alfama at dawn", "07:30", category="sight", note="Before the tour groups")',
+        'a2 = ActivityItem("Time Out Market", "11:30", category="food", duration="1h")',
+        'day = ItineraryDay("Saturday", [a1, a2], date="Sat 18 Apr", summary="Slow start, long lunch")',
+        'root = Column([head, day])',
+      ].join('\n'),
+    },
+    get_a2ui_component_reference: {},
+  };
+}
 
 const TOOLS = [
   {
@@ -342,7 +430,12 @@ const TOOLS = [
       type: 'object',
       properties: {
         destination: { type: 'string', description: 'City name or airport code.' },
-        origin: { type: 'string', description: 'Departure airport code. Defaults to JFK.' },
+        // Not "defaults to JFK". It does not, and saying so is how a host
+        // learns to omit the one field that makes the fares mean anything.
+        origin: {
+          type: 'string',
+          description: 'Departure airport code. Required — the trip is not priced without one.',
+        },
         date: { type: 'string', description: 'Outbound date, YYYY-MM-DD.' },
         travelers: { type: 'integer' },
         cabin: { type: 'string', enum: ['economy', 'premium', 'business', 'first'] },
@@ -543,7 +636,11 @@ const PROMPTS = [
   },
 ] as const;
 
-export async function handleMcp(request: Request, assets?: Fetcher): Promise<Response> {
+export async function handleMcp(
+  request: Request,
+  assets?: Fetcher,
+  provider: TravelProvider = providerFor(undefined),
+): Promise<Response> {
   const url = new URL(request.url);
 
   // Chosen once, at install time, by whoever knows what their host can render.
@@ -560,7 +657,12 @@ export async function handleMcp(request: Request, assets?: Fetcher): Promise<Res
   // Normally the origin the host just called is the right one to load the
   // renderer from. `?origin=` covers the case where it is not — a tunnel, a
   // proxy, a preview URL that differs from the public one.
-  const context: RenderContext = { view, origin: rendererOrigin(url), ...(assets ? { assets } : {}) };
+  const context: RenderContext = {
+    view,
+    origin: rendererOrigin(url),
+    provider,
+    ...(assets ? { assets } : {}),
+  };
 
   if (request.method === 'GET') {
     // Streamable HTTP allows a server to decline the SSE channel. This one is
@@ -639,7 +741,7 @@ function rendererOrigin(url: URL): string {
   return url.origin;
 }
 
-function handleRpc(request: JsonRpcRequest, context: RenderContext) {
+async function handleRpc(request: JsonRpcRequest, context: RenderContext) {
   const id = request?.id ?? null;
   const params = request?.params ?? {};
 
@@ -691,7 +793,7 @@ function handleRpc(request: JsonRpcRequest, context: RenderContext) {
       return ok(id, { tools: TOOLS.map(withView) });
 
     case 'tools/call':
-      return callTool(id, params, context);
+      return await callTool(id, params, context);
 
     case 'resources/list':
       return ok(id, { resources: [appResource(context.origin), ...RESOURCES] });
@@ -744,20 +846,24 @@ function readResource(id: unknown, params: Record<string, unknown>, context: Ren
  * Throws `NeedsInput` when asked to price a trip nobody has described — the same
  * refusal, in the same words, on both paths.
  */
-export function buildSurface(name: string, args: Record<string, unknown>): Surface {
+export async function buildSurface(
+  name: string,
+  args: Record<string, unknown>,
+  provider: TravelProvider = providerFor(undefined),
+): Promise<Surface> {
   switch (name) {
     case 'show_flight_options':
-      return flightSurface(args);
+      return flightSurface(args, provider);
     case 'show_hotel_options':
-      return hotelSurface(args);
+      return hotelSurface(args, provider);
     case 'show_trip_controls':
-      return controlsSurface(args);
+      return controlsSurface(args, provider);
     case 'show_itinerary':
-      return itinerarySurface(args);
+      return itinerarySurface(args, provider);
     case 'show_trip_dashboard':
-      return dashboardSurface(args);
+      return dashboardSurface(args, provider);
     case 'show_price_summary':
-      return priceSurface(args);
+      return priceSurface(args, provider);
     case 'render_a2ui_express':
       return {
         express: str(args['source']),
@@ -772,7 +878,7 @@ export function buildSurface(name: string, args: Record<string, unknown>): Surfa
 /** The compiler these surfaces are written against. */
 export { compiler as surfaceCompiler };
 
-function callTool(id: unknown, params: Record<string, unknown>, context: RenderContext) {
+async function callTool(id: unknown, params: Record<string, unknown>, context: RenderContext) {
   const name = str(params['name']);
   const args = (params['arguments'] ?? {}) as Record<string, unknown>;
 
@@ -792,7 +898,7 @@ function callTool(id: unknown, params: Record<string, unknown>, context: RenderC
 
   let surface: Surface;
   try {
-    surface = buildSurface(name, args);
+    surface = await buildSurface(name, args, context.provider);
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('Unknown surface tool')) {
       return err(id, -32602, `Unknown tool: ${name}`);
@@ -869,7 +975,10 @@ function toolError(message: string) {
 // human can read in a diff — and it means these surfaces exercise exactly the
 // same compiler the agent's output goes through.
 
-function flightSurface(args: Record<string, unknown>): Surface {
+async function flightSurface(
+  args: Record<string, unknown>,
+  provider: TravelProvider,
+): Promise<Surface> {
   const flow = flowOf(args);
   const surfaceId = surfaceIdFor(flow, 'mcp-flights');
   const destination = str(args['destination']);
@@ -879,17 +988,20 @@ function flightSurface(args: Record<string, unknown>): Surface {
   const missing = missingFor(trip, 'priceFlights');
   if (missing.length > 0 && !flexible) throw new NeedsInput(missing, 'price flights');
 
-  const { flights: all, note } = searchFlights({
+  const outcome = await provider.searchFlights({
     destination,
     origin: trip.origin,
     date: trip.startDate,
     cabin: trip.cabin,
     maxPrice: trip.maxFare,
     nonstopOnly: args['nonstopOnly'] === true,
+    indicative: flexible || missing.length > 0,
   });
+  if (!outcome.ok) throw new NoData(outcome);
 
+  const { items: all, note, provenance, relaxed } = outcome;
   const flights = all.slice(0, limitFor(flow));
-  const place = resolveDestination(destination)?.city ?? destination;
+  const place = (await provider.resolveDestination(destination))?.city ?? destination;
 
   // The heading names what these fares are for. A price with no route, date or
   // party size beside it is the thing that makes an answer untrustworthy.
@@ -911,35 +1023,49 @@ function flightSurface(args: Record<string, unknown>): Surface {
     );
   });
 
-  lines.push(
-    `foot = Text(${q(missing.length > 0 ? `${note} Indicative dates — not priced for a specific trip.` : note)}, variant="caption")`,
-  );
+  // The footer says where the numbers came from. On a fixture deployment that
+  // reads "Sample data"; on a live one it names the source. Neither is optional:
+  // a fare with no provenance is the thing that made this untrustworthy.
+  const caption = [
+    note,
+    relaxed.length ? `Widened: ${relaxed.join(', ')}.` : '',
+    missing.length > 0 ? 'Indicative dates — not priced for a specific trip.' : '',
+    provenance.label,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  lines.push(`foot = Text(${q(caption)}, variant="caption")`);
   lines.push(`root = Column([head, ${flights.map((_f, i) => `f${i}`).join(', ')}, foot])`);
 
   return {
     express: lines.join('\n'),
     surfaceId,
-    summary: flights.length
-      ? `${flights.length} flight option(s), ${heading}, cheapest ${flights[0]!.price}.` +
-        (missing.length > 0 ? ' Indicative — no date was given.' : '')
-      : `No flights matched for ${heading}.`,
+    summary:
+      `${flights.length} flight option(s), ${heading}, cheapest ${flights[0]!.price}. ` +
+      `${provenance.label}.` +
+      (missing.length > 0 ? ' Indicative — no date was given.' : ''),
   };
 }
 
-function hotelSurface(args: Record<string, unknown>): Surface {
+async function hotelSurface(
+  args: Record<string, unknown>,
+  provider: TravelProvider,
+): Promise<Surface> {
   const flow = flowOf(args);
   const surfaceId = surfaceIdFor(flow, 'mcp-hotels');
   const destination = str(args['destination']);
   const nights = int(args['nights'], 5);
-  const { hotels: all, note } = searchHotels({
+  const outcome = await provider.searchHotels({
     destination,
     nights,
     maxNightly: typeof args['maxNightly'] === 'number' ? args['maxNightly'] : undefined,
     neighborhood: str(args['neighborhood']) || undefined,
   });
+  if (!outcome.ok) throw new NoData(outcome);
 
+  const { items: all, note, provenance, relaxed } = outcome;
   const hotels = all.slice(0, limitFor(flow));
-  const place = resolveDestination(destination)?.city ?? destination;
+  const place = (await provider.resolveDestination(destination))?.city ?? destination;
   const lines = [
     `surface(${q(surfaceId)})`,
     `head = Text(${q(`Stays in ${place}`)}, variant=${q(flow === 'home' ? 'h4' : 'h3')})`,
@@ -955,15 +1081,16 @@ function hotelSurface(args: Record<string, unknown>): Surface {
     );
   });
 
-  lines.push(`foot = Text(${q(note)}, variant="caption")`);
+  const caption = [note, relaxed.length ? `Widened: ${relaxed.join(', ')}.` : '', provenance.label]
+    .filter(Boolean)
+    .join(' · ');
+  lines.push(`foot = Text(${q(caption)}, variant="caption")`);
   lines.push(`root = Column([head, ${hotels.map((_h, i) => `h${i}`).join(', ')}, foot])`);
 
   return {
     express: lines.join('\n'),
     surfaceId,
-    summary: hotels.length
-      ? `${hotels.length} stay(s) in ${place} from ${hotels[0]!.price}.`
-      : `No stays matched in ${place}.`,
+    summary: `${hotels.length} stay(s) in ${place} from ${hotels[0]!.price}. ${provenance.label}.`,
   };
 }
 
@@ -974,9 +1101,12 @@ function hotelSurface(args: Record<string, unknown>): Surface {
  * traveller's choices back out of the surface rather than parsing them out of a
  * sentence, and one commit action carries them all in its context.
  */
-function controlsSurface(args: Record<string, unknown>): Surface {
+async function controlsSurface(
+  args: Record<string, unknown>,
+  provider: TravelProvider,
+): Promise<Surface> {
   const destination = str(args['destination']);
-  const place = resolveDestination(destination)?.city ?? destination;
+  const place = (await provider.resolveDestination(destination))?.city ?? destination;
   const travelers = int(args['travelers'], 2);
   const maxPrice = int(args['maxPrice'], 700);
   const startDate = str(args['startDate']);
@@ -1025,9 +1155,12 @@ function controlsSurface(args: Record<string, unknown>): Surface {
   };
 }
 
-function itinerarySurface(args: Record<string, unknown>): Surface {
+async function itinerarySurface(
+  args: Record<string, unknown>,
+  provider: TravelProvider,
+): Promise<Surface> {
   const query = str(args['destination']);
-  const destination = resolveDestination(query);
+  const destination = await provider.resolveDestination(query);
   if (!destination) throw new Error(`No itinerary data for '${query}'.`);
 
   const flow = flowOf(args);
@@ -1084,9 +1217,12 @@ function itinerarySurface(args: Record<string, unknown>): Surface {
   };
 }
 
-function dashboardSurface(args: Record<string, unknown>): Surface {
+async function dashboardSurface(
+  args: Record<string, unknown>,
+  provider: TravelProvider,
+): Promise<Surface> {
   const query = str(args['destination']);
-  const destination = resolveDestination(query);
+  const destination = await provider.resolveDestination(query);
   const place = destination?.city ?? query;
   const nights = int(args['nights'], 5);
   const travelers = int(args['travelers'], 2);
@@ -1099,7 +1235,9 @@ function dashboardSurface(args: Record<string, unknown>): Surface {
     : null;
 
   const estimate = estimateTrip({ destination: query, travelers, nights });
-  const forecast = getWeather(query, startDate || undefined, 5);
+  const weather = await provider.getWeather(query, startDate || undefined, 5);
+  if (!weather.ok) throw new NoData(weather);
+  const forecast = weather.items[0];
   const effectiveBudget = budget || estimate.totalValue;
 
   const lines = [
@@ -1140,7 +1278,10 @@ function dashboardSurface(args: Record<string, unknown>): Surface {
   };
 }
 
-function priceSurface(args: Record<string, unknown>): Surface {
+async function priceSurface(
+  args: Record<string, unknown>,
+  provider: TravelProvider,
+): Promise<Surface> {
   const flow = flowOf(args);
   const surfaceId = surfaceIdFor(flow, 'mcp-price');
   const query = str(args['destination']);
@@ -1152,7 +1293,7 @@ function priceSurface(args: Record<string, unknown>): Surface {
     nightlyPrice: typeof args['nightlyPrice'] === 'number' ? args['nightlyPrice'] : undefined,
   });
 
-  const place = resolveDestination(query)?.city ?? query;
+  const place = (await provider.resolveDestination(query))?.city ?? query;
   const lines = estimate.lines
     .map(
       (line) =>

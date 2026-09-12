@@ -39,6 +39,7 @@ import type { A2uiMessage } from '@travel-a2ui/express';
 import { CATALOG_ID } from './agent.js';
 import { buildSurface, surfaceCompiler, MCP_TOOLS } from './mcp.js';
 import { geminiTools, runTool, type ToolContext } from './tools.js';
+import { providerFor, type TravelProvider } from './providers/index.js';
 
 /**
  * `https:`, not `wss:`.
@@ -202,7 +203,7 @@ export async function runVoiceTool(
     try {
       // The tools take the trip as arguments; the session holds it, so it is
       // merged under whatever the model chose to pass.
-      const surface = buildSurface(name, { ...context.trip, ...args });
+      const surface = await buildSurface(name, { ...context.trip, ...args }, context.provider);
       const messages = surfaceCompiler.compile(surface.express, {
         surfaceId: surface.surfaceId,
         catalogId: CATALOG_ID,
@@ -234,6 +235,8 @@ export async function relay(options: {
   systemInstruction: string;
   trip: Record<string, unknown>;
   onTrip: (trip: Record<string, unknown>) => void;
+  /** Where travel data comes from. Fixtures when the caller has no opinion. */
+  provider?: TravelProvider;
 }): Promise<void> {
   const { client } = options;
   const send = (message: ServerMessage) => {
@@ -248,6 +251,7 @@ export async function relay(options: {
   const trip = { ...options.trip };
   const context: ToolContext = {
     trip,
+    provider: options.provider ?? providerFor(undefined),
     saveTrip: (patch) => {
       Object.assign(trip, patch);
       options.onTrip(trip);

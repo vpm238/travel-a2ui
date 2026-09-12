@@ -510,160 +510,7 @@ user's message rather than as an out-of-band state update.
 
 ---
 
-## 7 · One runtime, and two that were measured and dropped
-
-The loop runs in this Worker, on the Gemini Interactions API, with the
-traveler's own key. The **Runtime** picker stays because the claim it tests
-still holds — the interface layer does not care who runs the loop, and the field
-takes any backend answering the same `/api/chat` contract.
-
-Two alternatives were built and removed, and the numbers are here rather than in
-anyone's memory of them.
-
-| | Worker loop | Code Mode (removed) |
-| --- | --- | --- |
-| What the model is given | nine tool schemas, ~10 kB | one tool plus a method index |
-| How it acts | one call per tool | a TypeScript script, run in a sandbox |
-| Flights + hotels | **4.4s** · 2 rounds · 26,421 in | 5.2s · 2 rounds · **23,990** in |
-| Tools execute in | the Worker | a Worker loaded per run, no network |
-| Durable record | the trip | the trip, plus an execution log per run |
-| Needs | one deploy | the same deploy, plus a Worker Loader binding |
-
-### What the measurement said
-
-The case for Code Mode is usually that independent calls collapse from several
-round trips into one `Promise.all`. That premise does not hold here, and it is
-worth writing down rather than repeating: **Gemini already issues independent
-tool calls together in a single round**, so a flights-and-hotels turn is two
-rounds either way. Code Mode is a few percent cheaper in tokens and a little
-slower in wall clock, because the sandbox has to start.
-
-It also has to be told what it has. Left with only `codemode.search` and
-`codemode.describe`, the first measured run spent four of six rounds on
-discovery and 80,104 input tokens before calling anything real. Naming the nine
-methods in the tool description costs a few hundred tokens and removed all four.
-
-The genuine wins are narrower: filtering and joining results without the model
-in between, a durable execution log per run, and an approval gate for anything
-that should need one.
-
-It was removed rather than kept as an option, because a second execution path
-that is not faster is a second thing to keep working. The implementation is in
-the history if the tradeoff ever changes — `TravelConnector` adapted `TOOLS`
-into a connector with no second definition, and the runtime lived on the session
-Durable Object beside the trip its execution log described.
-
-### What happened to the managed agent
-
-A third runtime used to be here: a Python backend handing the loop to a
-Google-hosted Managed Agent on the Antigravity harness. It is gone, and the
-reason is worth keeping.
-
-Agent creation, configuration and model turns all worked against an API key. The
-*sandbox* did not — every file and code-execution call returned `Audience of an
-ID token must be a URL or service account`, which is an auth failure for the tool
-environment rather than for the agent. That is fatal rather than annoying,
-because the Antigravity harness discovers skills from the sandbox filesystem: the
-inline-mounted `SKILL.md` was unreadable, so the agent ran without the contract
-that makes it this agent at all.
-
-A service-account credential would likely fix it. A bring-your-own-key demo
-cannot have one, so it was a dead end rather than a bug. Code Mode replaced it
-and needs no second service.
-
-### Voice, over the Live API
-
-The third way in, and the one that changes what the product *is* rather than how
-it is plumbed. The Worker relays a Gemini Live session rather than letting the
-browser open one, for the reason everything else here is server-side: a browser
-that owns the socket needs the catalog, the compiler, the tools and the trip,
-and then so does every other client. This one sends microphone bytes and
-receives audio plus A2UI.
-
-The model is given the same six `show_*` builders the MCP endpoint exposes, so
-there is no second set of surface code — the MCP endpoint and a phone call now
-differ only in transport. `show_flight_options` returns one sentence for the
-model to say and a surface for the browser to draw, and the split is deliberate:
-handing the flight list back to the model would put it in context and invite it
-to read the list out, which is the one thing the mode exists to avoid.
-
-Three details cost an evening, and two failed silently. `fetch` refuses a `wss:`
-URL — Workers upgrade over `https:` with an `Upgrade` header. Inbound frames
-arrive as a **Blob**, not a string or an ArrayBuffer, so `TextDecoder().decode`
-produced rubbish, `JSON.parse` failed, and every frame was dropped without a
-word. And the Live API rejects an entire `setup` when a function declaration
-carries `additionalProperties`, `$schema` or `strict`, all of which ordinary
-Gemini tool schemas have.
-
-### The agent is not the memory
-
-The system prompt is assembled per request from the generated skill, and the
-Durable Object is the memory. A reload starts a new session against the same
-Worker; nothing is provisioned and nothing is remembered.
-
-`probeBackend()` calls the target's `/api/meta` before switching, so choosing a
-runtime that is not running says so in the picker rather than failing on the next
-message.
-
-in `packages/express` is byte-checked against Google's reference Python compiler
-on 20 golden cases (`packages/express/test/parity.test.ts`), and the Python
-skill generator is byte-checked against the reference generator
-(`tools/tests/test_sdk_parity.py`). A `reference-parity` CI job
-installs the real `a2ui-agent-sdk` and diffs. Divergence is a test failure, not
-a discovery.
-
-### What is in-tree only until upstream ships, and how the swap will go
-
-Two components here duplicate work that belongs in the official SDK. Both are
-waiting on a release rather than on a decision, so both are written to be
-*replaced* rather than maintained: the local version keeps the upstream name and
-signature, and a parity test diffs the two whenever the SDK is installed.
-
-| In-tree | Upstream | Blocked on | The swap |
-| --- | --- | --- | --- |
-| `packages/express` — lexer, parser, compiler, decompiler, stream splitter | `a2ui_agent`'s Express format | a PyPI release carrying the merged keyword-argument, multi-version and `surface()` work. PyPI is still on **0.5.0 (2026-07-31)**, which rejects `Text("Hi", variant="h3")` outright | delete the port, point `ServiceCompiler` at the SDK; `sdk_supports_current_grammar()` already probes for exactly this and will start returning true on its own |
-| `tools/skillgen` — catalog crawler, prompt generator, skill packaging | `SkillGenerator` / `PromptGenerator` | the same release, plus the API landing | `CatalogHelper` mirrors `CatalogSchemaHelper` and `with_pruning` mirrors `A2uiCatalog.with_pruning` method-for-method, so the call sites do not move |
-
-Neither is a fork by preference. The port exists because the published SDK
-cannot compile the grammar the skills teach, and the generator exists because
-pulling the whole ADK dependency tree into CI to read a JSON file is a poor
-trade. `test_sdk_parity.py` is what keeps both honest — it skips when the SDK is
-absent and diffs character-for-character when it is present, so drift is a
-failing test rather than a surprise a year later.
-
-**One thing genuinely is ours.** `with_pruning` grew an `allowed_functions`
-argument that upstream does not have. That came out of measuring rather than
-guessing: pruning six components off this catalog saved 1.3 kB, while the
-function block — mostly check-rule validators for a `checks=` argument this
-agent has never written once — was three times that. It is marked in the
-docstring as the local extension it is, and becomes a rename too if upstream
-grows the same axis.
-
-**Also wanted upstream:** a streaming chunk-splitter in `a2ui_agent`. The Python
-backend currently has none, which is why `ExpressStreamParser` lives in
-TypeScript and the managed agent goes through `/api/compile` rather than
-splitting locally.
-
-### Designed for v1.0, running on v0.9.1
-
-The protocol version is one constant (`SurfaceOperation`, `ProtocolVersion`), and
-the places v1.0 changes things are already shaped for it:
-
-| v1.0 | Where it lands here |
-| --- | --- |
-| Components and data model in one `createSurface` | already done — `seedSurfaceTrip` writes `createSurface.dataModel` rather than following up with messages, so a surface never paints blank-then-filled |
-| `supportedCatalogIds` — catalog mixing | the catalog already `extends` the basic catalog; splitting `a2ui-basic` from `a2ui-travel` becomes a declaration instead of a merge in `build_catalog.py` |
-| `callAgentFunction` — bidirectional RPC | the tools it would replace (`get_destination`, `estimate_cost`) are already pure functions of the trip |
-| `updateDataModel` with `null` to delete | `release()` already computes exactly which keys a change clears; today they are cleared server-side, and this makes it a message |
-| `AccessibilityAttributes` | the renderer sets roles and labels per component today, which is where the attributes would bind |
-
-Nothing here is pre-built for v1.0 — a half-migration to a candidate spec is
-worse than a clean one later. These are the seams, named so the move is a diff
-rather than a rewrite.
-
----
-
-## 8 · The MCP server
+## 7 · The MCP server
 
 Stateless Streamable HTTP: every POST is self-contained, which is all a Worker
 wants to be and means no session affinity to arrange.
@@ -692,7 +539,7 @@ act on.
 
 ---
 
-## 9 · Where the API key lives
+## 8 · Where the API key lives
 
 Nowhere on the server. The browser holds it, sends it in `x-goog-api-key` on
 each request, and the Worker passes it to the SDK and forgets it. It is never
@@ -712,7 +559,7 @@ server holds no credentials at all — which is also why it holds no trip data.
 
 ---
 
-## 10 · Testing, and what is simulated
+## 9 · Testing, and what is simulated
 
 | Layer | How |
 | --- | --- |
@@ -726,14 +573,56 @@ server holds no credentials at all — which is also why it holds no trip data.
 | The agent itself | `tools/eval/live.mjs` — 10 scenarios against the real model, graded mechanically off the event stream. Not in CI; it costs about $2 a run |
 | Interaction model | `tools/e2e/interaction.mjs` — editing sends nothing, committing sends everything as an A2UI action, spent surfaces go inert, the panel stays read-only and holds no React, 21 assertions |
 | MCP app | `tools/e2e/mcp.mjs` — a live server, a sandboxed iframe, 24 assertions |
-| Freshness | `npm run check` fails if catalog, examples or skills drift |
+| Data providers | the contract, and each of the four ways the code it replaced answered a question it could not answer |
+| Determinism | a golden file: the same query returns the same fares, so a screenshot stays true |
+| Freshness | `npm run check` fails if the catalog, the fixtures, the examples or the skills drift |
 
-234 unit tests, 45 Python tests, 71 browser assertions across three end-to-end runs, and a live evaluation of the agent — 33 checks, all passing.
+415 unit tests, 16 Python tests, 71 browser assertions across three end-to-end
+runs, and a live evaluation of the agent.
 
-**Simulated:** flight and hotel inventory, weather, and destination highlights
-(`apps/worker/src/travel.ts`) are a deterministic generator over a real list of
-airports, cities and neighbourhoods. Prices move with distance, cabin and
-season; the same query returns the same result. No booking happens.
+### Where the data comes from
+
+Travel data arrives through `TravelProvider` (`apps/worker/src/providers/`), and
+the deployment picks the implementation: fixtures by default, Amadeus when
+`AMADEUS_CLIENT_ID` and `AMADEUS_CLIENT_SECRET` are set. There is no
+`PROVIDER=live` flag to go with them, because a flag can be set without a
+credential and the deployment then fails on a traveler's screen rather than at
+configuration time.
+
+Every answer carries its own `provenance`, so a surface can say where its
+numbers came from without anyone having to remember to add it — and on a live
+deployment the forecast card reads *Sample data* while the fares beside it do
+not, because Amadeus has no weather product and the fixture's provenance travels
+with the delegated answer.
+
+**Fixtures** are a deterministic generator over the rows in `data/` — CSV and
+JSON, compiled into the Worker bundle by `scripts/build_fixtures.py` because a
+Worker has no filesystem. Prices move with distance, cabin and season; the same
+query returns the same result. Destination guidance is real; fares, schedules
+and hotels are not, and the UI says so. No booking happens.
+
+### The contract, and why it is shaped like that
+
+The provider interface exists because the code before it was called directly by
+the tools, under a comment promising you could "swap these functions for real API
+calls and nothing above them changes". That was an assertion rather than a seam,
+and it hid four ways to answer a question with something untrue:
+
+| Asked | Answered |
+| --- | --- |
+| Flights under $1 | an empty list, under a heading that said flights |
+| Flights to Reykjavik | four flights to **REY**, an airport code taken from the first three letters |
+| Hotels in Reykjavik | four **Madrid** hotels in Lavapiés, priced in euros, captioned "4 stay(s) in MAD" |
+| Anything at all | no indication anywhere that the numbers were invented |
+
+All four are one bug: a function that could not say *I don't know* said something
+else instead. So the type makes not-knowing the only alternative to knowing.
+`Found.items` is `[T, ...T[]]`, which cannot be `[]` — an empty success is
+unrepresentable, and the compiler enforces it rather than a reviewer. A filter
+that matches nothing is widened one constraint at a time and the surface says
+which; a place the provider cannot identify is a refusal that names the cities it
+does know. A rough question may be answered without a departure city, but the
+provider has to name the one it sampled from.
 
 **Real:** the model, the protocol, the compiler, the renderer, the MCP
-transport, the managed agent, and every screenshot in the README.
+transport, and every screenshot in the README.

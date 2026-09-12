@@ -2,9 +2,15 @@
 
 **A travel agent that answers in interfaces.** Ask for a trip and you get flights
 you can pick, dates you can set, a day plan you can tap through — generated turn
-by turn, not assembled from templates. The backend is a managed agent; the
-interface is [A2UI](https://a2ui.org), Google's open protocol for agents that
-speak UI.
+by turn, not assembled from templates. The interface is
+[A2UI](https://a2ui.org), Google's open protocol for agents that speak UI.
+
+> **This is a sample application, not an official Google project.** A2UI — the
+> protocol, the specification and the component catalogs it builds on — is the
+> work of [the A2UI project](https://github.com/google/a2ui). This repository is
+> an independent app built on top of it, and is not affiliated with or endorsed
+> by Google LLC. Treat it as a worked example of how to build and deploy a
+> generative-UI application, not as a reference implementation of the protocol.
 
 <p align="center">
   <img src="docs/screenshots/02-mcp-light.png" alt="Flight options rendered as A2UI components" width="820">
@@ -387,79 +393,6 @@ pip install a2ui-agent-sdk
 python3 scripts/gen_parity.py          # regenerate the goldens
 npx vitest run packages/express        # 64 tests, including all 20 parity cases
 ```
-
----
-
-## One runtime, and two that were measured and dropped
-
-The loop runs in the Cloudflare Worker, on the **Gemini Interactions API**, with
-the traveler's own key. The header's picker is still there, because the claim it
-tests still holds — the interface layer does not care who runs the loop, and the
-field takes any backend answering the same `/api/chat` contract.
-
-Two alternatives were built and removed. Both reasons are measurements, which is
-why they are written down rather than argued about.
-
-**A Google-hosted Managed Agent on the Antigravity harness.** Creating the agent,
-configuring it and running model turns all worked against an API key. Its
-*sandbox* did not: every file and code-execution call returned `Audience of an ID
-token must be a URL or service account`. That is fatal rather than annoying,
-because the harness discovers skills from the sandbox filesystem — so the
-mounted `SKILL.md` was unreadable and the agent ran with no contract at all. A
-service-account credential would likely fix it; a bring-your-own-key demo has
-none.
-
-**Cloudflare Code Mode**, where the model writes a script instead of calling
-tools one at a time. The pitch is that independent searches collapse from
-several round trips into one `Promise.all`. On this backend that premise is
-simply wrong — Gemini already issues independent tool calls together in a single
-round — so a flights-and-hotels turn is two rounds either way:
-
-| | Worker loop | Code Mode |
-|---|---|---|
-| wall clock | **4.4s** | 5.2s |
-| rounds | 2 | 2 |
-| input tokens | 26,421 | **23,990** |
-| tool calls | 3 | 1 |
-
-A few percent cheaper, a little slower for the sandbox start. What Code Mode
-*does* buy is narrower and real — filtering and joining without the model in
-between, a durable execution log, an approval gate — and none of it was worth a
-second execution path here.
-
-One finding from that work is worth keeping whatever you build: left with only
-`codemode.search` and `codemode.describe`, the model spent **four of six rounds**
-working out what it had, at 80k input tokens. Naming the methods in the tool
-description cost a few hundred tokens and removed all four.
-
-### The compiler, as a service
-
-Both backends expose `POST /api/compile` and `POST /api/decompile`, so anything
-that can POST can speak Express without shipping a parser:
-
-```bash
-curl -s localhost:8787/api/compile -H 'content-type: application/json' \
-  -d '{"source":"root = Text(\"Hi\", variant=\"h3\")","surfaceId":"demo"}'
-```
-
-A compile error comes back as a 422 naming what was wrong — `'colour' is not a
-property of Text. Text accepts: text, variant.` — which is what a model needs to
-fix it on the next attempt.
-
-### Why the compiler was ported rather than imported
-
-Worth knowing before you assume the Python side is the simpler one: the
-**published `a2ui-agent-sdk` (0.5.0) is behind the current Express grammar.** It
-rejects `Text("Hi", variant="h3")` — keyword arguments — which is what the
-generated skills teach and what a current model writes, and it emits a v1.0
-envelope rather than the v0.9.1 message list here.
-
-So the Python backend probes the installed SDK at startup by compiling one
-keyword-argument program, uses it when it works, and otherwise delegates to the
-compile service above — which is the TypeScript port, diffed against the
-reference implementation on twenty cases. When Google publishes a current wheel,
-`auto` starts choosing the SDK on its own and that fallback becomes dead code.
-That is the intended end state.
 
 ---
 

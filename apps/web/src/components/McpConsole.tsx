@@ -21,24 +21,19 @@ import { mcp, type McpTool } from '../api.js';
 import type { Agent } from '../useAgent.js';
 import { Code, Disclosure, Spinner } from './bits.js';
 
-/** Reasonable starting arguments so the console is useful on first click. */
-const SAMPLE_ARGS: Record<string, Record<string, unknown>> = {
-  show_flight_options: { destination: 'Madrid', origin: 'JFK', travelers: 2, cabin: 'economy' },
-  show_hotel_options: { destination: 'Madrid', nights: 6, maxNightly: 260 },
-  show_itinerary: { destination: 'Lisbon', days: 3 },
-  show_trip_dashboard: { destination: 'Madrid', nights: 6, travelers: 2, budget: 2600, spent: 1320 },
-  show_price_summary: { destination: 'Tokyo', travelers: 2, nights: 7 },
-  render_a2ui_express: {
-    surfaceId: 'mcp-custom',
-    source: [
-      'head = Text("Weekend in Lisbon", variant="h2")',
-      'a1 = ActivityItem("Alfama at dawn", "07:30", category="sight", note="Before the tour groups")',
-      'a2 = ActivityItem("Time Out Market", "11:30", category="food", duration="1h")',
-      'day = ItineraryDay("Saturday", [a1, a2], date="Sat 18 Apr", summary="Slow start, long lunch")',
-      'root = Column([head, day])',
-    ].join('\n'),
-  },
-};
+/**
+ * The example arguments a tool ships with, from `_meta.example`.
+ *
+ * This console used to keep its own table, and the entry for the headline tool
+ * omitted the date `show_flight_options` requires — so the first button anyone
+ * pressed answered with a refusal. A second copy of anything is a second thing
+ * to get wrong; the server declares them now, and a test proves each one works.
+ */
+function exampleFor(tool: McpTool | undefined): Record<string, unknown> {
+  const meta = (tool as { _meta?: { example?: unknown } } | undefined)?._meta;
+  const example = meta?.example;
+  return example && typeof example === 'object' ? (example as Record<string, unknown>) : {};
+}
 
 export function McpConsole({ agent }: { agent: Agent }) {
   // The app's own store, not a private one: an MCP surface is a surface like
@@ -47,9 +42,7 @@ export function McpConsole({ agent }: { agent: Agent }) {
   const store = agent.store;
   const [tools, setTools] = useState<McpTool[] | null>(null);
   const [selected, setSelected] = useState<string>('show_flight_options');
-  const [argsText, setArgsText] = useState<string>(
-    JSON.stringify(SAMPLE_ARGS['show_flight_options'], null, 2),
-  );
+  const [argsText, setArgsText] = useState<string>('{}');
   const [surfaceId, setSurfaceId] = useState<string | null>(null);
   const [summary, setSummary] = useState<string>('');
   const [raw, setRaw] = useState<string>('');
@@ -59,13 +52,23 @@ export function McpConsole({ agent }: { agent: Agent }) {
   useEffect(() => {
     mcp
       .listTools()
-      .then((result) => setTools(result.tools))
+      .then((result) => {
+        setTools(result.tools);
+        // Fill the box from the server's own example, so the console opens on a
+        // call that works rather than on an empty object.
+        setArgsText(
+          JSON.stringify(exampleFor(result.tools.find((tool) => tool.name === selected)), null, 2),
+        );
+      })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
+    // Runs once: `selected` is only the initial choice here, and `choose` keeps
+    // the box in step after that.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const choose = (name: string) => {
     setSelected(name);
-    setArgsText(JSON.stringify(SAMPLE_ARGS[name] ?? {}, null, 2));
+    setArgsText(JSON.stringify(exampleFor(tools?.find((tool) => tool.name === name)), null, 2));
     setError(null);
   };
 

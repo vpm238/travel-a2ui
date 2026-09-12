@@ -25,10 +25,25 @@ const rowsOf = (value: Json | undefined): Row[] =>
 const str = (value: Json | undefined): string =>
   value === null || value === undefined ? '' : String(value);
 
+/**
+ * The two-letter carrier code out of a flight number.
+ *
+ * `IB426` → `IB`. It is what a boarding pass leads with, and it reads as an
+ * airline at a glance in a way a generic plane glyph does not. Anything that is
+ * not two or three leading letters gets nothing back, and the caller falls back
+ * to the glyph — a made-up code would be its own small lie.
+ */
+function carrierCode(flightNumber: string): string {
+  const match = /^([A-Z]{2,3})\s?\d/.exec(flightNumber.trim().toUpperCase());
+  return match ? match[1]! : '';
+}
+
 export function FlightOption({ node, scope, ctx }: ComponentProps) {
   const selected = resolveBoolean(node['selected'], scope);
   const badge = resolveText(node['badge'], scope);
   const interactive = Boolean(node['action']);
+  const flightNumber = resolveText(node['flightNumber'], scope);
+  const code = carrierCode(flightNumber);
 
   return (
     <div
@@ -44,11 +59,11 @@ export function FlightOption({ node, scope, ctx }: ComponentProps) {
       }}
     >
       <div className="tv-flight__carrier">
-        <span className="tv-flight__mark" aria-hidden>
-          <Icon name="plane" />
+        <span className={cx('tv-flight__mark', code && 'is-code')} aria-hidden>
+          {code || <Icon name="plane" />}
         </span>
         <span className="tv-flight__airline">{resolveText(node['airline'], scope)}</span>
-        <span className="tv-flight__number">{resolveText(node['flightNumber'], scope)}</span>
+        <span className="tv-flight__number">{flightNumber}</span>
       </div>
 
       <div className="tv-flight__times">

@@ -12,28 +12,38 @@
  */
 
 :root {
-  --tv-paper: #faf9f6;
+  /*
+   * The palette is a departure board, not a stationery catalogue.
+   *
+   * It used to be warm cream, a serif display face and a teal accent, with
+   * terracotta beside it — a combination that says nothing about travel and a
+   * great deal about how it was chosen. These neutrals are biased cool-blue,
+   * the way timetable ink is; the accent is wayfinding blue, the colour this
+   * subject actually uses on signs; and the warm slot is departure-board amber,
+   * reserved for a badge that wants a glance.
+   */
+  --tv-paper: #f3f6fa;
   --tv-surface: #ffffff;
-  --tv-surface-2: #f4f2ee;
-  --tv-ink: #14171c;
-  --tv-ink-muted: #5b6270;
-  --tv-ink-faint: #8b93a1;
-  --tv-line: rgba(20, 23, 28, 0.1);
-  --tv-line-strong: rgba(20, 23, 28, 0.18);
+  --tv-surface-2: #e8edf4;
+  --tv-ink: #0b1220;
+  --tv-ink-muted: #4d5b73;
+  --tv-ink-faint: #7d8ca6;
+  --tv-line: rgba(11, 18, 32, 0.1);
+  --tv-line-strong: rgba(11, 18, 32, 0.2);
 
-  --tv-accent: #0f6e63;
+  --tv-accent: #1f3f9e;
   --tv-accent-ink: #ffffff;
-  --tv-accent-soft: rgba(15, 110, 99, 0.1);
-  --tv-accent-line: rgba(15, 110, 99, 0.32);
+  --tv-accent-soft: rgba(31, 63, 158, 0.09);
+  --tv-accent-line: rgba(31, 63, 158, 0.34);
 
-  --tv-warm: #b8603a;
-  --tv-warm-soft: rgba(184, 96, 58, 0.12);
-  --tv-positive: #1f7a4d;
-  --tv-positive-soft: rgba(31, 122, 77, 0.12);
-  --tv-caution: #a2701a;
-  --tv-caution-soft: rgba(162, 112, 26, 0.14);
-  --tv-critical: #b3382f;
-  --tv-critical-soft: rgba(179, 56, 47, 0.12);
+  --tv-warm: #9a5b06;
+  --tv-warm-soft: rgba(154, 91, 6, 0.13);
+  --tv-positive: #10714c;
+  --tv-positive-soft: rgba(16, 113, 76, 0.12);
+  --tv-caution: #8a6209;
+  --tv-caution-soft: rgba(138, 98, 9, 0.14);
+  --tv-critical: #b02a2a;
+  --tv-critical-soft: rgba(176, 42, 42, 0.11);
 
   --tv-radius-sm: 8px;
   --tv-radius: 14px;
@@ -48,10 +58,27 @@
   --tv-gap: 12px;
   --tv-gap-lg: 20px;
 
-  --tv-font: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto,
-    'Helvetica Neue', Arial, sans-serif;
-  --tv-font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, ui-serif, serif;
-  --tv-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  /*
+   * Three faces, each doing a job this app actually has.
+   *
+   * Archivo comes out of signage and holds up at a heading's size. Public Sans
+   * was drawn for dense informational interfaces, which is what a fare list is.
+   * IBM Plex Mono carries the codes, times and prices, where a tabular figure
+   * matters more than a pretty one.
+   *
+   * Every stack ends somewhere real: the MCP app template declares
+   * `resourceDomains: []` and fetches nothing, so inside a host it renders on
+   * the fallbacks and has to look deliberate there too.
+   */
+  --tv-font: 'Public Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --tv-font-display: 'Archivo', 'Public Sans', ui-sans-serif, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --tv-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    monospace;
+
+  /* Numbers that sit in a column should line up in that column. */
+  --tv-figures: tabular-nums;
 }
 
 :root[data-theme='dark'],
@@ -61,28 +88,28 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --tv-paper: #0d1013;
-    --tv-surface: #14181d;
-    --tv-surface-2: #1a1f26;
-    --tv-ink: #e9edf1;
-    --tv-ink-muted: #9aa4b1;
-    --tv-ink-faint: #6f7987;
-    --tv-line: rgba(233, 237, 241, 0.11);
-    --tv-line-strong: rgba(233, 237, 241, 0.2);
+    --tv-paper: #070b13;
+    --tv-surface: #101827;
+    --tv-surface-2: #182135;
+    --tv-ink: #e7edf8;
+    --tv-ink-muted: #9aa8c0;
+    --tv-ink-faint: #6b7b96;
+    --tv-line: rgba(231, 237, 248, 0.12);
+    --tv-line-strong: rgba(231, 237, 248, 0.22);
 
-    --tv-accent: #2fb9a3;
-    --tv-accent-ink: #06201d;
-    --tv-accent-soft: rgba(47, 185, 163, 0.14);
-    --tv-accent-line: rgba(47, 185, 163, 0.4);
+    --tv-accent: #7ea2ff;
+    --tv-accent-ink: #05112e;
+    --tv-accent-soft: rgba(126, 162, 255, 0.15);
+    --tv-accent-line: rgba(126, 162, 255, 0.42);
 
-    --tv-warm: #e08b5f;
-    --tv-warm-soft: rgba(224, 139, 95, 0.15);
-    --tv-positive: #4ec98a;
-    --tv-positive-soft: rgba(78, 201, 138, 0.14);
-    --tv-caution: #e0b155;
-    --tv-caution-soft: rgba(224, 177, 85, 0.15);
-    --tv-critical: #ef7a70;
-    --tv-critical-soft: rgba(239, 122, 112, 0.14);
+    --tv-warm: #f2b25c;
+    --tv-warm-soft: rgba(242, 178, 92, 0.16);
+    --tv-positive: #47ce9b;
+    --tv-positive-soft: rgba(71, 206, 155, 0.15);
+    --tv-caution: #e8c36a;
+    --tv-caution-soft: rgba(232, 195, 106, 0.16);
+    --tv-critical: #f4837a;
+    --tv-critical-soft: rgba(244, 131, 122, 0.15);
 
     --tv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --tv-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.4);
@@ -91,28 +118,28 @@
 }
 
 :root[data-theme='dark'] {
-  --tv-paper: #0d1013;
-  --tv-surface: #14181d;
-  --tv-surface-2: #1a1f26;
-  --tv-ink: #e9edf1;
-  --tv-ink-muted: #9aa4b1;
-  --tv-ink-faint: #6f7987;
-  --tv-line: rgba(233, 237, 241, 0.11);
-  --tv-line-strong: rgba(233, 237, 241, 0.2);
+  --tv-paper: #070b13;
+  --tv-surface: #101827;
+  --tv-surface-2: #182135;
+  --tv-ink: #e7edf8;
+  --tv-ink-muted: #9aa8c0;
+  --tv-ink-faint: #6b7b96;
+  --tv-line: rgba(231, 237, 248, 0.12);
+  --tv-line-strong: rgba(231, 237, 248, 0.22);
 
-  --tv-accent: #2fb9a3;
-  --tv-accent-ink: #06201d;
-  --tv-accent-soft: rgba(47, 185, 163, 0.14);
-  --tv-accent-line: rgba(47, 185, 163, 0.4);
+  --tv-accent: #7ea2ff;
+  --tv-accent-ink: #05112e;
+  --tv-accent-soft: rgba(126, 162, 255, 0.15);
+  --tv-accent-line: rgba(126, 162, 255, 0.42);
 
-  --tv-warm: #e08b5f;
-  --tv-warm-soft: rgba(224, 139, 95, 0.15);
-  --tv-positive: #4ec98a;
-  --tv-positive-soft: rgba(78, 201, 138, 0.14);
-  --tv-caution: #e0b155;
-  --tv-caution-soft: rgba(224, 177, 85, 0.15);
-  --tv-critical: #ef7a70;
-  --tv-critical-soft: rgba(239, 122, 112, 0.14);
+  --tv-warm: #f2b25c;
+  --tv-warm-soft: rgba(242, 178, 92, 0.16);
+  --tv-positive: #47ce9b;
+  --tv-positive-soft: rgba(71, 206, 155, 0.15);
+  --tv-caution: #e8c36a;
+  --tv-caution-soft: rgba(232, 195, 106, 0.16);
+  --tv-critical: #f4837a;
+  --tv-critical-soft: rgba(244, 131, 122, 0.15);
 
   --tv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --tv-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.4);
@@ -577,11 +604,27 @@
   grid-row: 1 / span 2;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   background: var(--tv-surface-2);
   color: var(--tv-ink-muted);
+}
+
+/*
+ * With a flight number to read it from, the mark is the carrier code — which is
+ * what a boarding pass leads with, and what someone scanning four fares
+ * actually recognises. Without one it stays a glyph rather than inventing two
+ * letters.
+ */
+.tv-flight__mark.is-code {
+  font-family: var(--tv-font-mono);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--tv-ink);
+  background: var(--tv-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--tv-accent-line);
 }
 
 .tv-flight__airline {
@@ -616,15 +659,18 @@
 }
 
 .tv-flight__endpoint strong {
-  font-size: 1.06rem;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--tv-font-display);
+  font-size: 1.08rem;
+  font-weight: 600;
+  font-variant-numeric: var(--tv-figures);
   letter-spacing: -0.01em;
 }
 
 .tv-flight__endpoint span {
-  font-size: 0.74rem;
+  font-family: var(--tv-font-mono);
+  font-size: 0.7rem;
   color: var(--tv-ink-faint);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
 }
 
 .tv-flight__leg {
@@ -676,9 +722,12 @@
 }
 
 .tv-flight__price strong {
-  font-size: 1.2rem;
+  font-family: var(--tv-font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
   letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--tv-figures);
+  line-height: 1.1;
 }
 
 .tv-flight__cabin {

@@ -1,0 +1,8 @@
+# How a currency is written. A code with no symbol here renders as "SEK 1,240",
+# which is correct and plain rather than wrong and pretty.
+code,symbol
+EUR,€
+USD,$
+JPY,¥
+MXN,MX$
+GBP,£

@@ -1,0 +1,35 @@
+# The parts a fixture hotel name is assembled from, and what it comes with.
+#
+# `kind` selects the column: `word` and `name` are combined ("Casa Aurora"),
+# `amenity` is drawn from two to four at a time, `connection` is the city a
+# one-stop itinerary routes through.
+#
+# As with airlines.csv, row order seeds the deterministic picker. Adding a row
+# at the end is safe; inserting one in the middle re-rolls the demo.
+kind,value
+word,Casa
+word,Hotel
+word,Residencia
+word,The
+word,Pensão
+word,Villa
+name,Aurora
+name,Verano
+name,Miradouro
+name,Barrio
+name,Lumière
+name,Alta
+name,Nueve
+name,Bruma
+amenity,Breakfast
+amenity,Rooftop
+amenity,Air-con
+amenity,Kitchenette
+amenity,Late check-out
+amenity,Bikes
+amenity,Laundry
+connection,LIS
+connection,LHR
+connection,CDG
+connection,AMS
+connection,FRA

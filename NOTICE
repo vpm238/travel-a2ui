@@ -29,11 +29,12 @@ Specifically:
       `packages/express/test/parity.test.ts`, whose golden files are produced by
       the reference implementation.
 
-  tools/skillgen/src/skillgen/catalog.py
-  tools/skillgen/src/skillgen/formats/express.py
-      Ports of `CatalogSchemaHelper` and the signature-generation half of
-      `ExpressPromptGenerator` from the same package. Output equivalence is
-      asserted by `tools/skillgen/tests/test_sdk_parity.py`.
+The skill generator that used to be listed here was a port of
+`CatalogSchemaHelper` and `ExpressPromptGenerator`. It has been deleted: the
+build now calls the published `a2ui-agent-sdk` directly, so there is nothing
+left to port. `scripts/build_skills.py` and `scripts/build_examples.py` use the
+SDK, and `tools/tests/test_sdk_parity.py` asserts that what ships matches what
+the reference produces.
 
 The A2UI protocol, its component catalogs and its specification are the work of
 the A2UI project. This repository is an independent application built on top of

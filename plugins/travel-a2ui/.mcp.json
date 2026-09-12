@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "travel-a2ui": {
+      "type": "http",
+      "url": "https://travel-a2ui.vpm238.workers.dev/mcp"
+    }
+  }
+}

@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { handleMcp } from '../src/mcp.js';
+import { handleMcp, toolExamples, MCP_TOOLS } from '../src/mcp.js';
 
 const PROTOCOL_VERSION = '2025-06-18';
 
@@ -622,5 +622,44 @@ describe('resources and prompts', () => {
   it('rejects an unknown resource', async () => {
     const { body } = await rpc('resources/read', { uri: 'a2ui://nope' });
     expect(body.error.code).toBe(-32602);
+  });
+});
+
+/**
+ * Every example a tool ships with has to work.
+ *
+ * This is the test that was missing. `show_flight_options` ships the arguments
+ * the MCP console opens on, and they omitted the outbound date the tool
+ * requires — so the first button a visitor pressed answered with a refusal, on
+ * the deployed site, for as long as that console existed. Nothing caught it
+ * because the examples lived in the web app and the tests lived here.
+ *
+ * They live together now, and this walks the whole table rather than spot
+ * checking one, because the next one to go wrong will be a different one.
+ */
+describe('the examples each tool ships with', () => {
+  const examples = Object.entries(toolExamples());
+
+  it('covers every tool, so a new tool cannot arrive without one', () => {
+    const named = new Set(examples.map(([name]) => name));
+    for (const tool of MCP_TOOLS) expect(named).toContain(tool.name);
+  });
+
+  it.each(examples)('%s returns a surface rather than a refusal', async (name, args) => {
+    const result = await callTool(name, args);
+
+    expect(result.isError, `${name}: ${result.content?.[0]?.text ?? ''}`).toBe(false);
+    expect(result.content?.[0]?.text ?? '').not.toMatch(/^Cannot /);
+  });
+
+  it('reaches a client through tools/list, not a second private copy', async () => {
+    const { body } = await rpc('tools/list');
+    const flights = body.result.tools.find((tool: any) => tool.name === 'show_flight_options');
+
+    expect(flights._meta.example).toMatchObject({ destination: 'Madrid', origin: 'JFK' });
+    // The date is computed, so assert its shape rather than its value: a
+    // literal here would be the same bug in a different file.
+    expect(flights._meta.example.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(new Date(flights._meta.example.date).getTime()).toBeGreaterThan(Date.now());
   });
 });

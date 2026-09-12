@@ -28,6 +28,7 @@ import {
 import catalog from '../../../catalogs/a2ui-travel/catalog.json';
 import { buildSystemPrompt, type SkillVariant, type SurfaceKind } from './skills.js';
 import { geminiTools, runTool, type ToolContext } from './tools.js';
+import { providerFor, type TravelProvider } from './providers/index.js';
 import { GeminiError, streamInteraction, type InteractionInput } from './gemini.js';
 import { originForTimeZone } from './travel.js';
 import {
@@ -126,6 +127,15 @@ export interface TurnRequest {
   shape?: string | null;
   /** Aborts the upstream request when the traveler presses Stop. */
   signal?: AbortSignal;
+  /**
+   * Where travel data comes from.
+   *
+   * Supplied by the request rather than imported, because only the entry point
+   * has the environment that decides it — fixtures by default, live inventory
+   * when a credential is configured. Optional so a test can run a turn without
+   * standing one up; `providerFor(undefined)` is the fixture provider.
+   */
+  provider?: TravelProvider;
 }
 
 export interface TurnResult {
@@ -271,6 +281,7 @@ export async function runTurn(
   if (said.length > 0) Object.assign(trip, confirm(trip, said));
   const toolContext: ToolContext = {
     trip,
+    provider: request.provider ?? providerFor(undefined),
     // `merge` rather than `Object.assign`, because one field does not simply
     // overwrite: a patch naming `assumed` is talking about its own fields, and
     // a later patch that states one of them for real has to clear that mark.

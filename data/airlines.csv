@@ -1,0 +1,11 @@
+# Carriers the fixture provider draws from. Real airlines, invented schedules.
+# Order matters: it seeds the deterministic picker, so re-ordering these rows
+# changes every flight in the demo and every screenshot in the docs.
+code,name
+IB,Iberia
+DL,Delta
+TP,TAP Air Portugal
+AF,Air France
+UA,United
+LH,Lufthansa
+AA,American

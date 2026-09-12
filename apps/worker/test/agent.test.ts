@@ -15,6 +15,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { providerFor } from '../src/providers/index.js';
+
 interface ScriptedTurn {
   /** Text chunks, delivered in order as `step.delta` text events. */
   chunks: string[];
@@ -197,7 +199,11 @@ describe('prose and UI', () => {
  */
 describe('inputs the traveler has to give', () => {
   const run = (name: string, input: Record<string, unknown>, trip: Record<string, unknown> = {}) => {
-    const context = { trip, saveTrip: (patch: Record<string, unknown>) => Object.assign(trip, patch) };
+    const context = {
+      trip,
+      saveTrip: (patch: Record<string, unknown>) => Object.assign(trip, patch),
+      provider: providerFor(undefined),
+    };
     return runTool(name, input, context);
   };
 

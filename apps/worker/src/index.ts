@@ -30,7 +30,7 @@ import {
 import { handleMcp, MCP_TOOLS } from './mcp.js';
 import { SessionClient, TripSession } from './session.js';
 import { describeAllSkills, isSkillVariant, type SkillVariant, type SurfaceKind } from './skills.js';
-import { knownDestinations } from './travel.js';
+import { providerFor } from './providers/index.js';
 
 export { TripSession };
 
@@ -42,6 +42,18 @@ export interface Env {
   PUBLIC_NAME?: string;
   /** Optional shared key for a deployment that does not want to ask for one. */
   GEMINI_API_KEY?: string;
+
+  /**
+   * Amadeus credentials. Present means live inventory; absent means fixtures.
+   *
+   * There is deliberately no `PROVIDER=live` switch to go with them: a flag can
+   * be set without a credential, and the deployment then fails on a traveler's
+   * screen rather than at configuration time.
+   */
+  AMADEUS_CLIENT_ID?: string;
+  AMADEUS_CLIENT_SECRET?: string;
+  /** `api.amadeus.com` for production. Defaults to the test host. */
+  AMADEUS_HOST?: string;
 }
 
 /**
@@ -90,7 +102,7 @@ export default {
     if (path === '/mcp' || path.startsWith('/mcp/')) {
       // The MCP app's view template is composed from this deployment's own
       // assets, so the handler needs the binding.
-      const response = await handleMcp(request, env.ASSETS);
+      const response = await handleMcp(request, env.ASSETS, providerFor(env));
       const headers = new Headers(response.headers);
       headers.set('access-control-allow-origin', '*');
       return new Response(response.body, { status: response.status, headers });
@@ -128,7 +140,7 @@ export default {
       const stub = env.TRIP_SESSION.get(env.TRIP_SESSION.idFromName(sessionId));
       return stub.fetch('https://session/voice', request);
     }
-    if (path === '/api/meta') return handleMeta(env);
+    if (path === '/api/meta') return await handleMeta(env);
     if (path === '/api/chat' && request.method === 'POST') return handleChat(request, env, ctx);
     if (path === '/api/session' && request.method === 'GET') return handleGetSession(url, env);
     if (path === '/api/session/reset' && request.method === 'POST') return handleReset(request, env);
@@ -217,7 +229,8 @@ function cors(response: Response): Response {
   return new Response(response.body, { status: response.status, headers });
 }
 
-function handleMeta(env: Env): Response {
+async function handleMeta(env: Env): Promise<Response> {
+  const provider = providerFor(env);
   return json({
     name: env.PUBLIC_NAME ?? 'Travel A2UI',
     catalogId: CATALOG_ID,
@@ -227,12 +240,20 @@ function handleMeta(env: Env): Response {
     models: MODELS,
     surfaces: SURFACES,
     skills: describeAllSkills(),
-    destinations: knownDestinations().map((entry) => ({
+    destinations: (await provider.destinations()).map((entry) => ({
       city: entry.city,
       country: entry.country,
       airport: entry.airport,
       summary: entry.summary,
     })),
+    /**
+     * Where this deployment's travel data comes from.
+     *
+     * Advertised so the front end can say so once, in the chrome, instead of
+     * every surface having to carry a badge — and so that a reader of the API
+     * can tell a demo from a live deployment without guessing from the prices.
+     */
+    provenance: provider.provenance,
     mcpEndpoint: '/mcp',
     /** True when the deployment carries its own key and the UI need not ask. */
     keyProvided: Boolean(env.GEMINI_API_KEY),

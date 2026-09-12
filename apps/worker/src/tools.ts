@@ -35,19 +35,48 @@ import {
   type TripKey,
 } from '@travel-a2ui/trip';
 
-import {
-  estimateTrip,
-  getWeather,
-  knownDestinations,
-  resolveDestination,
-  searchFlights,
-  searchHotels,
-} from './travel.js';
+import { estimateTrip } from './travel.js';
+import type { NotFound, TravelProvider } from './providers/index.js';
 
 export interface ToolContext {
   /** The trip state so far, readable and writable across turns. */
   trip: Record<string, unknown>;
   saveTrip(patch: Record<string, unknown>): void;
+  /**
+   * Where travel data comes from for this request.
+   *
+   * On the context rather than imported, because it is a property of the
+   * deployment — fixtures locally, live inventory where a credential is set —
+   * and a tool that imported one directly could not be handed the other.
+   */
+  provider: TravelProvider;
+}
+
+/**
+ * A provider that has nothing, turned into something the model can act on.
+ *
+ * The counterpart to `needsInput`. That one says "you have not asked the
+ * traveler enough"; this one says "I asked and there is no answer" — and both
+ * end in a concrete next step rather than an empty surface. `isError` stays
+ * false deliberately: not finding a flight is an outcome, not a malfunction,
+ * and flagging it as an error makes models apologise instead of offering
+ * Lisbon.
+ */
+function cannot(outcome: NotFound): { result: unknown; isError: boolean } {
+  return {
+    result: {
+      found: false,
+      reason: outcome.reason,
+      message: outcome.message,
+      options: outcome.recover,
+      provenance: outcome.provenance,
+      instruction:
+        'Say this in one short line and draw the options as choices the traveler can ' +
+        'press. Do not substitute a different city, invent an airport code, or show ' +
+        'an empty list.',
+    },
+    isError: false,
+  };
 }
 
 /**
@@ -384,7 +413,7 @@ export async function runTool(
           return needsInput('price flights', missing);
         }
 
-        const found = searchFlights({
+        const outcome = await context.provider.searchFlights({
           destination: trip.destination ?? str(input['destination']),
           origin: trip.origin,
           date: trip.startDate,
@@ -392,13 +421,22 @@ export async function runTool(
           cabin: trip.cabin,
           maxPrice: trip.maxFare,
           nonstopOnly: input['nonstopOnly'] === true || trip.nonstopOnly === true,
+          // `flexible` is the traveler asking what a trip like this generally
+          // costs. The provider may answer without a departure city, but has to
+          // say which one it sampled.
+          indicative: input['flexible'] === true || missing.length > 0,
         });
+        if (!outcome.ok) return cannot(outcome);
 
         // Echoed back so the surface can say what it is showing. A price with
         // nothing beside it is the thing that made this untrustworthy.
         return {
           result: {
-            ...found,
+            flights: outcome.items,
+            currency: outcome.currency ?? 'USD',
+            note: outcome.note,
+            provenance: outcome.provenance,
+            relaxed: outcome.relaxed,
             searchedFor: {
               basis: basisOf(trip),
               date: trip.startDate ?? null,
@@ -419,16 +457,22 @@ export async function runTool(
         if (missing.length > 0 && stayNights === undefined && input['flexible'] !== true) {
           return needsInput('price a stay', missing);
         }
-        const found = searchHotels({
+        const outcome = await context.provider.searchHotels({
           destination: trip.destination ?? str(input['destination']),
           nights: stayNights,
           travelers: trip.travelers,
           maxNightly: trip.maxNightly,
           neighborhood: trip.neighborhood,
         });
+        if (!outcome.ok) return cannot(outcome);
+
         return {
           result: {
-            ...found,
+            hotels: outcome.items,
+            currency: outcome.currency ?? 'USD',
+            note: outcome.note,
+            provenance: outcome.provenance,
+            relaxed: outcome.relaxed,
             searchedFor: {
               basis: basisOf(trip),
               nights: stayNights ?? null,
@@ -443,8 +487,13 @@ export async function runTool(
 
       case 'get_destination': {
         const query = str(input['destination']);
-        if (!query) return { result: { destinations: knownDestinations() }, isError: false };
-        const destination = resolveDestination(query);
+        if (!query) {
+          return {
+            result: { destinations: await context.provider.destinations() },
+            isError: false,
+          };
+        }
+        const destination = await context.provider.resolveDestination(query);
         if (!destination) {
           // A miss is not an error — it is information the model can act on,
           // and naming the alternatives is what turns it into a next step.
@@ -452,7 +501,7 @@ export async function runTool(
             result: {
               found: false,
               message: `No detailed guide for '${query}'.`,
-              available: knownDestinations().map((entry) => entry.city),
+              available: (await context.provider.destinations()).map((entry) => entry.city),
             },
             isError: false,
           };
@@ -460,11 +509,18 @@ export async function runTool(
         return { result: { found: true, ...destination }, isError: false };
       }
 
-      case 'get_weather':
+      case 'get_weather': {
+        const outcome = await context.provider.getWeather(
+          str(input['destination']),
+          str(input['startDate']) || undefined,
+          num(input['days']) ?? 5,
+        );
+        if (!outcome.ok) return cannot(outcome);
         return {
-          result: getWeather(str(input['destination']), str(input['startDate']) || undefined, num(input['days']) ?? 5),
+          result: { ...outcome.items[0], provenance: outcome.provenance },
           isError: false,
         };
+      }
 
       case 'estimate_cost': {
         const trip = effectiveTrip(input, context);
