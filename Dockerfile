@@ -100,8 +100,26 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# The manifest first: this layer is the dependency resolution, and it should not
+# re-run because somebody edited a module.
 COPY apps/server/pyproject.toml apps/server/
-RUN pip install --no-cache-dir -e ./apps/server
+
+# The stub is not a trick, it is the fix for a silent failure.
+#
+# Installing with no source present is the obvious way to write this and it
+# does not work: hatchling finds no package under `src/`, builds a wheel that
+# is metadata and nothing else, and pip reports success. Copying the real
+# source afterwards changes nothing, because the install already decided there
+# was no import path to record. The build stays green, the image builds, the
+# push succeeds — and the container dies at startup on `ModuleNotFoundError`
+# with nothing anywhere in the build log to explain it.
+#
+# So there is something for the editable install to point at. The path it
+# records is the directory, so the real modules copied over this stub below are
+# what actually gets imported.
+RUN mkdir -p apps/server/src/travel_a2ui \
+ && touch apps/server/src/travel_a2ui/__init__.py \
+ && pip install --no-cache-dir -e ./apps/server
 
 # The data the server reads at runtime rather than at build time: the catalog
 # it compiles against, the generated skills the model is given, the prompt
@@ -115,6 +133,21 @@ COPY apps/server/src/ apps/server/src/
 
 COPY --from=web /build/apps/web/dist/ apps/web/dist/
 COPY --from=flutter /build/build/web/ apps/flutter_client/build/web/
+
+# Import the app at build time, so a broken image fails here rather than in
+# production.
+#
+# Everything above can succeed and still produce a container that cannot start:
+# a package that did not install, a module that reads a data file that was
+# never copied, a static mount pointing at a directory that is not there. Cloud
+# Run reports all of it the same way — "failed to start and listen on the port"
+# — several minutes after the build went green, and the reason is in a log the
+# deploy does not show you.
+#
+# This is the same import uvicorn does, so if it passes here the process will
+# start there. It costs a second and it is the difference between a build
+# failure that names the problem and a deploy failure that does not.
+RUN python -c "import travel_a2ui.main"
 
 # Cloud Run sends traffic to $PORT and does not ask.
 ENV PORT=8080
