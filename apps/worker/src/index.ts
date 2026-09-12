@@ -267,10 +267,10 @@ async function handleMeta(env: Env): Promise<Response> {
      * that the interface layer is independent of the runtime is to let someone
      * switch between them and watch the same components come back.
      *
-     * What they share is the trip: one Durable Object, one set of tools, the
-     * same six surface builders. What they do not share is the transcript,
-     * because each API keeps its own. That boundary is real and the UI says so
-     * rather than papering over it.
+     * They share nothing. The front end reloads on a switch, so each framework
+     * opens on its own session with an empty trip — two APIs with two
+     * conversation histories is difference enough without also deciding which
+     * parts of a half-made trip survive the crossing.
      *
      * `voice` is what the front end branches on. It used to be implicit — a
      * microphone button sat in the composer at all times and quietly opened a

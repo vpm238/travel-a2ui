@@ -14,6 +14,11 @@
  * for a URL it does not have: the entry highlighted, the picker stayed open,
  * and nothing switched. Everything typechecked. Every test passed.
  *
+ * It also asserts the other half of the contract: the frameworks share nothing,
+ * so switching reloads and the demo starts over. A stale surface from the
+ * previous framework sitting in the new one is the failure that would otherwise
+ * reach a viewer.
+ *
  * Needs no API key — the picker probes `/api/meta` and nothing here sends a
  * turn — so anyone with the repo can run it.
  *
@@ -59,6 +64,24 @@ const chosen = async () =>
     .replace(/\s+/g, ' ')
     .trim();
 
+/**
+ * Waits for the app to be settled on a framework.
+ *
+ * Switching reloads, and `canSpeak` comes from `/api/meta`, which is fetched
+ * after the page loads — so for a moment after a reload the app is on Live with
+ * no microphone yet. Waiting on `networkidle` is not enough: it can resolve
+ * against the load that is being navigated away from. Wait for the label, which
+ * is only correct once the meta has arrived.
+ */
+async function settledOn(label) {
+  await page
+    .locator('button:has-text("RUNTIME")')
+    .filter({ hasText: label })
+    .first()
+    .waitFor({ timeout: 20000 });
+  await page.waitForSelector('.composer', { timeout: 20000 });
+}
+
 console.log('The framework a traveller chose decides whether there is a microphone.\n');
 
 check('opens on the Interactions runtime', await chosen(), 'RUNTIME Cloudflare Worker ▾');
@@ -67,7 +90,7 @@ check('which has no microphone', await mics(), 0);
 await page.locator('button:has-text("RUNTIME")').first().click();
 await page.waitForSelector('text=Gemini Live', { timeout: 10000 });
 await page.locator('button', { hasText: 'Gemini Live' }).first().click();
-await page.waitForTimeout(1500);
+await settledOn('Gemini Live');
 
 check('switches to Live from the same origin, with no address to type', await chosen(), 'RUNTIME Gemini Live ▾');
 check('which does have a microphone', await mics(), 1);
@@ -77,11 +100,25 @@ check(
   'Say it, or type it',
 );
 
+check('and the choice survived the reload', await page.evaluate(() => {
+  try {
+    return JSON.parse(localStorage.getItem('travel-a2ui:backend') ?? '{}').id;
+  } catch {
+    return null;
+  }
+}), 'live');
+check('starting over, with nothing said yet', await page.locator('.turn').count(), 0);
+check(
+  'and the key kept, because losing that on every switch would be its own annoyance',
+  await page.evaluate(() => localStorage.getItem('travel-a2ui:key')),
+  'placeholder-for-e2e',
+);
+
 // Back again: the microphone has to leave with the framework that owns it.
 await page.locator('button:has-text("RUNTIME")').first().click();
-await page.waitForTimeout(300);
+await page.waitForSelector('text=Cloudflare Worker', { timeout: 10000 });
 await page.locator('button', { hasText: 'Cloudflare Worker' }).first().click();
-await page.waitForTimeout(1500);
+await settledOn('Cloudflare Worker');
 
 check('switches back', await chosen(), 'RUNTIME Cloudflare Worker ▾');
 check('and the microphone goes with it', await mics(), 0);

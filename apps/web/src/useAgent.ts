@@ -344,22 +344,37 @@ export function useAgent() {
   }, []);
 
   /**
-   * Switches runtime, but only after the new one answers.
+   * Switches framework, which starts the demo over.
    *
-   * Probing first means picking a backend that is not running tells you so
-   * here, with the URL you gave it, instead of failing on the next message with
-   * a network error that looks like the model's fault.
+   * The frameworks share nothing. They are different APIs with different
+   * conversation histories, and carrying a half-decided trip from one into the
+   * other buys a subtlety nobody asked for — "they share the trip but not the
+   * transcript" is a sentence a demo should not have to explain. So the choice
+   * is written down and the page reloads, which is already how this app starts
+   * over: a reload mints a new session id, and the trip lives server-side under
+   * it, so the new framework opens on a clean slate.
+   *
+   * Reloading rather than unwinding state in place is the point. There is no
+   * order of `setTrip`, `store.reset`, `setTurns` and `setUsage` that is
+   * obviously complete, and the one that is missed shows up as a surface from
+   * the previous framework sitting in the new one.
+   *
+   * The API key survives, because it is in localStorage and losing it on every
+   * switch would be a different and much more annoying kind of forgetting.
+   *
+   * Probing first still matters: a custom origin that is not running says so
+   * here, with the URL you gave it, rather than after a reload into a blank app.
    */
   const setBackend = useCallback(async (id: BackendId, origin: string): Promise<boolean> => {
     const clean = origin.replace(/\/$/, '');
     setBackendError(null);
     try {
-      const loaded = await probeBackend(clean || window.location.origin);
-      setApiOrigin(clean);
-      setBackendState({ id, origin: clean });
+      await probeBackend(clean || window.location.origin);
       writeStored(BACKEND_KEY, JSON.stringify({ id, origin: clean }));
-      setMeta(loaded);
-      setMetaError(null);
+      // Release the microphone before the page goes, so the recording
+      // indicator does not linger through the reload.
+      callRef.current?.hangUp();
+      window.location.reload();
       return true;
     } catch (error) {
       setBackendError(
@@ -763,17 +778,6 @@ export function useAgent() {
     [startVoice],
   );
   speakRef.current = speak;
-
-  /**
-   * Leaving Live ends the call.
-   *
-   * Otherwise the microphone stays open and Google keeps the session while the
-   * traveller talks to a different framework — which is both a live microphone
-   * nobody asked for and a bill nobody is watching.
-   */
-  useEffect(() => {
-    if (backend.id !== 'live' && callRef.current) hangUp();
-  }, [backend.id, hangUp]);
 
   return {
     store,

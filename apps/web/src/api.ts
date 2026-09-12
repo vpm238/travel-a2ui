@@ -142,10 +142,10 @@ export function clientHints(): ChatRequest['client'] {
  *           speak or type, and it answers out loud while drawing the same
  *           surfaces from the same six builders.
  *
- * They share the trip and not the transcript. One Durable Object holds what has
- * been decided, so a flight picked by voice is in the sidebar the typed agent
- * reads; but each API keeps its own conversation history, so what was *said* in
- * one is not in the other. That boundary is real, and the UI says so.
+ * They share nothing, and switching between them reloads the page: a new
+ * session, an empty trip, a clean transcript. Two APIs with two conversation
+ * histories is enough difference without also reasoning about which parts of a
+ * half-decided trip survive the crossing.
  *
  * Two alternatives were built and removed, both worth recording because the
  * reasons are measurements rather than opinions.

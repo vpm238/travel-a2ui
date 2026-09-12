@@ -16,11 +16,12 @@
  * skills, one wire protocol — so you can switch mid-conversation and watch the
  * same surfaces come back from a different machine on a different API.
  *
- * They share the trip and not the transcript. One Durable Object holds what has
- * been decided, so a flight picked by voice is in the sidebar the typed agent
- * reads; each API keeps its own history, so what was *said* in one is not in
- * the other. Switching is therefore a real change of context, not a toggle, and
- * the picker is in the header rather than hidden behind a microphone.
+ * They share nothing. Different APIs, different conversation histories, and no
+ * attempt to carry a half-decided trip across — so switching reloads the page
+ * and starts the demo over, which is what a reload already means here. The
+ * alternative was a caveat ("they share the trip but not the transcript") that
+ * a demo should not have to explain, and a state-unwinding bug waiting to
+ * happen.
  *
  * The `origin` field takes any backend answering the same `/api/chat` contract,
  * which is how a third framework would arrive.
