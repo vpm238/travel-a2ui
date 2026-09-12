@@ -1,0 +1,77 @@
+{
+  "$comment": [
+    "Which control a decision may be asked for in — written once, read twice.",
+    "",
+    "This is the knowledge, not the mechanism. `skills.py` renders it into the",
+    "system prompt so the model is taught it, and `controls.py` checks compiled",
+    "surfaces against the same rows so a turn that ignores the teaching is",
+    "rewritten before anyone sees it. Editing the table changes both, which is",
+    "the point: a rule stated in a prompt and enforced by a separate hand-kept",
+    "list is two rules that drift.",
+    "",
+    "`Text` is allowed everywhere: reading a decision back is not asking for one,",
+    "and a panel that says '12-19 April' as text is correct."
+  ],
+  "controls": [
+    {
+      "field": "startDate",
+      "allow": ["DateRangePicker", "DateTimeInput", "Text"],
+      "instead": "a DateRangePicker bound to both dates",
+      "why": "a text box accepts \"next tuesday\", \"12/4\" and \"April 12ish\", and then the trip is priced for the wrong week"
+    },
+    {
+      "field": "endDate",
+      "allow": ["DateRangePicker", "DateTimeInput", "Text"],
+      "instead": "a DateRangePicker bound to both dates",
+      "why": "the end of a trip is the other half of one question, not a second one"
+    },
+    {
+      "field": "origin",
+      "allow": ["ChoicePicker", "Text"],
+      "instead": "a ChoicePicker of the departure airports this deployment serves",
+      "why": "the answer is one of twenty-one airports; pills make picking one tap and typing a code that does not exist impossible"
+    },
+    {
+      "field": "destination",
+      "allow": ["ChoicePicker", "Text"],
+      "instead": "a ChoicePicker of the destinations this deployment has",
+      "why": "there are nine, and naming a tenth is a failed lookup two turns later"
+    },
+    {
+      "field": "travelers",
+      "allow": ["TravelerCounter", "Slider", "Text"],
+      "instead": "a TravelerCounter",
+      "why": "a party size is a small whole number, and a counter is how you say that"
+    },
+    {
+      "field": "cabin",
+      "allow": ["ChoicePicker", "Text"],
+      "instead": "a ChoicePicker of the cabins",
+      "why": "there are four, and they have names the traveller recognises"
+    },
+    {
+      "field": "budget",
+      "allow": ["Slider", "TravelerCounter", "Text"],
+      "instead": "a Slider",
+      "why": "a budget is a feeling about a range, and a slider is the control that says so"
+    },
+    {
+      "field": "maxPrice",
+      "allow": ["Slider", "Text"],
+      "instead": "a Slider",
+      "why": "a cap is a point on a range they can see"
+    },
+    {
+      "field": "nonstopOnly",
+      "allow": ["CheckBox", "Text"],
+      "instead": "a CheckBox",
+      "why": "it is yes or no"
+    },
+    {
+      "field": "needsStay",
+      "allow": ["CheckBox", "Text"],
+      "instead": "a CheckBox",
+      "why": "it is yes or no, per stop"
+    }
+  ]
+}

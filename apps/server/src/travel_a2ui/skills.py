@@ -226,6 +226,29 @@ def describe_trip(trip: dict[str, Any], today: str, surface: str) -> str:
     return "\n".join(lines)
 
 
+def _controls() -> str:
+    """Which control each decision is asked for in.
+
+    Rendered from `data/controls.json`, which is also what the host checks a
+    finished surface against — so this is the rule being taught rather than a
+    second copy of it that can drift out of step with the one enforced.
+
+    In the stable half: it comes from a file and does not change between turns.
+    """
+    from .controls import as_rules
+
+    return (
+        "## Which control to ask with\n\n"
+        "Checked before anything is drawn. A surface that asks with the wrong "
+        "control is rejected and you are told to write it again, so this is "
+        "worth getting right the first time.\n\n"
+        f"{as_rules()}\n\n"
+        "`Text` is fine anywhere — reading a decision back is not asking for one. "
+        "`TextField` is for answers with no fixed set: a note, a hotel they "
+        "remember, what the trip is for."
+    )
+
+
 def _inventory() -> str:
     """What this deployment can actually answer about.
 
@@ -298,7 +321,7 @@ def build_prompt_parts(
     surface to draw into would draw into the wrong one.
     """
     stable = "\n\n---\n\n".join(
-        [ROLE, _inventory(), *(_body(source) for source in _SKILL_SOURCES[variant])]
+        [ROLE, _inventory(), _controls(), *(_body(source) for source in _SKILL_SOURCES[variant])]
     )
 
     parts = [

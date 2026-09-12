@@ -148,7 +148,23 @@
 
 /* ---------------------------------------------------------------- surface */
 
+/*
+ * A surface answers to the space it is in, not to the window.
+ *
+ * These cards live in three places of very different widths — a chat column
+ * around 560px, a panel around 320px, and a full-width home screen — inside the
+ * same browser window. The responsive rules keyed on viewport width, so a
+ * flight card in a 320px panel of a 1,440px window was handed the layout
+ * designed for 1,440px and squeezed three columns into a third of the room.
+ * That is most of what "the components look cramped" was.
+ *
+ * `container-type: inline-size` makes the surface itself the thing being
+ * measured, so the same card lays out wide when it has room and stacks when it
+ * does not, wherever it happens to be.
+ */
 .a2-surface {
+  container-type: inline-size;
+  container-name: surface;
   color: var(--tv-ink);
   font-family: var(--tv-font);
   font-size: 14px;
@@ -751,7 +767,12 @@
   box-shadow: var(--tv-shadow-sm);
 }
 
-@media (max-width: 620px) {
+/*
+ * Below about 620px of *surface*, the three-column row stops being a row: the
+ * times want the full width to stay readable, so the carrier and the price
+ * share the top line and the journey gets its own beneath them.
+ */
+@container surface (max-width: 620px) {
   .tv-flight {
     grid-template-columns: 1fr auto;
     gap: var(--tv-gap);
@@ -1471,4 +1492,54 @@
     animation: none;
     background: var(--tv-surface-2);
   }
+}
+
+
+/* ------------------------------------------------- narrow, by container
+ *
+ * The panel is about 320px and a chat column about 560px. Everything below
+ * answers to the surface's own width — see `container-type` on `.a2-surface` —
+ * so a card is laid out for the space it is actually in rather than for the
+ * window it happens to be inside.
+ */
+
+@container surface (max-width: 420px) {
+  /* A 132px picture beside 188px of text is not a photograph, it is a stamp.
+   * Below this the image goes above the words and gets a shape of its own. */
+  .tv-hotel {
+    grid-template-columns: 1fr;
+  }
+
+  .tv-hotel__media {
+    min-height: 128px;
+    aspect-ratio: 16 / 9;
+  }
+
+  /* Two columns of tiles at 320px is four words per line. */
+  .tv-stats {
+    grid-template-columns: 1fr;
+  }
+
+  /* A day's entries keep their time column; the row below it was wrapping to
+   * two lines and losing the alignment that makes a day readable. */
+  .tv-activity {
+    column-gap: 10px;
+  }
+}
+
+/* Grid and flex children default to `min-width: auto`, which means a long word
+ * — a hotel name, a neighbourhood — makes the *track* wider instead of
+ * wrapping, and the card overflows its own card. Every text cell that lives in
+ * a grid says otherwise. */
+.tv-flight__carrier,
+.tv-flight__endpoint,
+.tv-hotel__body,
+.tv-activity__body,
+.tv-day__head {
+  min-width: 0;
+}
+
+.tv-hotel__head h4,
+.tv-activity__title {
+  overflow-wrap: anywhere;
 }

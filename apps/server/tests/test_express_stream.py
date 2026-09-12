@@ -273,3 +273,82 @@ class TestTheGapTheSdkLeaves:
         """Blanking the strings must not blank the check."""
         source = 'p = ChoicePicker("New York (JFK)")\nx = Nonesuch("San Jose (SJC)")'
         assert unknown_components(source, components) == ["Nonesuch"]
+
+
+class TestTheQuestionIsAskable:
+    """A date in a text box is a date the traveller can get wrong.
+
+    The model reaches for `TextField` whenever it is not thinking about it,
+    because a text box is the thing that always works — and the result accepts
+    "next tuesday", "12/4" and "April 12ish" and then prices the wrong week.
+    Nothing downstream can fix a question asked badly, so the surface is
+    rejected before it is drawn and the model is told what to use instead.
+    """
+
+    def test_a_date_in_a_text_box_is_refused(self, components):
+        from travel_a2ui.agent import _CATALOG, _parser
+
+        stream = ExpressStream(
+            parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
+        )
+        source = 'when = TextField("When", $/trip/startDate)\nroot = Column([when])'
+        failures = [
+            event
+            for event in stream.feed([OPEN + source + CLOSE])
+            if isinstance(event, Failed)
+        ]
+        assert failures
+        assert "DateRangePicker" in failures[0].message
+
+    def test_an_airport_in_a_text_box_is_refused(self, components):
+        from travel_a2ui.agent import _CATALOG, _parser
+
+        stream = ExpressStream(
+            parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
+        )
+        source = 'from = TextField("From", $/trip/origin)\nroot = Column([from])'
+        failures = [
+            event
+            for event in stream.feed([OPEN + source + CLOSE])
+            if isinstance(event, Failed)
+        ]
+        assert failures
+        assert "ChoicePicker" in failures[0].message
+
+    def test_the_right_controls_pass(self, components):
+        from travel_a2ui.agent import _CATALOG, _parser
+
+        stream = ExpressStream(
+            parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
+        )
+        source = (
+            'from = ChoicePicker("From", "mutuallyExclusive", '
+            '[{label: "New York (JFK)", value: "JFK"}], $/trip/origin)\n'
+            'when = DateRangePicker("Dates", $/trip/startDate, $/trip/endDate)\n'
+            'who = TravelerCounter("Travelers", $/trip/travelers)\n'
+            "root = Column([from, when, who])"
+        )
+        events = stream.feed([OPEN + source + CLOSE])
+        assert not [event for event in events if isinstance(event, Failed)]
+
+    def test_a_text_field_is_still_right_for_prose(self, components):
+        """The check is about decisions, not about text boxes."""
+        from travel_a2ui.agent import _CATALOG, _parser
+
+        stream = ExpressStream(
+            parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
+        )
+        source = 'why = TextField("What is the trip for?", $/trip/notes)\nroot = Column([why])'
+        events = stream.feed([OPEN + source + CLOSE])
+        assert not [event for event in events if isinstance(event, Failed)]
+
+    def test_reading_a_decision_back_is_not_asking_for_one(self, components):
+        """A panel that says "12-19 April" as text is correct."""
+        from travel_a2ui.agent import _CATALOG, _parser
+
+        stream = ExpressStream(
+            parser=_parser("sidebar"), components=components, validator=_CATALOG.validator
+        )
+        source = 'when = Text($/trip/startDate)\nroot = Column([when])'
+        events = stream.feed([OPEN + source + CLOSE])
+        assert not [event for event in events if isinstance(event, Failed)]

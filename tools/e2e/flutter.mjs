@@ -23,7 +23,7 @@
  *   node tools/e2e/flutter.mjs [--screenshot path.png]
  */
 
-import { chromium } from 'playwright';
+import { launchBrowser } from '../browser.mjs';
 
 const ORIGIN = process.env.ORIGIN ?? 'http://127.0.0.1:8130';
 const screenshotAt = process.argv.indexOf('--screenshot');
@@ -39,11 +39,7 @@ const check = (ok, what, detail = '') => {
   }
 };
 
-// Let Playwright find its own browser; `CHROMIUM_PATH` overrides it for an
-// environment that keeps one somewhere else.
-const browser = await chromium.launch(
-  process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
-);
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 900, height: 1100 } });
 
 /**

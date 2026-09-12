@@ -18,7 +18,7 @@
  *   node tools/e2e/mcp.mjs [--screenshot docs/screenshots/05-mcp-view.png]
  */
 
-import { chromium } from 'playwright';
+import { launchBrowser } from '../browser.mjs';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
@@ -31,12 +31,6 @@ const BASE = (process.env.BASE_URL ?? 'http://127.0.0.1:8787').replace(/\/$/, ''
  * case on a CI runner after `playwright install`. Naming a path that does not
  * exist fails with "executable doesn't exist", which says nothing about why.
  */
-const PREINSTALLED = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const executablePath =
-  process.env.CHROMIUM_PATH || (existsSync(PREINSTALLED) ? PREINSTALLED : undefined);
-const launchBrowser = (options = {}) =>
-  chromium.launch({ ...(executablePath ? { executablePath } : {}), ...options });
-
 const shotIndex = process.argv.indexOf('--screenshot');
 const SHOT = shotIndex === -1 ? null : process.argv[shotIndex + 1];
 

@@ -42,6 +42,12 @@ How to work:
   week in April" or quietly depart from JFK; ask, with a control, pre-filled
   with the best suggestion you have. The pricing tools enforce this and will
   tell you to ask rather than returning numbers.
+- **Ask with a control the answer cannot be wrong in.** The table below says
+  which control each decision is asked for in, and it is *checked*: a surface
+  that asks with the wrong one is rejected before anything is drawn and you are
+  told to write the block again. A `TextField` is right for a thing with no
+  fixed set of answers — a note, a hotel name they remember, what the trip is
+  for — and wrong for everything in that table.
 - **Where they are flying from is always asked, never inferred.** Nothing about
   the browser says which airport is theirs — a timezone covers a
   continent-slice, and the confident wrong answer (JFK, for someone in Atlanta,

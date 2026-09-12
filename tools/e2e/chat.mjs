@@ -18,7 +18,7 @@
  *   node tools/e2e/chat.mjs [--screenshot docs/screenshots/01-chat-light.png]
  */
 
-import { chromium } from 'playwright';
+import { launchBrowser } from '../browser.mjs';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,20 +26,6 @@ import { fileURLToPath } from 'node:url';
 import { ExpressCompiler, ExpressStreamParser } from '../../packages/express/dist/index.js';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:8787/';
-/**
- * Which Chromium to drive.
- *
- * CHROMIUM_PATH wins; otherwise a preinstalled browser is used if one is
- * actually on disk, and failing that Playwright resolves its own — which is the
- * case on a CI runner after `playwright install`. Naming a path that does not
- * exist fails with "executable doesn't exist", which says nothing about why.
- */
-const PREINSTALLED = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const executablePath =
-  process.env.CHROMIUM_PATH || (existsSync(PREINSTALLED) ? PREINSTALLED : undefined);
-const launchBrowser = (options = {}) =>
-  chromium.launch({ ...(executablePath ? { executablePath } : {}), ...options });
-
 const shotIndex = process.argv.indexOf('--screenshot');
 const SHOT = shotIndex === -1 ? null : process.argv[shotIndex + 1];
 

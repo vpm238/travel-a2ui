@@ -28,7 +28,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { chromium } from 'playwright';
+import { launchBrowser } from '../browser.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 // The gallery is its own build — a standalone page, so the reference can be
@@ -197,9 +197,7 @@ async function main() {
   }
 
   const server = await serve(4183);
-  const browser = await chromium.launch({
-    executablePath: process.env.CHROMIUM_PATH || undefined,
-  });
+  const browser = await launchBrowser();
 
   const wanted = previews.filter((preview) => allow.allowedComponents.includes(preview.name));
   const captured = [];

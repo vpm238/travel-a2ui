@@ -26,12 +26,9 @@
  *   node tools/e2e/frameworks.mjs
  */
 
-import { chromium } from 'playwright';
+import { launchBrowser } from '../browser.mjs';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:8787/';
-const executablePath =
-  process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-
 let failures = 0;
 const check = (label, actual, expected) => {
   const ok = actual === expected;
@@ -39,9 +36,7 @@ const check = (label, actual, expected) => {
   console.log(`${ok ? '  ok' : 'FAIL'}  ${label}${ok ? '' : ` — expected ${expected}, got ${actual}`}`);
 };
 
-const browser = await chromium
-  .launch({ executablePath })
-  .catch(() => chromium.launch());
+const browser = await launchBrowser();
 
 const context = await browser.newContext({ viewport: { width: 1280, height: 820 } });
 const page = await context.newPage();

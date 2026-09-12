@@ -23,7 +23,7 @@
  *   node tools/e2e/interaction.mjs
  */
 
-import { chromium } from 'playwright';
+import { launchBrowser } from '../browser.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,10 +31,6 @@ import { fileURLToPath } from 'node:url';
 import { ExpressCompiler, bindCommitContext } from '../../packages/express/dist/index.js';
 
 const BASE = (process.env.BASE_URL ?? 'http://127.0.0.1:8787').replace(/\/$/, '');
-const PREINSTALLED = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const executablePath =
-  process.env.CHROMIUM_PATH || (existsSync(PREINSTALLED) ? PREINSTALLED : undefined);
-
 const failures = [];
 const check = (label, ok, detail = '') => {
   console.log(`${ok ? '  ok  ' : ' FAIL '} ${label}${ok || !detail ? '' : ` — ${detail}`}`);
@@ -110,7 +106,7 @@ const surfaceTurn = (surfaceId, prose, source, trip) => [
   { type: 'done', stopReason: 'end_turn' },
 ];
 
-const browser = await chromium.launch({ ...(executablePath ? { executablePath } : {}) });
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 page.on('pageerror', (error) => check(`no page exception (${error.message})`, false));
 

@@ -70,6 +70,15 @@ def _without_strings(source: str) -> str:
     return _STRING.sub(lambda match: '"' + " " * max(0, len(match.group(0)) - 2) + '"', source)
 
 
+class WrongControl(Exception):
+    """A control bound to a decision it cannot express.
+
+    Separate from a compile error because nothing is malformed: the block is
+    valid Express and valid A2UI, and it draws. It just asks the question in a
+    way that lets the answer be wrong, which nothing downstream can fix.
+    """
+
+
 class UnknownComponent(Exception):
     """The source names a component the catalog does not have.
 
@@ -267,6 +276,14 @@ class ExpressStream:
             # that an error would reject every surface mid-stream.
             if done and self.validator is not None:
                 self.validator.validate(messages)
+            if done:
+                # And the question has to be askable. A date in a text box is a
+                # date the traveller can get wrong — see `controls.py`.
+                from .controls import wrong_controls
+
+                wrong = wrong_controls(messages)
+                if wrong:
+                    raise WrongControl(" ".join(wrong))
         except Exception as error:  # noqa: BLE001 - any parse failure, same handling
             # Mid-stream failures are the normal case: half a constructor is not
             # valid Express. Only a failure on a finished block is news.

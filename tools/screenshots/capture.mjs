@@ -16,7 +16,7 @@
  * Set CHROMIUM_PATH if Playwright's bundled Chromium is somewhere unusual.
  */
 
-import { chromium } from 'playwright';
+import { launchBrowser } from '../browser.mjs';
 import { mkdirSync } from 'node:fs';
 
 const OUT = process.argv[2] ?? 'docs/screenshots';
@@ -24,12 +24,7 @@ const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:8787/';
 
 mkdirSync(OUT, { recursive: true });
 
-const executablePath =
-  process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-
-const browser = await chromium.launch(
-  executablePath ? { executablePath } : {},
-).catch(() => chromium.launch());
+const browser = await launchBrowser();
 
 async function open(theme) {
   const context = await browser.newContext({
