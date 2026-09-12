@@ -294,6 +294,25 @@ export function useAgent() {
   keyRef.current = apiKey;
   const backendRef = useRef(backend.origin);
   backendRef.current = backend.origin;
+
+  /**
+   * Which framework is answering, readable from inside callbacks.
+   *
+   * `send` is memoised on things that rarely change; reading the choice from a
+   * ref keeps a switch mid-conversation from needing a new closure.
+   */
+  const frameworkRef = useRef(backend.id);
+  frameworkRef.current = backend.id;
+
+  /**
+   * Hands a typed line to the Live session, opening it if it is not open.
+   *
+   * A forward reference, because the voice block is defined below `send` and
+   * `send` is what needs it. The alternative was routing typed text to the
+   * Interactions API while the traveller had chosen Live — which is the exact
+   * confusion this switch exists to remove.
+   */
+  const speakRef = useRef<((text: string) => Promise<boolean>) | null>(null);
   // Read while a turn is streaming, where `trip` in the closure is stale.
   const tripRef = useRef(trip);
   tripRef.current = trip;
@@ -392,6 +411,29 @@ export function useAgent() {
       // server writes the brief. Only the conversation needs something said.
       const drawing = !action && !message && surface !== 'inline';
       if ((!action && !message && !drawing) || busy) return;
+
+      /*
+       * In Live, the Live session is the conversation.
+       *
+       * Typing and pressing both go into it, so a session has one framework and
+       * one history rather than quietly straddling two. A surface press is
+       * relayed as the sentence the transcript already shows, which loses the
+       * A2UI action's structure — the Live API has no equivalent to send — and
+       * is the one place this switch costs something.
+       *
+       * `drawing` is excluded on purpose: a standing panel redraw is server-
+       * driven panel mechanics rather than something the traveller said, and it
+       * goes over HTTP in either framework. It reads the same shared trip, so
+       * the panel stays correct; it just is not part of the spoken history.
+       */
+      if (frameworkRef.current === 'live' && !drawing && !options.silent) {
+        const spoken = await speakRef.current?.(text);
+        if (spoken) return;
+        // Falling through means the call could not be opened — the microphone
+        // was refused, or the key is missing. The error is already on screen.
+        return;
+      }
+
       const assistantId = `a_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
       if (!options.silent) {
@@ -647,12 +689,15 @@ export function useAgent() {
   );
 
   const [call, setCall] = useState<VoiceCall | null>(null);
+  /** The same call, readable synchronously — `setCall` lands a tick too late. */
+  const callRef = useRef<VoiceCall | null>(null);
   const [listening, setListening] = useState(false);
   const [agentSpeaking, setAgentSpeaking] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
   const hangUp = useCallback(() => {
     call?.hangUp();
+    callRef.current = null;
     setCall(null);
     setListening(false);
     setAgentSpeaking(false);
@@ -693,15 +738,47 @@ export function useAgent() {
           }
         },
       });
+      callRef.current = started;
       setCall(started);
       setListening(true);
+      return started;
     } catch (error) {
       setVoiceError(error instanceof Error ? error.message : String(error));
     }
   }, [call, hangUp, sessionId, store]);
 
+  /**
+   * Types into the Live session, opening it first if nothing is open.
+   *
+   * `startVoice` toggles, so this only calls it when there is demonstrably no
+   * call — otherwise a typed line would hang up on the traveller.
+   */
+  const speak = useCallback(
+    async (text: string): Promise<boolean> => {
+      const existing = callRef.current ?? (await startVoice()) ?? null;
+      if (!existing) return false;
+      existing.say(text);
+      return true;
+    },
+    [startVoice],
+  );
+  speakRef.current = speak;
+
+  /**
+   * Leaving Live ends the call.
+   *
+   * Otherwise the microphone stays open and Google keeps the session while the
+   * traveller talks to a different framework — which is both a live microphone
+   * nobody asked for and a bill nobody is watching.
+   */
+  useEffect(() => {
+    if (backend.id !== 'live' && callRef.current) hangUp();
+  }, [backend.id, hangUp]);
+
   return {
     store,
+    /** True when the chosen framework has a microphone. */
+    canSpeak: (meta?.backends ?? []).find((entry) => entry.id === backend.id)?.voice === true,
     voice: {
       listening,
       speaking: agentSpeaking,

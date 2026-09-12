@@ -127,15 +127,25 @@ export function clientHints(): ChatRequest['client'] {
 }
 
 /**
- * Which agent runtime is answering.
+ * Which agent framework is answering.
  *
- * Both speak the same wire protocol, and that is the point being made: the
+ * Two genuinely different runtimes, and that is the point being made: the
  * components, the catalog, the skills and this front end are one build, and the
- * thing running the agent loop underneath is swappable at runtime.
+ * thing running the agent loop underneath is the traveller's choice.
  *
- *   worker  the Cloudflare Worker this app is served from. The loop runs at the
- *           edge, on the traveler's own Gemini key, and the model calls the
- *           travel tools directly.
+ *   worker  Gemini Interactions API, driven from the Cloudflare Worker this app
+ *           is served from. A request/response loop at the edge, on the
+ *           traveller's own key, calling the travel tools directly. Typed.
+ *
+ *   live    Gemini Live API, relayed through the same session Durable Object.
+ *           A bidirectional audio session Google drives; the traveller can
+ *           speak or type, and it answers out loud while drawing the same
+ *           surfaces from the same six builders.
+ *
+ * They share the trip and not the transcript. One Durable Object holds what has
+ * been decided, so a flight picked by voice is in the sidebar the typed agent
+ * reads; but each API keeps its own conversation history, so what was *said* in
+ * one is not in the other. That boundary is real, and the UI says so.
  *
  * Two alternatives were built and removed, both worth recording because the
  * reasons are measurements rather than opinions.
@@ -152,7 +162,7 @@ export function clientHints(): ChatRequest['client'] {
  * single round, so a flights-and-hotels turn was two rounds either way — 5.2s
  * against 4.4s, for the sandbox start. Kept in the history, not in the product.
  */
-export type BackendId = 'worker';
+export type BackendId = 'worker' | 'live';
 
 export interface BackendOption {
   id: BackendId;
@@ -160,6 +170,15 @@ export interface BackendOption {
   note: string;
   /** Empty means "same origin as this app". */
   origin: string;
+  /**
+   * Whether this framework listens.
+   *
+   * The microphone used to be in the composer unconditionally, and pressing it
+   * quietly opened a second runtime — which made two agent frameworks look like
+   * one app with a feature. The control now belongs to whichever framework
+   * actually has it.
+   */
+  voice?: boolean;
 }
 
 /**

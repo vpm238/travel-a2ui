@@ -142,6 +142,7 @@ jobs:
           }
           node tools/e2e/chat.mjs
           node tools/e2e/interaction.mjs
+          node tools/e2e/frameworks.mjs
           node tools/e2e/mcp.mjs
         env:
           # Let Playwright use the browser it just installed.

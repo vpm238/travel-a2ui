@@ -1,28 +1,29 @@
 /**
- * Picks which agent runtime answers.
+ * Picks which agent framework answers.
  *
- * The claim this app makes is that the interface layer is independent of the
- * runtime: one catalog, one set of components, one set of skills, one wire
- * protocol — and underneath, whoever you like running the loop. A dropdown is
- * the honest way to demonstrate that, because you can switch mid-conversation
- * and watch the same surfaces come back from a different machine.
+ * Two of them ship, and they are not the same program with a different flag:
  *
- * One runtime ships today — this Worker, on the traveler's own Gemini key — and
- * the picker stays because the *claim* it exists to test still holds: the
- * catalog, the components, the skills and this front end are one build, and what
- * runs the agent loop underneath is swappable. The field takes any backend
- * answering the same `/api/chat` contract.
+ *   Cloudflare Worker   Gemini Interactions API. A request/response loop this
+ *                       Worker drives at the edge, on the traveller's own key,
+ *                       calling the travel tools directly. Typed.
  *
- * Two alternatives were built and removed, and both reasons are measurements.
+ *   Gemini Live         Gemini Live API. A bidirectional audio session Google
+ *                       drives, relayed through the same session Durable
+ *                       Object. Speak or type; it answers out loud.
  *
- * A Google-hosted Managed Agent on the Antigravity harness: the agent ran, its
- * sandbox did not — `Audience of an ID token must be a URL or service account`
- * on every file and code-execution call — and that harness reads its skills off
- * the sandbox filesystem, so it ran with no contract at all.
+ * The claim this picker exists to test is that the interface layer is
+ * independent of the runtime — one catalog, one set of components, one set of
+ * skills, one wire protocol — so you can switch mid-conversation and watch the
+ * same surfaces come back from a different machine on a different API.
  *
- * Cloudflare Code Mode, one tool and a script instead of nine tool calls: built,
- * measured, slower. Gemini already issues independent calls together in a single
- * round, so the `Promise.all` it promises was already happening.
+ * They share the trip and not the transcript. One Durable Object holds what has
+ * been decided, so a flight picked by voice is in the sidebar the typed agent
+ * reads; each API keeps its own history, so what was *said* in one is not in
+ * the other. Switching is therefore a real change of context, not a toggle, and
+ * the picker is in the header rather than hidden behind a microphone.
+ *
+ * The `origin` field takes any backend answering the same `/api/chat` contract,
+ * which is how a third framework would arrive.
  *
  * Switching probes the target first. A runtime that is not running says so here
  * rather than failing on the next message.
@@ -56,21 +57,29 @@ export function RuntimePicker({
   const active = backends.find((entry) => entry.id === current.id);
   const draft = backends.find((entry) => entry.id === draftId);
 
-  // The Worker is whatever origin served this page; only the managed agent has
-  // an address worth asking about.
-  const needsOrigin = draftId !== 'worker';
+  /**
+   * Where a framework lives, as the server advertises it. Empty is same-origin.
+   *
+   * This used to be `id !== 'worker'` — written when the only second runtime
+   * was a managed agent at its own address. Gemini Live is served by this same
+   * Worker, so that test made choosing it wait forever for a URL it does not
+   * have: the entry highlighted, the picker stayed open, and nothing switched.
+   * The server knows the answer, so ask the server.
+   */
+  const originOf = (id: BackendId) => backends.find((entry) => entry.id === id)?.origin ?? '';
+  const needsOrigin = originOf(draftId) !== '';
 
   async function pick(id: BackendId) {
     setDraftId(id);
-    if (id === 'worker') {
+    const advertised = originOf(id);
+    if (advertised === '') {
       setBusy(true);
-      const ok = await onChange('worker', '');
+      const ok = await onChange(id, '');
       setBusy(false);
       if (ok) setOpen(false);
       return;
     }
-    const suggested = draftOrigin || backends.find((entry) => entry.id === id)?.origin || '';
-    setDraftOrigin(suggested);
+    setDraftOrigin(draftOrigin || advertised);
   }
 
   async function connect() {

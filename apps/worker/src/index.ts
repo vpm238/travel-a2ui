@@ -259,18 +259,38 @@ async function handleMeta(env: Env): Promise<Response> {
     keyProvided: Boolean(env.GEMINI_API_KEY),
     runtime: 'worker',
     /**
-     * The two runtimes, offered to the front end as a choice.
+     * The two agent frameworks, offered to the traveller as a choice.
      *
-     * They answer the same wire protocol from the same catalog and the same
-     * skills, which is what makes them interchangeable at all — the difference
-     * is who runs the agent loop, not what comes out of it.
+     * They are genuinely different runtimes — a request/response loop the
+     * Worker drives against the Interactions API, and a bidirectional session
+     * Google drives against the Live API — and the honest way to demonstrate
+     * that the interface layer is independent of the runtime is to let someone
+     * switch between them and watch the same components come back.
+     *
+     * What they share is the trip: one Durable Object, one set of tools, the
+     * same six surface builders. What they do not share is the transcript,
+     * because each API keeps its own. That boundary is real and the UI says so
+     * rather than papering over it.
+     *
+     * `voice` is what the front end branches on. It used to be implicit — a
+     * microphone button sat in the composer at all times and quietly opened a
+     * second runtime — which made two frameworks look like one app with a
+     * feature.
      */
     backends: [
       {
         id: 'worker',
         label: 'Cloudflare Worker',
         origin: '',
-        note: 'The loop runs at the edge, in this Worker. One deploy, no second service, sessions in a Durable Object.',
+        voice: false,
+        note: 'Gemini Interactions API, driven from this Worker at the edge. Typed conversation; surfaces stream in as the model composes them.',
+      },
+      {
+        id: 'live',
+        label: 'Gemini Live',
+        origin: '',
+        voice: true,
+        note: 'Gemini Live API, relayed through the session Durable Object. Speak or type; it answers out loud and draws the same surfaces.',
       },
     ],
   });

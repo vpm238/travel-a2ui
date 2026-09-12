@@ -176,24 +176,30 @@ export function Chat({ agent }: { agent: Agent }) {
 
       <form className="composer" onSubmit={submit}>
         {/*
-          A call is not a different app, so it is a button on the composer
-          rather than a mode you switch into: press it and keep typing if you
-          would rather type an airport code than say one.
+          The microphone belongs to the framework that has one.
+
+          It used to sit here unconditionally, and pressing it quietly opened a
+          second runtime on a different API with its own conversation history —
+          which made two agent frameworks look like one app with a feature. The
+          traveller picks the framework in the header now, and Live is the one
+          that listens. Typing still works in both.
         */}
-        <button
-          type="button"
-          className={`composer__call${agent.voice.listening ? ' is-live' : ''}${
-            agent.voice.speaking ? ' is-speaking' : ''
-          }`}
-          onClick={() => void agent.voice.start()}
-          aria-pressed={agent.voice.listening}
-          title={agent.voice.listening ? 'End the call' : 'Talk to it'}
-        >
-          <span aria-hidden>{agent.voice.listening ? '■' : '🎙'}</span>
-          <span className="visually-hidden">
-            {agent.voice.listening ? 'End the call' : 'Start a voice call'}
-          </span>
-        </button>
+        {agent.canSpeak ? (
+          <button
+            type="button"
+            className={`composer__call${agent.voice.listening ? ' is-live' : ''}${
+              agent.voice.speaking ? ' is-speaking' : ''
+            }`}
+            onClick={() => void agent.voice.start()}
+            aria-pressed={agent.voice.listening}
+            title={agent.voice.listening ? 'End the call' : 'Talk to it'}
+          >
+            <span aria-hidden>{agent.voice.listening ? '■' : '🎙'}</span>
+            <span className="visually-hidden">
+              {agent.voice.listening ? 'End the call' : 'Start a voice call'}
+            </span>
+          </button>
+        ) : null}
         <textarea
           value={draft}
           rows={1}
@@ -204,7 +210,9 @@ export function Chat({ agent }: { agent: Agent }) {
                 : 'Listening — or type'
               : agent.busy
                 ? 'Working…'
-                : 'Ask for a trip, or change one'
+                : agent.canSpeak
+                  ? 'Say it, or type it'
+                  : 'Ask for a trip, or change one'
           }
           aria-label="Message"
           onChange={(event) => setDraft(event.target.value)}
