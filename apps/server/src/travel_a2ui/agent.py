@@ -582,6 +582,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             # The same components, now with something in them. No recompile and
             # no second component send: the data model is the only thing that
             # moved.
+            drawn: dict[str, Any] | None = None
             if pending and not is_error:
                 filled = pending.fill(output)
                 if filled:
@@ -591,13 +592,42 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         "messages": filled,
                         "done": False,
                     }
+                    # And the model is told, because it could not otherwise know.
+                    #
+                    # The host draws these results the moment the lookup starts
+                    # and fills them when it lands — that is the whole point of
+                    # the skeleton. The model knew nothing about it, so it
+                    # composed its own tree over the top of the same surface,
+                    # bound to its own paths. The renderer merges components by
+                    # id, so the filled list stayed in the data model with
+                    # nothing pointing at it: the card appeared with real
+                    # flights, the model's block landed, and the flights
+                    # vanished while the traveller was looking at them.
+                    drawn = {
+                        "surfaceId": request.surface_id,
+                        "path": pending.path,
+                        "rows": len(pending.rows(output)),
+                    }
+
+            payload: dict[str, Any] = dict(output) if isinstance(output, dict) else {"result": output}
+            if drawn:
+                payload["alreadyOnScreen"] = {
+                    **drawn,
+                    "note": (
+                        "The host has already drawn these on surface "
+                        f"{drawn['surfaceId']} and bound them to {drawn['path']}. "
+                        "Do not draw this surface again — say one line about what "
+                        "came back and let them press. Drawing over it replaces "
+                        "the cards they are looking at with an empty one."
+                    ),
+                }
 
             results.append(
                 {
                     "type": "function_result",
                     "name": call.name,
                     "call_id": call.id,
-                    "result": [{"type": "text", "text": json.dumps(output, ensure_ascii=False)}],
+                    "result": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}],
                 }
             )
 

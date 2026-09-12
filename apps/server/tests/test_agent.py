@@ -722,3 +722,61 @@ class TestTheSetupIsSentOnce:
         )
         assert model.bodies[0]["previous_interaction_id"] == "int_1"
         assert "system_instruction" not in model.bodies[0]
+
+
+class TestWhatTheHostAlreadyDrew:
+    """The card that appeared with flights in it and then emptied itself.
+
+    The host draws the results the moment the lookup starts and fills them when
+    it lands. The model knew nothing about that, so it composed its own tree
+    over the same surface, bound to its own paths — and the renderer merges
+    components by id, so the filled rows stayed in the data model with nothing
+    pointing at them. Real flights, then an empty card, while the traveller was
+    looking at it.
+    """
+
+    def test_the_tool_result_says_it_is_already_on_screen(self) -> None:
+        import asyncio
+        import json
+
+        from travel_a2ui.gemini import ToolCall
+
+        model = FakeModel(
+            [
+                (
+                    [],
+                    [
+                        ToolCall(
+                            id="c1",
+                            name="search_flights",
+                            args={"destination": "Madrid"},
+                        )
+                    ],
+                ),
+                ([SURFACE], []),
+            ]
+        )
+        asyncio.run(
+            collect(
+                base(
+                    message="flights to madrid",
+                    trip={
+                        "destination": "Madrid",
+                        "origin": "JFK",
+                        "startDate": "2027-04-12",
+                        "endDate": "2027-04-19",
+                        "travelers": 2,
+                    },
+                    client=model,
+                )
+            )
+        )
+
+        sent = model.bodies[1]["input"]
+        result = next(entry for entry in sent if entry.get("name") == "search_flights")
+        said = json.loads(result["result"][0]["text"])
+        assert said["alreadyOnScreen"]["path"] == "/flights"
+        assert said["alreadyOnScreen"]["rows"] > 0
+        assert "Do not draw this surface again" in said["alreadyOnScreen"]["note"]
+        # And the flights themselves are still there to talk about.
+        assert said.get("items") or said.get("flights")

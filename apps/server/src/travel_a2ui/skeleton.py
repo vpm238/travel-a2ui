@@ -115,6 +115,15 @@ class PendingSurface:
     _surface_id: str
     _version: str
 
+    @property
+    def path(self) -> str:
+        """Where the rows land, so the model can be told not to redraw over them."""
+        return self._path
+
+    def rows(self, result: Any) -> list[Any]:
+        """The rows this filled with, for the note that goes back to the model."""
+        return _rows(result, self._key) or []
+
     def fill(self, result: Any) -> list[A2uiMessage] | None:
         """The data model update that fills it, or nothing to fill it with."""
         rows = _rows(result, self._key)
