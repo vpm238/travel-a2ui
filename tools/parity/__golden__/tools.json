@@ -2082,5 +2082,78 @@
     "isError": true,
     "trip": {},
     "saved": []
+  },
+  "a plan shared as a page": {
+    "tool": "share_plan",
+    "input": {
+      "note": "Madrid, the week of the 12th"
+    },
+    "tripBefore": {
+      "origin": "JFK",
+      "destination": "Madrid",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2,
+      "selectedFlight": "IB6250",
+      "flightPrice": 412,
+      "selectedHotel": "Hotel Unico",
+      "nightlyPrice": 291,
+      "days": [
+        {
+          "title": "Day 1 - Old Madrid",
+          "date": "2027-04-12",
+          "summary": "Art, then a long lunch",
+          "activities": [
+            {
+              "title": "Prado Museum",
+              "time": "10:00",
+              "duration": "2h"
+            }
+          ]
+        },
+        {
+          "title": "Day 2",
+          "date": "2027-04-13",
+          "activities": []
+        }
+      ]
+    },
+    "result": {
+      "page": "# Madrid\n\n*Madrid, the week of the 12th*\n\nJFK → Madrid · 12–19 Apr · 2 travellers\n\n## Getting there\n1. JFK → Madrid — **IB6250** · $412  \n   12 Apr – 19 Apr · 2 travellers\n\n## Where you are staying\n- **Madrid** — Hotel Unico · $291 a night\n\n## The days\n\n### Day 1 - Old Madrid — 12 Apr\n*Art, then a long lunch*\n- **10:00** Prado Museum — 2h\n\n### Day 2 — 13 Apr\n- A day with nothing booked.\n\n---\n\nSample data. The fares, rates and totals here are generated for a demo — nothing is booked and nothing is bookable.",
+      "summary": "JFK → Madrid · 12–19 Apr · 2 travellers",
+      "provenance": "Sample data. The fares, rates and totals here are generated for a demo — nothing is booked and nothing is bookable."
+    },
+    "isError": false,
+    "trip": {
+      "origin": "JFK",
+      "destination": "Madrid",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2,
+      "selectedFlight": "IB6250",
+      "flightPrice": 412,
+      "selectedHotel": "Hotel Unico",
+      "nightlyPrice": 291,
+      "days": [
+        {
+          "title": "Day 1 - Old Madrid",
+          "date": "2027-04-12",
+          "summary": "Art, then a long lunch",
+          "activities": [
+            {
+              "title": "Prado Museum",
+              "time": "10:00",
+              "duration": "2h"
+            }
+          ]
+        },
+        {
+          "title": "Day 2",
+          "date": "2027-04-13",
+          "activities": []
+        }
+      ]
+    },
+    "saved": []
   }
 }

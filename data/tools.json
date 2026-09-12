@@ -358,6 +358,21 @@
         "required": [],
         "additionalProperties": false
       }
+    },
+    {
+      "name": "share_plan",
+      "description": "Turns the trip into a page somebody who is not in this conversation can read: the route hop by hop, where you are staying, the days, and what it comes to. Call it when the trip is settled and they want to send it to whoever else is coming. Returns the page as Markdown plus a one-line summary — not a surface; draw a Button beside it if they should be able to open it again.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "One line at the top, in the traveller's own framing — 'Lisbon, the weekend of the 12th'. Optional."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
     }
   ]
 }

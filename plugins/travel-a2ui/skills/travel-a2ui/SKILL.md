@@ -15,7 +15,7 @@ the surface does not: which you would take, and why.
 
 ## The tools
 
-Eight for data, two for drawing. Nothing here returns a finished layout — you
+Nine for data, two for drawing. Nothing here returns a finished layout — you
 compose those, which is the point of the plugin.
 
 | Tool | For |
@@ -28,6 +28,7 @@ compose those, which is the point of the plugin.
 | `save_trip` | record what they have decided |
 | `release_decision` | let go of one, and whatever depended on it |
 | `get_trip` | read the whole trip back |
+| `share_plan` | the trip as a page somebody outside the chat can read |
 | `get_a2ui_component_reference` | the component contract, before you write one |
 | `render_a2ui_express` | compile a surface and draw it |
 
