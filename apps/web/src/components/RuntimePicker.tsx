@@ -7,15 +7,22 @@
  * the honest way to demonstrate that, because you can switch mid-conversation
  * and watch the same surfaces come back from a different machine.
  *
- * Two runtimes today:
+ * One runtime ships today — this Worker, on the traveler's own Gemini key — and
+ * the picker stays because the *claim* it exists to test still holds: the
+ * catalog, the components, the skills and this front end are one build, and what
+ * runs the agent loop underneath is swappable. The field takes any backend
+ * answering the same `/api/chat` contract.
  *
- *   Cloudflare Worker      the loop runs at the edge, in the Worker serving this
- *                          page. Same origin, one deploy, sessions in a Durable
- *                          Object. This is the default and needs nothing.
- *   Claude Managed Agent   Anthropic runs the loop and hosts the sandbox; the
- *                          Python backend in `backends/` provisions the agent
- *                          and relays the same events. It runs somewhere else,
- *                          so it needs an origin — hence the field.
+ * Two alternatives were built and removed, and both reasons are measurements.
+ *
+ * A Google-hosted Managed Agent on the Antigravity harness: the agent ran, its
+ * sandbox did not — `Audience of an ID token must be a URL or service account`
+ * on every file and code-execution call — and that harness reads its skills off
+ * the sandbox filesystem, so it ran with no contract at all.
+ *
+ * Cloudflare Code Mode, one tool and a script instead of nine tool calls: built,
+ * measured, slower. Gemini already issues independent calls together in a single
+ * round, so the `Promise.all` it promises was already happening.
  *
  * Switching probes the target first. A runtime that is not running says so here
  * rather than failing on the next message.
@@ -126,9 +133,9 @@ export function RuntimePicker({
                 {busy ? 'Checking…' : 'Connect'}
               </button>
               <p>
-                Start it with <code>uvicorn travel_agent.server:app --port 8000</code> in{' '}
-                <code>backends/claude-managed-agent</code>, after{' '}
-                <code>python -m travel_agent.setup_agent</code>.
+                A runtime somewhere other than this Worker. Both of the built-in
+                ones are served from here, so this is only for a backend you are
+                running yourself.
               </p>
             </div>
           ) : null}
@@ -136,7 +143,7 @@ export function RuntimePicker({
           {error ? <p className="runtime__error">{error}</p> : null}
           {!error && draft && draftId === current.id ? (
             <p className="runtime__note">
-              Your key goes to whichever runtime is selected. Both call Anthropic with it directly.
+              Your key goes to whichever runtime is selected. Both call Gemini with it directly, and neither stores it.
             </p>
           ) : null}
         </div>

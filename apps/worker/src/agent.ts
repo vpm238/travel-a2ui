@@ -16,19 +16,29 @@
  * the turn.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import {
   ExpressCompiler,
   ExpressStreamParser,
   bindCommitContext,
+  bindDerivedLabels,
+  stripPanelActions,
   type A2uiMessage,
 } from '@travel-a2ui/express';
 
 import catalog from '../../../catalogs/a2ui-travel/catalog.json';
 import { buildSystemPrompt, type SkillVariant, type SurfaceKind } from './skills.js';
-import { TOOLS, runTool, type ToolContext } from './tools.js';
+import { geminiTools, runTool, type ToolContext } from './tools.js';
+import { GeminiError, streamInteraction, type InteractionInput } from './gemini.js';
 import { originForTimeZone } from './travel.js';
-import { normalize as normalizeTrip, type Trip } from '@travel-a2ui/trip';
+import {
+  confirm,
+  decisionShape,
+  merge as mergeTrip,
+  normalize as normalizeTrip,
+  problems,
+  type Trip,
+  type TripKey,
+} from '@travel-a2ui/trip';
 import { STANDING_SURFACES, seedSurfaceTrip, tripUpdates } from './surface.js';
 
 export const CATALOG = catalog as unknown as import('@travel-a2ui/express').CatalogSchema;
@@ -55,7 +65,14 @@ export type AgentEvent =
   | { type: 'tool'; name: string; input: unknown; status: 'running' }
   | { type: 'tool_result'; name: string; result: unknown; isError: boolean }
   | { type: 'trip'; trip: Record<string, unknown> }
-  | { type: 'usage'; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number }
+  | {
+      type: 'usage';
+      inputTokens: number;
+      outputTokens: number;
+      cacheReadTokens: number;
+      cacheWriteTokens: number;
+      thoughtTokens: number;
+    }
   /** The model is being asked to rewrite a block that did not compile. */
   | { type: 'retry'; reason: string }
   | { type: 'error'; message: string; retryable: boolean }
@@ -90,7 +107,14 @@ export interface TurnRequest {
   message: string;
   /** What the traveler pressed. */
   action?: SurfaceAction;
-  history: Anthropic.MessageParam[];
+  /**
+   * The last interaction in this conversation, or null to start a new one.
+   *
+   * The transcript lives on the server; this is the thread back to it. A turn
+   * therefore sends one message rather than the whole conversation, which is
+   * where most of the old latency went.
+   */
+  interactionId?: string | null;
   trip: Record<string, unknown>;
   /** The browser's timezone and locale, as a hint about the departure city. */
   client?: { timeZone?: string; locale?: string };
@@ -98,25 +122,26 @@ export interface TurnRequest {
   surfaceId: string;
   skill: SkillVariant;
   effort: 'low' | 'medium' | 'high';
+  /** The decision shape the standing surfaces were last drawn for. */
+  shape?: string | null;
+  /** Aborts the upstream request when the traveler presses Stop. */
+  signal?: AbortSignal;
 }
 
 export interface TurnResult {
-  history: Anthropic.MessageParam[];
+  /** Pass to the next turn to continue this conversation. */
+  interactionId: string | null;
   trip: Record<string, unknown>;
   stopReason: string | null;
+  /**
+   * The trip's decision shape as the panels were last drawn for it. Saved with
+   * the session so the next turn knows whether a redraw is owed.
+   */
+  shape?: string;
 }
 
 /** Tool loops need a ceiling: a model that keeps calling tools should stop, not bill. */
 const MAX_TOOL_ROUNDS = 6;
-const MAX_TOKENS = 16_000;
-
-/** Text the model wrote outside `<a2ui>` blocks, per turn. */
-function textOf(blocks: Anthropic.ContentBlock[]): string {
-  return blocks
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map((block) => block.text)
-    .join('');
-}
 
 /**
  * The trip facts inside a committed surface's data model.
@@ -143,6 +168,44 @@ function tripFromSurface(state: Record<string, unknown> | undefined): Trip {
  */
 function tripFromContext(context: Record<string, unknown> | undefined): Trip {
   return normalizeTrip(context);
+}
+
+/** Today, in the one format every date in this app is written in. */
+const today = (): string => new Date().toISOString().slice(0, 10);
+
+/** Values a commit is not allowed to corrupt the trip with. */
+const REFUSABLE = new Set<TripKey>(['startDate', 'endDate', 'travelers', 'legs']);
+
+/**
+ * Applies what a surface sent, minus anything that would break the trip.
+ *
+ * `save_trip` has always validated, so a model that invented a return date
+ * before the departure was told so. A *commit* went nowhere near it: the
+ * traveler's own values were merged straight in, and a picker that handed back
+ * 20 April → 12 April priced four flights against a trip with negative nights.
+ * The doc has said "return before departure — refused at save" since before any
+ * of this was written; it was only ever true of one of the two ways a value
+ * arrives.
+ *
+ * A refused field reverts to what was saved, and the model is told which and
+ * why, so the next surface re-asks instead of the traveler wondering why their
+ * dates did not stick.
+ */
+function commit(saved: Trip, proposed: Trip): { trip: Trip; refused: string[] } {
+  const found = problems(proposed, today()).filter((problem) => REFUSABLE.has(problem.field));
+  if (found.length === 0) return { trip: proposed, refused: [] };
+
+  const trip = { ...proposed };
+  for (const problem of found) {
+    // Back to what was saved — deleting outright would lose a value the
+    // traveler had already agreed to, which is a second wrong answer.
+    if (problem.field in saved) {
+      (trip as Record<string, unknown>)[problem.field] = saved[problem.field];
+    } else {
+      delete (trip as Record<string, unknown>)[problem.field];
+    }
+  }
+  return { trip, refused: found.map((problem) => problem.message) };
 }
 
 /**
@@ -183,15 +246,8 @@ export async function runTurn(
   request: TurnRequest,
   emit: (event: AgentEvent) => void,
 ): Promise<TurnResult> {
-  const client = new Anthropic({
-    apiKey: request.apiKey,
-    // The browser holds the key and sends it per request; nothing is stored
-    // here. One retry, because a Worker turn that hangs is worse than one that
-    // fails and can be re-sent.
-    maxRetries: 1,
-  });
-
   const compiler = new ExpressCompiler(CATALOG, 'v0.9.1');
+
   // Values the traveler set on screen are facts, and the host records them
   // rather than depending on the model to notice and call `save_trip`. That
   // dependency is what made a second card forget what the first one asked.
@@ -200,17 +256,30 @@ export async function runTurn(
   // is what the button declared it was sending, so it wins where they disagree,
   // and the surrounding data model fills in anything the traveler set that no
   // binding named.
-  const trip = {
+  const fromSurface = tripFromSurface(request.action?.dataModel);
+  const fromContext = tripFromContext(request.action?.context);
+  const { trip, refused } = commit(request.trip, {
     ...request.trip,
-    ...tripFromSurface(request.action?.dataModel),
-    ...tripFromContext(request.action?.context),
-  };
+    ...fromSurface,
+    ...fromContext,
+  });
+
+  // Pressing a button *is* saying so. Whatever the surface sent stops being a
+  // guess, however it got into the control — the agent's suggestion, a value
+  // carried over from an earlier turn, or something typed just now.
+  const said = [...Object.keys(fromSurface), ...Object.keys(fromContext)];
+  if (said.length > 0) Object.assign(trip, confirm(trip, said));
   const toolContext: ToolContext = {
     trip,
-    saveTrip: (patch) => Object.assign(trip, patch),
+    // `merge` rather than `Object.assign`, because one field does not simply
+    // overwrite: a patch naming `assumed` is talking about its own fields, and
+    // a later patch that states one of them for real has to clear that mark.
+    saveTrip: (patch) => {
+      const next = mergeTrip(trip, patch);
+      for (const key of Object.keys(trip)) delete (trip as Record<string, unknown>)[key];
+      Object.assign(trip, next);
+    },
   };
-
-  const messages: Anthropic.MessageParam[] = [...request.history];
 
   // Pressing something *is* the traveler's turn, so it enters the conversation
   // as one. The sentence is written here rather than in the browser: the wire
@@ -219,11 +288,34 @@ export async function runTurn(
   // Typing wins when both arrive. Someone can type while a surface is on screen,
   // and then what they said is the turn — the action's values still reached the
   // trip above, which is the part that had to happen either way.
-  const opening =
-    request.message || (request.action ? describeAction(request.action, request.surface) : '');
-  messages.push({ role: 'user', content: opening });
+  const opening = [
+    request.message ||
+      (request.action
+        ? describeAction(request.action, request.surface)
+        : // Nothing said, on a standing surface: the client asked for the panel
+          // and the brief is the agent's to write.
+          PANEL_REQUEST),
+    // Said in the turn rather than left for the model to discover, because it
+    // will not: the trip it reads back is simply the old one, and nothing in it
+    // says a value was turned away.
+    ...(refused.length
+      ? [
+          `[interface] Refused, and not saved: ${refused.join(' ')} ` +
+            'Say so plainly and ask for it again, keeping everything else they set.',
+        ]
+      : []),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  let input: InteractionInput[] = [
+    { type: 'user_input', content: [{ type: 'text', text: opening }] },
+  ];
+  // The conversation lives on the server. This is the thread we are pulling.
+  let previousInteractionId = request.interactionId ?? null;
 
   emit({ type: 'start', model: request.model, skill: request.skill, surfaceId: request.surfaceId });
+
 
   const suggested = originForTimeZone(request.client?.timeZone);
   const system = buildSystemPrompt({
@@ -255,143 +347,125 @@ export async function runTurn(
    * compile error by naming it, because there the model is on the other side of
    * a tool call; here it is the same model, one message later.
    */
-  let unreported: { message: string; express: string } | null = null;
+  // A holder rather than a plain `let`: it is written inside the stream
+  // callback, and control-flow analysis cannot see across that call, so a bare
+  // variable reads as never-assigned at the point it is checked.
+  const unreported: { failure: { message: string; express: string } | null } = { failure: null };
   let retriedCompile = false;
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    // A fresh splitter per round: each round is its own stream of prose and
+    // Express, and a block left open at the end of one is not continued by the
+    // next.
     const stream = new ExpressStreamParser(compiler, {
       surfaceId: request.surfaceId,
       catalogId: CATALOG_ID,
       version: 'v0.9.1',
     });
 
-    let assistantBlocks: Anthropic.ContentBlock[] = [];
-
-    try {
-      const run = client.messages.stream({
-        model: request.model,
-        max_tokens: MAX_TOKENS,
-        system,
-        messages,
-        tools: TOOLS,
-        thinking: { type: 'adaptive' },
-        output_config: { effort: request.effort },
-      });
-
-      run.on('text', (delta) => {
-        // Split prose from UI as it arrives, and recompile the open block.
-        for (const event of stream.push(delta)) {
-          if (event.type === 'text') emit({ type: 'text', delta: event.delta, round });
-          else if (event.type === 'ui') {
-            emit({
-              type: 'ui',
-              surfaceId: request.surfaceId,
-              messages: bindCommitContext(seedSurfaceTrip(event.messages, trip)),
-              done: event.done,
-            });
-          } else if (event.type === 'error') {
-            unreported = { message: event.message, express: event.source };
-            emit({
-              type: 'ui_error',
-              message: event.message,
-              source: 'stream',
-              express: event.source,
-            });
-          }
-        }
-      });
-
-      const message = await run.finalMessage();
-      assistantBlocks = message.content;
-      stopReason = message.stop_reason;
-
-      for (const event of stream.end()) {
-        if (event.type === 'text') emit({ type: 'text', delta: event.delta, round });
-        else if (event.type === 'ui') {
+    const drain = (events: ReturnType<ExpressStreamParser['push']>, source: string): void => {
+      for (const event of events) {
+        if (event.type === 'text') {
+          emit({ type: 'text', delta: event.delta, round });
+        } else if (event.type === 'ui') {
           emit({
             type: 'ui',
             surfaceId: request.surfaceId,
-            messages: bindCommitContext(seedSurfaceTrip(event.messages, trip)),
+            messages: stripPanelActions(
+              bindDerivedLabels(bindCommitContext(seedSurfaceTrip(event.messages, trip))),
+              STANDING_SURFACES,
+            ),
             done: event.done,
           });
         } else if (event.type === 'error') {
-          unreported = { message: event.message, express: event.source };
-          emit({ type: 'ui_error', message: event.message, source: 'final', express: event.source });
+          unreported.failure = { message: event.message, express: event.source };
+          emit({ type: 'ui_error', message: event.message, source, express: event.source });
         }
       }
+    };
 
-      emit({
-        type: 'usage',
-        inputTokens: message.usage.input_tokens,
-        outputTokens: message.usage.output_tokens,
-        cacheReadTokens: message.usage.cache_read_input_tokens ?? 0,
-        cacheWriteTokens: message.usage.cache_creation_input_tokens ?? 0,
-      });
-
-      if (message.stop_reason === 'refusal') {
-        emit({
-          type: 'error',
-          message: 'The model declined this request.',
-          retryable: false,
-        });
-        messages.push({ role: 'assistant', content: assistantBlocks });
-        break;
-      }
+    let result;
+    try {
+      result = await streamInteraction(
+        {
+          apiKey: request.apiKey,
+          model: request.model,
+          input,
+          tools: geminiTools(),
+          systemInstruction: system,
+          thinkingLevel: request.effort,
+          previousInteractionId,
+          ...(request.signal ? { signal: request.signal } : {}),
+        },
+        // Split prose from UI as it arrives, so the surface paints while the
+        // model is still typing rather than after it stops.
+        (delta) => drain(stream.push(delta), 'stream'),
+      );
+      drain(stream.end(), 'final');
     } catch (error) {
       emit(describeApiError(error));
       break;
     }
 
-    messages.push({ role: 'assistant', content: assistantBlocks });
+    previousInteractionId = result.interactionId ?? previousInteractionId;
+    stopReason = result.status;
 
-    const toolUses = assistantBlocks.filter(
-      (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
-    );
+    emit({
+      type: 'usage',
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      cacheReadTokens: result.usage.cachedTokens,
+      cacheWriteTokens: 0,
+      thoughtTokens: result.usage.thoughtTokens,
+    });
 
     // Nothing left to do but a surface that did not compile: hand the error
     // back and let it write the block again. Once — a model that cannot fix it
     // on the second attempt will not fix it on the fifth, and the traveler is
     // waiting.
-    if (toolUses.length === 0 && unreported && !retriedCompile) {
+    if (result.toolCalls.length === 0 && unreported.failure && !retriedCompile) {
       retriedCompile = true;
-      const failure = unreported;
-      unreported = null;
+      const failure = unreported.failure;
+      unreported.failure = null;
       emit({ type: 'retry', reason: failure.message });
-      messages.push({
-        role: 'user',
-        content:
-          'That A2UI block did not compile, so nothing was drawn and the traveler is looking ' +
-          `at prose with a gap in it.\n\n${failure.message}\n\nThe block was:\n\n` +
-          `${failure.express.slice(0, 4000)}\n\n` +
-          'Write the whole block again, corrected. Do not repeat the prose — only the ' +
-          '<a2ui> block.',
-      });
+      input = [
+        {
+          type: 'user_input',
+          content: [
+            {
+              type: 'text',
+              text:
+                'That A2UI block did not compile, so nothing was drawn and the traveler is ' +
+                `looking at prose with a gap in it.\n\n${failure.message}\n\nThe block was:` +
+                `\n\n${failure.express.slice(0, 4000)}\n\n` +
+                'Write the whole block again, corrected. Do not repeat the prose — only the ' +
+                '<a2ui> block.',
+            },
+          ],
+        },
+      ];
       continue;
     }
 
-    if (toolUses.length === 0) break;
+    if (result.toolCalls.length === 0) break;
 
-    // Parallel tool calls come back in one assistant message and their results
-    // must go back in one user message — splitting them teaches the model to
-    // stop calling tools in parallel.
-    const results: Anthropic.ToolResultBlockParam[] = [];
-    for (const use of toolUses) {
-      emit({ type: 'tool', name: use.name, input: use.input, status: 'running' });
-      const { result, isError } = await runTool(
-        use.name,
-        (use.input ?? {}) as Record<string, unknown>,
-        toolContext,
-      );
-      emit({ type: 'tool_result', name: use.name, result, isError });
+    // Every call this round answered in one go: the next request carries all of
+    // their results, which is what keeps the model calling tools in parallel
+    // rather than learning to ask one at a time.
+    const results: InteractionInput[] = [];
+    for (const call of result.toolCalls) {
+      emit({ type: 'tool', name: call.name, input: call.args, status: 'running' });
+      const { result: output, isError } = await runTool(call.name, call.args, toolContext);
+      emit({ type: 'tool_result', name: call.name, result: output, isError });
       results.push({
-        type: 'tool_result',
-        tool_use_id: use.id,
-        content: JSON.stringify(result),
-        is_error: isError,
+        type: 'function_result',
+        name: call.name,
+        call_id: call.id,
+        result: [{ type: 'text', text: JSON.stringify(output) }],
       });
     }
 
-    messages.push({ role: 'user', content: results });
+    input = results;
     emit({ type: 'trip', trip: { ...trip } });
 
     if (round === MAX_TOOL_ROUNDS - 1) {
@@ -410,44 +484,130 @@ export async function runTurn(
     const updates = tripUpdates(surfaceId, trip);
     if (updates.length > 0) emit({ type: 'ui', surfaceId, messages: updates, done: true });
   }
+
+  // A rebuild, when the decisions changed shape enough to need different
+  // controls. This is the last thing the browser was still deciding for itself:
+  // it held a list of trip field names, watched them, and sent a prose prompt
+  // asking for a new panel. Two problems with that, and the second is the
+  // serious one — a prose prompt composed in a client is the private protocol
+  // recommendation 4 removed from form submission, and a Swift client that does
+  // not send it simply never gets a panel at all.
+  const rebuilt =
+    request.surface === 'inline' ? await rebuildPanels(request, trip, system, emit) : null;
+
   emit({ type: 'done', stopReason });
 
-  return { history: messages, trip, stopReason };
+  return {
+    interactionId: previousInteractionId,
+    trip,
+    stopReason,
+    ...(rebuilt ? { shape: rebuilt } : {}),
+  };
 }
 
 /**
- * Turns an SDK error into something the user can act on.
+ * Redraws the standing surfaces, if the trip's decisions changed shape.
+ *
+ * One extra model turn, and only when the shape moved — which is the same
+ * budget the browser was spending, now spent by the thing that knows when it is
+ * warranted. `decisionShape` lives in `packages/trip` because what counts as a
+ * decision is a fact about a trip, not about a panel.
+ *
+ * A failure here is silent on purpose: the traveler's answer already arrived
+ * and painted. A panel that is one turn stale is a much smaller problem than an
+ * error banner over a conversation that went fine.
+ */
+async function rebuildPanels(
+  request: TurnRequest,
+  trip: Record<string, unknown>,
+  _system: string,
+  emit: (event: AgentEvent) => void,
+): Promise<string | null> {
+  const shape = decisionShape(trip as Trip);
+  if (shape === request.shape) return shape;
+  // Nothing to draw a panel *of* yet. The first turn of a conversation usually
+  // ends with a question, and a panel saying "no trip" is a panel nobody wants.
+  if (!trip['destination']) return shape;
+
+  for (const surfaceId of STANDING_SURFACES) {
+    const surface = surfaceId as SurfaceKind;
+    const system = buildSystemPrompt({
+      variant: request.skill,
+      surface,
+      surfaceId,
+      catalogId: CATALOG_ID,
+      trip,
+      today: today(),
+    });
+
+    const stream = new ExpressStreamParser(new ExpressCompiler(CATALOG, 'v0.9.1'), {
+      surfaceId,
+      catalogId: CATALOG_ID,
+      version: 'v0.9.1',
+    });
+    const drain = (events: ReturnType<ExpressStreamParser['push']>): void => {
+      for (const event of events) {
+        if (event.type !== 'ui') continue;
+        emit({
+          type: 'ui',
+          surfaceId,
+          messages: stripPanelActions(
+            bindDerivedLabels(bindCommitContext(seedSurfaceTrip(event.messages, trip))),
+            STANDING_SURFACES,
+          ),
+          done: event.done,
+        });
+      }
+    };
+
+    try {
+      await streamInteraction(
+        {
+          apiKey: request.apiKey,
+          model: request.model,
+          // Not chained to the conversation: a panel redraw is not something the
+          // traveler said, and threading it through `previous_interaction_id`
+          // would put "rebuild the panel" in the transcript as a user turn.
+          input: [{ type: 'user_input', content: [{ type: 'text', text: PANEL_REQUEST }] }],
+          systemInstruction: system,
+          thinkingLevel: 'low',
+          ...(request.signal ? { signal: request.signal } : {}),
+        },
+        (delta) => drain(stream.push(delta)),
+      );
+      drain(stream.end());
+    } catch {
+      return shape;
+    }
+  }
+
+  return shape;
+}
+
+/**
+ * What a panel redraw asks for.
+ *
+ * Short, because the surface brief in the skill already says what a panel is and
+ * what it may contain. This only has to say *now*.
+ */
+const PANEL_REQUEST =
+  'Redraw this surface for where the trip stands now. Only the surface — no prose.';
+
+/**
+ * Turns an API failure into something the traveler can act on.
  *
  * "401" is not a message; "that key was rejected" is. Because the key comes from
  * the person sitting in front of the app, auth failures are the most likely
- * error here and deserve the clearest wording.
+ * error here and deserve the clearest wording — which is why `GeminiError`
+ * carries the sentence rather than leaving it to be reconstructed from a status
+ * code at the far end.
  */
 export function describeApiError(error: unknown): AgentEvent & { type: 'error' } {
-  if (error instanceof Anthropic.AuthenticationError) {
-    return {
-      type: 'error',
-      message: 'That API key was rejected. Check it starts with sk-ant- and is still active.',
-      retryable: false,
-    };
+  if (error instanceof GeminiError) {
+    return { type: 'error', message: error.message, retryable: error.retryable };
   }
-  if (error instanceof Anthropic.PermissionDeniedError) {
-    return {
-      type: 'error',
-      message: 'That key does not have access to this model. Try a different model or key.',
-      retryable: false,
-    };
-  }
-  if (error instanceof Anthropic.RateLimitError) {
-    return { type: 'error', message: 'Rate limited by the API. Wait a moment and retry.', retryable: true };
-  }
-  if (error instanceof Anthropic.BadRequestError) {
-    return { type: 'error', message: `The API rejected the request: ${error.message}`, retryable: false };
-  }
-  if (error instanceof Anthropic.APIConnectionError) {
-    return { type: 'error', message: 'Could not reach the API. Check the connection and retry.', retryable: true };
-  }
-  if (error instanceof Anthropic.APIError) {
-    return { type: 'error', message: `API error ${error.status}: ${error.message}`, retryable: (error.status ?? 0) >= 500 };
+  if (error instanceof Error && error.name === 'AbortError') {
+    return { type: 'error', message: 'Stopped.', retryable: false };
   }
   return {
     type: 'error',
@@ -455,6 +615,7 @@ export function describeApiError(error: unknown): AgentEvent & { type: 'error' }
     retryable: false,
   };
 }
+
 
 /** Used by the MCP server, which has no stream to write into. */
 export async function runTurnCollected(request: TurnRequest): Promise<{
@@ -476,4 +637,4 @@ export async function runTurnCollected(request: TurnRequest): Promise<{
   return { text: chunks.join('').trim(), ui, trip: result.trip, ...(error ? { error } : {}) };
 }
 
-export { textOf };
+

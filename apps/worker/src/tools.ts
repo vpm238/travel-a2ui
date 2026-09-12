@@ -17,8 +17,6 @@
  * user's choices have to outlive the turn that made them.
  */
 
-import type Anthropic from '@anthropic-ai/sdk';
-
 import {
   askFor,
   basisOf,
@@ -30,6 +28,7 @@ import {
   normalize as normalizeTrip,
   problems,
   release,
+  stops,
   summarize,
   unskip,
   type Trip,
@@ -51,7 +50,23 @@ export interface ToolContext {
   saveTrip(patch: Record<string, unknown>): void;
 }
 
-export const TOOLS: Anthropic.Tool[] = [
+/**
+ * A tool, described once and in nobody's dialect.
+ *
+ * The shape is JSON Schema and a name, which is the intersection of every
+ * provider's tool format — the Gemini adapter is `geminiTools()` below, and a
+ * second provider would be another six lines rather than a second copy of the
+ * eight schemas.
+ */
+export interface ToolSpec {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+  /** Ask the provider to reject arguments the schema does not allow. */
+  strict?: boolean;
+}
+
+export const TOOLS: ToolSpec[] = [
   {
     name: 'search_flights',
     description:
@@ -67,7 +82,14 @@ export const TOOLS: Anthropic.Tool[] = [
           type: 'string',
           description: "Where the traveler is going: a city name or airport code, e.g. 'Madrid' or 'MAD'.",
         },
-        origin: { type: 'string', description: "Departure airport code. Defaults to 'JFK'." },
+        // Not "defaults to JFK", which is what this said and which is a lie the
+        // schema was telling the model: `priceFlights` requires an origin and
+        // the call is refused without one. Naming a default here is how an
+        // agent that must never assume a departure airport learns to assume it.
+        origin: {
+          type: 'string',
+          description: 'Departure airport code. Required — the trip is not priced without one.',
+        },
         date: { type: 'string', description: 'Outbound date as YYYY-MM-DD.' },
         travelers: { type: 'integer', description: 'Number of travelers.' },
         cabin: { type: 'string', enum: ['economy', 'premium', 'business', 'first'] },
@@ -158,11 +180,8 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'save_trip',
     description:
-      "Records what the traveler has decided — destination, dates, party size, the flight and stay they " +
-      'picked, their budget. Call it as soon as something is settled: later turns and the other surfaces ' +
-      'read this, and anything not saved here is forgotten when the turn ends. Also how a trip is told ' +
-      'it does not need a stage (skip) and how a multi-city trip is held (legs). Returns what is still ' +
-      'needed, so the reply tells you what to do next.',
+      'Records what the traveler has decided. Anything not saved here is forgotten ' +
+      'when the turn ends. Returns what is still needed.',
     input_schema: {
       type: 'object',
       properties: {
@@ -186,19 +205,20 @@ export const TOOLS: Anthropic.Tool[] = [
         skip: {
           type: 'array',
           items: { type: 'string', enum: ['route', 'dates', 'party', 'flight', 'stay', 'budget', 'plan'] },
+          description: 'Stages this trip does not need. A skipped stage counts as settled.',
+        },
+        assumed: {
+          type: 'array',
+          items: { type: 'string' },
           description:
-            'Stages this trip does not need — driving rather than flying, staying with family, ' +
-            'no fixed budget. A skipped stage counts as settled and is never asked about again. ' +
-            'Record it the moment the traveler rules something out.',
+            'Fields in this call the traveler did not actually state — your best ' +
+            'guess rather than their answer. They pre-fill the control and the ' +
+            'question stays open, so you still ask.',
         },
         legs: {
           type: 'array',
           description:
-            'Stops after the first, in order, each with its own dates and — where it differs — ' +
-            'its own party size. This is how a real route is held: SFO to New York via Chicago ' +
-            'for two nights, then home with a second ticket because a friend is coming back too, ' +
-            'is one trip with three legs and two party sizes. The top-level fields are the first ' +
-            'leg. A leg with no origin departs from the previous stop.',
+            'Stops after the first, in order. The top-level fields are the first leg.',
           items: {
             type: 'object',
             properties: {
@@ -211,22 +231,12 @@ export const TOOLS: Anthropic.Tool[] = [
               },
               travelers: {
                 type: 'integer',
-                description:
-                  'Only when this leg carries a different number of people than the trip — ' +
-                  'someone joining for the way home, someone flying back early. Omit and it ' +
-                  "inherits the trip's party size.",
+                description: "Only when this leg differs. Omit and it inherits the trip's.",
               },
-              purpose: {
-                type: 'string',
-                description: "Why this stop exists — 'the wedding', 'work'. It shapes what to plan.",
-              },
+              purpose: { type: 'string', description: "Why this stop exists — 'the wedding'." },
               needsStay: {
                 type: 'boolean',
-                description:
-                  'Whether this stop needs somewhere to stay. Three cities do not mean three ' +
-                  "hotels — a friend's spare room, a wedding block, a red-eye out the same " +
-                  'night. Ask per stop and record false for the ones that do not, so it is ' +
-                  'never asked about again.',
+                description: 'Whether this stop needs somewhere to stay.',
               },
               selectedHotel: { type: 'string', description: 'The stay chosen for this stop.' },
               nightlyPrice: { type: 'number' },
@@ -244,12 +254,8 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'release_decision',
     description:
-      "Lets go of something already decided, so it can be decided again. This is what 'Change' " +
-      'in the panel means, and what to call when the traveler says they want to move the dates ' +
-      'or pick a different flight. It clears the named fields *and* what depended on them — new ' +
-      'dates release the flight priced against them — and returns what was cleared, so you can ' +
-      'say so. Then re-ask inline, pre-filled with what was there. Clearing a stage that was ' +
-      'ruled out puts it back in the plan.',
+      'Lets go of something already decided. Clears the named fields *and* what ' +
+      'depended on them, and returns what it cleared.',
     input_schema: {
       type: 'object',
       properties: {
@@ -261,7 +267,7 @@ export const TOOLS: Anthropic.Tool[] = [
         stages: {
           type: 'array',
           items: { type: 'string', enum: ['route', 'dates', 'party', 'flight', 'stay', 'budget', 'plan'] },
-          description: 'Stages to un-rule-out, when the traveler changes their mind about skipping one.',
+          description: 'Stages to un-rule-out.',
         },
       },
       required: [],
@@ -318,9 +324,39 @@ function needsInput(what: string, missing: readonly TripKey[]): {
  *
  * A model that passes `date` explicitly is describing the same trip as one that
  * relies on the saved `startDate`, and neither should be handled specially.
+ *
+ * The subtlety is **which stop**. A trip's flat fields describe the first one,
+ * so pricing any later stop against them quietly used the wrong party size, the
+ * wrong dates and the wrong departure airport — "New York back to SFO, two of
+ * us this time" priced one ticket, out of the original origin, on the outbound
+ * dates, and looked entirely plausible doing it. So when `destination` names a
+ * stop on the route, that stop's own resolved values are the base. Anything the
+ * call states explicitly still wins over both.
  */
 function effectiveTrip(input: ToolInput, context: ToolContext): Trip {
-  return mergeTrip(normalizeTrip(context.trip), {
+  const saved = normalizeTrip(context.trip);
+  const asked = typeof input['destination'] === 'string' ? input['destination'].trim() : '';
+
+  // `stops()` resolves each leg against the one before it, so a leg that never
+  // said where it departs from or how many people are on it still arrives here
+  // with both filled in.
+  const stop = asked
+    ? stops(saved).find((leg) => leg.destination.toLowerCase() === asked.toLowerCase())
+    : undefined;
+
+  const base: Trip = stop
+    ? {
+        ...saved,
+        destination: stop.destination,
+        ...(stop.origin ? { origin: stop.origin } : {}),
+        ...(stop.startDate ? { startDate: stop.startDate } : {}),
+        ...(stop.endDate ? { endDate: stop.endDate } : {}),
+        ...(stop.travelers === undefined ? {} : { travelers: stop.travelers }),
+        ...(stop.selectedHotel ? { selectedHotel: stop.selectedHotel } : {}),
+      }
+    : saved;
+
+  return mergeTrip(base, {
     destination: input['destination'],
     origin: input['origin'],
     startDate: input['date'] ?? input['startDate'],
@@ -547,4 +583,25 @@ export async function runTool(
       isError: true,
     };
   }
+}
+
+/**
+ * The same tools, in the shape the Gemini Interactions API wants.
+ *
+ * The only difference is the key holding the schema — `parameters` rather than
+ * `input_schema` — and a `type` discriminator, because Gemini's tool array also
+ * carries its built-in tools.
+ */
+export function geminiTools(): Array<{
+  type: 'function';
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}> {
+  return TOOLS.map((tool) => ({
+    type: 'function' as const,
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.input_schema,
+  }));
 }

@@ -14,7 +14,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ExpressCompiler } from '../../../packages/express/dist/index.js';
+import { ExpressCompiler, exampleExpress } from '../../../packages/express/dist/index.js';
 
 const here = dirname(dirname(fileURLToPath(import.meta.url)));
 const root = join(here, '..', '..');
@@ -83,6 +83,47 @@ for (const name of readdirSync(examplesDir).filter((file) => file.endsWith('.exp
   });
 }
 
+/**
+ * One surface per component, so the gallery is a component gallery too.
+ *
+ * The flows above show components in context, which is the right way to judge
+ * whether the *app* works and the wrong way to find out what a `ProgressMeter`
+ * looks like. These are derived from each component's own schema, so a
+ * component added to the catalog turns up here on the next build with nothing
+ * written by hand.
+ */
+const components = [];
+
+for (const name of Object.keys(catalog.components).sort()) {
+  const express = exampleExpress(catalog, name);
+  if (!express) continue;
+
+  const surfaceId = `component-${name}`;
+  let messages;
+  try {
+    messages = compiler.compile(express, {
+      surfaceId,
+      catalogId: catalog.catalogId,
+      version: 'v0.9.1',
+    });
+  } catch (error) {
+    // A preview that will not compile is a real problem with the catalog or the
+    // derivation, and a gallery quietly missing a component hides it.
+    console.error(`${name}: ${error.message}`);
+    process.exit(1);
+  }
+
+  components.push({
+    id: surfaceId,
+    surfaceId,
+    name,
+    description: catalog.components[name]?.description ?? '',
+    express,
+    messages,
+    bytes: JSON.stringify(messages).length,
+  });
+}
+
 if (surfaces.length === 0) {
   console.error('No surfaces compiled — check catalogs/a2ui-travel/examples.');
   process.exit(1);
@@ -94,6 +135,13 @@ writeFileSync(
   'utf8',
 );
 
+writeFileSync(
+  join(here, 'src', 'components.generated.json'),
+  `${JSON.stringify(components, null, 2)}\n`,
+  'utf8',
+);
+
 console.log(
-  `Compiled ${surfaces.length} surfaces: ${surfaces.map((surface) => surface.title).join(', ')}`,
+  `Compiled ${surfaces.length} surfaces (${surfaces.map((surface) => surface.title).join(', ')}) ` +
+    `and ${components.length} component previews.`,
 );

@@ -615,7 +615,7 @@ describe('resources and prompts', () => {
   it('serves the Express skill as the prompt that teaches render_a2ui_express', async () => {
     const { body } = await rpc('prompts/get', { name: 'a2ui-express' });
     const text = body.result.messages[0].content.text;
-    expect(text).toContain('A2UI Express output contract');
+    expect(text).toContain('A2UI Express DSL Output Contract');
     expect(text).toContain('FlightOption(');
   });
 

@@ -1,0 +1,1144 @@
+[
+  {
+    "id": "component-ActivityItem",
+    "surfaceId": "component-ActivityItem",
+    "name": "ActivityItem",
+    "description": "",
+    "express": "root = ActivityItem(\"Prado Museum\", \"10:00\", category=\"sight\", location=\"Paseo del Prado 23\", duration=\"2h\", note=\"Book the timed entry\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-ActivityItem",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-ActivityItem",
+          "components": [
+            {
+              "id": "root",
+              "component": "ActivityItem",
+              "title": "Prado Museum",
+              "time": "10:00",
+              "category": "sight",
+              "location": "Paseo del Prado 23",
+              "duration": "2h",
+              "note": "Book the timed entry"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 419
+  },
+  {
+    "id": "component-AudioPlayer",
+    "surfaceId": "component-AudioPlayer",
+    "name": "AudioPlayer",
+    "description": "",
+    "express": "root = AudioPlayer(\"https://example.com/madrid.jpg\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-AudioPlayer",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-AudioPlayer",
+          "components": [
+            {
+              "id": "root",
+              "component": "AudioPlayer",
+              "url": "https://example.com/madrid.jpg"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 320
+  },
+  {
+    "id": "component-Button",
+    "surfaceId": "component-Button",
+    "name": "Button",
+    "description": "",
+    "express": "buttonChild = Text(\"Inside Button\")\nroot = Button(buttonChild, variant=\"default\", action=Event(\"example\", {component: \"Button\"}))",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Button",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Button",
+          "components": [
+            {
+              "id": "buttonChild",
+              "component": "Text",
+              "text": "Inside Button"
+            },
+            {
+              "id": "root",
+              "component": "Button",
+              "child": "buttonChild",
+              "variant": "default",
+              "action": {
+                "event": {
+                  "name": "example",
+                  "context": {
+                    "component": "Button"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 442
+  },
+  {
+    "id": "component-Card",
+    "surfaceId": "component-Card",
+    "name": "Card",
+    "description": "",
+    "express": "inner = Text(\"Anything can go in a card.\")\nroot = Card(inner)",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Card",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Card",
+          "components": [
+            {
+              "id": "inner",
+              "component": "Text",
+              "text": "Anything can go in a card."
+            },
+            {
+              "id": "root",
+              "component": "Card",
+              "child": "inner"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 346
+  },
+  {
+    "id": "component-CheckBox",
+    "surfaceId": "component-CheckBox",
+    "name": "CheckBox",
+    "description": "",
+    "express": "root = CheckBox(\"I need somewhere to stay in Chicago\", $/stops/1/needsStay)",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-CheckBox",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-CheckBox",
+          "components": [
+            {
+              "id": "root",
+              "component": "CheckBox",
+              "label": "I need somewhere to stay in Chicago",
+              "value": {
+                "path": "/stops/1/needsStay"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 356
+  },
+  {
+    "id": "component-ChoicePicker",
+    "surfaceId": "component-ChoicePicker",
+    "name": "ChoicePicker",
+    "description": "",
+    "express": "root = ChoicePicker(\"Cabin\", \"mutuallyExclusive\", [{label: \"Economy\", value: \"economy\"}, {label: \"Premium\", value: \"premium\"}], $/cabin)",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-ChoicePicker",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-ChoicePicker",
+          "components": [
+            {
+              "id": "root",
+              "component": "ChoicePicker",
+              "label": "Cabin",
+              "variant": "mutuallyExclusive",
+              "options": [
+                {
+                  "label": "Economy",
+                  "value": "economy"
+                },
+                {
+                  "label": "Premium",
+                  "value": "premium"
+                }
+              ],
+              "value": {
+                "path": "/cabin"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 444
+  },
+  {
+    "id": "component-Column",
+    "surfaceId": "component-Column",
+    "name": "Column",
+    "description": "",
+    "express": "a = Text(\"Outbound\", variant=\"h4\")\nb = Text(\"JFK → MAD · Sun 12 Apr\")\nroot = Column([a, b], align=\"stretch\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Column",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Column",
+          "components": [
+            {
+              "id": "a",
+              "component": "Text",
+              "text": "Outbound",
+              "variant": "h4"
+            },
+            {
+              "id": "b",
+              "component": "Text",
+              "text": "JFK → MAD · Sun 12 Apr"
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "a",
+                "b"
+              ],
+              "align": "stretch"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 430
+  },
+  {
+    "id": "component-DateRangePicker",
+    "surfaceId": "component-DateRangePicker",
+    "name": "DateRangePicker",
+    "description": "",
+    "express": "root = DateRangePicker(\"Trip dates\", $/trip/startDate, $/trip/endDate, nightsLabel=formatString(\"${calcNights(start: ${/trip/startDate}, end: ${/trip/endDate})} nights\"))",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-DateRangePicker",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-DateRangePicker",
+          "components": [
+            {
+              "id": "root",
+              "component": "DateRangePicker",
+              "label": "Trip dates",
+              "start": {
+                "path": "/trip/startDate"
+              },
+              "end": {
+                "path": "/trip/endDate"
+              },
+              "nightsLabel": {
+                "call": "formatString",
+                "args": {
+                  "value": "${calcNights(start: ${/trip/startDate}, end: ${/trip/endDate})} nights"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 508
+  },
+  {
+    "id": "component-DateTimeInput",
+    "surfaceId": "component-DateTimeInput",
+    "name": "DateTimeInput",
+    "description": "",
+    "express": "root = DateTimeInput(3)",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-DateTimeInput",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-DateTimeInput",
+          "components": [
+            {
+              "id": "root",
+              "component": "DateTimeInput",
+              "value": 3
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 297
+  },
+  {
+    "id": "component-Divider",
+    "surfaceId": "component-Divider",
+    "name": "Divider",
+    "description": "",
+    "express": "root = Divider(axis=\"horizontal\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Divider",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Divider",
+          "components": [
+            {
+              "id": "root",
+              "component": "Divider",
+              "axis": "horizontal"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 289
+  },
+  {
+    "id": "component-ExpenseSplit",
+    "surfaceId": "component-ExpenseSplit",
+    "name": "ExpenseSplit",
+    "description": "",
+    "express": "root = ExpenseSplit(\"Dinner at Sobrino\", \"€96\", [{name: \"You\"}, {name: \"Sam\"}])",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-ExpenseSplit",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-ExpenseSplit",
+          "components": [
+            {
+              "id": "root",
+              "component": "ExpenseSplit",
+              "title": "Dinner at Sobrino",
+              "total": "€96",
+              "participants": [
+                {
+                  "name": "You"
+                },
+                {
+                  "name": "Sam"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 373
+  },
+  {
+    "id": "component-FlightOption",
+    "surfaceId": "component-FlightOption",
+    "name": "FlightOption",
+    "description": "",
+    "express": "root = FlightOption(\"Iberia\", \"18:40\", \"08:15 +1\", \"JFK\", \"MAD\", \"$412\", Event(\"select_flight\", {id: \"IB6252\"}), duration=\"7h 35m\", stops=\"Nonstop\", flightNumber=\"IB6252\", cabin=\"economy\", badge=\"Cheapest\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-FlightOption",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-FlightOption",
+          "components": [
+            {
+              "id": "root",
+              "component": "FlightOption",
+              "airline": "Iberia",
+              "departTime": "18:40",
+              "arriveTime": "08:15 +1",
+              "origin": "JFK",
+              "destination": "MAD",
+              "price": "$412",
+              "action": {
+                "event": {
+                  "name": "select_flight",
+                  "context": {
+                    "id": "IB6252"
+                  }
+                }
+              },
+              "duration": "7h 35m",
+              "stops": "Nonstop",
+              "flightNumber": "IB6252",
+              "cabin": "economy",
+              "badge": "Cheapest"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 567
+  },
+  {
+    "id": "component-HotelCard",
+    "surfaceId": "component-HotelCard",
+    "name": "HotelCard",
+    "description": "",
+    "express": "root = HotelCard(\"Hotel Único Madrid\", \"$291 / night\", Event(\"select_hotel\", {id: \"unico\"}), neighborhood=\"Salamanca\", rating=\"9.1 · Superb\", amenities=[\"Breakfast\", \"Rooftop\", \"Free cancellation\"], badge=\"Best located\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-HotelCard",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-HotelCard",
+          "components": [
+            {
+              "id": "root",
+              "component": "HotelCard",
+              "name": "Hotel Único Madrid",
+              "price": "$291 / night",
+              "action": {
+                "event": {
+                  "name": "select_hotel",
+                  "context": {
+                    "id": "unico"
+                  }
+                }
+              },
+              "neighborhood": "Salamanca",
+              "rating": "9.1 · Superb",
+              "amenities": [
+                "Breakfast",
+                "Rooftop",
+                "Free cancellation"
+              ],
+              "badge": "Best located"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 524
+  },
+  {
+    "id": "component-Icon",
+    "surfaceId": "component-Icon",
+    "name": "Icon",
+    "description": "",
+    "express": "root = Icon(\"accountCircle\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Icon",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Icon",
+          "components": [
+            {
+              "id": "root",
+              "component": "Icon",
+              "name": "accountCircle"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 283
+  },
+  {
+    "id": "component-Image",
+    "surfaceId": "component-Image",
+    "name": "Image",
+    "description": "",
+    "express": "root = Image(\"https://example.com/madrid.jpg\", fit=\"contain\", variant=\"icon\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Image",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Image",
+          "components": [
+            {
+              "id": "root",
+              "component": "Image",
+              "url": "https://example.com/madrid.jpg",
+              "fit": "contain",
+              "variant": "icon"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 335
+  },
+  {
+    "id": "component-ItineraryDay",
+    "surfaceId": "component-ItineraryDay",
+    "name": "ItineraryDay",
+    "description": "",
+    "express": "a1 = ActivityItem(\"Prado Museum\", \"10:00\", category=\"sight\", duration=\"2h\")\na2 = ActivityItem(\"Lunch at Sobrino\", \"13:30\", category=\"food\", duration=\"1h 30m\")\nroot = ItineraryDay(\"Day 2 — Old Madrid\", [a1, a2], date=\"Mon 13 Apr\", summary=\"Art, then a long lunch\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-ItineraryDay",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-ItineraryDay",
+          "components": [
+            {
+              "id": "a1",
+              "component": "ActivityItem",
+              "title": "Prado Museum",
+              "time": "10:00",
+              "category": "sight",
+              "duration": "2h"
+            },
+            {
+              "id": "a2",
+              "component": "ActivityItem",
+              "title": "Lunch at Sobrino",
+              "time": "13:30",
+              "category": "food",
+              "duration": "1h 30m"
+            },
+            {
+              "id": "root",
+              "component": "ItineraryDay",
+              "title": "Day 2 — Old Madrid",
+              "children": [
+                "a1",
+                "a2"
+              ],
+              "date": "Mon 13 Apr",
+              "summary": "Art, then a long lunch"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 622
+  },
+  {
+    "id": "component-List",
+    "surfaceId": "component-List",
+    "name": "List",
+    "description": "",
+    "express": "$/items/0/label = \"Passport\"\n$/items/1/label = \"Adapter\"\nrow = Text($label)\nroot = List(_template($/items, row))",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-List",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-List",
+          "components": [
+            {
+              "id": "row",
+              "component": "Text",
+              "text": {
+                "path": "label"
+              }
+            },
+            {
+              "id": "root",
+              "component": "List",
+              "children": {
+                "path": "/items",
+                "componentId": "row"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "component-List",
+          "path": "/",
+          "value": {
+            "items": {
+              "0": {
+                "label": "Passport"
+              },
+              "1": {
+                "label": "Adapter"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "bytes": 515
+  },
+  {
+    "id": "component-MapPreview",
+    "surfaceId": "component-MapPreview",
+    "name": "MapPreview",
+    "description": "",
+    "express": "root = MapPreview([{label: \"Madrid\"}, {label: \"Toledo\"}], caption=\"Day trip, 70km south\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-MapPreview",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-MapPreview",
+          "components": [
+            {
+              "id": "root",
+              "component": "MapPreview",
+              "markers": [
+                {
+                  "label": "Madrid"
+                },
+                {
+                  "label": "Toledo"
+                }
+              ],
+              "caption": "Day trip, 70km south"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 361
+  },
+  {
+    "id": "component-Modal",
+    "surfaceId": "component-Modal",
+    "name": "Modal",
+    "description": "",
+    "express": "modalChild = Text(\"Inside Modal\")\nmodalChild = Text(\"Inside Modal\")\nroot = Modal(modalChild, modalChild)",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Modal",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Modal",
+          "components": [
+            {
+              "id": "modalChild",
+              "component": "Text",
+              "text": "Inside Modal"
+            },
+            {
+              "id": "root",
+              "component": "Modal",
+              "trigger": "modalChild",
+              "content": "modalChild"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 370
+  },
+  {
+    "id": "component-PriceSummary",
+    "surfaceId": "component-PriceSummary",
+    "name": "PriceSummary",
+    "description": "",
+    "express": "root = PriceSummary([{label: \"Flights\", amount: \"$824\"}, {label: \"Hotel · 6 nights\", amount: \"$1,746\"}, {label: \"Estimated meals\", amount: \"$540\"}], total=\"$3,110\", caption=\"2 travellers\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-PriceSummary",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-PriceSummary",
+          "components": [
+            {
+              "id": "root",
+              "component": "PriceSummary",
+              "lines": [
+                {
+                  "label": "Flights",
+                  "amount": "$824"
+                },
+                {
+                  "label": "Hotel · 6 nights",
+                  "amount": "$1,746"
+                },
+                {
+                  "label": "Estimated meals",
+                  "amount": "$540"
+                }
+              ],
+              "total": "$3,110",
+              "caption": "2 travellers"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 463
+  },
+  {
+    "id": "component-ProgressMeter",
+    "surfaceId": "component-ProgressMeter",
+    "name": "ProgressMeter",
+    "description": "",
+    "express": "root = ProgressMeter(\"Spent of budget\", 1840, 3000, caption=\"$1,160 left\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-ProgressMeter",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-ProgressMeter",
+          "components": [
+            {
+              "id": "root",
+              "component": "ProgressMeter",
+              "label": "Spent of budget",
+              "value": 1840,
+              "max": 3000,
+              "caption": "$1,160 left"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 361
+  },
+  {
+    "id": "component-Row",
+    "surfaceId": "component-Row",
+    "name": "Row",
+    "description": "",
+    "express": "a = Text(\"Total\")\nb = Text(\"$1,236\")\nroot = Row([a, b], justify=\"spaceBetween\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Row",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Row",
+          "components": [
+            {
+              "id": "a",
+              "component": "Text",
+              "text": "Total"
+            },
+            {
+              "id": "b",
+              "component": "Text",
+              "text": "$1,236"
+            },
+            {
+              "id": "root",
+              "component": "Row",
+              "children": [
+                "a",
+                "b"
+              ],
+              "justify": "spaceBetween"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 394
+  },
+  {
+    "id": "component-Slider",
+    "surfaceId": "component-Slider",
+    "name": "Slider",
+    "description": "",
+    "express": "root = Slider(\"Budget, all in\", 500, 6000, $/trip/budget)",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Slider",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Slider",
+          "components": [
+            {
+              "id": "root",
+              "component": "Slider",
+              "label": "Budget, all in",
+              "min": 500,
+              "max": 6000,
+              "value": {
+                "path": "/trip/budget"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 344
+  },
+  {
+    "id": "component-StatTile",
+    "surfaceId": "component-StatTile",
+    "name": "StatTile",
+    "description": "",
+    "express": "root = StatTile(\"Nights in Madrid\", \"7\", caption=\"12–19 April\", tone=\"accent\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-StatTile",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-StatTile",
+          "components": [
+            {
+              "id": "root",
+              "component": "StatTile",
+              "label": "Nights in Madrid",
+              "value": "7",
+              "caption": "12–19 April",
+              "tone": "accent"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 351
+  },
+  {
+    "id": "component-Tabs",
+    "surfaceId": "component-Tabs",
+    "name": "Tabs",
+    "description": "",
+    "express": "root = Tabs([])",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Tabs",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Tabs",
+          "components": [
+            {
+              "id": "root",
+              "component": "Tabs",
+              "tabs": []
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 270
+  },
+  {
+    "id": "component-Text",
+    "surfaceId": "component-Text",
+    "name": "Text",
+    "description": "",
+    "express": "root = Text(\"Madrid · 2 travellers · 12–19 April\", variant=\"h3\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Text",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Text",
+          "components": [
+            {
+              "id": "root",
+              "component": "Text",
+              "text": "Madrid · 2 travellers · 12–19 April",
+              "variant": "h3"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 320
+  },
+  {
+    "id": "component-TextField",
+    "surfaceId": "component-TextField",
+    "name": "TextField",
+    "description": "",
+    "express": "root = TextField(\"Flying from\", $/trip/origin, validationRegexp=\"^[A-Za-z]{3}$\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-TextField",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-TextField",
+          "components": [
+            {
+              "id": "root",
+              "component": "TextField",
+              "label": "Flying from",
+              "value": {
+                "path": "/trip/origin"
+              },
+              "validationRegexp": "^[A-Za-z]{3}$"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 364
+  },
+  {
+    "id": "component-TravelerCounter",
+    "surfaceId": "component-TravelerCounter",
+    "name": "TravelerCounter",
+    "description": "",
+    "express": "root = TravelerCounter(\"Travelers\", $/trip/travelers, min=1, max=9, caption=\"Adults on this leg\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-TravelerCounter",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-TravelerCounter",
+          "components": [
+            {
+              "id": "root",
+              "component": "TravelerCounter",
+              "label": "Travelers",
+              "value": {
+                "path": "/trip/travelers"
+              },
+              "min": 1,
+              "max": 9,
+              "caption": "Adults on this leg"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 395
+  },
+  {
+    "id": "component-Video",
+    "surfaceId": "component-Video",
+    "name": "Video",
+    "description": "",
+    "express": "root = Video(\"https://example.com/madrid.jpg\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-Video",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-Video",
+          "components": [
+            {
+              "id": "root",
+              "component": "Video",
+              "url": "https://example.com/madrid.jpg"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 302
+  },
+  {
+    "id": "component-WeatherStrip",
+    "surfaceId": "component-WeatherStrip",
+    "name": "WeatherStrip",
+    "description": "",
+    "express": "root = WeatherStrip([{day: \"Mon\", high: 21, low: 11, condition: \"sunny\"}, {day: \"Tue\", high: 19, low: 10, condition: \"cloudy\"}], place=\"Madrid\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-WeatherStrip",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-WeatherStrip",
+          "components": [
+            {
+              "id": "root",
+              "component": "WeatherStrip",
+              "days": [
+                {
+                  "day": "Mon",
+                  "high": 21,
+                  "low": 11,
+                  "condition": "sunny"
+                },
+                {
+                  "day": "Tue",
+                  "high": 19,
+                  "low": 10,
+                  "condition": "cloudy"
+                }
+              ],
+              "place": "Madrid"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 417
+  }
+]

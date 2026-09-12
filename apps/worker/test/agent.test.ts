@@ -1,11 +1,12 @@
 /**
- * The agent loop, with a scripted model.
+ * The agent loop, against a scripted Gemini stream.
  *
- * The Anthropic client is replaced by a fake that replays a canned stream. That
- * makes the interesting things testable without spending a token or depending
- * on a model behaving the same way twice: does prose stay prose, does Express
- * become a surface *while it is still arriving*, do tool results go back in one
- * message, does a refusal end the turn cleanly.
+ * `fetch` is replaced by a fake that replays a canned SSE body in the
+ * Interactions API's own shape — `interaction.created`, `step.delta`,
+ * `step.stop`, `interaction.completed`. That makes the interesting things
+ * testable without spending a token or depending on a model behaving the same
+ * way twice, and unlike mocking a client object it exercises the real wire
+ * parsing: an event shape we read wrongly fails here rather than in production.
  *
  * What is deliberately not mocked is the Express compiler — the whole risk in
  * this pipeline is between the model's text and the host's components, and a
@@ -15,95 +16,95 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface ScriptedTurn {
-  /** Text chunks, delivered in order to the `text` handler. */
+  /** Text chunks, delivered in order as `step.delta` text events. */
   chunks: string[];
-  /** Content blocks on the final message; defaults to the joined text. */
-  content?: any[];
-  stopReason?: string;
-  usage?: Partial<{
-    input_tokens: number;
-    output_tokens: number;
-    cache_read_input_tokens: number;
-    cache_creation_input_tokens: number;
-  }>;
+  /** Tool calls this turn asks for. */
+  calls?: Array<{ id?: string; name: string; args: Record<string, unknown> }>;
+  status?: string;
+  usage?: Partial<{ total_input_tokens: number; total_output_tokens: number }>;
 }
 
 const script: ScriptedTurn[] = [];
+/** Every request body the agent sent, so tests can assert on what it asked. */
 const requests: any[] = [];
-let failWith: Error | null = null;
+let failWith: { status: number; body: string } | null = null;
 
-class FakeAuthenticationError extends Error {}
-class FakeAPIError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number,
-  ) {
-    super(message);
+/** One scripted turn as the SSE frames the API would actually send. */
+function sseBody(turn: ScriptedTurn, index: number): string {
+  const frames: unknown[] = [
+    { event_type: 'interaction.created', interaction: { id: `int_${index}`, status: 'in_progress' } },
+  ];
+
+  for (const chunk of turn.chunks) {
+    frames.push({ event_type: 'step.delta', index: 0, delta: { type: 'text', text: chunk } });
   }
+  frames.push({
+    event_type: 'step.stop',
+    index: 0,
+    step_usage: {
+      total_input_tokens: 100,
+      total_output_tokens: 50,
+      ...turn.usage,
+    },
+  });
+
+  // Each call is its own step, with its arguments streamed as partial JSON —
+  // the shape that only parses once the step stops.
+  turn.calls?.forEach((call, position) => {
+    const at = position + 1;
+    const args = JSON.stringify(call.args);
+    frames.push({
+      event_type: 'step.start',
+      index: at,
+      step: { type: 'function_call', id: call.id ?? `call_${at}`, name: call.name },
+    });
+    frames.push({
+      event_type: 'step.delta',
+      index: at,
+      delta: { type: 'arguments_delta', arguments: args.slice(0, 3) },
+    });
+    frames.push({
+      event_type: 'step.delta',
+      index: at,
+      delta: { type: 'arguments_delta', arguments: args.slice(3) },
+    });
+    frames.push({ event_type: 'step.stop', index: at, step_usage: {} });
+  });
+
+  frames.push({
+    event_type: 'interaction.completed',
+    interaction: { id: `int_${index}`, status: turn.status ?? 'completed' },
+  });
+
+  return frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join('');
 }
 
-vi.mock('@anthropic-ai/sdk', () => {
-  class FakeAnthropic {
-    constructor(readonly options: { apiKey?: string }) {}
+let turnIndex = 0;
 
-    messages = {
-      stream: (request: any) => {
-        requests.push(request);
-        if (failWith) throw failWith;
-
-        const turn = script.shift() ?? { chunks: [''] };
-        const handlers: Record<string, Array<(value: string) => void>> = {};
-
-        return {
-          on(event: string, handler: (value: string) => void) {
-            (handlers[event] ??= []).push(handler);
-            return this;
-          },
-          async finalMessage() {
-            // Deliver the stream first, exactly as the SDK does, so anything
-            // reading `on('text')` sees it before the final message resolves.
-            for (const chunk of turn.chunks) {
-              for (const handler of handlers['text'] ?? []) handler(chunk);
-            }
-            return {
-              content: turn.content ?? [{ type: 'text', text: turn.chunks.join('') }],
-              stop_reason: turn.stopReason ?? 'end_turn',
-              usage: {
-                input_tokens: 100,
-                output_tokens: 50,
-                cache_read_input_tokens: 0,
-                cache_creation_input_tokens: 0,
-                ...turn.usage,
-              },
-            };
-          },
-        };
-      },
-    };
-
-    static AuthenticationError = FakeAuthenticationError;
-    static PermissionDeniedError = class extends Error {};
-    static RateLimitError = class extends Error {};
-    static BadRequestError = class extends Error {};
-    static APIConnectionError = class extends Error {};
-    static APIError = FakeAPIError;
+vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+  requests.push(JSON.parse(String(init.body ?? '{}')));
+  if (failWith) {
+    return new Response(failWith.body, { status: failWith.status });
   }
-
-  return { default: FakeAnthropic, Anthropic: FakeAnthropic };
+  const turn = script.shift() ?? { chunks: [''] };
+  return new Response(sseBody(turn, turnIndex++), {
+    status: 200,
+    headers: { 'content-type': 'text/event-stream' },
+  });
 });
+
 
 const { runTurn } = await import('../src/agent.js');
 const { buildSystemPrompt, describeAllSkills, describeSkill } = await import('../src/skills.js');
-const { trimHistory } = await import('../src/session.js');
 const { runTool } = await import('../src/tools.js');
 const { originForTimeZone } = await import('../src/travel.js');
 
 function baseRequest(overrides: Record<string, unknown> = {}) {
   return {
-    apiKey: 'sk-ant-test',
-    model: 'claude-opus-5',
+    apiKey: 'test-gemini-key',
+    model: 'gemini-3.8-flash',
     message: 'Six days in Madrid',
-    history: [],
+    interactionId: null,
     trip: {},
     surface: 'inline' as const,
     surfaceId: 'inline-1',
@@ -111,6 +112,14 @@ function baseRequest(overrides: Record<string, unknown> = {}) {
     effort: 'medium' as const,
     ...overrides,
   };
+}
+
+/** The text of the user turn in the nth request the agent sent. */
+function sentText(index = 0): string {
+  return (requests[index]?.input ?? [])
+    .flatMap((entry: any) => entry.content ?? [])
+    .map((part: any) => part.text ?? '')
+    .join('');
 }
 
 async function collect(request = baseRequest()) {
@@ -123,6 +132,7 @@ beforeEach(() => {
   script.length = 0;
   requests.length = 0;
   failWith = null;
+  turnIndex = 0;
 });
 
 describe('prose and UI', () => {
@@ -198,6 +208,62 @@ describe('inputs the traveler has to give', () => {
     // Addressed to a model that has to fix it, so it names the binding paths.
     expect((result as any).message).toMatch(/\$\/trip\/origin/);
     expect((result as any).message).toMatch(/\$\/trip\/startDate/);
+  });
+
+  /**
+   * The multi-stop case, which is where this silently went wrong.
+   *
+   * A trip's flat fields describe the *first* stop. Pricing a later one against
+   * them used the outbound party size, the outbound dates and the original
+   * departure airport — and returned a confident number for a journey nobody
+   * was taking.
+   */
+  describe('pricing a stop that is not the first', () => {
+    const wedding = {
+      origin: 'SFO',
+      destination: 'Chicago',
+      startDate: '2027-04-10',
+      endDate: '2027-04-12',
+      travelers: 1,
+      legs: [
+        { destination: 'New York', startDate: '2027-04-12', endDate: '2027-04-16' },
+        { destination: 'SFO', startDate: '2027-04-16', travelers: 2 },
+      ],
+    };
+
+    it('counts the people on that leg, not the people on the first', async () => {
+      const { result } = await run('search_flights', { destination: 'SFO' }, { ...wedding });
+      expect((result as any).searchedFor.travelers).toBe(2);
+    });
+
+    it('departs from the stop before it, not from the original origin', async () => {
+      const { result } = await run('search_flights', { destination: 'SFO' }, { ...wedding });
+      expect((result as any).searchedFor.origin).toBe('New York');
+    });
+
+    it('prices it on that leg\'s dates', async () => {
+      const { result } = await run('search_flights', { destination: 'New York' }, { ...wedding });
+      expect((result as any).searchedFor.date).toBe('2027-04-12');
+    });
+
+    it('still lets the call override the leg', async () => {
+      const { result } = await run(
+        'search_flights',
+        { destination: 'SFO', travelers: 4 },
+        { ...wedding },
+      );
+      expect((result as any).searchedFor.travelers).toBe(4);
+    });
+
+    it('leaves a single-stop trip exactly as it was', async () => {
+      const { result } = await run(
+        'search_flights',
+        { destination: 'Madrid' },
+        { origin: 'LHR', destination: 'Madrid', startDate: '2027-04-12', travelers: 3 },
+      );
+      expect((result as any).searchedFor.travelers).toBe(3);
+      expect((result as any).searchedFor.origin).toBe('LHR');
+    });
   });
 
   it('uses what is already saved without being handed it again', async () => {
@@ -279,11 +345,10 @@ describe('tools', () => {
   it('runs a tool and sends every result back in one message', async () => {
     script.push({
       chunks: [''],
-      content: [
-        { type: 'tool_use', id: 't1', name: 'search_flights', input: { destination: 'Madrid' } },
-        { type: 'tool_use', id: 't2', name: 'get_weather', input: { destination: 'Madrid' } },
+      calls: [
+        { id: 't1', name: 'search_flights', args: { destination: 'Madrid' } },
+        { id: 't2', name: 'get_weather', args: { destination: 'Madrid' } },
       ],
-      stopReason: 'tool_use',
     });
     script.push({ chunks: ['Here you go.'] });
 
@@ -291,30 +356,36 @@ describe('tools', () => {
     expect(events.filter((e) => e.type === 'tool')).toHaveLength(2);
     expect(events.filter((e) => e.type === 'tool_result')).toHaveLength(2);
 
-    // Parallel calls must come back as one user message, or the model learns
-    // to stop making them.
-    const toolResults = result.history.filter(
-      (message: any) =>
-        message.role === 'user' &&
-        Array.isArray(message.content) &&
-        message.content[0]?.type === 'tool_result',
-    );
-    expect(toolResults).toHaveLength(1);
-    expect((toolResults[0] as any).content).toHaveLength(2);
+    // Every result from one round goes back in the *next* request, together,
+    // or the model learns to stop calling tools in parallel.
+    const sent = requests[1].input.filter((entry: any) => entry.type === 'function_result');
+    expect(sent).toHaveLength(2);
+    expect(sent.map((entry: any) => entry.name).sort()).toEqual(['get_weather', 'search_flights']);
+    expect(result.interactionId).toBe('int_1');
+  });
+
+  it('chains each turn to the one before it, instead of resending the history', async () => {
+    script.push({ chunks: [''], calls: [{ name: 'get_trip', args: {} }] });
+    script.push({ chunks: ['Done.'] });
+    await collect();
+
+    // The first request opens a chain; the second continues it.
+    expect(requests[0].previous_interaction_id).toBeUndefined();
+    expect(requests[1].previous_interaction_id).toBe('int_0');
+    // And carries only the results, not the conversation.
+    expect(requests[1].input.every((entry: any) => entry.type === 'function_result')).toBe(true);
+  });
+
+  it('continues an existing conversation when given its id', async () => {
+    script.push({ chunks: ['ok'] });
+    await collect(baseRequest({ interactionId: 'int_earlier' }));
+    expect(requests[0].previous_interaction_id).toBe('int_earlier');
   });
 
   it('remembers what save_trip recorded', async () => {
     script.push({
       chunks: [''],
-      content: [
-        {
-          type: 'tool_use',
-          id: 't1',
-          name: 'save_trip',
-          input: { destination: 'Madrid', travelers: 2 },
-        },
-      ],
-      stopReason: 'tool_use',
+      calls: [{ id: 't1', name: 'save_trip', args: { destination: 'Madrid', travelers: 2 } }],
     });
     script.push({ chunks: ['Saved.'] });
 
@@ -325,8 +396,7 @@ describe('tools', () => {
   it('reports a failing tool without ending the turn', async () => {
     script.push({
       chunks: [''],
-      content: [{ type: 'tool_use', id: 't1', name: 'not_a_tool', input: {} }],
-      stopReason: 'tool_use',
+      calls: [{ id: 't1', name: 'not_a_tool', args: {} }],
     });
     script.push({ chunks: ['Sorry about that.'] });
 
@@ -340,8 +410,7 @@ describe('tools', () => {
     for (let index = 0; index < 10; index++) {
       script.push({
         chunks: [''],
-        content: [{ type: 'tool_use', id: `t${index}`, name: 'get_trip', input: {} }],
-        stopReason: 'tool_use',
+        calls: [{ id: `t${index}`, name: 'get_trip', args: {} }],
       });
     }
 
@@ -352,27 +421,33 @@ describe('tools', () => {
 });
 
 describe('the request the model receives', () => {
-  it('carries the skill, with a cache breakpoint after the stable half', async () => {
+  it('carries the skill, stable half first so a repeated prefix can be cached', async () => {
     script.push({ chunks: ['ok'] });
     await collect();
 
     const [request] = requests;
-    expect(request.system).toHaveLength(2);
-    expect(request.system[0].cache_control).toEqual({ type: 'ephemeral' });
-    expect(request.system[0].text).toContain('A2UI Express output contract');
-    expect(request.system[1].cache_control).toBeUndefined();
-    expect(request.system[1].text).toContain('inline-1');
+    const prompt: string = request.system_instruction;
+    expect(prompt).toContain('A2UI Express DSL Output Contract');
+    expect(prompt).toContain('inline-1');
+
+    // Order is the optimisation: Gemini caches a repeated prefix implicitly, so
+    // the catalog and the rules — identical on every turn — must come before
+    // anything that changes per turn, or nothing is a prefix.
+    expect(prompt.indexOf('A2UI Express DSL Output Contract')).toBeLessThan(
+      prompt.indexOf('inline-1'),
+    );
   });
 
-  it('sends the tools and the model and effort that were asked for', async () => {
+  it('sends the tools and the model that were asked for', async () => {
     script.push({ chunks: ['ok'] });
-    await collect(baseRequest({ model: 'claude-sonnet-5', effort: 'low' }));
+    await collect(baseRequest({ model: 'gemini-3.7-flash' }));
 
     const [request] = requests;
-    expect(request.model).toBe('claude-sonnet-5');
-    expect(request.output_config.effort).toBe('low');
-    expect(request.thinking).toEqual({ type: 'adaptive' });
+    expect(request.model).toBe('gemini-3.7-flash');
+    expect(request.stream).toBe(true);
     expect(request.tools.map((tool: any) => tool.name)).toContain('search_flights');
+    // Gemini wants `parameters`, not Anthropic's `input_schema`.
+    expect(request.tools.every((tool: any) => tool.type === 'function' && tool.parameters)).toBe(true);
   });
 
   it('turns a pressed action into the user turn', async () => {
@@ -389,7 +464,7 @@ describe('the request the model receives', () => {
       }),
     );
 
-    const content = requests[0].messages[0].content as string;
+    const content = sentText();
     expect(content).toContain('search_flights');
     expect(content).toContain('maxPrice');
     expect(content).toContain('SFO');
@@ -450,7 +525,7 @@ describe('the request the model receives', () => {
       }),
     );
 
-    expect(requests[0].messages[0].content).toBe('actually make it Lisbon');
+    expect(sentText()).toBe('actually make it Lisbon');
     const trip = events.filter((event) => event.type === 'trip').at(-1) as any;
     expect(trip.trip.origin).toBe('SFO');
   });
@@ -465,7 +540,7 @@ describe('the request the model receives', () => {
       }),
     );
 
-    const content = requests[0].messages[0].content as string;
+    const content = sentText();
     expect(content).toContain('startDate');
     expect(content).toMatch(/release/i);
     expect(content).toMatch(/inline/i);
@@ -474,7 +549,7 @@ describe('the request the model receives', () => {
 
 describe('failures', () => {
   it('explains a rejected key in words the user can act on', async () => {
-    failWith = new FakeAuthenticationError('401');
+    failWith = { status: 401, body: JSON.stringify({ error: { message: 'bad key' } }) };
     script.push({ chunks: [''] });
 
     const { events } = await collect();
@@ -483,11 +558,18 @@ describe('failures', () => {
     expect(error.retryable).toBe(false);
   });
 
-  it('ends the turn on a refusal', async () => {
-    script.push({ chunks: [''], stopReason: 'refusal' });
-    const { events, result } = await collect();
-    expect(events.some((e) => e.type === 'error' && /declined/.test(e.message))).toBe(true);
-    expect(result.stopReason).toBe('refusal');
+  it('reports the interaction status it ended on', async () => {
+    script.push({ chunks: [''], status: 'completed' });
+    const { result } = await collect();
+    expect(result.stopReason).toBe('completed');
+  });
+
+  it('says a rate limit is worth retrying and a bad key is not', async () => {
+    failWith = { status: 429, body: '{}' };
+    script.push({ chunks: [''] });
+    const { events } = await collect();
+    const error = events.find((e) => e.type === 'error');
+    expect(error.retryable).toBe(true);
   });
 
   /**
@@ -510,13 +592,13 @@ describe('failures', () => {
       expect(events.some((e) => e.type === 'retry')).toBe(true);
 
       // What it was told: the reason, and the block it wrote.
-      const correction = result.history.find(
-        (message: any) =>
-          message.role === 'user' && typeof message.content === 'string' &&
-          message.content.includes('did not compile'),
-      );
-      expect(correction!.content).toContain("keyword arguments use '='");
-      expect(correction!.content).toContain(BROKEN);
+      const correction = requests[1].input
+        .flatMap((entry: any) => entry.content ?? [])
+        .map((part: any) => part.text)
+        .join('');
+      expect(correction).toContain('did not compile');
+      expect(correction).toContain("keyword arguments use '='");
+      expect(correction).toContain(BROKEN);
 
       // And the second attempt drew.
       const drawn = events.filter((e) => e.type === 'ui' && e.done);
@@ -563,7 +645,7 @@ describe('skills', () => {
   });
 
   it('strips frontmatter before the model sees the skill', () => {
-    const [stable] = buildSystemPrompt({
+    const prompt = buildSystemPrompt({
       variant: 'express-monolithic',
       surface: 'inline',
       surfaceId: 'inline-1',
@@ -571,8 +653,8 @@ describe('skills', () => {
       trip: {},
       today: '2026-04-01',
     });
-    expect(stable!.text.startsWith('---')).toBe(false);
-    expect(stable!.text).not.toContain('protocol_version:');
+    expect(prompt.startsWith('---')).toBe(false);
+    expect(prompt).not.toContain('protocol_version:');
   });
 
   it('gives each surface a different brief', () => {
@@ -584,7 +666,7 @@ describe('skills', () => {
         catalogId: 'c',
         trip: {},
         today: '2026-04-01',
-      })[1]!.text;
+      });
 
     expect(brief('inline')).toContain('inline, in the conversation');
     expect(brief('home')).toContain('home screen');
@@ -613,7 +695,7 @@ describe('skills', () => {
         catalogId: 'c',
         trip: { destination: 'Madrid', origin: 'LHR', startDate: '2027-04-12', endDate: '2027-04-19' },
         today: '2026-09-03',
-      })[1]!.text;
+      });
 
     expect(forSurface('inline')).toContain('**Do this next.**');
     for (const panel of ['sidebar', 'home'] as const) {
@@ -635,7 +717,7 @@ describe('skills', () => {
       trip,
       today: '2026-04-01',
       ...extra,
-    })[1]!.text;
+    });
 
   it('tells the model when nothing is decided yet', () => {
     expect(promptFor({})).toContain('Nothing is settled yet');
@@ -689,26 +771,77 @@ describe('skills', () => {
   });
 });
 
-describe('history trimming', () => {
-  it('leaves a short conversation alone', () => {
-    const history = Array.from({ length: 10 }, () => ({ role: 'user', content: 'hi' })) as any;
-    expect(trimHistory(history)).toHaveLength(10);
+
+/**
+ * What a commit is allowed to change.
+ *
+ * `save_trip` has validated since the beginning, so a *model* that proposed a
+ * return before the departure was refused. The other way a value arrives — the
+ * traveler pressing a button — went straight into the trip unchecked, and a
+ * live run found it: a picker sent 20 April → 12 April and the agent priced
+ * four flights against a trip with negative nights.
+ */
+describe('committing a surface', () => {
+  const commitOf = (context: Record<string, unknown>, trip: Record<string, unknown> = {}) =>
+    baseRequest({
+      message: '',
+      trip,
+      action: { name: 'search_flights', surfaceId: 'inline-1', context },
+    });
+
+  it('keeps what the traveler set', async () => {
+    script.push({ chunks: ['Looking now.'] });
+    const { result } = await collect(
+      commitOf({ origin: 'JFK', startDate: '2027-04-12', endDate: '2027-04-19' }),
+    );
+
+    expect(result.trip).toMatchObject({
+      origin: 'JFK',
+      startDate: '2027-04-12',
+      endDate: '2027-04-19',
+    });
   });
 
-  it('never starts a trimmed history on a tool result', () => {
-    const history: any[] = [];
-    for (let index = 0; index < 30; index++) {
-      history.push({ role: 'user', content: `turn ${index}` });
-      history.push({ role: 'assistant', content: [{ type: 'tool_use', id: `t${index}` }] });
-      history.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: `t${index}` }] });
-    }
-
-    const trimmed = trimHistory(history);
-    expect(trimmed.length).toBeLessThan(history.length);
-    const first = trimmed[0]!;
-    expect(first.role).toBe('user');
-    expect(typeof first.content === 'string' || !first.content.some((b: any) => b.type === 'tool_result')).toBe(
-      true,
+  it('refuses a return before the departure, and keeps the rest', async () => {
+    script.push({ chunks: ['That range will not work.'] });
+    const { result } = await collect(
+      commitOf(
+        { origin: 'JFK', startDate: '2027-04-20', endDate: '2027-04-12' },
+        { destination: 'Madrid' },
+      ),
     );
+
+    expect(result.trip['endDate']).toBeUndefined();
+    // Everything that was fine still lands — a refusal is not a rollback.
+    expect(result.trip).toMatchObject({
+      destination: 'Madrid',
+      origin: 'JFK',
+      startDate: '2027-04-20',
+    });
+  });
+
+  it('tells the model what it turned away', async () => {
+    script.push({ chunks: ['Sorry — when are you back?'] });
+    await collect(commitOf({ startDate: '2027-04-20', endDate: '2027-04-12' }));
+
+    // Otherwise the model reads back the old trip and has no idea a value was
+    // refused, so it never asks again.
+    expect(sentText()).toContain('Refused');
+    expect(sentText()).toContain('2027-04-12 is not after 2027-04-20');
+  });
+
+  it('refuses a party of nobody', async () => {
+    script.push({ chunks: ['How many of you?'] });
+    const { result } = await collect(commitOf({ travelers: 0 }, { travelers: 2 }));
+
+    expect(result.trip['travelers']).toBe(2);
+  });
+
+  it('says nothing about a refusal when there was none', async () => {
+    script.push({ chunks: ['On it.'] });
+    await collect(commitOf({ origin: 'JFK' }));
+
+    expect(sentText()).not.toContain('Refused');
   });
 });
+

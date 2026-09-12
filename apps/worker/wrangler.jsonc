@@ -33,7 +33,7 @@
   "observability": { "enabled": true },
 
   "vars": {
-    "DEFAULT_MODEL": "claude-opus-5",
+    "DEFAULT_MODEL": "gemini-3.8-flash",
     "DEFAULT_SKILL": "express-monolithic",
     "PUBLIC_NAME": "Travel A2UI"
   }

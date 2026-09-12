@@ -18,6 +18,7 @@ import type { Json, JsonObject } from '@travel-a2ui/express';
 
 import { readPointer } from './store.js';
 import { callFunction } from './functions.js';
+import { hasExpression, interpolate, type Lookup } from './interpolate.js';
 
 export interface ResolveScope {
   /** The surface's data model. */
@@ -84,6 +85,14 @@ export function resolve(value: Json | undefined, scope: ResolveScope): Json | un
       for (const [key, argument] of Object.entries(args)) {
         resolved[key] = resolve(argument, scope) ?? null;
       }
+      // `formatString` is the one function whose argument is a *template*, not
+      // a value: its `${…}` expressions read the data model and call other
+      // functions, so it is resolved here, where the model is in scope, rather
+      // than in `functions.ts`, which only ever sees resolved arguments.
+      const template = resolved['value'] ?? resolved['template'];
+      if (value.call === 'formatString' && typeof template === 'string' && hasExpression(template)) {
+        return interpolate(template, lookupFor(scope));
+      }
       return callFunction(value.call, resolved);
     }
     const out: JsonObject = {};
@@ -94,6 +103,14 @@ export function resolve(value: Json | undefined, scope: ResolveScope): Json | un
   }
 
   return value;
+}
+
+/** The data model and the catalog functions, as an expression sees them. */
+function lookupFor(scope: ResolveScope): Lookup {
+  return {
+    readPath: (path) => readPointer(scope.model, absolutePointer(path, scope)),
+    call: (name, args) => callFunction(name, args),
+  };
 }
 
 /** Resolves to a display string, which is what most props actually want. */

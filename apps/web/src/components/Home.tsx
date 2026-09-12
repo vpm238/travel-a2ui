@@ -16,10 +16,6 @@ import { A2uiSurface, useSurface } from '@travel-a2ui/renderer';
 import type { Agent } from '../useAgent.js';
 import { Spinner } from './bits.js';
 
-const HOME_PROMPT =
-  'Lay out the home screen for this trip as it stands today. Lead with what matters most right ' +
-  'now, then anything needing a decision, then context. No prose outside the surface.';
-
 export function Home({ agent }: { agent: Agent }) {
   const [request, setRequest] = useState('');
   const built = useRef(false);
@@ -30,16 +26,15 @@ export function Home({ agent }: { agent: Agent }) {
   useEffect(() => {
     if (built.current || hasSurface || agent.busy || !canRun) return;
     built.current = true;
-    void agent.send(HOME_PROMPT, { surface: 'home', surfaceId: 'home', silent: true });
+    void agent.drawSurface('home');
   }, [agent, canRun, hasSurface]);
 
-  const regenerate = (extra?: string) => {
-    void agent.send(extra ? `${HOME_PROMPT}\n\nAlso: ${extra}` : HOME_PROMPT, {
-      surface: 'home',
-      surfaceId: 'home',
-      silent: true,
-    });
-  };
+  /*
+   * What a home screen *is* was a prose prompt in this file. It is the agent's
+   * surface brief now, so all this sends is the surface — plus, when someone
+   * types one, the extra thing they asked for, which is genuinely theirs.
+   */
+  const regenerate = (extra?: string) => void agent.drawSurface('home', extra);
 
   return (
     <section className="home" aria-label="Trip dashboard">

@@ -45,8 +45,8 @@ thin adapter around them.
    │ (3 flows)        │ an MCP host's iframe    │ server + compile API │
    └──────────────────┴─────────────────────────┴──────────────────────┘
    ┌──────────────────┬─────────────────────────────────────────────────┐
-   │ apps/gallery     │ backends/claude-managed-agent (Python)          │
-   │ static showcase  │ same wire protocol, Anthropic runs the loop     │
+   │ apps/gallery     │ voice relay (Gemini Live, via the session DO)  │
+   │ static showcase  │ same wire protocol, Google runs the loop        │
    └──────────────────┴─────────────────────────────────────────────────┘
 ```
 
@@ -442,10 +442,10 @@ party size — in its heading. `LHR → Madrid · 12–19 Apr · 3 travellers`, 
 ## 6 · A turn, end to end
 
 ```
- browser                    Worker                       Anthropic
+ browser                    Worker                       Gemini
  ───────                    ──────                       ─────────
  POST /api/chat  ─────────▶ runTurn()
- x-anthropic-key            │  build system prompt from
+ x-goog-api-key             │  build system prompt from
                             │  skills/<variant>/…/SKILL.md
                             │  (cached at a prompt breakpoint)
                             ├──── messages.stream ─────────▶
@@ -510,59 +510,105 @@ user's message rather than as an out-of-band state update.
 
 ---
 
-## 7 · Two runtimes, one wire protocol
+## 7 · One runtime, and two that were measured and dropped
 
-The header's **Runtime** picker switches between them mid-conversation.
+The loop runs in this Worker, on the Gemini Interactions API, with the
+traveler's own key. The **Runtime** picker stays because the claim it tests
+still holds — the interface layer does not care who runs the loop, and the field
+takes any backend answering the same `/api/chat` contract.
 
-| | Cloudflare Worker | Claude Managed Agent |
+Two alternatives were built and removed, and the numbers are here rather than in
+anyone's memory of them.
+
+| | Worker loop | Code Mode (removed) |
 | --- | --- | --- |
-| Who runs the loop | this Worker, at the edge | Anthropic |
-| Language | TypeScript | Python |
-| Prompt | assembled per request | uploaded once, versioned; sessions pin a version |
-| History | Durable Object (SQLite) | the managed session |
-| Tools | functions in the Worker | the MCP server, called by Anthropic |
-| Compiler | `packages/express` in-process | `/api/compile` on the Worker |
-| Needs | one deploy | a second service, and a **public** MCP URL |
+| What the model is given | nine tool schemas, ~10 kB | one tool plus a method index |
+| How it acts | one call per tool | a TypeScript script, run in a sandbox |
+| Flights + hotels | **4.4s** · 2 rounds · 26,421 in | 5.2s · 2 rounds · **23,990** in |
+| Tools execute in | the Worker | a Worker loaded per run, no network |
+| Durable record | the trip | the trip, plus an execution log per run |
+| Needs | one deploy | the same deploy, plus a Worker Loader binding |
+
+### What the measurement said
+
+The case for Code Mode is usually that independent calls collapse from several
+round trips into one `Promise.all`. That premise does not hold here, and it is
+worth writing down rather than repeating: **Gemini already issues independent
+tool calls together in a single round**, so a flights-and-hotels turn is two
+rounds either way. Code Mode is a few percent cheaper in tokens and a little
+slower in wall clock, because the sandbox has to start.
+
+It also has to be told what it has. Left with only `codemode.search` and
+`codemode.describe`, the first measured run spent four of six rounds on
+discovery and 80,104 input tokens before calling anything real. Naming the nine
+methods in the tool description costs a few hundred tokens and removed all four.
+
+The genuine wins are narrower: filtering and joining results without the model
+in between, a durable execution log per run, and an approval gate for anything
+that should need one.
+
+It was removed rather than kept as an option, because a second execution path
+that is not faster is a second thing to keep working. The implementation is in
+the history if the tradeoff ever changes — `TravelConnector` adapted `TOOLS`
+into a connector with no second definition, and the runtime lived on the session
+Durable Object beside the trip its execution log described.
+
+### What happened to the managed agent
+
+A third runtime used to be here: a Python backend handing the loop to a
+Google-hosted Managed Agent on the Antigravity harness. It is gone, and the
+reason is worth keeping.
+
+Agent creation, configuration and model turns all worked against an API key. The
+*sandbox* did not — every file and code-execution call returned `Audience of an
+ID token must be a URL or service account`, which is an auth failure for the tool
+environment rather than for the agent. That is fatal rather than annoying,
+because the Antigravity harness discovers skills from the sandbox filesystem: the
+inline-mounted `SKILL.md` was unreadable, so the agent ran without the contract
+that makes it this agent at all.
+
+A service-account credential would likely fix it. A bring-your-own-key demo
+cannot have one, so it was a dead end rather than a bug. Code Mode replaced it
+and needs no second service.
+
+### Voice, over the Live API
+
+The third way in, and the one that changes what the product *is* rather than how
+it is plumbed. The Worker relays a Gemini Live session rather than letting the
+browser open one, for the reason everything else here is server-side: a browser
+that owns the socket needs the catalog, the compiler, the tools and the trip,
+and then so does every other client. This one sends microphone bytes and
+receives audio plus A2UI.
+
+The model is given the same six `show_*` builders the MCP endpoint exposes, so
+there is no second set of surface code — the MCP endpoint and a phone call now
+differ only in transport. `show_flight_options` returns one sentence for the
+model to say and a surface for the browser to draw, and the split is deliberate:
+handing the flight list back to the model would put it in context and invite it
+to read the list out, which is the one thing the mode exists to avoid.
+
+Three details cost an evening, and two failed silently. `fetch` refuses a `wss:`
+URL — Workers upgrade over `https:` with an `Upgrade` header. Inbound frames
+arrive as a **Blob**, not a string or an ArrayBuffer, so `TextDecoder().decode`
+produced rubbish, `JSON.parse` failed, and every frame was dropped without a
+word. And the Live API rejects an entire `setup` when a function declaration
+carries `additionalProperties`, `$schema` or `strict`, all of which ordinary
+Gemini tool schemas have.
 
 ### The agent is not the memory
 
-Worth stating plainly, because "the conversation was forgotten" sounds like
-something needs re-provisioning and it never does:
+The system prompt is assembled per request from the generated skill, and the
+Durable Object is the memory. A reload starts a new session against the same
+Worker; nothing is provisioned and nothing is remembered.
 
-| | What it is | Lifetime |
-| --- | --- | --- |
-| **the agent** | a stored, versioned *configuration* — model, system prompt, tools, MCP servers. Holds no memory. | created once by `setup_agent`, shared by every conversation |
-| **the session** | the memory: the transcript and the trip | one per conversation, created on first message |
+`probeBackend()` calls the target's `/api/meta` before switching, so choosing a
+runtime that is not running says so in the picker rather than failing on the next
+message.
 
-A reload starts a new session against the same agent. Nothing is provisioned, no
-setup cost is paid, and nothing is remembered. Re-run
-`setup_agent --update` only when the *configuration* changes — a different
-model, another skill variant, a moved MCP URL — which bumps the agent's version;
-sessions already running stay pinned to the version they started on. If the
-agent or environment has genuinely been deleted upstream, session creation says
-so and names the command to run.
-
-The Worker works the same way with different nouns: the system prompt is
-assembled per request from the generated skill, and the Durable Object is the
-memory.
-
-They are interchangeable because they emit the same SSE event stream against the
-same `/api/chat` contract. `probeBackend()` calls the target's `/api/meta`
-before switching, so choosing a runtime that is not running says so in the
-picker rather than failing on the next message.
-
-The managed-agent backend does not ship its own compiler. The published
-`a2ui-agent-sdk` (0.5.0) rejects keyword arguments in Express and emits v1.0
-messages, so it cannot compile the grammar the skills teach; rather than
-maintaining a third compiler, `ServiceCompiler` POSTs to the Worker's
-`/api/compile`. `sdk_supports_current_grammar()` probes at startup and uses the
-SDK directly if a future version can handle it.
-
-**One compiler, two implementations, pinned to each other.** The TypeScript port
 in `packages/express` is byte-checked against Google's reference Python compiler
 on 20 golden cases (`packages/express/test/parity.test.ts`), and the Python
 skill generator is byte-checked against the reference generator
-(`tools/skillgen/tests/test_sdk_parity.py`). A `reference-parity` CI job
+(`tools/tests/test_sdk_parity.py`). A `reference-parity` CI job
 installs the real `a2ui-agent-sdk` and diffs. Divergence is a test failure, not
 a discovery.
 
@@ -648,7 +694,7 @@ act on.
 
 ## 9 · Where the API key lives
 
-Nowhere on the server. The browser holds it, sends it in `x-anthropic-key` on
+Nowhere on the server. The browser holds it, sends it in `x-goog-api-key` on
 each request, and the Worker passes it to the SDK and forgets it. It is never
 written to a Durable Object, never logged, and never put in a URL — a key in a
 query string lands in every access log between the browser and the edge.

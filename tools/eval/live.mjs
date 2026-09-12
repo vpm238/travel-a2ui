@@ -18,27 +18,27 @@
  * that is itself a language model would make this suite exactly as trustworthy
  * as the thing it is grading.
  *
- *   ANTHROPIC_API_KEY=sk-ant-… node tools/eval/live.mjs
- *   … --only panel            run one scenario
- *   … --model claude-sonnet-5 grade a cheaper model
- *   … --json report.json      machine-readable results
+ *   GEMINI_API_KEY=… node tools/eval/live.mjs
+ *   … --only panel                 run one scenario
+ *   … --model gemini-3.5-flash-lite grade a cheaper model
+ *   … --json report.json           machine-readable results
  *
- * It costs real money — roughly $0.40 a full run on Opus 5 — so it is not in
- * CI. It is what you run before believing a claim about the agent's behaviour.
+ * It costs real money, so it is not in CI. It is what you run before believing
+ * a claim about the agent's behaviour.
  */
 
 const BASE = (process.env.BASE_URL ?? 'http://127.0.0.1:8787').replace(/\/$/, '');
-const KEY = process.env.ANTHROPIC_API_KEY ?? '';
+const KEY = process.env.GEMINI_API_KEY ?? '';
 const arg = (flag) => {
   const index = process.argv.indexOf(flag);
   return index === -1 ? undefined : process.argv[index + 1];
 };
-const MODEL = arg('--model') ?? 'claude-opus-5';
+const MODEL = arg('--model') ?? 'gemini-3.8-flash';
 const ONLY = arg('--only');
 const JSON_OUT = arg('--json');
 
 if (!KEY) {
-  console.error('ANTHROPIC_API_KEY is required: this suite calls the real model.');
+  console.error('GEMINI_API_KEY is required: this suite calls the real model.');
   process.exit(2);
 }
 
@@ -69,7 +69,7 @@ const DECIDERS = new Set(['Button', 'FlightOption', 'HotelCard', 'ActivityItem',
 async function turn({ message, surface = 'inline', surfaceId, trip, session }) {
   const response = await fetch(`${BASE}/api/chat`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-anthropic-key': KEY },
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': KEY },
     body: JSON.stringify({
       sessionId: session,
       message,

@@ -732,6 +732,46 @@ function readResource(id: unknown, params: Record<string, unknown>, context: Ren
   return err(id, -32602, `Unknown resource: ${uri}`);
 }
 
+/**
+ * One surface tool, by name — the part of MCP that is not about MCP.
+ *
+ * These builders turn travel data into A2UI, which is exactly what a voice turn
+ * needs and has nothing to do with JSON-RPC: speech is a poor way to hear four
+ * fares and a fine way to ask for them, so the voice says the sentence and the
+ * surface *is* the answer. Exported so the Live relay can call the same six
+ * builders the MCP endpoint does, rather than growing a second set that drifts.
+ *
+ * Throws `NeedsInput` when asked to price a trip nobody has described — the same
+ * refusal, in the same words, on both paths.
+ */
+export function buildSurface(name: string, args: Record<string, unknown>): Surface {
+  switch (name) {
+    case 'show_flight_options':
+      return flightSurface(args);
+    case 'show_hotel_options':
+      return hotelSurface(args);
+    case 'show_trip_controls':
+      return controlsSurface(args);
+    case 'show_itinerary':
+      return itinerarySurface(args);
+    case 'show_trip_dashboard':
+      return dashboardSurface(args);
+    case 'show_price_summary':
+      return priceSurface(args);
+    case 'render_a2ui_express':
+      return {
+        express: str(args['source']),
+        summary: 'A custom interface.',
+        surfaceId: str(args['surfaceId']) || 'mcp',
+      };
+    default:
+      throw new Error(`Unknown surface tool: ${name}`);
+  }
+}
+
+/** The compiler these surfaces are written against. */
+export { compiler as surfaceCompiler };
+
 function callTool(id: unknown, params: Record<string, unknown>, context: RenderContext) {
   const name = str(params['name']);
   const args = (params['arguments'] ?? {}) as Record<string, unknown>;
@@ -752,36 +792,11 @@ function callTool(id: unknown, params: Record<string, unknown>, context: RenderC
 
   let surface: Surface;
   try {
-    switch (name) {
-      case 'show_flight_options':
-        surface = flightSurface(args);
-        break;
-      case 'show_hotel_options':
-        surface = hotelSurface(args);
-        break;
-      case 'show_trip_controls':
-        surface = controlsSurface(args);
-        break;
-      case 'show_itinerary':
-        surface = itinerarySurface(args);
-        break;
-      case 'show_trip_dashboard':
-        surface = dashboardSurface(args);
-        break;
-      case 'show_price_summary':
-        surface = priceSurface(args);
-        break;
-      case 'render_a2ui_express':
-        surface = {
-          express: str(args['source']),
-          summary: 'A custom interface.',
-          surfaceId: str(args['surfaceId']) || 'mcp',
-        };
-        break;
-      default:
-        return err(id, -32602, `Unknown tool: ${name}`);
-    }
+    surface = buildSurface(name, args);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Unknown surface tool')) {
+      return err(id, -32602, `Unknown tool: ${name}`);
+    }
     return ok(id, toolError(error instanceof Error ? error.message : String(error)));
   }
 
@@ -1159,3 +1174,4 @@ function priceSurface(args: Record<string, unknown>): Surface {
 }
 
 export { TOOLS as MCP_TOOLS, A2UI_MIME };
+export type { Surface };

@@ -4,12 +4,12 @@ Seven flows. Each one has a job, a script you can type verbatim, and what you
 should see if it is working — so a reviewer can check it rather than take a
 screenshot's word for it.
 
-Flows 1–5 need the web app and an Anthropic key. Flow 6 needs nothing at all.
+Flows 1–5 need the web app and a Gemini key. Flow 6 needs nothing at all.
 Flow 7 runs inside Claude.
 
 ```bash
 npm run setup && npm run dev:worker
-open http://127.0.0.1:8787/#key=sk-ant-...
+open http://127.0.0.1:8787/#key=AIza...
 ```
 
 Model **Opus 5**, skill **Express · one skill**, effort **Medium** unless a flow
@@ -264,9 +264,9 @@ No browser, one curl, real model:
 ```bash
 curl -sN http://127.0.0.1:8787/api/chat \
   -H 'content-type: application/json' \
-  -H "x-anthropic-key: $ANTHROPIC_API_KEY" \
+  -H "x-goog-api-key: $GEMINI_API_KEY" \
   -d '{"sessionId":"demo","message":"Show me flights to Madrid for two in April.",
-       "surface":"inline","surfaceId":"inline-1","model":"claude-opus-5"}'
+       "surface":"inline","surfaceId":"inline-1","model":"gemini-3.8-flash"}'
 ```
 
 You will see the SSE event stream directly: `start`, interleaved `text` and
@@ -274,6 +274,7 @@ You will see the SSE event stream directly: `start`, interleaved `text` and
 arrive partial and then `done: true`, which is progressive rendering as it looks
 on the wire.
 
-Against the managed-agent backend, the same request on port 8000 returns the
-same event shape from a different runtime — that equivalence is the point, and
-it is the fastest way to check it.
+Add `"runtime": "codemode"` to the same request and the event shape is
+identical, but the `tool` events change: one `codemode` call carrying a script
+where there were three separate ones. That equivalence is the point, and it is
+the fastest way to check it.

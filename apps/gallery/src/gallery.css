@@ -296,3 +296,90 @@ body {
   font-size: 0.72rem;
   color: var(--tv-ink-faint);
 }
+
+/* -- every component, one at a time -------------------------------------- */
+
+.gallery__catalog {
+  margin: 28px 0 0;
+  padding: 22px 24px 26px;
+  border-top: 1px solid var(--line);
+}
+
+.gallery__catalog h2 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.gallery__catalog > p {
+  margin: 0 0 14px;
+  max-width: 62ch;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+
+.gallery__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gallery__chips button {
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.gallery__chips button:hover {
+  border-color: var(--accent);
+}
+
+.gallery__chips button.is-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.gallery__component {
+  margin-top: 16px;
+}
+
+.gallery__component header h3 {
+  margin: 0 0 2px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+.gallery__component header p {
+  margin: 0 0 10px;
+  max-width: 62ch;
+  color: var(--ink-muted);
+  font-size: 0.82rem;
+}
+
+.gallery__component details {
+  margin-top: 10px;
+  font-size: 0.78rem;
+}
+
+.gallery__component summary {
+  cursor: pointer;
+  color: var(--ink-muted);
+}
+
+.gallery__component pre {
+  margin: 8px 0 0;
+  padding: 12px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.06));
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.55;
+}

@@ -18,13 +18,15 @@
     "test:watch": "vitest",
     "e2e": "node tools/e2e/chat.mjs && node tools/e2e/interaction.mjs && node tools/e2e/mcp.mjs",
     "typecheck": "tsc -b packages/trip packages/express packages/renderer && tsc -p apps/web --noEmit && tsc -p apps/mcp-view --noEmit && tsc -p apps/gallery --noEmit && tsc -p apps/worker --noEmit",
-    "generate": "python3 scripts/build_catalog.py && npm run build -w @travel-a2ui/express && node scripts/build_examples.mjs && PYTHONPATH=tools/skillgen/src python3 -m skillgen build --all --catalog catalogs/a2ui-travel/catalog.json --examples catalogs/a2ui-travel/examples --out skills --prune catalogs/a2ui-travel/agent-components.json",
+    "generate": "python3 scripts/build_catalog.py && python3 scripts/build_examples.py && python3 scripts/build_skills.py",
     "check:catalog": "python3 scripts/build_catalog.py --check",
-    "check:examples": "npm run build -w @travel-a2ui/express && node scripts/build_examples.mjs --check",
-    "check:skills": "PYTHONPATH=tools/skillgen/src python3 -m skillgen build --all --check --catalog catalogs/a2ui-travel/catalog.json --examples catalogs/a2ui-travel/examples --out skills --prune catalogs/a2ui-travel/agent-components.json",
+    "check:examples": "python3 scripts/build_examples.py --check",
+    "check:skills": "python3 scripts/build_skills.py --check",
     "check": "npm run check:catalog && npm run check:examples && npm run check:skills",
     "screenshots": "node tools/e2e/chat.mjs --screenshot docs/screenshots/01-chat-light.png && node tools/e2e/mcp.mjs --screenshot docs/screenshots/05-mcp-view.png && node tools/screenshots/capture.mjs docs/screenshots",
-    "deploy": "npm run build && npm run deploy -w @travel-a2ui/worker"
+    "deploy": "npm run build && npm run deploy -w @travel-a2ui/worker",
+    "check:catalog-page": "node tools/screenshots/catalog.mjs --check",
+    "docs:catalog": "node tools/screenshots/catalog.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1",

@@ -10,7 +10,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { ExpressCompiler, bindCommitContext } from '../src/index.js';
+import {
+  ExpressCompiler,
+  bindCommitContext,
+  bindDerivedLabels,
+  stripPanelActions,
+} from '../src/index.js';
 import type { A2uiMessage, ComponentNode, JsonObject } from '../src/types.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -211,5 +216,148 @@ describe('a surface with no way to send', () => {
       )
       .filter((node) => node.component === 'Button');
     expect(buttons).toHaveLength(0);
+  });
+});
+
+describe('bindDerivedLabels', () => {
+  const picker = (nightsLabel?: unknown) => [
+    {
+      surfaceId: 's',
+      components: [
+        {
+          id: 'dates',
+          component: 'DateRangePicker',
+          label: 'Dates',
+          start: { path: '/trip/startDate' },
+          end: { path: '/trip/endDate' },
+          ...(nightsLabel === undefined ? {} : { nightsLabel }),
+        },
+      ],
+    },
+  ];
+
+  const bind = (nightsLabel?: unknown) => {
+    const [surface] = picker(nightsLabel);
+    const messages: any[] = [{ version: 'v0.9.1', updateComponents: surface }];
+    bindDerivedLabels(messages);
+    return messages[0].updateComponents.components[0].nightsLabel;
+  };
+
+  const CALL = {
+    call: 'formatString',
+    args: { value: '${calcNights(start:${/trip/startDate}, end:${/trip/endDate})} nights' },
+  };
+
+  it('binds a picker that was given no label at all', () => {
+    expect(bind()).toEqual(CALL);
+  });
+
+  /**
+   * A template is the right answer already — the renderer resolves it — so
+   * rewriting it would only discard wording the model chose.
+   */
+  it('leaves a template the model wrote', () => {
+    const written = '${calcNights(start: ${/trip/startDate}, end: ${/trip/endDate})} nights away';
+    expect(bind(written)).toBe(written);
+  });
+
+  /** Correct today, wrong the moment the traveler moves a date. */
+  it('replaces a fixed count', () => {
+    expect(bind('7 nights')).toEqual(CALL);
+    expect(bind('1 night')).toEqual(CALL);
+  });
+
+  it('leaves a caption a function could not have written', () => {
+    expect(bind('including the wedding night')).toBe('including the wedding night');
+  });
+
+  it('leaves a label the model already bound to a call', () => {
+    const already = { call: 'calcNights', args: { start: { path: '/a' }, end: { path: '/b' } } };
+    expect(bind(already)).toEqual(already);
+  });
+
+  it('leaves a picker holding literal dates, which has nothing to recompute', () => {
+    const messages: any[] = [
+      {
+        version: 'v0.9.1',
+        updateComponents: {
+          surfaceId: 's',
+          components: [
+            { id: 'd', component: 'DateRangePicker', start: '2027-04-12', end: '2027-04-19' },
+          ],
+        },
+      },
+    ];
+    bindDerivedLabels(messages);
+    expect(messages[0].updateComponents.components[0].nightsLabel).toBeUndefined();
+  });
+});
+
+describe('stripPanelActions', () => {
+  const surface = (surfaceId: string) => ({
+    version: 'v0.9.1',
+    updateComponents: {
+      surfaceId,
+      components: [
+        { id: 'label', component: 'Text', text: 'Iberia IB614' },
+        { id: 'changeLabel', component: 'Text', text: 'Change' },
+        {
+          id: 'change',
+          component: 'Button',
+          child: 'changeLabel',
+          action: { event: { name: 'change', context: { field: 'selectedFlight' } } },
+        },
+        { id: 'changeRow', component: 'Row', children: ['change'] },
+        { id: 'root', component: 'Column', children: ['label', 'changeRow'] },
+      ],
+    },
+  });
+
+  const ids = (messages: any[]) =>
+    messages[0].updateComponents.components.map((c: any) => c.id);
+
+  it('leaves the panel alone — a change there is the one thing it may do', () => {
+    const messages: any[] = [surface('sidebar')];
+    stripPanelActions(messages, ['sidebar', 'home']);
+    expect(ids(messages)).toContain('change');
+  });
+
+  /**
+   * The live failure: the panel's record drawn a second time inside the card
+   * the traveler was still filling in, so one decision had two Change buttons.
+   */
+  it('drops a change button drawn in the conversation', () => {
+    const messages: any[] = [surface('inline-1')];
+    stripPanelActions(messages, ['sidebar', 'home']);
+    expect(ids(messages)).not.toContain('change');
+  });
+
+  it('drops the row that held nothing else, and unlinks it from the root', () => {
+    const messages: any[] = [surface('inline-1')];
+    stripPanelActions(messages, ['sidebar', 'home']);
+    expect(ids(messages)).not.toContain('changeRow');
+    const root = messages[0].updateComponents.components.find((c: any) => c.id === 'root');
+    expect(root.children).toEqual(['label']);
+  });
+
+  it('keeps a commit button, which is not a change', () => {
+    const messages: any[] = [
+      {
+        version: 'v0.9.1',
+        updateComponents: {
+          surfaceId: 'inline-1',
+          components: [
+            {
+              id: 'go',
+              component: 'Button',
+              action: { event: { name: 'search_flights', context: {} } },
+            },
+            { id: 'root', component: 'Column', children: ['go'] },
+          ],
+        },
+      },
+    ];
+    stripPanelActions(messages, ['sidebar', 'home']);
+    expect(ids(messages)).toContain('go');
   });
 });

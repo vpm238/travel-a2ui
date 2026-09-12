@@ -2,7 +2,7 @@
 
 This app has two front doors and both need a model behind them:
 
-- **the web app** — you open it in a browser, paste your own Anthropic API key,
+- **the web app** — you open it in a browser, paste your own Gemini API key,
   and talk to it. The key stays in that browser; the Worker forwards it and
   forgets it.
 - **the MCP app** — you install it into Claude, and *Claude* becomes the model.

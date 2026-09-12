@@ -1,105 +1,71 @@
 ---
 name: a2ui-core
-description: Core rules for generating user interfaces. Load alongside a UI component skill whenever a response would be clearer as an interface than as text.
+description: Core A2UI protocol instructions and syntax rules for UI generation.
 metadata:
-  protocol_version: "0.9.1"
+  protocol_version: 0.9.1
   inference_format: express
-  companion_skills:
-    - a2ui-travel
+  catalogs:
+  - a2ui-travel
+  catalog_id: https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json
 ---
 
-# A2UI Express output contract
+# A2UI Express DSL Output Contract
 
-When you show the user an interface, write it in A2UI Express and wrap the whole
-block in the sentinel tags `<a2ui>` and `</a2ui>`. Everything outside those tags
-is ordinary prose the user reads; everything inside is compiled into A2UI JSON
-envelopes and drawn on screen. Never describe an interface in prose that you
-could draw.
+You must output the user interface using A2UI Express.
 
-## Grammar
+IMPORTANT: You MUST always surround the entire A2UI Express block with the sentinel tags `<a2ui>` and `</a2ui>`.
 
-1. **Components are constructor calls.** Assign one to a variable, or nest it
-   inline inside a parent's argument list:
+The host compiler will compile your A2UI Express output into the correct JSON envelopes automatically.
 
-       header = Text("Madrid", variant="h1")
-       root = Column([header, Button(Text("Go"), action=Event("go"))])
+## Grammar Rules
 
-   Variable names start with a letter or underscore and contain only letters,
-   digits and underscores. A variable name becomes the component's id, so name
-   things the way you would in code.
+1. Component constructors can be assigned to variables or nested inline inside parent component arguments:
+   header = ComponentA(prop1="val1")
+   root = ComponentB([header, ComponentC("Click", action=Event("submit"))])
 
-2. **`root` is the entry point.** Every surface needs exactly one variable
-   called `root`. It is the top of the tree; everything else is reachable from
-   it.
+   Keyword arguments (`param=value`) and positional arguments with `_` placeholders are supported.
 
-3. **Arguments are positional by default**, in the order given in the signatures
-   below. Pass them by name (`variant="primary"`) when that is clearer, and use
-   `_` to skip an optional argument you do not want but need to step over:
+   Variable names MUST start with a letter or underscore, and only contain letters, digits, and underscores.
 
-       Image("https://…/a.png", _, "cover")
+2. The interface tree must have a single entry point assigned to the reserved variable 'root'.
 
-   Do not pass the same argument both positionally and by name.
+3. Primitives:
+   - Strings: Quoted with `"` or `"""`. Support for `\n`, `\t`, `\\`, and `\"` escapes.
+     Raw Strings: Prefaced by `r` (e.g., `r"..."` or `r"""..."""`), with no escape processing.
+   - Numbers: write as integers or decimals, e.g., 42
+   - Booleans: write true or false
+   - Null values: write null
+   - Dates & Times: Values for date-time inputs (e.g. in DateTimeInput) must strictly use RFC 3339 format with a timezone offset (e.g. "2026-03-14T00:00:00Z").
 
-4. **Primitives.** Strings use `"…"` or `"""…"""`, with `\n`, `\t`, `\\`
-   and `\"` escapes; prefix with `r` for a raw string. Numbers are bare
-   (`42`, `-3.5`). Booleans are `true` / `false`. Absent is `null`. Date-time
-   values are RFC 3339 with an offset: `"2026-04-12T00:00:00Z"`.
+4. Lists: represent as arrays, e.g., [child1, child2].
 
-5. **Lists** are `[a, b, c]`. **Maps** are `{title: "Overview", child: body}`.
-   Map keys are literal.
+5. Maps: represent as key-value blocks, e.g., {title: "Overview", child: contentCol}. Map keys are always literal strings (dynamic variable resolution is not supported for keys).
 
-6. **Data bindings** start with `$`. An absolute path reads the surface's data
-   model — `$/trip/adults`. A relative path reads the current item inside a list
-   template — `$name`. A lone `$` is the item itself.
+6. Data bindings: prefix absolute paths in the data model with '$', e.g., $/user/firstName.
+   Prefix relative list scopes with '$', e.g., $firstName.
+   A lone '$' represents an empty relative path which resolves to the root of the current context (e.g. inside a template, representing the entire item itself).
 
-7. **Assign into the data model** by writing to a path:
+7. Logic and validation: prefix client check rules with '?', e.g., ?required or ?regex("^[0-9]{5}$"). To specify a custom error message for validation failures, append it as an extra string argument, e.g. ?regex("^[0-9]{5}$", "Postal code must be 5 digits").
 
-       $/trip/adults = 2
-       $/trip/destination = "Madrid"
+8. Action events: represent server-side actions using the Event helper:
+   Event("save_deal", {rep: $/form/rep})
 
-   Bind a control's value to a path and the host writes the user's input back
-   there, where your next turn can read it.
+9. Nested functions: call client functions directly using catalog signatures, for example myFunction("value").
 
-8. **Actions** are `Event("name", {key: value})`. The event name is what comes
-   back to you; the context map is what comes back with it. Bind context values
-   to paths so you receive what the user actually chose:
+10. Data model population: Assign a value directly to an absolute data path (e.g. $/path/to/key = "value") to populate or initialize values inside the shared dataModel. The value can be a primitive, array, or map.
 
-       Event("book_flight", {flightId: "IB6250", adults: $/trip/adults})
+11. Dynamic list templates: If a component expects a template child list, represent it using the _template helper:
+    _template($/path/to/list, itemTemplate)
+    And define the template component variable on another line, utilizing relative path references prefixed with $:
+    itemTemplate = Text($name)
 
-9. **List templates** repeat one component over a bound list:
+12. To delete a user interface surface, output the standalone `deleteSurface(surfaceId)` command (no variable assignment):
+    deleteSurface("dashboard-surface-1")
 
-        row = Text($title)
-        list = List(_template($/activities, row))
+13. Static properties: Arguments annotated with '(static)' in the signatures below MUST be defined as literal values or arrays inline. You CANNOT use a dynamic data binding path (prefixed by $) for these arguments.
 
-10. **Surfaces.** `surface("id")` says which surface the block targets; without
-    it the block goes to the host's default surface for this turn. Write to the
-    same id again to replace that surface, and `deleteSurface("id")` to remove
-    it.
+14. Required actions: Parameters named 'action' (or annotated in component signatures) are strictly required. You must pass a valid Event (e.g. Event("click")) or function call. If no specific action is described in the user request, you must provide a dummy click event like Event("click") instead of passing null or omitting the parameter.
 
-11. **`(static only)` arguments take literals only.** They are marked in the
-    signatures. Passing a `$` binding to one is a compile error.
-
-12. **Required `action` arguments are required.** If nothing sensible should
-    happen yet, pass `Event("noop")` rather than omitting it.
-
-## Streaming
-
-Your output is compiled as it arrives, not after you stop. That has two
-consequences worth writing for:
-
-- **Order matters.** Define children before the parent that lists them, and put
-  `root` last. The surface then fills in from the top instead of appearing all
-  at once at the end.
-- **Finish the block.** Close with `</a2ui>` before you go back to prose. An
-  unterminated block still renders, but the host cannot tell it is done.
-
-## What the host does with it
-
-Express compiles to A2UI messages: a `createSurface` naming the surface and its
-catalog, an `updateComponents` carrying the flattened component tree, and an
-`updateDataModel` carrying whatever you assigned to `$` paths. You never write
-those envelopes yourself — write Express and let the compiler produce them.
-
-## Component catalogs
-
-This skill defines the notation, not the components. The components you may use come from a companion catalog skill (`a2ui-travel`). Load one alongside this skill; without it you have grammar and no vocabulary.
+15. Surface targeting: Output `surface(surfaceId)` to specify or target a user interface surface:
+    surface("dashboard-surface-1")
+    root = Column(...)

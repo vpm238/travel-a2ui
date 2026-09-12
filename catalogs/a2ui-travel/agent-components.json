@@ -1,31 +1,28 @@
 {
-  "$comment": "What the travel agent is allowed to draw. This prunes the PROMPT, not any renderer — every client keeps its full component registry, so nothing about a Web, Swift, Kotlin or Flutter client changes when a name leaves this list. Applied by `skillgen --prune`, which mirrors A2uiCatalog.with_pruning from the Python agent SDK.",
-  "why": "The catalog inherits the whole basic catalog. A travel agent will never draw a video player or a modal, but it pays for their signatures on every first turn and re-reads them on every cache miss. Narrowing the list keeps the model's attention on the components it actually composes with.",
+  "$comment": "What the travel agent is allowed to draw. This prunes the PROMPT, not any renderer \u2014 every client keeps its full component registry, so nothing about a Web, Swift, Kotlin or Flutter client changes when a name leaves this list. Applied by `skillgen --prune`, which mirrors A2uiCatalog.with_pruning from the Python agent SDK.",
+  "why": "What the agent may draw. Everything else is pruned out of the prompt before the model ever sees it \u2014 the renderers keep their full registries, so nothing about a client changes. The rule is that a basic component survives only when no travel component already does its job: layout and input primitives stay, and the generic display containers go, because the travel catalog exists precisely so the model says *what* it is showing rather than how to draw it.",
   "allowedComponents": [
-    "Text",
-    "Image",
-    "Icon",
-    "Row",
-    "Column",
-    "List",
-    "Card",
+    "ActivityItem",
     "Button",
-    "TextField",
     "CheckBox",
     "ChoicePicker",
-    "Slider",
+    "Column",
+    "DateRangePicker",
+    "ExpenseSplit",
     "FlightOption",
     "HotelCard",
     "ItineraryDay",
-    "ActivityItem",
+    "List",
     "MapPreview",
     "PriceSummary",
-    "DateRangePicker",
-    "TravelerCounter",
-    "StatTile",
     "ProgressMeter",
-    "WeatherStrip",
-    "ExpenseSplit"
+    "Row",
+    "Slider",
+    "StatTile",
+    "Text",
+    "TextField",
+    "TravelerCounter",
+    "WeatherStrip"
   ],
   "allowedFunctions": [
     "formatString",
@@ -36,13 +33,16 @@
     "calcNights",
     "openUrl"
   ],
-  "whyFunctions": "The rest of the catalog's functions are check-rule validators — required, regex, length, numeric, email — plus the boolean combinators that compose them. They exist for a `checks=` argument this agent never writes, and they cost more prompt than the six pruned components put together. The formatters stay: they are what makes a surface recompute on screen without a model turn.",
+  "whyFunctions": "The rest of the catalog's functions are check-rule validators \u2014 required, regex, length, numeric, email \u2014 plus the boolean combinators that compose them. They exist for a `checks=` argument this agent never writes, and they cost more prompt than the six pruned components put together. The formatters stay: they are what makes a surface recompute on screen without a model turn.",
   "excluded": {
     "AudioPlayer": "no audio in a trip planner",
     "Video": "no video in a trip planner",
     "Modal": "the conversation is the modal; a surface that covers the chat hides the record",
     "Tabs": "the three surfaces are the navigation; tabs inside one of them compete with it",
     "Divider": "Column spacing already separates sections, and the model reaches for it as filler",
-    "DateTimeInput": "DateRangePicker covers every date question this agent asks, and offering both invites a single-date control where a range belongs"
+    "DateTimeInput": "DateRangePicker covers every date question this agent asks, and offering both invites a single-date control where a range belongs",
+    "Icon": "ActivityItem takes a `category` and draws its own icon; WeatherStrip and the rest do the same. Nothing in the examples or in live traffic ever drew a bare one.",
+    "Image": "HotelCard carries `imageUrl` and MapPreview draws itself. A loose image on a travel surface is a picture with no caption and no role.",
+    "Card": "FlightOption, HotelCard, StatTile and PriceSummary *are* the cards, and they align across siblings in a way a generic container cannot. Keeping both taught the model two ways to draw a hotel."
   }
 }

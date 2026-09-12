@@ -23,65 +23,25 @@
  * asked to rebuild when the panel should be a different *shape*.
  */
 
-import { useEffect, useRef } from 'react';
 import { A2uiSurface, useSurface } from '@travel-a2ui/renderer';
 
 import type { Agent } from '../useAgent.js';
 import { Spinner } from './bits.js';
 
-/**
- * Fingerprint of the decisions that should make the panel a *different panel*.
- *
- * Deliberately not every trip field. Values sync into the panel live — change
- * the departure airport on an inline card and the sidebar's origin updates
- * immediately, with no model in the path. What warrants a rebuild is the panel
- * needing different *controls*: once there is a destination it should show
- * flight filters, once a flight is chosen it should show what is left to book.
- *
- * Rebuilding on a slider value would mean a model turn every time someone
- * dragged something, which is both slow and pointless.
- */
-function tripSignature(trip: Record<string, unknown>): string {
-  const keys = ['destination', 'selectedFlight', 'selectedHotel'];
-  return keys.map((key) => `${key}=${String(trip[key] ?? '')}`).join('|');
-}
-
 export function Sidebar({ agent }: { agent: Agent }) {
-  const signature = tripSignature(agent.trip);
-  const lastBuilt = useRef<string | null>(null);
   // Subscribe rather than reading the store during render: the panel arrives
   // from a silent turn, which changes nothing else this component watches.
   const hasSurface = Boolean(useSurface(agent.store, 'sidebar'));
 
-  useEffect(() => {
-    // Rebuild when the trip's shape changes, not on every token. The guard is a
-    // ref rather than state so a rebuild cannot trigger its own rebuild.
-    if (agent.busy) return;
-    if (!agent.apiKey && !agent.meta?.keyProvided) return;
-    if (lastBuilt.current === signature) return;
-    if (signature === tripSignature({}) && !hasSurface) return;
-
-    lastBuilt.current = signature;
-    void agent.send(
-      'Rebuild the panel for where the trip stands now: what is settled, with a Change button ' +
-        'on each decision, and the plan at the bottom bound to $/plan. Read-only — no editors, ' +
-        'no prose.',
-      { surface: 'sidebar', surfaceId: 'sidebar', silent: true },
-    );
-  }, [agent, hasSurface, signature]);
-
-  const build = () => {
-    lastBuilt.current = signature;
-    void agent.send(
-      'Build the panel for this trip: what is settled so far, and the plan at the bottom ' +
-        'bound to $/plan. Read-only.',
-      {
-        surface: 'sidebar',
-        surfaceId: 'sidebar',
-        silent: true,
-      },
-    );
-  };
+  /*
+   * When this panel is *stale* is not the browser's business, and used to be:
+   * it watched three trip field names and sent a prose prompt asking for a
+   * redraw. The server owns that now — it holds the trip, so it is the only
+   * thing that can know the decisions changed shape, and it pushes the new
+   * panel down the same turn. All that is left here is the one fact a client
+   * genuinely has: this surface is on screen and empty.
+   */
+  const build = () => agent.drawSurface('sidebar');
 
   return (
     <aside className="sidebar" aria-label="Trip controls">

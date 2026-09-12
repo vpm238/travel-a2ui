@@ -49,13 +49,10 @@ fi
 
 # The example compiler is the TypeScript one, so it has to exist first.
 npm run --silent build -w @travel-a2ui/express
-node scripts/build_examples.mjs
+python3 scripts/build_examples.py
 
 if [[ -n "$python_bin" ]]; then
-  PYTHONPATH=tools/skillgen/src "$python_bin" -m skillgen build --all \
-    --catalog catalogs/a2ui-travel/catalog.json \
-    --examples catalogs/a2ui-travel/examples \
-    --out skills
+  "$python_bin" scripts/build_skills.py
 else
   warn "skipped: the skills are checked in"
 fi
@@ -67,7 +64,7 @@ step "Testing"
 npm test --silent
 
 if [[ -n "$python_bin" ]] && "$python_bin" -c 'import pytest' 2>/dev/null; then
-  "$python_bin" -m pytest tools/skillgen/tests backends/claude-managed-agent/tests -q
+  "$python_bin" -m pytest tools/tests backends/antigravity-agent/tests -q
 else
   warn "pytest not installed — skipping the Python tests (pip install pytest)"
 fi

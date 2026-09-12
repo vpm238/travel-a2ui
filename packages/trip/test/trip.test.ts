@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import {
   basisOf,
   canDo,
+  confirm,
   coerce,
   merge,
   missingFor,
@@ -400,5 +401,151 @@ describe('trips that do not fit the usual shape', () => {
     expect(coerce('legs', [{ destination: 'Madrid', startDate: 'nonsense' }])).toEqual([
       { destination: 'Madrid' },
     ]);
+  });
+});
+
+/**
+ * The route, stop by stop.
+ *
+ * Trip-level validation only ever saw the first stop, because that is what the
+ * flat fields describe. A multi-stop trip is the case this app exists to handle
+ * well and it was the one with no checks at all.
+ */
+describe('a route that does not make sense', () => {
+  const wedding = {
+    origin: 'SFO',
+    destination: 'Chicago',
+    startDate: '2027-04-10',
+    endDate: '2027-04-12',
+    travelers: 1,
+  };
+
+  it('refuses a stop that checks out before it checks in', () => {
+    const found = problems({
+      ...wedding,
+      legs: [{ destination: 'New York', startDate: '2027-04-15', endDate: '2027-04-13' }],
+    });
+    expect(found.some((p) => /not after/.test(p.message))).toBe(true);
+  });
+
+  it('refuses a stop that starts before the one it follows ends', () => {
+    const found = problems({
+      ...wedding,
+      legs: [{ destination: 'New York', startDate: '2027-04-11', endDate: '2027-04-16' }],
+    });
+    const message = found.map((p) => p.message).join(' ');
+    expect(message).toMatch(/before Chicago ends/);
+    expect(message).toMatch(/travel order/);
+  });
+
+  it('accepts a stop that starts the day the last one ended', () => {
+    // Flying on the check-out day is the normal case, not an error.
+    const found = problems({
+      ...wedding,
+      legs: [{ destination: 'New York', startDate: '2027-04-12', endDate: '2027-04-16' }],
+    });
+    expect(found).toEqual([]);
+  });
+
+  it('refuses a stop carrying nobody', () => {
+    const found = problems({
+      ...wedding,
+      legs: [{ destination: 'New York', travelers: 0 }],
+    });
+    expect(found.some((p) => /at least one traveler/.test(p.message))).toBe(true);
+  });
+
+  it('refuses a stop with nowhere to go', () => {
+    const found = problems({ ...wedding, legs: [{ destination: '' } as never] });
+    expect(found.some((p) => /no destination/.test(p.message))).toBe(true);
+  });
+
+  it('carries the whole wedding trip without complaint', () => {
+    // SFO → Chicago (2 nights, wedding) → New York → SFO, two of them coming
+    // home. The trip the app is meant to be good at.
+    const found = problems({
+      origin: 'SFO',
+      destination: 'Chicago',
+      startDate: '2027-04-10',
+      endDate: '2027-04-12',
+      travelers: 1,
+      legs: [
+        { destination: 'New York', startDate: '2027-04-12', endDate: '2027-04-16', purpose: 'wedding' },
+        { destination: 'SFO', startDate: '2027-04-16', travelers: 2 },
+      ],
+    });
+    expect(found).toEqual([]);
+  });
+
+  it('still lets an undated route through — it is unfinished, not wrong', () => {
+    const found = problems({
+      destination: 'Chicago',
+      legs: [{ destination: 'New York' }, { destination: 'SFO' }],
+    });
+    expect(found).toEqual([]);
+  });
+});
+
+/**
+ * Provenance: which values the traveler actually said.
+ *
+ * A live run saved `travelers: 2` from "Madrid in April for a week" — a message
+ * naming nobody — and because a stage is finished when its fields are present,
+ * the party was marked settled and never asked about. The skill says not to
+ * assume, which is a request to a model. This is the part that is a fact about
+ * the trip.
+ */
+describe('assumed values', () => {
+  it('keeps a stage open when its only value was a guess', () => {
+    const guessed = plan({ destination: 'Madrid', travelers: 2, assumed: ['travelers'] });
+    const said = plan({ destination: 'Madrid', travelers: 2 });
+
+    expect(guessed.steps.find((step) => step.stage === 'party')?.done).toBe(false);
+    expect(said.steps.find((step) => step.stage === 'party')?.done).toBe(true);
+  });
+
+  it('still reports the value, because it pre-fills the control', () => {
+    const trip: Trip = { destination: 'Madrid', travelers: 2, assumed: ['travelers'] };
+    expect(trip.travelers).toBe(2);
+    expect(plan(trip).steps.find((step) => step.stage === 'party')?.missing).toEqual(['travelers']);
+  });
+
+  it('confirms a field the traveler pressed a button on', () => {
+    const before: Trip = { travelers: 2, origin: 'JFK', assumed: ['travelers', 'origin'] };
+    const after = confirm(before, ['travelers']);
+
+    expect(after.assumed).toEqual(['origin']);
+  });
+
+  it('drops the mark entirely once nothing is left assumed', () => {
+    const after = confirm({ travelers: 2, assumed: ['travelers'] }, ['travelers']);
+    expect(after).not.toHaveProperty('assumed');
+  });
+
+  /** A later patch that states a value for real has to clear its own mark. */
+  it('un-assumes a field a later save states outright', () => {
+    const guessed = merge({}, { travelers: 2, assumed: ['travelers'] });
+    expect(guessed.assumed).toEqual(['travelers']);
+
+    const stated = merge(guessed, { travelers: 4 });
+    expect(stated.travelers).toBe(4);
+    expect(stated).not.toHaveProperty('assumed');
+  });
+
+  it('leaves marks on fields a patch does not mention', () => {
+    const trip = merge({}, { travelers: 2, origin: 'JFK', assumed: ['travelers', 'origin'] });
+    const next = merge(trip, { destination: 'Madrid' });
+
+    expect(next.assumed).toEqual(['travelers', 'origin']);
+  });
+
+  it('ignores a name that is not a trip field', () => {
+    expect(merge({}, { travelers: 2, assumed: ['travelers', 'vibes'] }).assumed).toEqual([
+      'travelers',
+    ]);
+  });
+
+  it('refuses to let `assumed` mark itself', () => {
+    expect(merge({}, { assumed: ['assumed'] })).not.toHaveProperty('assumed');
   });
 });

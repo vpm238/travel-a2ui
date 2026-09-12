@@ -18,6 +18,7 @@ import { SurfaceStore, type A2uiEvent } from '@travel-a2ui/renderer';
 import { TRIP_KEYS, plan as planTrip, type Trip } from '@travel-a2ui/trip';
 
 import { consumeKeyFromUrl } from './apiKey.js';
+import { startCall, type VoiceCall } from './voice.js';
 import {
   clientHints,
   fetchMeta,
@@ -88,8 +89,30 @@ function withText(parts: TurnPart[], delta: string, round: number): TurnPart[] {
   return [...parts, { kind: 'text', text: delta, round }];
 }
 
-/** Records a surface once; later events for it only update the store. */
+/**
+ * The surfaces that live somewhere of their own.
+ *
+ * The panel and the home screen are standing surfaces: one each, replaced as
+ * the trip moves, drawn by the view that owns them. The conversation is a feed
+ * of `inline-N` cards.
+ */
+const STANDING = new Set(['sidebar', 'home']);
+
+/**
+ * Records a surface once; later events for it only update the store.
+ *
+ * A turn usually touches three surfaces — the card it drew, and the two
+ * standing panels the server refreshed from the trip — and this attached all of
+ * them to the chat bubble. So the panel was rendered twice: once where it
+ * lives, and again in the middle of the conversation, under the question the
+ * traveler was still answering, with its own Change buttons.
+ *
+ * It read exactly like the model drawing the trip summary inline, which is what
+ * it was mistaken for. It was the client, filing a panel refresh as
+ * conversation.
+ */
 function withSurface(parts: TurnPart[], surfaceId: string): TurnPart[] {
+  if (STANDING.has(surfaceId)) return parts;
   if (parts.some((part) => part.kind === 'surface' && part.surfaceId === surfaceId)) return parts;
   return [...parts, { kind: 'surface', surfaceId }];
 }
@@ -99,6 +122,8 @@ export interface Usage {
   outputTokens: number;
   cacheReadTokens: number;
   cacheWriteTokens: number;
+  /** Billed as output, and usually the largest share of a Flash turn. */
+  thoughtTokens: number;
   turns: number;
 }
 
@@ -113,6 +138,7 @@ const EMPTY_USAGE: Usage = {
   outputTokens: 0,
   cacheReadTokens: 0,
   cacheWriteTokens: 0,
+  thoughtTokens: 0,
   turns: 0,
 };
 
@@ -229,7 +255,7 @@ export function useAgent() {
     } catch {
       /* fall through to defaults */
     }
-    return { model: 'claude-opus-5', skill: 'express-monolithic', effort: 'medium' };
+    return { model: 'gemini-3.8-flash', skill: 'express-monolithic', effort: 'low' };
   });
 
   /**
@@ -266,6 +292,8 @@ export function useAgent() {
   prefsRef.current = prefs;
   const keyRef = useRef(apiKey);
   keyRef.current = apiKey;
+  const backendRef = useRef(backend.origin);
+  backendRef.current = backend.origin;
   // Read while a turn is streaming, where `trip` in the closure is stale.
   const tripRef = useRef(trip);
   tripRef.current = trip;
@@ -359,9 +387,11 @@ export function useAgent() {
       const action = typeof input === 'string' ? undefined : input;
       const message = typeof input === 'string' ? input.trim() : '';
       const text = action ? describeForTranscript(action) : message;
-      if ((!action && !message) || busy) return;
-
       const surface = options.surface ?? 'inline';
+      // An empty message on a standing surface is a request to draw it, and the
+      // server writes the brief. Only the conversation needs something said.
+      const drawing = !action && !message && surface !== 'inline';
+      if ((!action && !message && !drawing) || busy) return;
       const assistantId = `a_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
       if (!options.silent) {
@@ -448,6 +478,7 @@ export function useAgent() {
               outputTokens: current.outputTokens + event.outputTokens,
               cacheReadTokens: current.cacheReadTokens + event.cacheReadTokens,
               cacheWriteTokens: current.cacheWriteTokens + event.cacheWriteTokens,
+              thoughtTokens: current.thoughtTokens + event.thoughtTokens,
               turns: current.turns + 1,
             }));
             break;
@@ -499,6 +530,27 @@ export function useAgent() {
    * traveler commits — so three choices on one card are three choices, not three
    * turns against three surfaces that each forgot the last.
    */
+  /**
+   * Asks the server to draw a standing surface.
+   *
+   * The one thing a client legitimately knows that the server does not is
+   * *which surface it is showing*. Everything else about a panel — when it is
+   * stale, what to ask for, what may go on it — is the agent's, and used to be
+   * here: the sidebar watched three trip field names and composed a prose
+   * prompt ("Rebuild the panel for where the trip stands now…") to send as a
+   * silent turn. That is the private protocol recommendation 4 removed from
+   * form submission, rebuilt for panels, and a client that does not know to
+   * send it never gets a panel at all.
+   *
+   * So this says only which surface, and the server decides the rest.
+   */
+  const drawSurface = useCallback(
+    (surface: 'sidebar' | 'home', note?: string) =>
+      send(note ?? '', { surface, surfaceId: surface, silent: true }),
+    [send],
+  );
+
+
   const handleSurfaceEvent = useCallback(
     (event: A2uiEvent) => {
       if (busy) return;
@@ -534,8 +586,130 @@ export function useAgent() {
     store.clear();
   }, [sessionId, store]);
 
+  // ------------------------------------------------------------- voice
+  //
+  // A call is the same conversation by another route: the relay runs in the
+  // same Durable Object, so the trip it changes is this trip, and the surfaces
+  // it draws land in this store. Nothing here knows what a flight is.
+
+  /**
+   * Adds to the transcript as a call goes on.
+   *
+   * Transcription arrives in fragments rather than whole sentences, so a run of
+   * them from the same speaker is glued into one turn — otherwise a sentence
+   * becomes six bubbles. A surface always opens a new one.
+   */
+  const appendVoiceTurn = useCallback(
+    (entry:
+      | { kind: 'text'; text: string; who: 'you' | 'agent' }
+      | { kind: 'surface'; surfaceId: string }) => {
+      setTurns((current) => {
+        const last = current[current.length - 1];
+
+        if (entry.kind === 'surface') {
+          if (last?.role === 'assistant') {
+            const parts = withSurface(last.parts, entry.surfaceId);
+            return [...current.slice(0, -1), { ...last, parts }];
+          }
+          return [
+            ...current,
+            {
+              id: `voice-${current.length}`,
+              role: 'assistant',
+              text: '',
+              parts: [{ kind: 'surface', surfaceId: entry.surfaceId }],
+              tools: [],
+              streaming: false,
+            },
+          ];
+        }
+
+        const role = entry.who === 'you' ? 'user' : 'assistant';
+        if (last?.role === role && (last.parts.at(-1)?.kind ?? 'text') === 'text') {
+          const parts = withText(last.parts, entry.text, 0);
+          return [...current.slice(0, -1), { ...last, text: last.text + entry.text, parts }];
+        }
+        return [
+          ...current,
+          {
+            id: `voice-${current.length}`,
+            role,
+            text: entry.text,
+            parts: role === 'user' ? [] : [{ kind: 'text', text: entry.text, round: 0 }],
+            tools: [],
+            streaming: false,
+            ...(role === 'user' ? { fromSurface: false } : {}),
+          },
+        ];
+      });
+    },
+    [],
+  );
+
+  const [call, setCall] = useState<VoiceCall | null>(null);
+  const [listening, setListening] = useState(false);
+  const [agentSpeaking, setAgentSpeaking] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  const hangUp = useCallback(() => {
+    call?.hangUp();
+    setCall(null);
+    setListening(false);
+    setAgentSpeaking(false);
+  }, [call]);
+
+  const startVoice = useCallback(async () => {
+    if (call) return hangUp();
+    if (!keyRef.current) {
+      setVoiceError('Add your Gemini key first.');
+      return;
+    }
+    setVoiceError(null);
+    try {
+      const started = await startCall({
+        origin: backendRef.current,
+        sessionId,
+        apiKey: keyRef.current,
+        onSpeakingChange: setAgentSpeaking,
+        onEvent: (event) => {
+          switch (event.type) {
+            case 'ui':
+              store.apply(event.messages as never);
+              // Voice surfaces join the transcript like any other, so the
+              // record of a call reads the same as the record of a chat.
+              appendVoiceTurn({ kind: 'surface', surfaceId: event.surfaceId });
+              break;
+            case 'transcript':
+              appendVoiceTurn({ kind: 'text', text: event.text, who: event.who });
+              break;
+            case 'trip':
+              setTrip(event.trip);
+              break;
+            case 'error':
+              setVoiceError(event.message);
+              break;
+            default:
+              break;
+          }
+        },
+      });
+      setCall(started);
+      setListening(true);
+    } catch (error) {
+      setVoiceError(error instanceof Error ? error.message : String(error));
+    }
+  }, [call, hangUp, sessionId, store]);
+
   return {
     store,
+    voice: {
+      listening,
+      speaking: agentSpeaking,
+      error: voiceError,
+      start: startVoice,
+      hangUp,
+      say: (text: string) => call?.say(text),
+    },
     meta,
     metaError,
     apiKey,
@@ -554,6 +728,7 @@ export function useAgent() {
     busy,
     liveSurface,
     send,
+    drawSurface,
     stop,
     reset,
     handleSurfaceEvent,

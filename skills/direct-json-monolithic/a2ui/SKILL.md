@@ -1,801 +1,122 @@
 ---
 name: a2ui
-description: "Plans trips as interactive UI: flight and hotel options, day-by-day itineraries, price breakdowns, and trip dashboards."
+description: 'Plans trips as interactive UI: flight and hotel options, day-by-day
+  itineraries, price breakdowns and trip controls the traveler can act on.'
 metadata:
-  protocol_version: "0.9.1"
+  protocol_version: 0.9.1
   inference_format: direct_json
   catalogs:
-    - a2ui-travel
+  - a2ui-travel
   catalog_id: https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json
 ---
 
-# A2UI JSON output contract
+The generated response MUST follow these rules:
+- The response can contain one or more A2UI JSON blocks.
+- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.
+- Between or around these blocks, you can provide conversational text.
+- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.
+- Top-Down Component Ordering: Within the `components` list of a message:
+    - The 'root' component MUST be the FIRST element.
+    - Parent components MUST appear before their child components.
+    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives.
 
-When you show the user an interface, emit A2UI protocol messages as a JSON array
-wrapped in the sentinel tags `<a2ui>` and `</a2ui>`. Everything outside those
-tags is prose the user reads.
 
-## Message envelopes
+---BEGIN A2UI JSON SCHEMA---
 
-Emit an array of messages. Three kinds matter:
+### Server To Client Schema:
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://a2ui.org/specification/v0_9/server_to_client.json","title":"A2UI Message Schema","description":"Describes a JSON payload for an A2UI (Agent to UI) message, which is used to dynamically construct and update user interfaces.","type":"object","oneOf":[],"$defs":{}}
 
-```json
-[
-  {"version": "v0.9.1", "createSurface": {"surfaceId": "inline-1", "catalogId": "<catalog id>"}},
-  {"version": "v0.9.1", "updateComponents": {"surfaceId": "inline-1", "components": [ ... ]}},
-  {"version": "v0.9.1", "updateDataModel": {"surfaceId": "inline-1", "path": "/", "value": { ... }}}
-]
-```
+### Common Types Schema:
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://a2ui.org/specification/v0_9/common_types.json","title":"A2UI Common Types","description":"Common type definitions used across A2UI schemas.","$defs":{"ComponentId":{"type":"string","description":"The unique identifier for a component, used for both definitions and references within the same surface."},"AccessibilityAttributes":{"type":"object","description":"Attributes to enhance accessibility when using assistive technologies like screen readers.","properties":{"label":{"$ref":"#/$defs/DynamicString","description":"A short string, typically 1 to 3 words, used by assistive technologies to convey the purpose or intent of an element. For example, an input field might have an accessible label of 'User ID' or a button might be labeled 'Submit'."},"description":{"$ref":"#/$defs/DynamicString","description":"Additional information provided by assistive technologies about an element such as instructions, format requirements, or result of an action. For example, a mute button might have a label of 'Mute' and a description of 'Silences notifications about this conversation'."}}},"ComponentCommon":{"type":"object","properties":{"id":{"$ref":"#/$defs/ComponentId"},"accessibility":{"$ref":"#/$defs/AccessibilityAttributes"}},"required":["id"]},"ChildList":{"oneOf":[{"type":"array","items":{"$ref":"#/$defs/ComponentId"},"description":"A static list of child component IDs."},{"type":"object","description":"A template for generating a dynamic list of children from a data model list. The `componentId` is the component to use as a template.","properties":{"componentId":{"$ref":"#/$defs/ComponentId"},"path":{"type":"string","description":"The path to the list of component property objects in the data model."}},"required":["componentId","path"],"additionalProperties":false}]},"DataBinding":{"type":"object","properties":{"path":{"type":"string","description":"A JSON Pointer path to a value in the data model."}},"required":["path"],"additionalProperties":false},"DynamicValue":{"description":"A value that can be a literal, a path, or a function call returning any type.","oneOf":[{"type":"string"},{"type":"number"},{"type":"boolean"},{"type":"array"},{"$ref":"#/$defs/DataBinding"},{"$ref":"#/$defs/FunctionCall"}]},"DynamicString":{"description":"Represents a string","oneOf":[{"type":"string"},{"$ref":"#/$defs/DataBinding"},{"allOf":[{"$ref":"#/$defs/FunctionCall"},{"properties":{"returnType":{"const":"string"}}}]}]},"DynamicNumber":{"description":"Represents a value that can be either a literal number, a path to a number in the data model, or a function call returning a number.","oneOf":[{"type":"number"},{"$ref":"#/$defs/DataBinding"},{"allOf":[{"$ref":"#/$defs/FunctionCall"},{"properties":{"returnType":{"const":"number"}}}]}]},"DynamicBoolean":{"description":"A boolean value that can be a literal, a path, or a function call returning a boolean.","oneOf":[{"type":"boolean"},{"$ref":"#/$defs/DataBinding"},{"allOf":[{"$ref":"#/$defs/FunctionCall"},{"properties":{"returnType":{"const":"boolean"}}}]}]},"DynamicStringList":{"description":"Represents a value that can be either a literal array of strings, a path to a string array in the data model, or a function call returning a string array.","oneOf":[{"type":"array","items":{"type":"string"}},{"$ref":"#/$defs/DataBinding"},{"allOf":[{"$ref":"#/$defs/FunctionCall"},{"properties":{"returnType":{"const":"array"}}}]}]},"FunctionCall":{"type":"object","description":"Invokes a named function on the client.","properties":{"call":{"type":"string","description":"The name of the function to call."},"args":{"type":"object","description":"Arguments passed to the function.","additionalProperties":{"anyOf":[{"$ref":"#/$defs/DynamicValue"},{"type":"object","description":"A literal object argument (e.g. configuration)."}]}},"returnType":{"type":"string","description":"The expected return type of the function call.","enum":["string","number","boolean","array","object","any","void"],"default":"boolean"}},"required":["call"],"oneOf":[{"$ref":"catalog.json#/$defs/anyFunction"}]},"CheckRule":{"type":"object","description":"A single validation rule applied to an input component.","properties":{"condition":{"$ref":"#/$defs/DynamicBoolean"},"message":{"type":"string","description":"The error message to display if the check fails."}},"required":["condition","message"],"additionalProperties":false},"Checkable":{"description":"Properties for components that support client-side checks.","type":"object","properties":{"checks":{"type":"array","description":"A list of checks to perform. These are function calls that must return a boolean indicating validity.","items":{"$ref":"#/$defs/CheckRule"}}}},"Action":{"description":"Defines an interaction handler that can either trigger a server-side event or execute a local client-side function.","oneOf":[{"type":"object","description":"Triggers a server-side event.","properties":{"event":{"type":"object","description":"The event to dispatch to the server.","properties":{"name":{"type":"string","description":"The name of the action to be dispatched to the server."},"context":{"type":"object","description":"A JSON object containing the key-value pairs for the action context. Values can be literals or paths. Use literal values unless the value must be dynamically bound to the data model. Do NOT use paths for static IDs.","additionalProperties":{"$ref":"#/$defs/DynamicValue"}}},"required":["name"],"additionalProperties":false}},"required":["event"],"additionalProperties":false},{"type":"object","description":"Executes a local client-side function.","properties":{"functionCall":{"$ref":"#/$defs/FunctionCall"}},"required":["functionCall"],"additionalProperties":false}]}}}
 
-- `createSurface` opens a surface and names the catalog its components come from.
-- `updateComponents` carries the component tree, flattened.
-- `updateDataModel` seeds the values components bind to. Send it alone to change
-  what is already on screen without redrawing it.
-- `deleteSurface` — `{"version": "v0.9.1", "deleteSurface": {"surfaceId": "…"}}` — removes a surface.
+### Catalog Schema:
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json","catalogId":"https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json","title":"A2UI Travel Catalog","description":"Plans trips as interactive UI: flight and hotel options, day-by-day itineraries, price breakdowns, and trip dashboards.","instructions":"You are composing travel UI. A few house rules that matter more than anything else:\n\n- Prefer a travel component over hand-assembling one out of Row/Column/Text. If\n  you are showing a flight, use FlightOption. If you are showing a night's stay,\n  use HotelCard. The host styles these natively and they carry semantics the\n  plain layout primitives do not.\n- Every option the user could plausibly act on needs an `action`. A flight the\n  user cannot select is a screenshot, not an interface.\n- Money is always a preformatted display string (\"$412\", \"\u20ac1,180 total\"). Do not\n  emit bare numbers and hope the host formats them.\n- Times are display strings in the traveler's local time (\"07:15\", \"Tue 14 Apr\").\n  The one exception is DateRangePicker, whose bound values are RFC 3339.\n- When you present a set of options, bind the user's current choice into the data\n  model so a later turn can read it back \u2014 e.g. `$/trip/selectedOutbound`.\n- Keep a surface to one job. An inline card answers the message it is attached\n  to; the sidebar refines the trip in flight; the home surface summarizes.","extends":"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json","components":{"Text":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","properties":{"component":{"const":"Text"},"text":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation."},"variant":{"type":"string","description":"A hint for the base text style.","enum":["h1","h2","h3","h4","h5","caption","body"],"default":"body"}},"required":["component","text"]}],"unevaluatedProperties":false},"Row":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.","properties":{"component":{"const":"Row"},"children":{"description":"Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.","$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ChildList"},"justify":{"type":"string","description":"Defines the arrangement of children along the main axis (horizontally). Use 'spaceBetween' to push items to the edges, or 'start'/'end'/'center' to pack them together.","enum":["center","end","spaceAround","spaceBetween","spaceEvenly","start","stretch"],"default":"start"},"align":{"type":"string","description":"Defines the alignment of children along the cross axis (vertically). This is similar to the CSS 'align-items' property, but uses camelCase values (e.g., 'start').","enum":["start","center","end","stretch"],"default":"stretch"}},"required":["component","children"]}],"unevaluatedProperties":false},"Column":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.","properties":{"component":{"const":"Column"},"children":{"description":"Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.","$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ChildList"},"justify":{"type":"string","description":"Defines the arrangement of children along the main axis (vertically). Use 'spaceBetween' to push items to the edges (e.g. header at top, footer at bottom), or 'start'/'end'/'center' to pack them together.","enum":["start","center","end","spaceBetween","spaceAround","spaceEvenly","stretch"],"default":"start"},"align":{"type":"string","description":"Defines the alignment of children along the cross axis (horizontally). This is similar to the CSS 'align-items' property.","enum":["center","end","start","stretch"],"default":"stretch"}},"required":["component","children"]}],"unevaluatedProperties":false},"List":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","properties":{"component":{"const":"List"},"children":{"description":"Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list.","$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ChildList"},"direction":{"type":"string","description":"The direction in which the list items are laid out.","enum":["vertical","horizontal"],"default":"vertical"},"align":{"type":"string","description":"Defines the alignment of children along the cross axis.","enum":["start","center","end","stretch"],"default":"stretch"}},"required":["component","children"]}],"unevaluatedProperties":false},"Button":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"},{"type":"object","properties":{"component":{"const":"Button"},"child":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentId","description":"The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button."},"variant":{"type":"string","description":"A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link.","enum":["default","primary","borderless"],"default":"default"},"action":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action"}},"required":["component","child","action"]}],"unevaluatedProperties":false},"TextField":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"},{"type":"object","properties":{"component":{"const":"TextField"},"label":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"The text label for the input field."},"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"The value of the text field."},"variant":{"type":"string","description":"The type of input field to display.","enum":["longText","number","shortText","obscured"],"default":"shortText"},"validationRegexp":{"type":"string","description":"A regular expression used for client-side validation of the input."}},"required":["component","label"]}],"unevaluatedProperties":false},"CheckBox":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"},{"type":"object","properties":{"component":{"const":"CheckBox"},"label":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"The text to display next to the checkbox."},"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean","description":"The current state of the checkbox (true for checked, false for unchecked)."}},"required":["component","label","value"]}],"unevaluatedProperties":false},"ChoicePicker":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"},{"type":"object","description":"A component that allows selecting one or more options from a list.","properties":{"component":{"const":"ChoicePicker"},"label":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"The label for the group of options."},"variant":{"type":"string","description":"A hint for how the choice picker should be displayed and behave.","enum":["multipleSelection","mutuallyExclusive"],"default":"mutuallyExclusive"},"options":{"type":"array","description":"The list of available options to choose from.","items":{"type":"object","properties":{"label":{"description":"The text to display for this option.","$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"},"value":{"type":"string","description":"The stable value associated with this option."}},"required":["label","value"],"additionalProperties":false}},"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicStringList","description":"The list of currently selected values. This should be bound to a string array in the data model."},"displayStyle":{"type":"string","description":"The display style of the component.","enum":["checkbox","chips"],"default":"checkbox"},"filterable":{"type":"boolean","description":"If true, displays a search input to filter the options.","default":false}},"required":["component","options","value"]}],"unevaluatedProperties":false},"Slider":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"},{"type":"object","properties":{"component":{"const":"Slider"},"label":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"The label for the slider."},"min":{"type":"number","description":"The minimum value of the slider.","default":0},"max":{"type":"number","description":"The maximum value of the slider."},"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber","description":"The current value of the slider."}},"required":["component","value","max"]}],"unevaluatedProperties":false},"FlightOption":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"A single selectable flight itinerary leg. Use one per option when presenting a choice of flights; do not build flight rows by hand out of Row and Text.","properties":{"component":{"const":"FlightOption"},"airline":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Operating carrier, e.g. 'Iberia' or 'Delta'."},"departTime":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Local departure time as a display string, e.g. '07:15'."},"arriveTime":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Local arrival time as a display string. Append '+1' when the flight lands on the next day, e.g. '19:40 +1'."},"origin":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Origin airport code, e.g. 'JFK'."},"destination":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Destination airport code, e.g. 'MAD'."},"price":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Preformatted price including currency, e.g. '$412'."},"action":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action","description":"Fired when the traveler selects this flight. Required \u2014 an unselectable option is not an interface."},"duration":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Total travel time as a display string, e.g. '7h 25m'."},"stops":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Stop summary, e.g. 'Nonstop' or '1 stop \u00b7 LIS'."},"flightNumber":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Marketing flight number, e.g. 'IB6250'."},"cabin":{"type":"string","description":"Cabin the price refers to.","enum":["economy","premium","business","first"],"default":"economy"},"selected":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean","description":"Whether this option is currently chosen. Bind it to the data model so the selection survives a re-render."},"badge":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Short editorial tag, e.g. 'Cheapest' or 'Fastest'."}},"required":["component","airline","departTime","arriveTime","origin","destination","price","action"]}],"unevaluatedProperties":false},"HotelCard":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"A place to stay, presented as a rich card with imagery, rating and nightly price.","properties":{"component":{"const":"HotelCard"},"name":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Property name."},"price":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Preformatted nightly or total price, e.g. '$186 / night'."},"action":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action","description":"Fired when the traveler picks or opens this property."},"imageUrl":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Hero image URL. Omit for a generated placeholder."},"neighborhood":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Where it is, in words a traveler uses, e.g. 'Malasa\u00f1a'."},"rating":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Rating as a display string, e.g. '4.6 (1,204)'."},"amenities":{"type":"array","description":"Short amenity labels, at most five. Static values only.","items":{"type":"string"}},"selected":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean","description":"Whether this property is currently chosen."},"badge":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Short editorial tag, e.g. 'Walkable' or 'Best value'."}},"required":["component","name","price","action"]}],"unevaluatedProperties":false},"ItineraryDay":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"One day of a trip. Its children are the day's ActivityItem components, in chronological order.","properties":{"component":{"const":"ItineraryDay"},"title":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Day heading, e.g. 'Day 3 \u2014 Toledo'."},"children":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ChildList","description":"The day's activities, earliest first."},"date":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Date as a display string, e.g. 'Tue 14 Apr'."},"summary":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"One-line character of the day, e.g. 'Old town, slow pace'."},"action":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action","description":"Fired when the traveler opens or edits the whole day."}},"required":["component","title","children"]}],"unevaluatedProperties":false},"ActivityItem":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"A single scheduled thing inside an ItineraryDay \u2014 a meal, a museum, a transfer, a check-in.","properties":{"component":{"const":"ActivityItem"},"title":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"What it is, e.g. 'Prado Museum'."},"time":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Start time as a display string, e.g. '10:00'."},"category":{"type":"string","description":"Drives the icon and colour the host uses.","enum":["food","sight","transit","stay","outdoors","shopping","event","free"],"default":"sight"},"location":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Where it happens, e.g. 'Paseo del Prado 23'."},"duration":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"How long to budget, e.g. '2h'."},"note":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"One short practical note, e.g. 'Book the timed entry'."},"action":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action","description":"Fired when the traveler taps the activity."},"done":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean","description":"Whether the traveler has ticked this off."}},"required":["component","title"]}],"unevaluatedProperties":false},"MapPreview":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"A lightweight schematic map of the places in play. Not a live map \u2014 it orients the traveler and is safe to render offline.","properties":{"component":{"const":"MapPreview"},"markers":{"type":"array","description":"Places to pin. Static values only \u2014 the host lays them out relative to each other.","items":{"type":"object","properties":{"label":{"type":"string","description":"Short place name shown next to the pin."},"kind":{"type":"string","description":"One of 'stay', 'sight', 'food', 'transit'."},"day":{"type":"string","description":"Optional day number this marker belongs to."}},"required":["label"],"additionalProperties":false}},"caption":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"One line describing what the map shows."},"action":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action","description":"Fired when the traveler taps the map."}},"required":["component","markers"]}],"unevaluatedProperties":false},"PriceSummary":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"The money view: an itemized breakdown and a total. Use this instead of a hand-built table whenever you show what a trip costs.","properties":{"component":{"const":"PriceSummary"},"lines":{"type":"array","description":"Itemized cost lines in display order. Static values only.","items":{"type":"object","properties":{"label":{"type":"string","description":"What the line is for, e.g. 'Flights (2 travelers)'."},"amount":{"type":"string","description":"Preformatted amount, e.g. '$824'."},"note":{"type":"string","description":"Optional qualifier, e.g. 'refundable'."}},"required":["label"],"additionalProperties":false}},"total":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Preformatted grand total, e.g. '$2,140'."},"totalLabel":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"What the total is called, e.g. 'Trip total'."},"action":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action","description":"Primary money action, e.g. hold or book."},"actionLabel":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Label for that action, e.g. 'Hold for 24h'."},"caption":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Fine print, e.g. 'Estimated, taxes included'."}},"required":["component","lines","total"]}],"unevaluatedProperties":false},"DateRangePicker":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"},{"type":"object","description":"Picks the trip's start and end dates. Both bound values are RFC 3339 timestamps with an offset, e.g. '2026-04-12T00:00:00Z'.","properties":{"component":{"const":"DateRangePicker"},"label":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"What the range is for, e.g. 'When are you going?'."},"start":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Bound path for the start date (RFC 3339)."},"end":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Bound path for the end date (RFC 3339)."},"action":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action","description":"Fired when the traveler commits a new range."},"nightsLabel":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Derived caption, e.g. '6 nights'."}},"required":["component","label","start","end"]}],"unevaluatedProperties":false},"TravelerCounter":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"},{"type":"object","description":"A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.","properties":{"component":{"const":"TravelerCounter"},"label":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"What is being counted, e.g. 'Adults'."},"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber","description":"Bound path holding the current count."},"min":{"type":"integer","description":"Lowest allowed count.","default":0},"max":{"type":"integer","description":"Highest allowed count.","default":9},"caption":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Qualifier, e.g. 'Age 12+'."}},"required":["component","label","value"]}],"unevaluatedProperties":false},"StatTile":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"One number that matters, sized for a dashboard grid. Home-surface staple: days until departure, budget left, bookings confirmed.","properties":{"component":{"const":"StatTile"},"label":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"What the number measures."},"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"The number as a display string, e.g. '17'."},"caption":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Context under the number, e.g. 'until Madrid'."},"tone":{"type":"string","description":"Colour role for the tile.","enum":["neutral","positive","caution","critical","accent"],"default":"neutral"},"action":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action","description":"Fired when the traveler taps the tile."}},"required":["component","label","value"]}],"unevaluatedProperties":false},"ProgressMeter":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"How far along something is \u2014 budget spent, packing done, bookings confirmed. `value` and `max` are numbers, not display strings.","properties":{"component":{"const":"ProgressMeter"},"label":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"What is progressing."},"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber","description":"Current amount."},"max":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber","description":"Amount that counts as complete."},"caption":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Reading in words, e.g. '$1,320 of $2,000'."},"tone":{"type":"string","description":"Colour role for the bar.","enum":["neutral","positive","caution","critical","accent"],"default":"accent"}},"required":["component","label","value","max"]}],"unevaluatedProperties":false},"WeatherStrip":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"A short forecast row for the destination. Purely informational.","properties":{"component":{"const":"WeatherStrip"},"days":{"type":"array","description":"Forecast entries in date order, at most seven. Static values only.","items":{"type":"object","properties":{"day":{"type":"string","description":"Short day label, e.g. 'Tue'."},"high":{"type":"string","description":"High temperature as a display string, e.g. '21\u00b0'."},"low":{"type":"string","description":"Low temperature as a display string."},"condition":{"type":"string","description":"One of 'sun', 'cloud', 'rain', 'storm', 'snow', 'fog'."}},"required":["day"],"additionalProperties":false}},"place":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Where the forecast is for."},"caption":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"One line of interpretation, e.g. 'Pack a light jacket'."}},"required":["component","days"]}],"unevaluatedProperties":false},"ExpenseSplit":{"type":"object","allOf":[{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"},{"$ref":"#/$defs/CatalogComponentCommon"},{"type":"object","description":"Splits a shared trip cost between travelers and shows who owes what.","properties":{"component":{"const":"ExpenseSplit"},"title":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"What was paid for, e.g. 'Dinner at Sobrino'."},"total":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Preformatted total, e.g. '\u20ac96'."},"participants":{"type":"array","description":"Who is splitting it. Static values only.","items":{"type":"object","properties":{"name":{"type":"string","description":"Traveler's name."},"share":{"type":"string","description":"Their share, preformatted, e.g. '\u20ac32'."},"status":{"type":"string","description":"One of 'paid', 'owes', 'settled'."}},"required":["name"],"additionalProperties":false}},"action":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action","description":"Fired when the traveler settles or edits the split."},"actionLabel":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"Label for that action, e.g. 'Settle up'."}},"required":["component","title","total","participants"]}],"unevaluatedProperties":false}},"functions":{"formatString":{"type":"object","description":"Performs string interpolation of data model values and other functions in the catalog functions list and returns the resulting string. The value string can contain interpolated expressions in the `${expression}` format. Supported expression types include: JSON Pointer paths to the data model (e.g., `${/absolute/path}` or `${relative/path}`), and client-side function calls (e.g., `${now()}`). Function arguments must be named (e.g., `${formatDate(value:${/currentDate}, format:'MM-dd')}`). To include a literal `${` sequence, escape it as `\\${`.","properties":{"call":{"const":"formatString"},"args":{"type":"object","properties":{"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"}},"required":["value"],"unevaluatedProperties":false},"returnType":{"const":"string"}},"required":["call","args"],"unevaluatedProperties":false},"formatNumber":{"type":"object","description":"Formats a number with the specified grouping and decimal precision.","properties":{"call":{"const":"formatNumber"},"args":{"type":"object","properties":{"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber","description":"The number to format."},"decimals":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber","description":"Optional. The number of decimal places to show. Defaults to 0 or 2 depending on locale."},"grouping":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean","description":"Optional. If true, uses locale-specific grouping separators (e.g. '1,000'). If false, returns raw digits (e.g. '1000'). Defaults to true."}},"required":["value"],"unevaluatedProperties":false},"returnType":{"const":"string"}},"required":["call","args"],"unevaluatedProperties":false},"formatCurrency":{"type":"object","description":"Formats a number as a currency string.","properties":{"call":{"const":"formatCurrency"},"args":{"type":"object","properties":{"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber","description":"The monetary amount."},"currency":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"The ISO 4217 currency code (e.g., 'USD', 'EUR')."},"decimals":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber","description":"Optional. The number of decimal places to show. Defaults to 0 or 2 depending on locale."},"grouping":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean","description":"Optional. If true, uses locale-specific grouping separators (e.g. '1,000'). If false, returns raw digits (e.g. '1000'). Defaults to true."}},"required":["currency","value"],"unevaluatedProperties":false},"returnType":{"const":"string"}},"required":["call","args"],"unevaluatedProperties":false},"formatDate":{"type":"object","description":"Formats a timestamp into a string using a pattern.","properties":{"call":{"const":"formatDate"},"args":{"type":"object","properties":{"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicValue","description":"The date to format."},"format":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"A Unicode TR35 date pattern string.\n\nToken Reference:\n- Year: 'yy' (26), 'yyyy' (2026)\n- Month: 'M' (1), 'MM' (01), 'MMM' (Jan), 'MMMM' (January)\n- Day: 'd' (1), 'dd' (01), 'E' (Tue), 'EEEE' (Tuesday)\n- Hour (12h): 'h' (1-12), 'hh' (01-12) - requires 'a' for AM/PM\n- Hour (24h): 'H' (0-23), 'HH' (00-23) - Military Time\n- Minute: 'mm' (00-59)\n- Second: 'ss' (00-59)\n- Period: 'a' (AM/PM)\n\nExamples:\n- 'MMM dd, yyyy' -> 'Jan 16, 2026'\n- 'HH:mm' -> '14:30' (Military)\n- 'h:mm a' -> '2:30 PM'\n- 'EEEE, d MMMM' -> 'Friday, 16 January'"}},"required":["format","value"],"unevaluatedProperties":false},"returnType":{"const":"string"}},"required":["call","args"],"unevaluatedProperties":false},"pluralize":{"type":"object","description":"Returns a localized string based on the Common Locale Data Repository (CLDR) plural category of the count (zero, one, two, few, many, other). Requires an 'other' fallback. For English, just use 'one' and 'other'.","properties":{"call":{"const":"pluralize"},"args":{"type":"object","properties":{"value":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber","description":"The numeric value used to determine the plural category."},"zero":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"String for the 'zero' category (e.g., 0 items)."},"one":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"String for the 'one' category (e.g., 1 item)."},"two":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"String for the 'two' category (used in Arabic, Welsh, etc.)."},"few":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"String for the 'few' category (e.g., small groups in Slavic languages)."},"many":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"String for the 'many' category (e.g., large groups in various languages)."},"other":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"The default/fallback string (used for general plural cases)."}},"required":["value","other"],"unevaluatedProperties":false},"returnType":{"const":"string"}},"required":["call","args"],"unevaluatedProperties":false},"openUrl":{"type":"object","description":"Opens the specified URL in a browser or handler. This function has no return value.","properties":{"call":{"const":"openUrl"},"args":{"type":"object","properties":{"url":{"type":"string","format":"uri","description":"The URL to open."}},"required":["url"],"additionalProperties":false},"returnType":{"const":"void"}},"required":["call","args"],"unevaluatedProperties":false},"calcNights":{"type":"object","description":"Returns the number of nights between two ISO-8601 dates (yyyy-MM-dd), counting the nights slept rather than the days spanned: a 12th-to-15th stay is 3. Returns 0 when either date is missing or the range is inverted, so a half-filled form shows a zero rather than nonsense.","properties":{"call":{"const":"calcNights"},"args":{"type":"object","properties":{"start":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"The check-in date, as yyyy-MM-dd."},"end":{"$ref":"https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString","description":"The check-out date, as yyyy-MM-dd."}},"required":["start","end"],"unevaluatedProperties":false},"returnType":{"const":"number"}},"required":["call","args"],"unevaluatedProperties":false}},"$defs":{"CatalogComponentCommon":{"type":"object","properties":{"weight":{"type":"number","description":"The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."}}},"theme":{"type":"object","properties":{"primaryColor":{"type":"string","description":"The primary brand color used for highlights (e.g., primary buttons, active borders). Renderers may generate variants of this color for different contexts. Format: Hexadecimal code (e.g., '#00BFFF').","pattern":"^#[0-9a-fA-F]{6}$"},"iconUrl":{"type":"string","format":"uri","description":"A URL for an image that identifies the agent or tool associated with the surface."},"agentDisplayName":{"type":"string","description":"Text to be displayed next to the surface to identify the agent or tool that created it."}},"additionalProperties":true},"anyComponent":{"oneOf":[{"$ref":"#/components/Text"},{"$ref":"#/components/Row"},{"$ref":"#/components/Column"},{"$ref":"#/components/List"},{"$ref":"#/components/Button"},{"$ref":"#/components/TextField"},{"$ref":"#/components/CheckBox"},{"$ref":"#/components/ChoicePicker"},{"$ref":"#/components/Slider"},{"$ref":"#/components/FlightOption"},{"$ref":"#/components/HotelCard"},{"$ref":"#/components/ItineraryDay"},{"$ref":"#/components/ActivityItem"},{"$ref":"#/components/MapPreview"},{"$ref":"#/components/PriceSummary"},{"$ref":"#/components/DateRangePicker"},{"$ref":"#/components/TravelerCounter"},{"$ref":"#/components/StatTile"},{"$ref":"#/components/ProgressMeter"},{"$ref":"#/components/WeatherStrip"},{"$ref":"#/components/ExpenseSplit"}],"discriminator":{"propertyName":"component"}},"anyFunction":{"oneOf":[{"$ref":"#/functions/formatString"},{"$ref":"#/functions/formatNumber"},{"$ref":"#/functions/formatCurrency"},{"$ref":"#/functions/formatDate"},{"$ref":"#/functions/pluralize"},{"$ref":"#/functions/openUrl"},{"$ref":"#/functions/calcNights"}]}}}
 
-## Components
+---END A2UI JSON SCHEMA---
 
-The tree is an **adjacency list**, not nested objects. Every component is a flat
-entry with its own `id`, and a parent refers to children by id:
+### Examples:
 
-```json
-{"id": "root", "component": "Column", "children": ["title", "cta"]}
-{"id": "title", "component": "Text", "text": "Madrid in April", "variant": "h1"}
-{"id": "cta", "component": "Button", "child": "ctaLabel", "variant": "primary",
- "action": {"event": {"name": "book", "context": {"id": "IB6250"}}}}
-{"id": "ctaLabel", "component": "Text", "text": "Book"}
-```
+---BEGIN 10-inline-flight-options---
+# Inline: answering "find me a flight to Madrid" inside the chat feed.
+# One surface, one job — three options and a way to pick one.
+surface("inline-flights")
+$/trip/selectedOutbound = ""
+heading = Text("Outbound · JFK → MAD · Sun 12 Apr", variant="h3")
+f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("select_flight", {id: "IB6250", price: "$412"}), duration="7h 35m", stops="Nonstop", flightNumber="IB6250", selected=$/trip/selectedOutbound, badge="Cheapest")
+f2 = FlightOption("Delta", "21:10", "10:50 +1", "JFK", "MAD", "$468", Event("select_flight", {id: "DL126", price: "$468"}), duration="7h 40m", stops="Nonstop", flightNumber="DL126")
+f3 = FlightOption("TAP", "17:25", "11:05 +1", "JFK", "MAD", "$367", Event("select_flight", {id: "TP208", price: "$367"}), duration="11h 40m", stops="1 stop · LIS", flightNumber="TP208", badge="Lowest fare")
+note = Text("Prices are per traveler, round trip.")
+root = Column([heading, f1, f2, f3, note])
 
-Rules that are not optional:
+---END 10-inline-flight-options---
 
-1. Exactly one component has `id: "root"`. It is the top of the tree.
-2. Every id referenced by a parent must exist in the same `components` array.
-3. **Data binding** is `{"path": "/trip/adults"}` in place of a literal value.
-   Paths are absolute from the data model root, or relative inside a list
-   template.
-4. **Actions** are `{"event": {"name": "…", "context": {…}}}`. Context values may
-   be bindings, so you receive what the user chose.
-5. **List templates** replace a `children` array with
-   `{"path": "/activities", "componentId": "activityRow"}`; the referenced
-   component is rendered once per item, with relative paths resolving inside it.
-6. **Validation** is a `checks` array on the field it guards:
-   `{"condition": {"call": "required", "args": {"value": {"path": "/x"}}}, "message": "…"}`.
-7. Properties marked `(static only)` below take literal values only — never a
-   `{"path": …}` binding.
+---BEGIN 20-sidebar-refine---
+# Sidebar: controls that refine the trip currently in focus.
+# The sidebar is a persistent surface — target it by id and it replaces itself.
+surface("sidebar")
+$/filters/maxPrice = 600
+$/filters/adults = 2
+title = Text("Refine", variant="h3")
+dates = DateRangePicker("Travel dates", $/filters/start, $/filters/end, action=Event("dates_changed"), nightsLabel="6 nights")
+who = TravelerCounter("Adults", $/filters/adults, min=1, max=8)
+budget = Slider("Max fare", 150, 1500, $/filters/maxPrice)
+stops = ChoicePicker("Stops", "mutuallyExclusive", [{label: "Any", value: "any"}, {label: "Nonstop only", value: "nonstop"}], $/filters/stops)
+apply = Button(Text("Apply"), "primary", Event("apply_filters", {maxPrice: $/filters/maxPrice, adults: $/filters/adults, stops: $/filters/stops}))
+root = Column([title, dates, who, budget, stops, apply], align="stretch")
 
-## Emitting
+---END 20-sidebar-refine---
 
-Emit the array in one piece and close the block with `</a2ui>`. Unlike the
-Express format, a partial JSON array cannot be rendered, so do not narrate
-between messages.
+---BEGIN 30-home-dashboard---
+# Home: a generative dashboard, reassembled for what matters today.
+# Stat tiles first, then the thing that needs a decision, then context.
+surface("home")
+hello = Text("17 days to Madrid", variant="h1")
+t1 = StatTile("Booked", "3 of 5", caption="flights, hotel, transfer", tone="positive")
+t2 = StatTile("Budget left", "$680", caption="of $2,000", tone="caution")
+t3 = StatTile("Next up", "Pick dinner", caption="Sat 11 Apr", tone="accent", action=Event("open_task", {id: "dinner"}))
+tiles = Row([t1, t2, t3])
+budget = ProgressMeter("Budget used", 1320, 2000, caption="$1,320 of $2,000", tone="caution")
+weather = WeatherStrip([{day: "Sun", high: "21°", low: "9°", condition: "sun"}, {day: "Mon", high: "19°", low: "8°", condition: "sun"}, {day: "Tue", high: "16°", low: "7°", condition: "rain"}], place="Madrid", caption="Pack a light jacket for Tuesday")
+map = MapPreview([{label: "Hotel", kind: "stay"}, {label: "Prado", kind: "sight", day: "2"}, {label: "Sobrino", kind: "food", day: "2"}], caption="Everything on day 2 is walkable")
+root = Column([hello, tiles, budget, weather, map], align="stretch")
 
-## Components
+---END 30-home-dashboard---
 
-Each entry lists the component's properties. `!` marks a required property, `(static only)` one that cannot take a data binding, and `(component ID)` one that refers to another component by id.
+---BEGIN 40-itinerary-day---
+# A day of the itinerary, plus a template-driven packing list bound to data.
+surface("itinerary")
+$/packing/0/item = "Passport"
+$/packing/0/done = true
+$/packing/1/item = "Adapter"
+$/packing/1/done = false
+a1 = ActivityItem("Prado Museum", "10:00", category="sight", location="Paseo del Prado 23", duration="2h", note="Book the timed entry", action=Event("open_activity", {id: "prado"}))
+a2 = ActivityItem("Lunch at Sobrino", "13:30", category="food", location="Calle de Cuchilleros 17", duration="1h 30m")
+a3 = ActivityItem("Retiro Park", "16:00", category="outdoors", duration="1h 30m", note="Rowboats until 19:00")
+day2 = ItineraryDay("Day 2 — Old Madrid", [a1, a2, a3], date="Mon 13 Apr", summary="Art in the morning, a long lunch, green afternoon")
+packingRow = CheckBox($item, $done)
+packing = List(_template($/packing, packingRow))
+packingTitle = Text("Packing", variant="h4")
+root = Column([day2, packingTitle, packing])
 
-• ActivityItem: title!, time, category (static only) = food|sight|transit|stay|outdoors|shopping|event|free, location, duration, note, action (static only), done
-  - A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.
-• Button: child! (component ID), variant (static only) = default|primary|borderless, action! (static only), checks (static only)
-• Card: child! (component ID)
-• CheckBox: label!, value!, checks (static only)
-• ChoicePicker: label, variant (static only) = multipleSelection|mutuallyExclusive, options! (static only), value!, displayStyle (static only) = checkbox|chips, filterable (static only), checks (static only)
-  - A component that allows selecting one or more options from a list.
-• Column: children!, justify (static only) = start|center|end|spaceBetween|spaceAround|spaceEvenly|stretch, align (static only) = center|end|start|stretch
-  - A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.
-• DateRangePicker: label!, start!, end!, action (static only), nightsLabel, checks (static only)
-  - Picks the trip's start and end dates. Both bound values are RFC 3339 timestamps with an offset, e.g. '2026-04-12T00:00:00Z'.
-• ExpenseSplit: title!, total!, participants! (static only), action (static only), actionLabel
-  - Splits a shared trip cost between travelers and shows who owes what.
-• FlightOption: airline!, departTime!, arriveTime!, origin!, destination!, price!, action! (static only), duration, stops, flightNumber, cabin (static only) = economy|premium|business|first, selected, badge
-  - A single selectable flight itinerary leg. Use one per option when presenting a choice of flights; do not build flight rows by hand out of Row and Text.
-• HotelCard: name!, price!, action! (static only), imageUrl, neighborhood, rating, amenities (static only), selected, badge
-  - A place to stay, presented as a rich card with imagery, rating and nightly price.
-• Icon: name! = accountCircle|add|arrowBack|arrowForward|attachFile|calendarToday|call|camera|check|close|delete|download|edit|event|error|fastForward|favorite|favoriteOff|folder|help|home|info|locationOn|lock|lockOpen|mail|menu|moreVert|moreHoriz|notificationsOff|notifications|pause|payment|person|phone|photo|play|print|refresh|rewind|search|send|settings|share|shoppingCart|skipNext|skipPrevious|star|starHalf|starOff|stop|upload|visibility|visibilityOff|volumeDown|volumeMute|volumeOff|volumeUp|warning
-• Image: url!, description, fit (static only) = contain|cover|fill|none|scaleDown, variant (static only) = icon|avatar|smallFeature|mediumFeature|largeFeature|header
-• ItineraryDay: title!, children!, date, summary, action (static only)
-  - One day of a trip. Its children are the day's ActivityItem components, in chronological order.
-• List: children!, direction (static only) = vertical|horizontal, align (static only) = start|center|end|stretch
-• MapPreview: markers! (static only), caption, action (static only)
-  - A lightweight schematic map of the places in play. Not a live map — it orients the traveler and is safe to render offline.
-• PriceSummary: lines! (static only), total!, totalLabel, action (static only), actionLabel, caption
-  - The money view: an itemized breakdown and a total. Use this instead of a hand-built table whenever you show what a trip costs.
-• ProgressMeter: label!, value!, max!, caption, tone (static only) = neutral|positive|caution|critical|accent
-  - How far along something is — budget spent, packing done, bookings confirmed. `value` and `max` are numbers, not display strings.
-• Row: children!, justify (static only) = center|end|spaceAround|spaceBetween|spaceEvenly|start|stretch, align (static only) = start|center|end|stretch
-  - A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.
-• Slider: label, min (static only), max! (static only), value!, checks (static only)
-• StatTile: label!, value!, caption, tone (static only) = neutral|positive|caution|critical|accent, action (static only)
-  - One number that matters, sized for a dashboard grid. Home-surface staple: days until departure, budget left, bookings confirmed.
-• Text: text!, variant (static only) = h1|h2|h3|h4|h5|caption|body
-• TextField: label!, value, variant (static only) = longText|number|shortText|obscured, validationRegexp (static only), checks (static only)
-• TravelerCounter: label!, value!, min (static only), max (static only), caption, checks (static only)
-  - A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.
-• WeatherStrip: days! (static only), place, caption
-  - A short forecast row for the destination. Purely informational.
+---END 40-itinerary-day---
 
-## Functions
+---BEGIN 50-traveler-form---
+# Several things to set, one button. Every edited path is bound into its context.
+surface("inline-traveler")
+title = Text("Who is travelling?", variant="h3")
+name = TextField("Full name (as on passport)", $/traveler/name)
+email = TextField("Email", $/traveler/email, "shortText")
+seat = ChoicePicker("Seat", "mutuallyExclusive", [{label: "Window", value: "window"}, {label: "Aisle", value: "aisle"}], $/traveler/seat)
+save = Button(Text("Save traveller"), "primary", Event("save_traveler", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))
+root = Column([title, name, email, seat, save], align="stretch")
 
-Used in `checks` conditions and dynamic values.
+---END 50-traveler-form---
 
-• calcNights(start!, end!)
-  - Returns the number of nights between two ISO-8601 dates (yyyy-MM-dd), counting the nights slept rather than the days spanned: a 12th-to-15th stay is 3. Returns 0 when either date is missing or the range is inverted, so a half-filled form shows a zero rather than nonsense.
-• formatCurrency(value!, currency!, decimals, grouping)
-  - Formats a number as a currency string.
-• formatDate(value!, format!)
-  - Formats a timestamp into a string using a pattern.
-• formatNumber(value!, decimals, grouping)
-  - Formats a number with the specified grouping and decimal precision.
-• formatString(value!)
-  - Performs string interpolation of data model values and other functions in the catalog functions list and returns the resulting string. The value string can contain interpolated expressions in the `${expression}` format. Supported expression types include: JSON Pointer paths to the data model (e.g., `${/absolute/path}` or `${relative/path}`), and client-side function calls (e.g., `${now()}`). Function arguments must be named (e.g., `${formatDate(value:${/currentDate}, format:'MM-dd')}`). To include a literal `${` sequence, escape it as `\${`.
-• openUrl(url!)
-  - Opens the specified URL in a browser or handler. This function has no return value.
-• pluralize(value!, zero, one, two, few, many, other!)
-  - Returns a localized string based on the Common Locale Data Repository (CLDR) plural category of the count (zero, one, two, few, many, other). Requires an 'other' fallback. For English, just use 'one' and 'other'.
+---BEGIN 60-incremental-update---
+# Changing one value on a surface that is already on screen.
+# No components, no root — just the data. The host re-renders in place.
+surface("home")
+$/home/budgetUsed = 1480
+$/home/budgetCaption = "$1,480 of $2,000"
 
-## Catalog Instructions
-
-You are composing travel UI. A few house rules that matter more than anything else:
-
-- Prefer a travel component over hand-assembling one out of Row/Column/Text. If
-  you are showing a flight, use FlightOption. If you are showing a night's stay,
-  use HotelCard. The host styles these natively and they carry semantics the
-  plain layout primitives do not.
-- Every option the user could plausibly act on needs an `action`. A flight the
-  user cannot select is a screenshot, not an interface.
-- Money is always a preformatted display string ("$412", "€1,180 total"). Do not
-  emit bare numbers and hope the host formats them.
-- Times are display strings in the traveler's local time ("07:15", "Tue 14 Apr").
-  The one exception is DateRangePicker, whose bound values are RFC 3339.
-- When you present a set of options, bind the user's current choice into the data
-  model so a later turn can read it back — e.g. `$/trip/selectedOutbound`.
-- Keep a surface to one job. An inline card answers the message it is attached
-  to; the sidebar refines the trip in flight; the home surface summarizes.
-
-## Examples
-
-**Inline: answering "find me a flight to Madrid" inside the chat feed. One surface, one job — three options and a way to pick one.**
-
-```json
-[
-  {
-    "version": "v0.9.1",
-    "createSurface": {
-      "surfaceId": "inline-flights",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "inline-flights",
-      "components": [
-        {
-          "id": "heading",
-          "component": "Text",
-          "text": "Outbound · JFK → MAD · Sun 12 Apr",
-          "variant": "h3"
-        },
-        {
-          "id": "f1",
-          "component": "FlightOption",
-          "airline": "Iberia",
-          "departTime": "18:40",
-          "arriveTime": "08:15 +1",
-          "origin": "JFK",
-          "destination": "MAD",
-          "price": "$412",
-          "action": {
-            "event": {
-              "name": "select_flight",
-              "context": {
-                "id": "IB6250",
-                "price": "$412"
-              }
-            }
-          },
-          "duration": "7h 35m",
-          "stops": "Nonstop",
-          "flightNumber": "IB6250",
-          "selected": {
-            "path": "/trip/selectedOutbound"
-          },
-          "badge": "Cheapest"
-        },
-        {
-          "id": "f2",
-          "component": "FlightOption",
-          "airline": "Delta",
-          "departTime": "21:10",
-          "arriveTime": "10:50 +1",
-          "origin": "JFK",
-          "destination": "MAD",
-          "price": "$468",
-          "action": {
-            "event": {
-              "name": "select_flight",
-              "context": {
-                "id": "DL126",
-                "price": "$468"
-              }
-            }
-          },
-          "duration": "7h 40m",
-          "stops": "Nonstop",
-          "flightNumber": "DL126"
-        },
-        {
-          "id": "f3",
-          "component": "FlightOption",
-          "airline": "TAP",
-          "departTime": "17:25",
-          "arriveTime": "11:05 +1",
-          "origin": "JFK",
-          "destination": "MAD",
-          "price": "$367",
-          "action": {
-            "event": {
-              "name": "select_flight",
-              "context": {
-                "id": "TP208",
-                "price": "$367"
-              }
-            }
-          },
-          "duration": "11h 40m",
-          "stops": "1 stop · LIS",
-          "flightNumber": "TP208",
-          "badge": "Lowest fare"
-        },
-        {
-          "id": "note",
-          "component": "Text",
-          "text": "Prices are per traveler, round trip."
-        },
-        {
-          "id": "root",
-          "component": "Column",
-          "children": [
-            "heading",
-            "f1",
-            "f2",
-            "f3",
-            "note"
-          ]
-        }
-      ]
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateDataModel": {
-      "surfaceId": "inline-flights",
-      "path": "/",
-      "value": {
-        "trip": {
-          "selectedOutbound": ""
-        }
-      }
-    }
-  }
-]
-```
-
-**Sidebar: controls that refine the trip currently in focus. The sidebar is a persistent surface — target it by id and it replaces itself.**
-
-```json
-[
-  {
-    "version": "v0.9.1",
-    "createSurface": {
-      "surfaceId": "sidebar",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "sidebar",
-      "components": [
-        {
-          "id": "title",
-          "component": "Text",
-          "text": "Refine",
-          "variant": "h3"
-        },
-        {
-          "id": "dates",
-          "component": "DateRangePicker",
-          "label": "Travel dates",
-          "start": {
-            "path": "/filters/start"
-          },
-          "end": {
-            "path": "/filters/end"
-          },
-          "action": {
-            "event": {
-              "name": "dates_changed",
-              "context": {}
-            }
-          },
-          "nightsLabel": "6 nights"
-        },
-        {
-          "id": "who",
-          "component": "TravelerCounter",
-          "label": "Adults",
-          "value": {
-            "path": "/filters/adults"
-          },
-          "min": 1,
-          "max": 8
-        },
-        {
-          "id": "budget",
-          "component": "Slider",
-          "label": "Max fare",
-          "min": 150,
-          "max": 1500,
-          "value": {
-            "path": "/filters/maxPrice"
-          }
-        },
-        {
-          "id": "stops",
-          "component": "ChoicePicker",
-          "label": "Stops",
-          "variant": "mutuallyExclusive",
-          "options": [
-            {
-              "label": "Any",
-              "value": "any"
-            },
-            {
-              "label": "Nonstop only",
-              "value": "nonstop"
-            }
-          ],
-          "value": {
-            "path": "/filters/stops"
-          }
-        },
-        {
-          "id": "apply",
-          "component": "Button",
-          "child": "_inline_1",
-          "variant": "primary",
-          "action": {
-            "event": {
-              "name": "apply_filters",
-              "context": {
-                "maxPrice": {
-                  "path": "/filters/maxPrice"
-                },
-                "adults": {
-                  "path": "/filters/adults"
-                },
-                "stops": {
-                  "path": "/filters/stops"
-                }
-              }
-            }
-          }
-        },
-        {
-          "id": "root",
-          "component": "Column",
-          "children": [
-            "title",
-            "dates",
-            "who",
-            "budget",
-            "stops",
-            "apply"
-          ],
-          "align": "stretch"
-        },
-        {
-          "id": "_inline_1",
-          "component": "Text",
-          "text": "Apply"
-        }
-      ]
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateDataModel": {
-      "surfaceId": "sidebar",
-      "path": "/",
-      "value": {
-        "filters": {
-          "maxPrice": 600,
-          "adults": 2
-        }
-      }
-    }
-  }
-]
-```
-
-**Home: a generative dashboard, reassembled for what matters today. Stat tiles first, then the thing that needs a decision, then context.**
-
-```json
-[
-  {
-    "version": "v0.9.1",
-    "createSurface": {
-      "surfaceId": "home",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "home",
-      "components": [
-        {
-          "id": "hello",
-          "component": "Text",
-          "text": "17 days to Madrid",
-          "variant": "h1"
-        },
-        {
-          "id": "t1",
-          "component": "StatTile",
-          "label": "Booked",
-          "value": "3 of 5",
-          "caption": "flights, hotel, transfer",
-          "tone": "positive"
-        },
-        {
-          "id": "t2",
-          "component": "StatTile",
-          "label": "Budget left",
-          "value": "$680",
-          "caption": "of $2,000",
-          "tone": "caution"
-        },
-        {
-          "id": "t3",
-          "component": "StatTile",
-          "label": "Next up",
-          "value": "Pick dinner",
-          "caption": "Sat 11 Apr",
-          "tone": "accent",
-          "action": {
-            "event": {
-              "name": "open_task",
-              "context": {
-                "id": "dinner"
-              }
-            }
-          }
-        },
-        {
-          "id": "tiles",
-          "component": "Row",
-          "children": [
-            "t1",
-            "t2",
-            "t3"
-          ]
-        },
-        {
-          "id": "budget",
-          "component": "ProgressMeter",
-          "label": "Budget used",
-          "value": 1320,
-          "max": 2000,
-          "caption": "$1,320 of $2,000",
-          "tone": "caution"
-        },
-        {
-          "id": "weather",
-          "component": "WeatherStrip",
-          "days": [
-            {
-              "day": "Sun",
-              "high": "21°",
-              "low": "9°",
-              "condition": "sun"
-            },
-            {
-              "day": "Mon",
-              "high": "19°",
-              "low": "8°",
-              "condition": "sun"
-            },
-            {
-              "day": "Tue",
-              "high": "16°",
-              "low": "7°",
-              "condition": "rain"
-            }
-          ],
-          "place": "Madrid",
-          "caption": "Pack a light jacket for Tuesday"
-        },
-        {
-          "id": "map",
-          "component": "MapPreview",
-          "markers": [
-            {
-              "label": "Hotel",
-              "kind": "stay"
-            },
-            {
-              "label": "Prado",
-              "kind": "sight",
-              "day": "2"
-            },
-            {
-              "label": "Sobrino",
-              "kind": "food",
-              "day": "2"
-            }
-          ],
-          "caption": "Everything on day 2 is walkable"
-        },
-        {
-          "id": "root",
-          "component": "Column",
-          "children": [
-            "hello",
-            "tiles",
-            "budget",
-            "weather",
-            "map"
-          ],
-          "align": "stretch"
-        }
-      ]
-    }
-  }
-]
-```
-
-**A day of the itinerary, plus a template-driven packing list bound to data.**
-
-```json
-[
-  {
-    "version": "v0.9.1",
-    "createSurface": {
-      "surfaceId": "itinerary",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "itinerary",
-      "components": [
-        {
-          "id": "a1",
-          "component": "ActivityItem",
-          "title": "Prado Museum",
-          "time": "10:00",
-          "category": "sight",
-          "location": "Paseo del Prado 23",
-          "duration": "2h",
-          "note": "Book the timed entry",
-          "action": {
-            "event": {
-              "name": "open_activity",
-              "context": {
-                "id": "prado"
-              }
-            }
-          }
-        },
-        {
-          "id": "a2",
-          "component": "ActivityItem",
-          "title": "Lunch at Sobrino",
-          "time": "13:30",
-          "category": "food",
-          "location": "Calle de Cuchilleros 17",
-          "duration": "1h 30m"
-        },
-        {
-          "id": "a3",
-          "component": "ActivityItem",
-          "title": "Retiro Park",
-          "time": "16:00",
-          "category": "outdoors",
-          "duration": "1h 30m",
-          "note": "Rowboats until 19:00"
-        },
-        {
-          "id": "day2",
-          "component": "ItineraryDay",
-          "title": "Day 2 — Old Madrid",
-          "children": [
-            "a1",
-            "a2",
-            "a3"
-          ],
-          "date": "Mon 13 Apr",
-          "summary": "Art in the morning, a long lunch, green afternoon"
-        },
-        {
-          "id": "packingRow",
-          "component": "CheckBox",
-          "label": {
-            "path": "item"
-          },
-          "value": {
-            "path": "done"
-          }
-        },
-        {
-          "id": "packing",
-          "component": "List",
-          "children": {
-            "path": "/packing",
-            "componentId": "packingRow"
-          }
-        },
-        {
-          "id": "packingTitle",
-          "component": "Text",
-          "text": "Packing",
-          "variant": "h4"
-        },
-        {
-          "id": "root",
-          "component": "Column",
-          "children": [
-            "day2",
-            "packingTitle",
-            "packing"
-          ]
-        }
-      ]
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateDataModel": {
-      "surfaceId": "itinerary",
-      "path": "/",
-      "value": {
-        "packing": {
-          "0": {
-            "item": "Passport",
-            "done": true
-          },
-          "1": {
-            "item": "Adapter",
-            "done": false
-          }
-        }
-      }
-    }
-  }
-]
-```
-
-**Several things to set, one button. Every edited path is bound into its context.**
-
-```json
-[
-  {
-    "version": "v0.9.1",
-    "createSurface": {
-      "surfaceId": "inline-traveler",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "inline-traveler",
-      "components": [
-        {
-          "id": "title",
-          "component": "Text",
-          "text": "Who is travelling?",
-          "variant": "h3"
-        },
-        {
-          "id": "name",
-          "component": "TextField",
-          "label": "Full name (as on passport)",
-          "value": {
-            "path": "/traveler/name"
-          }
-        },
-        {
-          "id": "email",
-          "component": "TextField",
-          "label": "Email",
-          "value": {
-            "path": "/traveler/email"
-          },
-          "variant": "shortText"
-        },
-        {
-          "id": "seat",
-          "component": "ChoicePicker",
-          "label": "Seat",
-          "variant": "mutuallyExclusive",
-          "options": [
-            {
-              "label": "Window",
-              "value": "window"
-            },
-            {
-              "label": "Aisle",
-              "value": "aisle"
-            }
-          ],
-          "value": {
-            "path": "/traveler/seat"
-          }
-        },
-        {
-          "id": "save",
-          "component": "Button",
-          "child": "_inline_1",
-          "variant": "primary",
-          "action": {
-            "event": {
-              "name": "save_traveler",
-              "context": {
-                "name": {
-                  "path": "/traveler/name"
-                },
-                "email": {
-                  "path": "/traveler/email"
-                },
-                "seat": {
-                  "path": "/traveler/seat"
-                }
-              }
-            }
-          }
-        },
-        {
-          "id": "root",
-          "component": "Column",
-          "children": [
-            "title",
-            "name",
-            "email",
-            "seat",
-            "save"
-          ],
-          "align": "stretch"
-        },
-        {
-          "id": "_inline_1",
-          "component": "Text",
-          "text": "Save traveller"
-        }
-      ]
-    }
-  }
-]
-```
-
-**Changing one value on a surface that is already on screen. No components, no root — just the data. The host re-renders in place.**
-
-```json
-[
-  {
-    "version": "v0.9.1",
-    "updateDataModel": {
-      "surfaceId": "home",
-      "path": "/",
-      "value": {
-        "home": {
-          "budgetUsed": 1480,
-          "budgetCaption": "$1,480 of $2,000"
-        }
-      }
-    }
-  }
-]
-```
+---END 60-incremental-update---

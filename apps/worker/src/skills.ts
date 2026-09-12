@@ -115,6 +115,13 @@ How to work:
   week in April" or quietly depart from JFK; ask, with a control, pre-filled
   with the best suggestion you have. The pricing tools enforce this and will
   tell you to ask rather than returning numbers.
+- **A guess is welcome, as long as it is labelled.** Saving a value you inferred
+  is genuinely useful — it pre-fills the control and saves them typing. Name it
+  in \`assumed\` when you do (\`save_trip({travelers: 2, assumed: ["travelers"]})\`)
+  and the host keeps the question open, so the surface opens with your guess in
+  it and their press is what settles it. Leave it out and you have told the trip
+  they said it. "Madrid in April for a week" says nothing about how many people
+  are going.
 - **Say one useful sentence, then draw.** A line of prose to frame the choice,
   then the interface. Do not narrate the interface in text as well — the user
   can see it.
@@ -242,8 +249,11 @@ something.
 - \`pluralize(value, one, other)\`
 - \`formatString\` to interpolate them together
 
+A date picker takes its own count, so it stays right as the picker moves:
+
 \`\`\`
-nights = Text(formatString("\${calcNights(start: \${/trip/startDate}, end: \${/trip/endDate})} nights"))
+dates = DateRangePicker("Dates", $/trip/startDate, $/trip/endDate,
+  nightsLabel=formatString("\${calcNights(start: \${/trip/startDate}, end: \${/trip/endDate})} nights"))
 \`\`\`
 
 Move the dates and that line changes by itself. Write "3 nights" as literal text
@@ -257,6 +267,11 @@ You are drawing a card inside a chat feed, directly under your reply. It is read
 in a narrow column, alongside everything said before it.
 
 - Answer the message you were sent, and only that. One job per card.
+- **Never summarise the trip here.** The panel already shows the route, the
+  decisions and how far through you are, and the host keeps it current without
+  you. A "Your trip" recap under the question you just asked is the same
+  information twice, and its Change buttons compete with the ones that work —
+  the host strips those, so what is left is a duplicate doing nothing.
 - Keep it to a handful of components. Three flights, not nine.
 - The traveler is mid-conversation: an action here should continue the
   conversation, not end it.
@@ -443,11 +458,7 @@ const GOALS = [
  * them here is the difference between paying full price for the catalog on
  * every message and paying it once.
  */
-export function buildSystemPrompt(options: PromptOptions): Array<{
-  type: 'text';
-  text: string;
-  cache_control?: { type: 'ephemeral' };
-}> {
+export function buildSystemPrompt(options: PromptOptions): string {
   const stable = [ROLE, ...SKILL_SOURCES[options.variant].map(body)].join('\n\n---\n\n');
 
   const volatile = [
@@ -468,8 +479,11 @@ export function buildSystemPrompt(options: PromptOptions): Array<{
     .filter(Boolean)
     .join('\n');
 
-  return [
-    { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
-    { type: 'text', text: volatile },
-  ];
+  // Stable first, volatile second, and that order is the whole optimisation.
+  // Gemini caches a repeated prefix implicitly, so the catalog, the rules and
+  // the component signatures — which are identical on every turn of every
+  // conversation — are paid for once and read back thereafter. Putting the
+  // trip's current state above them would move the boundary to the top of the
+  // prompt and cache nothing.
+  return `${stable}\n\n---\n\n${volatile}`;
 }

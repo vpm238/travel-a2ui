@@ -10,11 +10,67 @@
  * The signatures shown are generated from the same crawl the skill generator
  * uses, in the same declaration order, because in a positional notation
  * **declaration order is the API**. What you read here is what the model reads.
+ *
+ * Open one and it draws. Not a screenshot and not a mock — the same compiler
+ * and the same React components a real turn goes through, given Express derived
+ * from the component's own schema. That makes the gallery unable to lie: a
+ * component whose renderer is broken is visibly broken here, and one added to
+ * the catalog appears with a working preview without anyone writing it a
+ * gallery entry.
  */
 
+/**
+ * A component, compiled and drawn on its own little surface.
+ *
+ * Each preview gets its own store, so a Slider moved in one does not move the
+ * one three rows down, and an interaction goes nowhere: this is a specimen, not
+ * a conversation.
+ */
+function Preview({ catalog, name }: { catalog: CatalogSchema; name: string }) {
+  const { store, source, error } = useMemo(() => {
+    const express = exampleExpress(catalog, name);
+    if (!express) return { store: null, source: '', error: 'No example for this component.' };
+    try {
+      const compiler = new ExpressCompiler(catalog, 'v0.9.1');
+      const messages = compiler.compile(express, {
+        surfaceId: `preview-${name}`,
+        catalogId: String(catalog.catalogId),
+        version: 'v0.9.1',
+      });
+      const next = new SurfaceStore();
+      next.apply(messages);
+      return { store: next, source: express, error: null as string | null };
+    } catch (cause) {
+      return {
+        store: null,
+        source: express,
+        error: cause instanceof Error ? cause.message : String(cause),
+      };
+    }
+  }, [catalog, name]);
+
+  return (
+    <div className="preview">
+      {store ? (
+        <div className="preview__stage">
+          <A2uiSurface store={store} surfaceId={`preview-${name}`} onEvent={() => undefined} />
+        </div>
+      ) : (
+        <p className="preview__error">{error}</p>
+      )}
+      {source ? (
+        <details className="preview__source">
+          <summary>The Express that drew it</summary>
+          <pre>{source}</pre>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
 import { useEffect, useMemo, useState } from 'react';
-import { CatalogHelper, type CatalogSchema } from '@travel-a2ui/express';
-import { supportedComponents } from '@travel-a2ui/renderer';
+import { CatalogHelper, ExpressCompiler, exampleExpress, type CatalogSchema } from '@travel-a2ui/express';
+import { A2uiSurface, SurfaceStore, supportedComponents } from '@travel-a2ui/renderer';
 
 import { catalogUrl } from '../api.js';
 import { Empty, Spinner } from './bits.js';
@@ -96,6 +152,8 @@ export function Catalog() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [only, setOnly] = useState<'all' | 'travel' | 'basic'>('all');
+  /** Which component is showing its preview. One at a time: they are tall. */
+  const [open, setOpen] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(catalogUrl())
@@ -190,10 +248,21 @@ export function Catalog() {
               {visible.map((component) => (
                 <li key={component.name} className={component.travel ? 'is-travel' : undefined}>
                   <h3>
-                    <span className="catalog__name">{component.name}</span>
-                    <span className="catalog__args">({component.args})</span>
+                    <button
+                      type="button"
+                      className="catalog__toggle"
+                      aria-expanded={open === component.name}
+                      onClick={() => setOpen(open === component.name ? null : component.name)}
+                    >
+                      <span className="catalog__name">{component.name}</span>
+                      <span className="catalog__args">({component.args})</span>
+                    </button>
                     {component.travel ? <span className="catalog__tag">travel</span> : null}
                   </h3>
+
+                  {open === component.name && catalog ? (
+                    <Preview catalog={catalog} name={component.name} />
+                  ) : null}
                   {component.description ? <p>{component.description}</p> : null}
                   <dl>
                     {component.props.map((prop) => (

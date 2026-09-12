@@ -9,35 +9,49 @@
  * one" and have it mean something.
  *
  * What lives here:
- *   - the message history the model needs to continue a conversation, and
+ *   - the id of the last interaction, which is how the conversation continues,
+ *     and
  *   - the trip state, which is the *durable* part: what the traveler has
- *     actually decided. History can be trimmed; decisions cannot.
+ *     actually decided.
+ *
+ * The history itself is deliberately **not** here any more. The Interactions
+ * API keeps the transcript server-side and `previous_interaction_id` chains to
+ * it, so a tenth turn sends one message rather than re-uploading nine turns of
+ * prose and tool results to ask one more question. That removed the trimming
+ * problem along with the storage: there is no history to trim, and no way to
+ * trim it into a `tool_use` with no matching result.
+ *
+ * The trip stays ours regardless. It is what the traveler decided, and it has to
+ * survive a model that forgets, a chain that breaks, and a switch of runtime.
  *
  * What deliberately does not live here: the API key. It arrives with each
  * request and leaves with it.
  */
 
-import type Anthropic from '@anthropic-ai/sdk';
-
 export interface SessionState {
-  history: Anthropic.MessageParam[];
+  /** The last interaction in this conversation, or null before the first turn. */
+  interactionId: string | null;
   trip: Record<string, unknown>;
   createdAt: number;
   updatedAt: number;
   turns: number;
+  /**
+   * The trip's decision shape when the standing surfaces were last drawn.
+   *
+   * Kept here rather than in the browser because the *server* decides when a
+   * panel is owed a redraw now — a client that does not know what a trip is
+   * cannot be the thing watching for one.
+   */
+  shape?: string;
 }
 
-/**
- * Turns kept in full before the history is trimmed.
- *
- * Trimming drops the oldest *pairs*, never a lone assistant message, because a
- * `tool_use` block with no matching `tool_result` after it is a 400 from the
- * API. The trip state is what carries continuity across a trim, which is why
- * the model is told to save decisions as it goes.
- */
-const MAX_STORED_MESSAGES = 40;
-
-const EMPTY: SessionState = { history: [], trip: {}, createdAt: 0, updatedAt: 0, turns: 0 };
+const EMPTY: SessionState = {
+  interactionId: null,
+  trip: {},
+  createdAt: 0,
+  updatedAt: 0,
+  turns: 0,
+};
 
 /**
  * How long an untouched conversation is kept.
@@ -49,6 +63,7 @@ const EMPTY: SessionState = { history: [], trip: {}, createdAt: 0, updatedAt: 0,
  * conversation keeps rearming it, an abandoned one expires.
  */
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
 
 export class TripSession {
   constructor(private readonly state: DurableObjectState) {}
@@ -80,14 +95,17 @@ export class TripSession {
     if (url.pathname.endsWith('/put')) {
       const body = (await request.json()) as Partial<SessionState>;
       const current = await this.load();
-      const history = trimHistory(body.history ?? current.history);
       await this.save({
         ...current,
-        history,
+        // `undefined` means "unchanged"; `null` is a real value here, and means
+        // the chain was broken and the next turn starts a fresh one.
+        interactionId:
+          body.interactionId === undefined ? current.interactionId : body.interactionId,
         trip: body.trip ?? current.trip,
+        shape: body.shape ?? current.shape,
         turns: current.turns + 1,
       });
-      return Response.json({ ok: true, turns: current.turns + 1, messages: history.length });
+      return Response.json({ ok: true, turns: current.turns + 1 });
     }
 
     if (url.pathname.endsWith('/trip')) {
@@ -95,6 +113,43 @@ export class TripSession {
       const current = await this.load();
       await this.save({ ...current, trip: { ...current.trip, ...patch } });
       return Response.json({ ok: true });
+    }
+
+    // A voice call is a WebSocket the DO holds open for as long as it lasts,
+    // which is the whole reason it lives here: the trip it changes is the trip
+    // the typed conversation is reading, in the same object, with no second
+    // store to keep in step.
+    if (url.pathname.endsWith('/voice')) {
+      if (request.headers.get('Upgrade') !== 'websocket') {
+        return new Response('Expected a WebSocket upgrade.', { status: 426 });
+      }
+
+      const pair = new WebSocketPair();
+      const [browser, server] = Object.values(pair) as [WebSocket, WebSocket];
+      server.accept();
+
+      const state = await this.load();
+      const { relay } = await import('./voice.js');
+      const { buildSystemPrompt } = await import('./skills.js');
+      const { CATALOG_ID } = await import('./agent.js');
+
+      await relay({
+        client: server,
+        trip: state.trip,
+        systemInstruction: buildSystemPrompt({
+          variant: 'express-monolithic',
+          surface: 'inline',
+          surfaceId: 'voice',
+          catalogId: CATALOG_ID,
+          trip: state.trip,
+          today: new Date().toISOString().slice(0, 10),
+        }),
+        onTrip: (trip) => {
+          void this.save({ ...state, trip });
+        },
+      });
+
+      return new Response(null, { status: 101, webSocket: browser });
     }
 
     if (url.pathname.endsWith('/reset')) {
@@ -106,29 +161,6 @@ export class TripSession {
 
     return new Response('Not found', { status: 404 });
   }
-}
-
-/**
- * Drops the oldest messages while keeping the transcript valid.
- *
- * Two invariants the API enforces: the first message must be from the user, and
- * every `tool_use` must be followed by its `tool_result`. So we cut from the
- * front until the next kept message is a plain user turn.
- */
-export function trimHistory(history: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
-  if (history.length <= MAX_STORED_MESSAGES) return history;
-
-  let start = history.length - MAX_STORED_MESSAGES;
-  while (start < history.length) {
-    const message = history[start]!;
-    const isPlainUser =
-      message.role === 'user' &&
-      (typeof message.content === 'string' ||
-        !message.content.some((block) => block.type === 'tool_result'));
-    if (isPlainUser) break;
-    start += 1;
-  }
-  return start >= history.length ? [] : history.slice(start);
 }
 
 /** Client for the Durable Object, so callers never build these URLs by hand. */
@@ -144,10 +176,14 @@ export class SessionClient {
     return (await response.json()) as SessionState;
   }
 
-  async put(history: Anthropic.MessageParam[], trip: Record<string, unknown>): Promise<void> {
+  async put(
+    interactionId: string | null,
+    trip: Record<string, unknown>,
+    shape?: string,
+  ): Promise<void> {
     await this.stub.fetch('https://session/put', {
       method: 'POST',
-      body: JSON.stringify({ history, trip }),
+      body: JSON.stringify({ interactionId, trip, ...(shape ? { shape } : {}) }),
     });
   }
 

@@ -34,7 +34,8 @@ export type FieldKind =
   | 'flag'
   | 'choice'
   | 'stages'
-  | 'legs';
+  | 'legs'
+  | 'fields';
 
 /** The stages of planning a trip, in the order they get decided. */
 export type Stage = 'route' | 'dates' | 'party' | 'flight' | 'stay' | 'budget' | 'plan';
@@ -198,6 +199,15 @@ export const FIELDS = [
       'no fixed budget. A skipped stage counts as settled and is never asked about again.',
   },
   {
+    key: 'assumed',
+    kind: 'fields',
+    label: 'the values nobody confirmed',
+    stage: 'route',
+    note:
+      'Fields filled in without being told. They pre-fill controls but do not ' +
+      'settle a stage, so the traveler is still asked.',
+  },
+  {
     key: 'legs',
     kind: 'legs',
     label: 'the other stops',
@@ -233,6 +243,23 @@ export type Trip = Partial<{
   skip: Stage[];
   /** Stops after the first. The flat fields above are leg one. */
   legs: Leg[];
+  /**
+   * Fields the traveler never actually said.
+   *
+   * The bug this exists for: "Madrid in April for a week" came back saved as
+   * `travelers: 2`, and because a stage is finished when its fields are
+   * present, the agent marked the party settled and never asked. Nobody had
+   * said two. The skill says not to assume; that is a request to a model, and
+   * this is the place it becomes a fact about the trip.
+   *
+   * An assumed value is still *useful* — it pre-fills the control, which is
+   * exactly what the flow asks for — it just does not count as an answer. So
+   * the stage stays open, the surface opens with the guess already in it, and
+   * one press turns it into a decision. Committing a surface clears the mark
+   * for every field it carried, because a traveler pressing a button is the
+   * definition of having said so.
+   */
+  assumed: TripKey[];
 }>;
 
 /**
@@ -384,11 +411,18 @@ function toFlag(value: unknown): boolean | undefined {
  * ChoicePicker hands back `["economy"]`, and a tool that expects a string then
  * searches for a cabin called `economy,` — no error, wrong answer.
  */
+/** Field kinds whose value really is a list. */
+const LIST_KINDS = new Set<FieldKind>(['stages', 'legs', 'fields']);
+
 export function coerce(key: string, value: unknown): unknown {
   const field = BY_KEY.get(key);
   if (!field || isBlank(value)) return undefined;
 
-  if (Array.isArray(value) && field.kind !== 'stages' && field.kind !== 'legs') {
+  // A ChoicePicker hands back `["economy"]` for a single-valued field, so a
+  // one-element array is unwrapped. The kinds that are genuinely lists are
+  // exempt — this used to name them inline, and adding `assumed` as a third one
+  // quietly turned every multi-field mark into `undefined`.
+  if (Array.isArray(value) && !LIST_KINDS.has(field.kind)) {
     return value.length === 1 ? coerce(key, value[0]) : undefined;
   }
 
@@ -398,6 +432,14 @@ export function coerce(key: string, value: unknown): unknown {
         .map((entry) => String(entry).trim().toLowerCase())
         .filter((entry): entry is Stage => (STAGES as readonly string[]).includes(entry));
       return wanted.length > 0 ? [...new Set(wanted)] : undefined;
+    }
+    case 'fields': {
+      // Only real field names survive, so a model naming something that is not
+      // a trip field cannot park a stage open forever.
+      const named = (Array.isArray(value) ? value : [value])
+        .map((entry) => String(entry).trim())
+        .filter((entry): entry is TripKey => BY_KEY.has(entry) && entry !== 'assumed');
+      return named.length > 0 ? [...new Set(named)] : undefined;
     }
     case 'legs': {
       const legs = (Array.isArray(value) ? value : [value])
@@ -443,9 +485,39 @@ export function normalize(value: unknown): Trip {
   return out as Trip;
 }
 
-/** A patch applied to a trip, with the patch normalised first. */
+/**
+ * A patch applied to a trip, with the patch normalised first.
+ *
+ * `assumed` is the one field that does not simply overwrite. A patch saying
+ * "these two were guesses" is talking about the fields in *that* patch, and a
+ * later patch that states one of them for real has to be able to clear its
+ * mark. So: anything the patch sets is confirmed unless the patch itself names
+ * it as assumed, and marks on fields the patch does not mention are kept.
+ */
 export function merge(trip: Trip, patch: unknown): Trip {
-  return { ...trip, ...normalize(patch) };
+  const next = normalize(patch);
+  const declared = new Set((next.assumed ?? []) as TripKey[]);
+  const touched = new Set(Object.keys(next).filter((key) => key !== 'assumed') as TripKey[]);
+
+  const assumed = [
+    ...(trip.assumed ?? []).filter((key) => !touched.has(key)),
+    ...declared,
+  ];
+
+  const merged = { ...trip, ...next };
+  if (assumed.length > 0) merged.assumed = [...new Set(assumed)];
+  else delete merged.assumed;
+  return merged;
+}
+
+/** Marks fields as confirmed — what a traveler pressing a button means. */
+export function confirm(trip: Trip, fields: Iterable<string>): Trip {
+  const said = new Set(fields);
+  const left = (trip.assumed ?? []).filter((key) => !said.has(key));
+  const next = { ...trip };
+  if (left.length > 0) next.assumed = left;
+  else delete next.assumed;
+  return next;
 }
 
 /**
@@ -560,6 +632,64 @@ export function problems(trip: Trip, today?: string): Problem[] {
     // Not an error — a real state a dashboard should show — so it is reported
     // rather than rejected.
     found.push({ field: 'spent', message: 'Committed spend is over the budget.' });
+  }
+
+  found.push(...routeProblems(trip));
+
+  return found;
+}
+
+/**
+ * What is wrong with the route, stop by stop.
+ *
+ * The trip-level checks above only ever saw the first stop, because that is
+ * what the flat fields describe. Everything after it lived in `legs` and was
+ * never looked at — so a second stop could check out before it checked in, or
+ * begin a week before the stop it follows, or carry nobody, and the trip saved
+ * cleanly. A multi-stop trip is the case this app exists to handle well, and it
+ * was the one with no validation at all.
+ *
+ * Ordering is checked against the stop before rather than against the trip as a
+ * whole: a route is a sequence, and "Chicago starts before New York ends" is
+ * meaningless if New York comes first.
+ */
+function routeProblems(trip: Trip): Problem[] {
+  const found: Problem[] = [];
+  const route = stops(trip);
+
+  // Index 0 is the flat fields, already checked above.
+  for (let index = 1; index < route.length; index += 1) {
+    const leg = route[index]!;
+    const where = leg.destination || `stop ${index + 1}`;
+
+    if (!leg.destination) {
+      found.push({ field: 'legs', message: `Stop ${index + 1} has no destination.` });
+    }
+
+    if (leg.startDate && leg.endDate && !(leg.endDate > leg.startDate)) {
+      found.push({
+        field: 'legs',
+        message: `In ${where}, ${leg.endDate} is not after ${leg.startDate}.`,
+      });
+    }
+
+    if (leg.travelers !== undefined && leg.travelers < 1) {
+      found.push({ field: 'legs', message: `${where} needs at least one traveler.` });
+    }
+
+    // A stop cannot begin before the one it follows has ended. `endDate ??
+    // startDate` so an open-ended previous stop still pins the earliest this
+    // one can start.
+    const previous = route[index - 1]!;
+    const after = previous.endDate ?? previous.startDate;
+    if (leg.startDate && after && leg.startDate < after) {
+      found.push({
+        field: 'legs',
+        message:
+          `${where} starts ${leg.startDate}, before ${previous.destination || 'the previous stop'} ` +
+          `ends ${after}. Stops are in travel order.`,
+      });
+    }
   }
 
   return found;
@@ -833,6 +963,7 @@ function pendingFor(
 
 export function plan(trip: Trip): Plan {
   const skipped = new Set(trip.skip ?? []);
+  const assumed = new Set(trip.assumed ?? []);
   const legs = stops(trip);
 
   const steps: Step[] = STEPS.map((step) => {
@@ -844,7 +975,11 @@ export function plan(trip: Trip): Plan {
       const value = trip[key as keyof Trip];
       // A flag is only satisfied when it is actually true: `planned: false`
       // means the days are still unplanned, not that the question was answered.
-      return isBlank(value) || (BY_KEY.get(key)?.kind === 'flag' && value !== true);
+      if (isBlank(value) || (BY_KEY.get(key)?.kind === 'flag' && value !== true)) return true;
+      // Present, but nobody said it. It pre-fills the control and still counts
+      // as missing, which is the whole point: a guess should not close a
+      // question.
+      return assumed.has(key as TripKey);
     });
 
     const pending = pendingFor(trip, step.stage, legs);
@@ -921,4 +1056,35 @@ export function nextStepFor(trip: Trip): string {
   );
 
   return parts.join(' ');
+}
+
+/**
+ * The decisions that make the panel a *different panel*.
+ *
+ * Not every field. Values reach a standing surface live, as `updateDataModel`
+ * with no model in the path — change the departure airport on an inline card and
+ * the panel's origin updates immediately. What warrants a *rebuild* is the panel
+ * needing different controls: once there is a destination it should offer flight
+ * filters, once a flight is chosen it should show what is left to book.
+ *
+ * Rebuilding on a slider value would mean a model turn every time someone
+ * dragged something, which is both slow and pointless.
+ *
+ * This lives here, beside the trip, because it is a fact about what a trip's
+ * decisions are — and because the browser used to hold the same list of field
+ * names, which made the panel a thing only the web app knew how to keep current.
+ */
+export function decisionShape(trip: Trip): string {
+  const settled = plan(trip)
+    .steps.filter((step) => step.done)
+    .map((step) => step.stage)
+    .join(',');
+
+  return [
+    settled,
+    trip.destination ?? '',
+    trip.selectedFlight ?? '',
+    trip.selectedHotel ?? '',
+    (trip.legs ?? []).map((leg) => leg.destination).join('>'),
+  ].join('|');
 }

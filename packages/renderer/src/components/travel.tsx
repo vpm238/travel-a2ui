@@ -191,7 +191,10 @@ export function MapPreview({ node, scope, ctx }: ComponentProps) {
 
     return {
       label,
-      kind: str(marker['kind']) || 'sight',
+      // A pin, unless the marker says what it is. A map pin that defaults to a
+      // building draws a row of little houses across a map, which reads as
+      // "residential area" rather than "these are the places".
+      kind: str(marker['kind']) || 'pin',
       day: str(marker['day']),
       left: Math.min(88, Math.max(12, cellWidth * (column + 0.5) + ((hash % 9) - 4))),
       top: Math.min(86, Math.max(22, cellHeight * (row + 1) + (((hash >> 8) % 11) - 5))),

@@ -15,6 +15,12 @@ The agent never returns HTML, or JSX, or a component name we made up. It writes
 into the A2UI JSON any conforming host can render. The one on this page is React;
 it could as easily be Flutter, or Claude, or an MCP host you have never heard of.
 
+Press the microphone and the same agent answers out loud, over the Gemini Live
+API — and draws the same surfaces. That pairing is the best argument for
+generative UI there is: four fares read aloud is a memory test, and a screen is a
+clumsy way to describe a trip. The voice takes the question; the surface is the
+answer.
+
 ---
 
 ## Why this exists
@@ -43,7 +49,9 @@ The interesting problems turned out to be:
    sidebar, a generated home screen — and then all three again inside Claude,
    through an MCP server that carries the same React renderer.
 
-Three documents worth having open:
+Four documents worth having open:
+**[docs/catalog.md](docs/catalog.md)** for every component, pictured as the
+renderer draws it, beside the line of Express that produced it;
 **[docs/user-flows.md](docs/user-flows.md)** for the flows and the edge cases
 that shaped them — including which rules are enforced in code rather than asked
 of the model; **[docs/architecture.md](docs/architecture.md)** for how it is put
@@ -65,11 +73,11 @@ npm run setup            # installs, regenerates, builds, tests
 npm run dev:worker       # http://127.0.0.1:8787
 ```
 
-Open `http://127.0.0.1:8787` and paste an Anthropic API key when asked — or skip
+Open `http://127.0.0.1:8787` and paste a Gemini API key when asked — or skip
 the form entirely:
 
 ```
-http://127.0.0.1:8787/#key=sk-ant-...
+http://127.0.0.1:8787/#key=AIza...
 ```
 
 The key is taken out of the URL and the address bar is rewritten before anything
@@ -77,7 +85,7 @@ else reads it, then kept in this browser and sent with each request. It is never
 stored on the server. `#key=` is the form to use: a fragment never leaves the
 browser. `?key=` also works, because people paste it, but the server saw it and
 the app says so once — treat such a key as logged. (Get one at
-[console.anthropic.com](https://console.anthropic.com/settings/keys).)
+[aistudio.google.com/apikey](https://aistudio.google.com/apikey).)
 
 The **MCP** tab works with no key at all — those tools compose surfaces from the
 catalog without a model in the path, so it is the fastest way to see A2UI render.
@@ -109,8 +117,46 @@ By default every visitor brings their own key. To run a shared deployment on one
 key instead, set it as a Worker secret and the app stops asking:
 
 ```bash
-npx wrangler secret put ANTHROPIC_API_KEY --cwd apps/worker
+npx wrangler secret put GEMINI_API_KEY --cwd apps/worker
 ```
+
+---
+
+## Make it something else
+
+Nothing here is coupled to travel except the names, and the fastest way to see
+that is to replace them. In rough order of effort:
+
+**Swap the catalog.** `catalogs/a2ui-travel/catalog.json` is the vocabulary: one
+JSON Schema entry per component. Add `InvoiceLine` beside `FlightOption`, write
+the React function in `packages/renderer/src/components/`, register it, and the
+model can draw invoices. [`docs/catalog.md`](docs/catalog.md) is generated from
+that file — every component pictured as the renderer actually draws it, with the
+one line of Express that produced it — so it is also the shape to copy.
+
+**Narrow what the model sees.** `catalogs/a2ui-travel/agent-components.json` is
+the allow-list. Renderers keep their full registry; only the *prompt* is pruned,
+so trimming it costs a client nothing and saves tokens on every single turn.
+
+**Regenerate the skill.** `npm run generate` runs the official A2UI
+`SkillGenerator` over the pruned catalog and writes `skills/`. You do not write
+the component documentation the model reads — the catalog is the source, and a
+component you add documents itself.
+
+**Change the tools.** `apps/worker/src/tools.ts` is one array of
+`{name, description, input_schema}` and one `switch`. It is provider-neutral on
+purpose: `geminiTools()` is the six-line adapter, and a second provider is
+another six lines rather than a second copy of the schemas.
+
+**Then the parts you should not need to touch**: the compiler, the renderer, the
+streaming split, the commit binding, the panel plumbing. Those are the A2UI
+layer, and they do not know what a trip is.
+
+Two rules are worth stealing whatever you build. Anything that must not vary
+belongs in the host, not the prompt — a rule in a prompt is a request to a model,
+and a rule in the host is a guarantee. And anything derivable should be derived:
+a night count written by the model is correct in the screenshot and wrong the
+moment a date moves.
 
 ---
 
@@ -198,6 +244,39 @@ is the first question anyone asks about generative UI.
 
 ---
 
+## Voice
+
+The microphone in the composer opens a Gemini **Live API** session, relayed
+through the Worker rather than straight from the browser. That choice is the
+whole architecture in miniature: the browser could open the socket itself, and
+then every client would need the catalog, the compiler, the tools and the trip.
+Here it sends microphone bytes and receives audio plus A2UI — exactly what a
+Swift or Kotlin client would send and receive.
+
+The model is handed the same six `show_*` builders the MCP endpoint uses and
+told to draw rather than read a list aloud. A live turn:
+
+```
+TOOL    save_trip {travelers: 2, startDate: 2027-04-12, …}
+TOOL    show_flight_options {origin: JFK, destination: Madrid, …}
+SURFACE mcp-flights: Text, FlightOption ×4, Text, Column
+agent:  "…the cheapest is Delta for about 352, the fastest is TAP
+         for around 362 nonstop."
+```
+
+It rounded the numbers, named two of four options, and left the rest to the
+screen. The relay lives in the session Durable Object, so saying "make it three
+of us" moves the same panel the typed conversation is reading.
+
+Three things cost an evening and are worth knowing if you build one:
+`fetch` refuses a `wss:` URL (Workers upgrade over `https:`); the runtime
+delivers inbound frames as a **Blob**, so `TextDecoder().decode` produces rubbish
+and every frame vanishes without an error; and the Live API rejects an entire
+`setup` if a function declaration carries `additionalProperties`, `$schema` or
+`strict` — which ordinary Gemini tool schemas all do.
+
+---
+
 ## How it fits together
 
 ```
@@ -206,7 +285,7 @@ catalogs/a2ui-travel/catalog.json      the vocabulary — A2UI basic + 12 travel
         ├─► tools/skillgen  ──────────► skills/**/SKILL.md      what the model is told
         │                                      │
         │                                      ▼
-        │                            apps/worker  (or backends/claude-managed-agent)
+        │                            apps/worker  (the agent loop, at the edge)
         │                                      │  model writes A2UI Express
         │                                      ▼
         └─► packages/express ─────────► A2UI JSON messages
@@ -311,42 +390,47 @@ npx vitest run packages/express        # 64 tests, including all 20 parity cases
 
 ---
 
-## Two runtimes, one wire protocol
+## One runtime, and two that were measured and dropped
 
-Pick one in the header — the app switches mid-conversation, because the whole
-claim is that the interface layer does not care who runs the loop.
+The loop runs in the Cloudflare Worker, on the **Gemini Interactions API**, with
+the traveler's own key. The header's picker is still there, because the claim it
+tests still holds — the interface layer does not care who runs the loop, and the
+field takes any backend answering the same `/api/chat` contract.
 
-<p align="center">
-  <img src="docs/screenshots/06-runtime-picker-connect.png" width="82%" alt="The runtime picker, with the managed-agent backend's address being entered">
-</p>
+Two alternatives were built and removed. Both reasons are measurements, which is
+why they are written down rather than argued about.
 
-Switching probes the target's `/api/meta` first, so picking a runtime that is
-not running says so in the picker rather than failing on your next message.
+**A Google-hosted Managed Agent on the Antigravity harness.** Creating the agent,
+configuring it and running model turns all worked against an API key. Its
+*sandbox* did not: every file and code-execution call returned `Audience of an ID
+token must be a URL or service account`. That is fatal rather than annoying,
+because the harness discovers skills from the sandbox filesystem — so the
+mounted `SKILL.md` was unreadable and the agent ran with no contract at all. A
+service-account credential would likely fix it; a bring-your-own-key demo has
+none.
 
+**Cloudflare Code Mode**, where the model writes a script instead of calling
+tools one at a time. The pitch is that independent searches collapse from
+several round trips into one `Promise.all`. On this backend that premise is
+simply wrong — Gemini already issues independent tool calls together in a single
+round — so a flights-and-hotels turn is two rounds either way:
 
-| | `apps/worker` (default) | `backends/claude-managed-agent` |
+| | Worker loop | Code Mode |
 |---|---|---|
-| Language | TypeScript | Python |
-| Runs the tool loop | this code | Anthropic |
-| System prompt | assembled per request | uploaded once, versioned |
-| Conversation state | a Durable Object per trip | the managed session |
-| Tools | execute in the Worker | the MCP server, called by Anthropic |
-| Deploys to | Cloudflare | anywhere Python 3.10+ runs |
+| wall clock | **4.4s** | 5.2s |
+| rounds | 2 | 2 |
+| input tokens | 26,421 | **23,990** |
+| tool calls | 3 | 1 |
 
-Both speak the same `POST /api/chat` SSE protocol, so the front end does not know
-which one it is talking to:
+A few percent cheaper, a little slower for the sandbox start. What Code Mode
+*does* buy is narrower and real — filtering and joining without the model in
+between, a durable execution log, an approval gate — and none of it was worth a
+second execution path here.
 
-```bash
-cd backends/claude-managed-agent
-pip install -e '.[sdk,dev]'
-python -m travel_agent.setup_agent --mcp-url https://<your-worker>.workers.dev/mcp
-python -m travel_agent.server
-VITE_API_ORIGIN=http://127.0.0.1:8788 npm run dev:web
-```
-
-The managed-agent variant closes a nice loop: the agent's tools *are* this
-project's MCP server, so Anthropic calls the deployed Worker for travel data and
-gets A2UI back.
+One finding from that work is worth keeping whatever you build: left with only
+`codemode.search` and `codemode.describe`, the model spent **four of six rounds**
+working out what it had, at 80k input tokens. Naming the methods in the tool
+description cost a few hundred tokens and removed all four.
 
 ### The compiler, as a service
 
@@ -472,14 +556,16 @@ travel-a2ui/
 │   ├── worker/                 Cloudflare Worker: agent loop, Durable Object, MCP server
 │   ├── web/                    React app: the three flows, the catalog and the wire inspector
 │   └── mcp-view/               the renderer as one self-contained HTML file, for MCP hosts
-├── backends/
-│   └── claude-managed-agent/   the same agent as an Anthropic-hosted Managed Agent (Python)
 ├── tools/
-│   ├── skillgen/               the skill generator (Python) and its tests
 │   ├── parity/                 Express cases + goldens from the reference compiler
 │   ├── e2e/                    a whole browser turn against a scripted model
-│   └── screenshots/            the README's screenshots, reproducibly
+│   ├── eval/                   the flows graded against a real model, mechanically
+│   └── screenshots/            the README's pictures and docs/catalog.md, reproducibly
 ├── scripts/                    setup, generation, parity, and repo extraction
+├── docs/
+│   ├── catalog.md              every component, pictured — generated, never written
+│   ├── user-flows.md           the flows, and which rules are code rather than prompt
+│   └── architecture.md         how a turn goes end to end, and why
 └── skills/                     generated SKILL.md files, checked in
 ```
 
@@ -488,9 +574,9 @@ travel-a2ui/
 ## Tests
 
 ```bash
-npm test     # 134 TypeScript tests
+npm test     # 394 TypeScript tests
 npm run e2e  # a whole browser turn, against a scripted model — no API key
-python3 -m pytest tools/skillgen/tests backends/claude-managed-agent/tests -q
+python3 -m pytest tools/tests -q
 ```
 
 What they actually cover:
@@ -509,6 +595,12 @@ What they actually cover:
   re-sent component replaces rather than duplicates.
 - **The skills** — that the model-facing fields leak no implementation detail,
   that the modular pair covers the monolith, and that no skill ships a script.
+- **Every catalog function** — driven from `catalog.json` rather than from the
+  code, so a function declared and not implemented fails. That is the gap
+  `formatString` shipped through: it never implemented its own spec, nothing
+  threw, and the tests agreed because they were written from the implementation.
+- **Voice** — the `setup` frame the Live API would accept, and that a surface
+  tool hands the model a summary rather than the flight list.
 - **End to end** — a real browser: type a message, watch a surface appear
   mid-stream, click a flight, and assert the click reaches the model as the next
   turn with the surface's data model attached.

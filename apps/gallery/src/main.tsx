@@ -22,6 +22,7 @@ import '@travel-a2ui/renderer/styles.css';
 import './gallery.css';
 
 import generated from './surfaces.generated.json';
+import generatedComponents from './components.generated.json';
 
 interface Surface {
   id: string;
@@ -34,7 +35,18 @@ interface Surface {
   bytes: number;
 }
 
+interface ComponentPreview {
+  id: string;
+  surfaceId: string;
+  name: string;
+  description: string;
+  express: string;
+  messages: A2uiMessage[];
+  bytes: number;
+}
+
 const SURFACES = generated as unknown as Surface[];
+const COMPONENTS = generatedComponents as unknown as ComponentPreview[];
 
 const FLOW_NOTE: Record<Surface['flow'], string> = {
   inline: 'Drawn under the reply it answers. One job, and an action that continues the conversation.',
@@ -53,12 +65,15 @@ function Gallery() {
   const [activeId, setActiveId] = useState(SURFACES[0]!.id);
   const [log, setLog] = useState<LoggedEvent[]>([]);
   const [showSource, setShowSource] = useState(false);
+  /** Which component is open in the catalog strip, if any. */
+  const [openComponent, setOpenComponent] = useState<string | null>(null);
 
   // One store for everything: surfaces are addressed by id, and sharing the
   // store is what lets a value edited on one show up on another.
   const store = useMemo(() => {
     const created = new SurfaceStore();
     for (const surface of SURFACES) created.apply(surface.messages);
+    for (const component of COMPONENTS) created.apply(component.messages);
     return created;
   }, []);
 
@@ -166,9 +181,58 @@ function Gallery() {
         </aside>
       </div>
 
+      {/*
+        * The flows above show components doing a job, which is the right way to
+        * judge the app and the wrong way to find out what a ProgressMeter looks
+        * like. Every component in the catalog is here, drawn by the same
+        * renderer from Express derived from its own schema.
+        */}
+      <section className="gallery__catalog" aria-label="Every component">
+        <h2>Every component</h2>
+        <p>
+          The whole vocabulary, one at a time. The agent cannot draw anything that is not on this
+          list, and nothing is on it that this renderer cannot draw — click one to see it.
+        </p>
+
+        <div className="gallery__chips">
+          {COMPONENTS.map((component) => (
+            <button
+              key={component.id}
+              type="button"
+              aria-pressed={openComponent === component.name}
+              className={openComponent === component.name ? 'is-active' : undefined}
+              onClick={() =>
+                setOpenComponent(openComponent === component.name ? null : component.name)
+              }
+            >
+              {component.name}
+            </button>
+          ))}
+        </div>
+
+        {COMPONENTS.filter((component) => component.name === openComponent).map((component) => (
+          <article key={component.id} className="gallery__component">
+            <header>
+              <h3>{component.name}</h3>
+              {component.description ? <p>{component.description}</p> : null}
+            </header>
+            <div className="gallery__surface gallery__surface--inline">
+              <A2uiSurface store={store} surfaceId={component.surfaceId} onEvent={onEvent} />
+            </div>
+            <details>
+              <summary>The Express that drew it</summary>
+              <pre>
+                <code>{component.express}</code>
+              </pre>
+            </details>
+          </article>
+        ))}
+      </section>
+
       <footer className="gallery__foot">
         <span>
-          A2UI v0.9.1 · {SURFACES.length} surfaces · the same renderer the app and the MCP plugin use
+          A2UI v0.9.1 · {SURFACES.length} surfaces · {COMPONENTS.length} components · the same
+          renderer the app and the MCP plugin use
         </span>
       </footer>
     </div>

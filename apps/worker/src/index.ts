@@ -3,8 +3,8 @@
  *
  * ## Where the API key lives
  *
- * Nowhere. The browser holds it, sends it on each request in `x-anthropic-key`,
- * and this Worker passes it straight to the Anthropic SDK and forgets it. It is
+ * Nowhere. The browser holds it, sends it on each request in `x-goog-api-key`,
+ * and this Worker passes it straight to the Gemini API and forgets it. It is
  * never written to a Durable Object, never logged, never put in a URL (where it
  * would land in request logs), and never stored in a Worker secret — because
  * this is a bring-your-own-key app and the key belongs to whoever is using it.
@@ -12,11 +12,10 @@
  * That is a real trade, so state it plainly: it means anyone who opens the app
  * spends their own quota and nobody else's, and it means the key sits in that
  * browser's localStorage, which is exactly as safe as that browser. For a shared
- * deployment where you want one org key instead, set an `ANTHROPIC_API_KEY`
+ * deployment where you want one org key instead, set a `GEMINI_API_KEY`
  * secret and it is used when the header is absent — see the README.
  */
 
-import type Anthropic from '@anthropic-ai/sdk';
 
 import { ExpressCompiler, ExpressDecompiler } from '@travel-a2ui/express';
 
@@ -42,21 +41,23 @@ export interface Env {
   DEFAULT_SKILL?: string;
   PUBLIC_NAME?: string;
   /** Optional shared key for a deployment that does not want to ask for one. */
-  ANTHROPIC_API_KEY?: string;
-  /**
-   * Where the Python managed-agent backend is, if one is running.
-   *
-   * The app offers both runtimes in a picker; this is only the default it
-   * suggests, and the picker lets you type another. Leave it unset and the
-   * option is still there, it just asks where to find it.
-   */
-  MANAGED_AGENT_ORIGIN?: string;
+  GEMINI_API_KEY?: string;
 }
 
+/**
+ * Flash first, and mostly Flash only.
+ *
+ * Composing a surface is not a reasoning problem: the catalog pins down what
+ * exists, the signatures pin down how to call it, and the skill pins down what
+ * to draw when. What is left is picking components and filling them in, which
+ * Flash does as well as anything — and time-to-first-surface is the thing
+ * anyone actually feels. The slower models stay available for a hard multi-leg
+ * trip, but nothing defaults to them.
+ */
 const MODELS = [
-  { id: 'claude-opus-5', label: 'Opus 5', note: 'Best judgement and layout sense' },
-  { id: 'claude-sonnet-5', label: 'Sonnet 5', note: 'Faster, noticeably cheaper' },
-  { id: 'claude-haiku-4-5', label: 'Haiku 4.5', note: 'Fastest; simpler surfaces' },
+  { id: 'gemini-3.8-flash', label: 'Flash 3.8', note: 'Default. Fastest to first surface' },
+  { id: 'gemini-3.7-flash', label: 'Flash 3.7', note: 'The previous Flash' },
+  { id: 'gemini-3.5-flash-lite', label: 'Flash Lite', note: 'Cheapest; simpler surfaces' },
 ] as const;
 
 const SURFACES: SurfaceKind[] = ['inline', 'sidebar', 'home'];
@@ -78,7 +79,7 @@ export default {
         headers: {
           'access-control-allow-origin': '*',
           'access-control-allow-methods': 'GET, POST, OPTIONS',
-          'access-control-allow-headers': 'content-type, x-anthropic-key, mcp-protocol-version',
+          'access-control-allow-headers': 'content-type, x-goog-api-key, mcp-protocol-version',
           'access-control-max-age': '86400',
         },
       });
@@ -119,6 +120,14 @@ export default {
       });
     }
 
+    if (path === '/api/voice') {
+      const sessionId = url.searchParams.get('sessionId')?.trim();
+      if (!sessionId) return problem('sessionId is required', 400);
+      // Straight through to the Durable Object: the socket has to be held by
+      // the thing that holds the trip.
+      const stub = env.TRIP_SESSION.get(env.TRIP_SESSION.idFromName(sessionId));
+      return stub.fetch('https://session/voice', request);
+    }
     if (path === '/api/meta') return handleMeta(env);
     if (path === '/api/chat' && request.method === 'POST') return handleChat(request, env, ctx);
     if (path === '/api/session' && request.method === 'GET') return handleGetSession(url, env);
@@ -213,7 +222,7 @@ function handleMeta(env: Env): Response {
     name: env.PUBLIC_NAME ?? 'Travel A2UI',
     catalogId: CATALOG_ID,
     protocolVersion: 'v0.9.1',
-    defaultModel: env.DEFAULT_MODEL ?? 'claude-opus-5',
+    defaultModel: env.DEFAULT_MODEL ?? 'gemini-3.8-flash',
     defaultSkill: env.DEFAULT_SKILL ?? 'express-monolithic',
     models: MODELS,
     surfaces: SURFACES,
@@ -226,7 +235,7 @@ function handleMeta(env: Env): Response {
     })),
     mcpEndpoint: '/mcp',
     /** True when the deployment carries its own key and the UI need not ask. */
-    keyProvided: Boolean(env.ANTHROPIC_API_KEY),
+    keyProvided: Boolean(env.GEMINI_API_KEY),
     runtime: 'worker',
     /**
      * The two runtimes, offered to the front end as a choice.
@@ -242,12 +251,6 @@ function handleMeta(env: Env): Response {
         origin: '',
         note: 'The loop runs at the edge, in this Worker. One deploy, no second service, sessions in a Durable Object.',
       },
-      {
-        id: 'managed-agent',
-        label: 'Claude Managed Agent',
-        origin: env.MANAGED_AGENT_ORIGIN ?? '',
-        note: 'Anthropic runs the loop and hosts the sandbox; the Python backend in backends/ provisions the agent and relays the same events.',
-      },
     ],
   });
 }
@@ -257,7 +260,7 @@ async function handleGetSession(url: URL, env: Env): Promise<Response> {
   if (!sessionId) return problem('sessionId is required', 400);
   const session = new SessionClient(env.TRIP_SESSION, sessionId);
   const state = await session.get();
-  return json({ trip: state.trip, turns: state.turns, messages: state.history.length });
+  return json({ trip: state.trip, turns: state.turns });
 }
 
 async function handleReset(request: Request, env: Env): Promise<Response> {
@@ -281,10 +284,10 @@ interface ChatBody {
 }
 
 async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-  const apiKey = request.headers.get('x-anthropic-key')?.trim() || env.ANTHROPIC_API_KEY;
+  const apiKey = request.headers.get('x-goog-api-key')?.trim() || env.GEMINI_API_KEY;
   if (!apiKey) {
     return problem(
-      'No Anthropic API key.',
+      'No Gemini API key.',
       401,
       'Add your key in the app — it is kept in this browser and sent with each request.',
     );
@@ -302,7 +305,13 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
   if (action && typeof action.name !== 'string') {
     return problem('action.name is required', 400);
   }
-  if (!message && !action) return problem('message or action is required', 400);
+  // A standing surface with nothing said is a request to draw it — the one
+  // thing a client knows that the server does not is which surface it is
+  // showing. What to ask for is the agent's, and `runTurn` supplies it.
+  const drawing = !message && !action && body.surface !== 'inline';
+  if (!message && !action && !drawing) {
+    return problem('message or action is required', 400);
+  }
   if (message.length > 8000) return problem('message is too long (8000 characters max)', 413);
 
   const sessionId = body.sessionId?.trim();
@@ -316,13 +325,20 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
     : ((env.DEFAULT_SKILL as SkillVariant) ?? 'express-monolithic');
   const model = MODELS.some((entry) => entry.id === body.model)
     ? body.model!
-    : (env.DEFAULT_MODEL ?? 'claude-opus-5');
+    : (env.DEFAULT_MODEL ?? 'gemini-3.8-flash');
+  // Low by default, and the reason is measured rather than assumed: on the same
+  // opening turn, Flash 3.8 reached a first surface in 3.6s thinking nothing and
+  // 24.1s thinking 2,618 tokens — for the same tool call and the same seven
+  // components. Composing a surface from a catalog the skill already pins down
+  // is not a reasoning problem. The higher levels stay available for a trip that
+  // is one.
   const effort = (['low', 'medium', 'high'] as const).includes(body.effort as never)
     ? (body.effort as 'low' | 'medium' | 'high')
-    : 'medium';
+    : 'low';
 
   const session = new SessionClient(env.TRIP_SESSION, sessionId);
   const state = await session.get();
+
 
   const surfaceId =
     body.surfaceId?.trim() ||
@@ -333,7 +349,8 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
     model,
     message,
     ...(action ? { action } : {}),
-    history: state.history,
+    interactionId: state.interactionId,
+    shape: state.shape ?? null,
     trip: state.trip,
     surface,
     surfaceId,
@@ -372,7 +389,7 @@ function streamTurn(turn: TurnRequest, session: SessionClient, ctx: ExecutionCon
           const result = await runTurn(turn, send);
           // Persist after the turn, not during: a turn that fails halfway
           // should not leave a transcript the model cannot continue from.
-          await session.put(result.history, result.trip);
+          await session.put(result.interactionId, result.trip, result.shape);
         } catch (error) {
           send({
             type: 'error',
@@ -411,4 +428,3 @@ function streamTurn(turn: TurnRequest, session: SessionClient, ctx: ExecutionCon
   });
 }
 
-export type { Anthropic };

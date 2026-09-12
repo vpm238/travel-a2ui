@@ -200,3 +200,50 @@ describe('catalog functions', () => {
     expect(isSafeUrl('data:text/html,<script>')).toBe(false);
   });
 });
+
+/**
+ * `_template` over a data model the reference compiler produced.
+ *
+ * The catalog's packing-list example rendered an empty box, and nothing failed:
+ * the compiler writes `$/items/0/label` as `{items: {"0": {...}}}`, and a
+ * renderer that iterates only real arrays draws nothing for an object. An empty
+ * list is a perfectly ordinary thing for a list to be, so no test noticed.
+ */
+describe('list templates', () => {
+  const surface = (items: unknown) => {
+    const store = new SurfaceStore();
+    store.apply([
+      { version: 'v0.9.1', createSurface: { surfaceId: 's', catalogId: 'c' } },
+      {
+        version: 'v0.9.1',
+        updateComponents: {
+          surfaceId: 's',
+          components: [
+            { id: 'row', component: 'Text', text: { path: 'label' } },
+            { id: 'root', component: 'List', children: { path: '/items', componentId: 'row' } },
+          ],
+        },
+      },
+      { version: 'v0.9.1', updateDataModel: { surfaceId: 's', path: '/', value: { items } } },
+    ] as never);
+    return store;
+  };
+
+  const rowsOf = (items: unknown) => {
+    const model = surface(items).get('s')!.dataModel as Record<string, unknown>;
+    return model['items'];
+  };
+
+  it('keeps a real array as it is', () => {
+    expect(rowsOf([{ label: 'Passport' }])).toEqual([{ label: 'Passport' }]);
+  });
+
+  it('stores an index-keyed map as the compiler wrote it', () => {
+    // The renderer is what makes this iterate; the store does not rewrite it,
+    // because the data model is the agent's to describe.
+    expect(rowsOf({ '0': { label: 'Passport' }, '1': { label: 'Adapter' } })).toEqual({
+      '0': { label: 'Passport' },
+      '1': { label: 'Adapter' },
+    });
+  });
+});

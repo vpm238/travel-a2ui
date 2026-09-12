@@ -53,10 +53,15 @@ const paths: Record<string, ReactElement> = {
       <path d="M17 3c-1.5 1.5-2 3.5-2 6s.5 3 2 3v9" />
     </>
   ),
+  // A classical facade — pediment, columns, plinth. It was a house with a front
+  // door, which is what `sight` drew for the Prado: a museum is not somewhere
+  // you live, and the icon is doing the whole job of saying what kind of stop
+  // this is.
   sight: (
     <>
-      <path d="M4 20V9l8-5 8 5v11" />
-      <path d="M9 20v-6h6v6" />
+      <path d="M3 9l9-5 9 5" />
+      <path d="M4 9v9M9 9v9M15 9v9M20 9v9" />
+      <path d="M2.5 20h19" />
     </>
   ),
   transit: (

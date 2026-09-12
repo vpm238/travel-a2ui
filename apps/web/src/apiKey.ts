@@ -1,7 +1,7 @@
 /**
  * Getting the API key in, including from the URL.
  *
- * The convenient thing is `https://…/#key=sk-ant-…` — open the link and start
+ * The convenient thing is `https://…/#key=AIza…` — open the link and start
  * using it, no form. The dangerous thing is that URLs are the least private
  * place to put a credential: they go in browser history, in bookmarks, in the
  * `Referer` header, and — for a query string — in every access log between the
@@ -9,9 +9,9 @@
  *
  * So both forms are accepted and treated differently:
  *
- *   #key=sk-ant-…    the fragment. **Never sent to any server**, by definition.
+ *   #key=AIza…    the fragment. **Never sent to any server**, by definition.
  *                    This is the form to use and the one the app hands out.
- *   ?key=sk-ant-…    the query string. Works, because people will paste it, but
+ *   ?key=AIza…    the query string. Works, because people will paste it, but
  *                    the server *did* see it and the app says so once.
  *
  * Either way the key is pulled out and the address bar is rewritten

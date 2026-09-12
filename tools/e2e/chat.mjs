@@ -45,7 +45,7 @@ const SHOT = shotIndex === -1 ? null : process.argv[shotIndex + 1];
 
 /** The turn the fake model produces, in the order a real one would stream it. */
 const FIRST_TURN = [
-  { type: 'start', model: 'claude-opus-5', skill: 'express-monolithic', surfaceId: 'inline-1' },
+  { type: 'start', model: 'gemini-3.8-flash', skill: 'express-monolithic', surfaceId: 'inline-1' },
   { type: 'tool', name: 'search_flights', input: { destination: 'Madrid' }, status: 'running' },
   { type: 'tool_result', name: 'search_flights', result: { count: 3 }, isError: false },
 ];
@@ -73,7 +73,7 @@ flight = Text($/trip/selectedFlight)
 root = Column([title, flight], align="stretch")`;
 
 const SECOND_TURN = [
-  { type: 'start', model: 'claude-opus-5', skill: 'express-monolithic', surfaceId: 'inline-2' },
+  { type: 'start', model: 'gemini-3.8-flash', skill: 'express-monolithic', surfaceId: 'inline-2' },
   { type: 'tool', name: 'save_trip', input: { selectedFlight: 'IB6250' }, status: 'running' },
   { type: 'tool_result', name: 'save_trip', result: { saved: true }, isError: false },
   { type: 'trip', trip: { destination: 'Madrid', selectedFlight: 'IB6250', travelers: 2 } },

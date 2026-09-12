@@ -34,6 +34,7 @@ export type AgentEvent =
       outputTokens: number;
       cacheReadTokens: number;
       cacheWriteTokens: number;
+      thoughtTokens: number;
     }
   | { type: 'error'; message: string; retryable: boolean }
   | { type: 'done'; stopReason: string | null };
@@ -61,7 +62,6 @@ export interface Meta {
   models: ModelOption[];
   surfaces: SurfaceKind[];
   skills: SkillInfo[];
-  destinations: Array<{ city: string; country: string; airport: string; summary: string }>;
   mcpEndpoint: string;
   keyProvided: boolean;
   /** Which agent runtimes this deployment knows about. */
@@ -133,13 +133,26 @@ export function clientHints(): ChatRequest['client'] {
  * components, the catalog, the skills and this front end are one build, and the
  * thing running the agent loop underneath is swappable at runtime.
  *
- *   worker         the Cloudflare Worker this app is served from. Same origin,
- *                  nothing to configure, one deploy.
- *   managed-agent  the Python backend in `backends/claude-managed-agent`, which
- *                  hands the loop to an Anthropic-hosted Managed Agent. Runs
- *                  somewhere else, so it needs an origin.
+ *   worker  the Cloudflare Worker this app is served from. The loop runs at the
+ *           edge, on the traveler's own Gemini key, and the model calls the
+ *           travel tools directly.
+ *
+ * Two alternatives were built and removed, both worth recording because the
+ * reasons are measurements rather than opinions.
+ *
+ * A Google-hosted Managed Agent on the Antigravity harness: creating and running
+ * the agent worked, but its *sandbox* returned `Audience of an ID token must be
+ * a URL or service account` for every file and code-execution call. That harness
+ * reads its skills off the sandbox filesystem, so the agent ran with no contract
+ * at all, and a bring-your-own-key demo has no service-account credential.
+ *
+ * Cloudflare Code Mode, where the model writes a script instead of calling tools:
+ * built, measured, and slower. The pitch is that independent searches collapse
+ * into one `Promise.all`; Gemini already issues independent calls together in a
+ * single round, so a flights-and-hotels turn was two rounds either way — 5.2s
+ * against 4.4s, for the sandbox start. Kept in the history, not in the product.
  */
-export type BackendId = 'worker' | 'managed-agent';
+export type BackendId = 'worker';
 
 export interface BackendOption {
   id: BackendId;
@@ -205,7 +218,7 @@ export interface StreamOptions {
 /** Sends one turn and calls `onEvent` for every event until the turn ends. */
 export async function streamTurn(request: ChatRequest, options: StreamOptions): Promise<void> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
-  if (options.apiKey) headers['x-anthropic-key'] = options.apiKey;
+  if (options.apiKey) headers['x-goog-api-key'] = options.apiKey;
 
   const response = await fetch(api('/api/chat'), {
     method: 'POST',

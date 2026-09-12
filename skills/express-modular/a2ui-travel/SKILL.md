@@ -1,19 +1,19 @@
 ---
 name: a2ui-travel
-description: "Plans trips as interactive UI: flight and hotel options, day-by-day itineraries, price breakdowns, and trip dashboards."
+description: UI component catalog signatures for a2ui-travel. Use when building a2ui-travel
+  user interface components.
 metadata:
-  protocol_version: "0.9.1"
+  protocol_version: 0.9.1
   inference_format: express
-  catalog: a2ui-travel
+  catalogs:
+  - a2ui-travel
   catalog_id: https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json
-  requires:
-    - a2ui-core
 ---
 
 ## Positional Component Signatures
 
 Use these exact positional signatures to instantiate components. Do not output property keys:
-• ActivityItem(title, time?, category? (static only), location?, duration?, note?, action? (static only), done?)
+• ActivityItem(title, time?, category? (static), location?, duration?, note?, action? (static), done?)
   - Description: A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.
   - title: What it is, e.g. 'Prado Museum'.
   - time: Start time as a display string, e.g. '10:00'.
@@ -23,15 +23,13 @@ Use these exact positional signatures to instantiate components. Do not output p
   - note: One short practical note, e.g. 'Book the timed entry'.
   - action: Fired when the traveler taps the activity.
   - done: Whether the traveler has ticked this off.
-• Button(child (component ID), variant? (static only), action (static only), checks? (static only))
+• Button(child (component ID), variant? (static), action (static), checks? (static))
   - child: The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button.
   - variant: A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link. Must be one of: 'default', 'primary', 'borderless'
-• Card(child (component ID))
-  - child: The ID of the single child component to be rendered inside the card. To display multiple elements, you MUST wrap them in a layout component (like Column or Row) and pass that container's ID here. Do NOT pass multiple IDs or a non-existent ID.
-• CheckBox(label, value, checks? (static only))
+• CheckBox(label, value, checks? (static))
   - label: The text to display next to the checkbox.
   - value: The current state of the checkbox (true for checked, false for unchecked).
-• ChoicePicker(label?, variant? (static only), options (static only), value, displayStyle? (static only), filterable? (static only), checks? (static only))
+• ChoicePicker(label?, variant? (static), options (static), value, displayStyle? (static), filterable? (static), checks? (static))
   - Description: A component that allows selecting one or more options from a list.
   - label: The label for the group of options.
   - variant: A hint for how the choice picker should be displayed and behave. Must be one of: 'multipleSelection', 'mutuallyExclusive'
@@ -42,19 +40,19 @@ Use these exact positional signatures to instantiate components. Do not output p
   - value: The list of currently selected values. This should be bound to a string array in the data model.
   - displayStyle: The display style of the component. Must be one of: 'checkbox', 'chips'
   - filterable: If true, displays a search input to filter the options.
-• Column(children, justify? (static only), align? (static only))
+• Column(children, justify? (static), align? (static))
   - Description: A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
   - justify: Defines the arrangement of children along the main axis (vertically). Use 'spaceBetween' to push items to the edges (e.g. header at top, footer at bottom), or 'start'/'end'/'center' to pack them together. Must be one of: 'start', 'center', 'end', 'spaceBetween', 'spaceAround', 'spaceEvenly', 'stretch'
   - align: Defines the alignment of children along the cross axis (horizontally). This is similar to the CSS 'align-items' property. Must be one of: 'center', 'end', 'start', 'stretch'
-• DateRangePicker(label, start, end, action? (static only), nightsLabel?, checks? (static only))
+• DateRangePicker(label, start, end, action? (static), nightsLabel?, checks? (static))
   - Description: Picks the trip's start and end dates. Both bound values are RFC 3339 timestamps with an offset, e.g. '2026-04-12T00:00:00Z'.
   - label: What the range is for, e.g. 'When are you going?'.
   - start: Bound path for the start date (RFC 3339).
   - end: Bound path for the end date (RFC 3339).
   - action: Fired when the traveler commits a new range.
   - nightsLabel: Derived caption, e.g. '6 nights'.
-• ExpenseSplit(title, total, participants (static only), action? (static only), actionLabel?)
+• ExpenseSplit(title, total, participants (static), action? (static), actionLabel?)
   - Description: Splits a shared trip cost between travelers and shows who owes what.
   - title: What was paid for, e.g. 'Dinner at Sobrino'.
   - total: Preformatted total, e.g. '€96'.
@@ -65,7 +63,7 @@ Use these exact positional signatures to instantiate components. Do not output p
     * status - One of 'paid', 'owes', 'settled'.
   - action: Fired when the traveler settles or edits the split.
   - actionLabel: Label for that action, e.g. 'Settle up'.
-• FlightOption(airline, departTime, arriveTime, origin, destination, price, action (static only), duration?, stops?, flightNumber?, cabin? (static only), selected?, badge?)
+• FlightOption(airline, departTime, arriveTime, origin, destination, price, action (static), duration?, stops?, flightNumber?, cabin? (static), selected?, badge?)
   - Description: A single selectable flight itinerary leg. Use one per option when presenting a choice of flights; do not build flight rows by hand out of Row and Text.
   - airline: Operating carrier, e.g. 'Iberia' or 'Delta'.
   - departTime: Local departure time as a display string, e.g. '07:15'.
@@ -80,7 +78,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - cabin: Cabin the price refers to. Must be one of: 'economy', 'premium', 'business', 'first'
   - selected: Whether this option is currently chosen. Bind it to the data model so the selection survives a re-render.
   - badge: Short editorial tag, e.g. 'Cheapest' or 'Fastest'.
-• HotelCard(name, price, action (static only), imageUrl?, neighborhood?, rating?, amenities? (static only), selected?, badge?)
+• HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities? (static), selected?, badge?)
   - Description: A place to stay, presented as a rich card with imagery, rating and nightly price.
   - name: Property name.
   - price: Preformatted nightly or total price, e.g. '$186 / night'.
@@ -91,25 +89,18 @@ Use these exact positional signatures to instantiate components. Do not output p
   - amenities: Short amenity labels, at most five. Static values only.
   - selected: Whether this property is currently chosen.
   - badge: Short editorial tag, e.g. 'Walkable' or 'Best value'.
-• Icon(name)
-  - name: The name of the icon to display. Must be one of: 'accountCircle', 'add', 'arrowBack', 'arrowForward', 'attachFile', 'calendarToday', 'call', 'camera', 'check', 'close', 'delete', 'download', 'edit', 'event', 'error', 'fastForward', 'favorite', 'favoriteOff', 'folder', 'help', 'home', 'info', 'locationOn', 'lock', 'lockOpen', 'mail', 'menu', 'moreVert', 'moreHoriz', 'notificationsOff', 'notifications', 'pause', 'payment', 'person', 'phone', 'photo', 'play', 'print', 'refresh', 'rewind', 'search', 'send', 'settings', 'share', 'shoppingCart', 'skipNext', 'skipPrevious', 'star', 'starHalf', 'starOff', 'stop', 'upload', 'visibility', 'visibilityOff', 'volumeDown', 'volumeMute', 'volumeOff', 'volumeUp', 'warning'
-• Image(url, description?, fit? (static only), variant? (static only))
-  - url: The URL of the image to display.
-  - description: Accessibility text for the image.
-  - fit: Specifies how the image should be resized to fit its container. This corresponds to the CSS 'object-fit' property. Must be one of: 'contain', 'cover', 'fill', 'none', 'scaleDown'
-  - variant: A hint for the image size and style. Must be one of: 'icon', 'avatar', 'smallFeature', 'mediumFeature', 'largeFeature', 'header'
-• ItineraryDay(title, children, date?, summary?, action? (static only))
+• ItineraryDay(title, children, date?, summary?, action? (static))
   - Description: One day of a trip. Its children are the day's ActivityItem components, in chronological order.
   - title: Day heading, e.g. 'Day 3 — Toledo'.
   - children: The day's activities, earliest first.
   - date: Date as a display string, e.g. 'Tue 14 Apr'.
   - summary: One-line character of the day, e.g. 'Old town, slow pace'.
   - action: Fired when the traveler opens or edits the whole day.
-• List(children, direction? (static only), align? (static only))
+• List(children, direction? (static), align? (static))
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list.
   - direction: The direction in which the list items are laid out. Must be one of: 'vertical', 'horizontal'
   - align: Defines the alignment of children along the cross axis. Must be one of: 'start', 'center', 'end', 'stretch'
-• MapPreview(markers (static only), caption?, action? (static only))
+• MapPreview(markers (static), caption?, action? (static))
   - Description: A lightweight schematic map of the places in play. Not a live map — it orients the traveler and is safe to render offline.
   - markers: Places to pin. Static values only — the host lays them out relative to each other.
     List of maps keys:
@@ -118,7 +109,7 @@ Use these exact positional signatures to instantiate components. Do not output p
     * day - Optional day number this marker belongs to.
   - caption: One line describing what the map shows.
   - action: Fired when the traveler taps the map.
-• PriceSummary(lines (static only), total, totalLabel?, action? (static only), actionLabel?, caption?)
+• PriceSummary(lines (static), total, totalLabel?, action? (static), actionLabel?, caption?)
   - Description: The money view: an itemized breakdown and a total. Use this instead of a hand-built table whenever you show what a trip costs.
   - lines: Itemized cost lines in display order. Static values only.
     List of maps keys:
@@ -130,46 +121,46 @@ Use these exact positional signatures to instantiate components. Do not output p
   - action: Primary money action, e.g. hold or book.
   - actionLabel: Label for that action, e.g. 'Hold for 24h'.
   - caption: Fine print, e.g. 'Estimated, taxes included'.
-• ProgressMeter(label, value, max, caption?, tone? (static only))
+• ProgressMeter(label, value, max, caption?, tone? (static))
   - Description: How far along something is — budget spent, packing done, bookings confirmed. `value` and `max` are numbers, not display strings.
   - label: What is progressing.
   - value: Current amount.
   - max: Amount that counts as complete.
   - caption: Reading in words, e.g. '$1,320 of $2,000'.
   - tone: Colour role for the bar. Must be one of: 'neutral', 'positive', 'caution', 'critical', 'accent'
-• Row(children, justify? (static only), align? (static only))
+• Row(children, justify? (static), align? (static))
   - Description: A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
   - justify: Defines the arrangement of children along the main axis (horizontally). Use 'spaceBetween' to push items to the edges, or 'start'/'end'/'center' to pack them together. Must be one of: 'center', 'end', 'spaceAround', 'spaceBetween', 'spaceEvenly', 'start', 'stretch'
   - align: Defines the alignment of children along the cross axis (vertically). This is similar to the CSS 'align-items' property, but uses camelCase values (e.g., 'start'). Must be one of: 'start', 'center', 'end', 'stretch'
-• Slider(label?, min? (static only), max (static only), value, checks? (static only))
+• Slider(label?, min? (static), max (static), value, checks? (static))
   - label: The label for the slider.
   - min: The minimum value of the slider.
   - max: The maximum value of the slider.
   - value: The current value of the slider.
-• StatTile(label, value, caption?, tone? (static only), action? (static only))
+• StatTile(label, value, caption?, tone? (static), action? (static))
   - Description: One number that matters, sized for a dashboard grid. Home-surface staple: days until departure, budget left, bookings confirmed.
   - label: What the number measures.
   - value: The number as a display string, e.g. '17'.
   - caption: Context under the number, e.g. 'until Madrid'.
   - tone: Colour role for the tile. Must be one of: 'neutral', 'positive', 'caution', 'critical', 'accent'
   - action: Fired when the traveler taps the tile.
-• Text(text, variant? (static only))
+• Text(text, variant? (static))
   - text: The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation.
   - variant: A hint for the base text style. Must be one of: 'h1', 'h2', 'h3', 'h4', 'h5', 'caption', 'body'
-• TextField(label, value?, variant? (static only), validationRegexp? (static only), checks? (static only))
+• TextField(label, value?, variant? (static), validationRegexp? (static), checks? (static))
   - label: The text label for the input field.
   - value: The value of the text field.
   - variant: The type of input field to display. Must be one of: 'longText', 'number', 'shortText', 'obscured'
   - validationRegexp: A regular expression used for client-side validation of the input.
-• TravelerCounter(label, value, min? (static only), max? (static only), caption?, checks? (static only))
+• TravelerCounter(label, value, min? (static), max? (static), caption?, checks? (static))
   - Description: A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.
   - label: What is being counted, e.g. 'Adults'.
   - value: Bound path holding the current count.
   - min: Lowest allowed count.
   - max: Highest allowed count.
   - caption: Qualifier, e.g. 'Age 12+'.
-• WeatherStrip(days (static only), place?, caption?)
+• WeatherStrip(days (static), place?, caption?)
   - Description: A short forecast row for the destination. Purely informational.
   - days: Forecast entries in date order, at most seven. Static values only.
     List of maps keys:
@@ -252,12 +243,11 @@ You are composing travel UI. A few house rules that matter more than anything el
 - Keep a surface to one job. An inline card answers the message it is attached
   to; the sidebar refines the trip in flight; the home surface summarizes.
 
-## Examples
+### Examples:
 
-**Inline: answering "find me a flight to Madrid" inside the chat feed. One surface, one job — three options and a way to pick one.**
-
-```
-<a2ui>
+---BEGIN 10-inline-flight-options---
+# Inline: answering "find me a flight to Madrid" inside the chat feed.
+# One surface, one job — three options and a way to pick one.
 surface("inline-flights")
 $/trip/selectedOutbound = ""
 heading = Text("Outbound · JFK → MAD · Sun 12 Apr", variant="h3")
@@ -266,13 +256,12 @@ f2 = FlightOption("Delta", "21:10", "10:50 +1", "JFK", "MAD", "$468", Event("sel
 f3 = FlightOption("TAP", "17:25", "11:05 +1", "JFK", "MAD", "$367", Event("select_flight", {id: "TP208", price: "$367"}), duration="11h 40m", stops="1 stop · LIS", flightNumber="TP208", badge="Lowest fare")
 note = Text("Prices are per traveler, round trip.")
 root = Column([heading, f1, f2, f3, note])
-</a2ui>
-```
 
-**Sidebar: controls that refine the trip currently in focus. The sidebar is a persistent surface — target it by id and it replaces itself.**
+---END 10-inline-flight-options---
 
-```
-<a2ui>
+---BEGIN 20-sidebar-refine---
+# Sidebar: controls that refine the trip currently in focus.
+# The sidebar is a persistent surface — target it by id and it replaces itself.
 surface("sidebar")
 $/filters/maxPrice = 600
 $/filters/adults = 2
@@ -283,13 +272,12 @@ budget = Slider("Max fare", 150, 1500, $/filters/maxPrice)
 stops = ChoicePicker("Stops", "mutuallyExclusive", [{label: "Any", value: "any"}, {label: "Nonstop only", value: "nonstop"}], $/filters/stops)
 apply = Button(Text("Apply"), "primary", Event("apply_filters", {maxPrice: $/filters/maxPrice, adults: $/filters/adults, stops: $/filters/stops}))
 root = Column([title, dates, who, budget, stops, apply], align="stretch")
-</a2ui>
-```
 
-**Home: a generative dashboard, reassembled for what matters today. Stat tiles first, then the thing that needs a decision, then context.**
+---END 20-sidebar-refine---
 
-```
-<a2ui>
+---BEGIN 30-home-dashboard---
+# Home: a generative dashboard, reassembled for what matters today.
+# Stat tiles first, then the thing that needs a decision, then context.
 surface("home")
 hello = Text("17 days to Madrid", variant="h1")
 t1 = StatTile("Booked", "3 of 5", caption="flights, hotel, transfer", tone="positive")
@@ -300,13 +288,11 @@ budget = ProgressMeter("Budget used", 1320, 2000, caption="$1,320 of $2,000", to
 weather = WeatherStrip([{day: "Sun", high: "21°", low: "9°", condition: "sun"}, {day: "Mon", high: "19°", low: "8°", condition: "sun"}, {day: "Tue", high: "16°", low: "7°", condition: "rain"}], place="Madrid", caption="Pack a light jacket for Tuesday")
 map = MapPreview([{label: "Hotel", kind: "stay"}, {label: "Prado", kind: "sight", day: "2"}, {label: "Sobrino", kind: "food", day: "2"}], caption="Everything on day 2 is walkable")
 root = Column([hello, tiles, budget, weather, map], align="stretch")
-</a2ui>
-```
 
-**A day of the itinerary, plus a template-driven packing list bound to data.**
+---END 30-home-dashboard---
 
-```
-<a2ui>
+---BEGIN 40-itinerary-day---
+# A day of the itinerary, plus a template-driven packing list bound to data.
 surface("itinerary")
 $/packing/0/item = "Passport"
 $/packing/0/done = true
@@ -320,13 +306,11 @@ packingRow = CheckBox($item, $done)
 packing = List(_template($/packing, packingRow))
 packingTitle = Text("Packing", variant="h4")
 root = Column([day2, packingTitle, packing])
-</a2ui>
-```
 
-**Several things to set, one button. Every edited path is bound into its context.**
+---END 40-itinerary-day---
 
-```
-<a2ui>
+---BEGIN 50-traveler-form---
+# Several things to set, one button. Every edited path is bound into its context.
 surface("inline-traveler")
 title = Text("Who is travelling?", variant="h3")
 name = TextField("Full name (as on passport)", $/traveler/name)
@@ -334,15 +318,14 @@ email = TextField("Email", $/traveler/email, "shortText")
 seat = ChoicePicker("Seat", "mutuallyExclusive", [{label: "Window", value: "window"}, {label: "Aisle", value: "aisle"}], $/traveler/seat)
 save = Button(Text("Save traveller"), "primary", Event("save_traveler", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))
 root = Column([title, name, email, seat, save], align="stretch")
-</a2ui>
-```
 
-**Changing one value on a surface that is already on screen. No components, no root — just the data. The host re-renders in place.**
+---END 50-traveler-form---
 
-```
-<a2ui>
+---BEGIN 60-incremental-update---
+# Changing one value on a surface that is already on screen.
+# No components, no root — just the data. The host re-renders in place.
 surface("home")
 $/home/budgetUsed = 1480
 $/home/budgetCaption = "$1,480 of $2,000"
-</a2ui>
-```
+
+---END 60-incremental-update---

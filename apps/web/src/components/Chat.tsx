@@ -70,7 +70,15 @@ export function Chat({ agent }: { agent: Agent }) {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const text = draft.trim();
-    if (!text || agent.busy) return;
+    if (!text) return;
+    // Typing during a call goes *into* the call rather than starting a second
+    // conversation beside it — the Live session already holds the thread.
+    if (agent.voice.listening) {
+      setDraft('');
+      agent.voice.say(text);
+      return;
+    }
+    if (agent.busy) return;
     setDraft('');
     void agent.send(text, { surface: 'inline' });
   };
@@ -164,11 +172,40 @@ export function Chat({ agent }: { agent: Agent }) {
         <div ref={bottomRef} />
       </div>
 
+      {agent.voice.error ? <p className="composer__voiceError">{agent.voice.error}</p> : null}
+
       <form className="composer" onSubmit={submit}>
+        {/*
+          A call is not a different app, so it is a button on the composer
+          rather than a mode you switch into: press it and keep typing if you
+          would rather type an airport code than say one.
+        */}
+        <button
+          type="button"
+          className={`composer__call${agent.voice.listening ? ' is-live' : ''}${
+            agent.voice.speaking ? ' is-speaking' : ''
+          }`}
+          onClick={() => void agent.voice.start()}
+          aria-pressed={agent.voice.listening}
+          title={agent.voice.listening ? 'End the call' : 'Talk to it'}
+        >
+          <span aria-hidden>{agent.voice.listening ? '■' : '🎙'}</span>
+          <span className="visually-hidden">
+            {agent.voice.listening ? 'End the call' : 'Start a voice call'}
+          </span>
+        </button>
         <textarea
           value={draft}
           rows={1}
-          placeholder={agent.busy ? 'Working…' : 'Ask for a trip, or change one'}
+          placeholder={
+            agent.voice.listening
+              ? agent.voice.speaking
+                ? 'Speaking…'
+                : 'Listening — or type'
+              : agent.busy
+                ? 'Working…'
+                : 'Ask for a trip, or change one'
+          }
           aria-label="Message"
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {

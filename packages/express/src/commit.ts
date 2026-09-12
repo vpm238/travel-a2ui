@@ -233,3 +233,150 @@ export function bindCommitContext(messages: A2uiMessage[]): A2uiMessage[] {
 
   return messages;
 }
+
+/**
+ * Night counts the model wrote as text, replaced by the call that computes them.
+ *
+ * The interesting failure is not the one that looks broken. A model that writes
+ * `nightsLabel="7 nights"` produces a label that is correct in the screenshot
+ * and a lie the moment the traveler moves a date — and nothing downstream ever
+ * notices, because a string is a string.
+ *
+ * A2UI already has the answer: a `formatString` whose template carries
+ * `${calcNights(...)}` is resolved by every renderer against the live data
+ * model, so the label recomputes as the picker moves, with no turn in between.
+ * The skill asks for exactly that, and mostly gets it. This is the case where
+ * it did not.
+ *
+ * The model keeps any label a function could not have written — a picker
+ * captioned "including the wedding night" is its call. Only a bare count is
+ * taken over.
+ */
+export function bindDerivedLabels(messages: A2uiMessage[]): A2uiMessage[] {
+  const visit = (components: ComponentNode[] | undefined): void => {
+    for (const node of components ?? []) {
+      if (node.component !== 'DateRangePicker') continue;
+
+      const start = node['start'];
+      const end = node['end'];
+      // Only when both ends are bound: a picker holding literal dates has
+      // nothing to recompute against.
+      if (!isPathBinding(start) || !isPathBinding(end)) continue;
+      if (!isCountOfNights(node['nightsLabel'])) continue;
+
+      node['nightsLabel'] = {
+        call: 'formatString',
+        args: {
+          value:
+            `\${calcNights(start:\${${pathOf(start)}}, end:\${${pathOf(end)}})} ` +
+            'nights',
+        } as JsonObject,
+      };
+    }
+  };
+
+  for (const message of messages) {
+    if ('createSurface' in message) visit(message.createSurface.components);
+    else if ('updateComponents' in message) visit(message.updateComponents.components);
+  }
+
+  return messages;
+}
+
+const isPathBinding = (value: Json | undefined): boolean =>
+  Boolean(value) &&
+  typeof value === 'object' &&
+  !Array.isArray(value) &&
+  typeof (value as JsonObject)['path'] === 'string';
+
+const pathOf = (value: Json | undefined): string => String((value as JsonObject)['path']);
+
+/**
+ * True for a label that is only trying to say how many nights it is.
+ *
+ * Missing entirely, or a bare count the model worked out this turn. A template
+ * is left alone — that is the right answer already, and rewriting it would
+ * throw away wording the model chose.
+ */
+function isCountOfNights(value: Json | undefined): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value !== 'string') return false;
+  const text = value.trim();
+  if (text === '') return true;
+  if (text.includes('${')) return false;
+  return /^\d+\s*nights?$/i.test(text);
+}
+
+/**
+ * Keeps the panel's one interaction out of the conversation.
+ *
+ * The split this whole app is built on is that the conversation is where you
+ * decide and the panel is where decisions live — so the panel is read-only
+ * except for one thing, a `change` that re-opens a settled decision back in the
+ * conversation. That direction is enforced: editors drawn on a panel are
+ * ignored by the host.
+ *
+ * The other direction was only asked for, and a live run shows it being
+ * ignored: under a card asking for dates, the model drew the panel's own record
+ * again — "Your trip · Route · SFO → ORD → JFK · Change" — so the same decision
+ * had two Change buttons on screen at once, in two places, one of them inside
+ * the surface the traveler was still filling in.
+ *
+ * A `change` event is the panel's alone. Anywhere else it is a control that
+ * either does nothing or competes with the one that works, so it is removed
+ * here, along with any container left holding nothing.
+ */
+export function stripPanelActions(
+  messages: A2uiMessage[],
+  standingSurfaces: readonly string[],
+): A2uiMessage[] {
+  const standing = new Set(standingSurfaces);
+
+  const prune = (surfaceId: string, components: ComponentNode[] | undefined): ComponentNode[] | undefined => {
+    if (!components || standing.has(surfaceId)) return components;
+
+    const dropped = new Set<string>();
+    for (const node of components) {
+      const event = eventOf(node);
+      if (event && event['name'] === 'change') dropped.add(String(node.id));
+    }
+    if (dropped.size === 0) return components;
+
+    // Repeated, because dropping a button can empty the row that held it, and
+    // an empty row is a gap on screen that nothing explains.
+    let kept = components.filter((node) => !dropped.has(String(node.id)));
+    for (let pass = 0; pass < 5; pass += 1) {
+      let changed = false;
+      for (const node of kept) {
+        if (!Array.isArray(node['children'])) continue;
+        const children = (node['children'] as Json[]).filter(
+          (child) => typeof child !== 'string' || !dropped.has(child),
+        );
+        if (children.length !== (node['children'] as Json[]).length) {
+          node['children'] = children;
+          changed = true;
+        }
+        // A container that only ever held the button, and is not the root.
+        if (children.length === 0 && node.id !== 'root' && !dropped.has(String(node.id))) {
+          dropped.add(String(node.id));
+          changed = true;
+        }
+      }
+      if (!changed) break;
+      kept = kept.filter((node) => !dropped.has(String(node.id)));
+    }
+    return kept;
+  };
+
+  for (const message of messages) {
+    if ('createSurface' in message) {
+      const pruned = prune(message.createSurface.surfaceId, message.createSurface.components);
+      if (pruned) message.createSurface.components = pruned;
+    } else if ('updateComponents' in message) {
+      message.updateComponents.components =
+        prune(message.updateComponents.surfaceId, message.updateComponents.components) ?? [];
+    }
+  }
+
+  return messages;
+}

@@ -22,6 +22,37 @@ import { readPointer, type Surface, type SurfaceStore } from './store.js';
 import * as basic from './components/basic.js';
 import * as travel from './components/travel.js';
 
+/**
+ * The indices a `_template` should repeat over.
+ *
+ * An array is the obvious case. The other one is not obvious and is why this
+ * exists: the reference Express compiler turns `$/items/0/label = "Passport"`
+ * into `{items: {"0": {...}}}` — an object whose keys happen to be digits —
+ * because it writes nested paths without looking at what a numeric segment
+ * means. A renderer that iterates only real arrays therefore draws nothing for
+ * the catalog's own packing-list example, and draws it *silently*, because an
+ * empty list is a perfectly ordinary thing for a list to be.
+ *
+ * Fixing the compiler would have been the tidier place, and the parity suite
+ * says no: this project pins its compiler byte-for-byte to the reference
+ * implementation, and a divergence there is a worse problem than a lenient
+ * renderer. So the renderer is liberal in what it accepts — a map keyed 0..n-1
+ * is a list, whoever produced it — which is also the right posture for a host
+ * receiving A2UI from producers it did not write.
+ */
+export function itemsAt(value: Json | undefined): number[] {
+  if (Array.isArray(value)) return value.map((_item, index) => index);
+  if (!value || typeof value !== 'object') return [];
+
+  const keys = Object.keys(value as JsonObject);
+  if (keys.length === 0) return [];
+  // Every key an index, and no gaps — otherwise it is an object that happens to
+  // have a "0" in it, and repeating over it would invent rows.
+  const indices = keys.map(Number).sort((a, b) => a - b);
+  const contiguous = indices.every((index, position) => index === position);
+  return keys.every((key) => /^\d+$/.test(key)) && contiguous ? indices : [];
+}
+
 const MAX_DEPTH = 24;
 
 type Renderer = (props: ComponentProps) => ReactNode;
@@ -174,9 +205,8 @@ export function A2uiSurface({
           : scope.itemPointer
             ? `${scope.itemPointer}/${value.path}`
             : `/${value.path}`;
-        const items = readPointer(scope.model, pointer);
-        if (!Array.isArray(items)) return [];
-        return items.map((_item, index) =>
+        const items = itemsAt(readPointer(scope.model, pointer));
+        return items.map((index) =>
           render(value.componentId, { model: scope.model, itemPointer: `${pointer}/${index}` }, depth, seen),
         );
       }
