@@ -170,3 +170,82 @@ class TestTheContract:
         # other side is a runtime check here — but it is the same guarantee.
         with pytest.raises(ValueError, match="no results"):
             found([], FIXTURE_PROVENANCE, "nothing here")
+
+
+class TestTheDataIsNotEmpty:
+    """Every list a fixture is assembled from has to have something in it.
+
+    This guard used to live in `scripts/build_fixtures.py`, which generated a
+    bundle for the Worker because a Worker has no filesystem. The Worker is gone
+    and so is the generator — and the guard went with it, which was a mistake:
+    the Python server reads the same CSVs at import, and it is the one thing
+    actually serving travellers now.
+
+    What it prevents is not a crash. An empty list does not throw; it produces a
+    hotel called "undefined undefined", a flight on an airline with no name, a
+    price with no currency symbol. The demo keeps running and every surface is
+    quietly wrong, which is the worst failure this project has — it looks
+    exactly like a working answer.
+    """
+
+    def test_every_seed_list_has_rows(self) -> None:
+        from travel_a2ui.providers import fixture
+
+        lists = {
+            "destinations.json": fixture._DESTINATIONS,
+            "airlines.csv": fixture._AIRLINES,
+            "origins.csv": fixture._ORIGINS,
+            "currencies.csv": list(fixture._CURRENCY_SYMBOL),
+            **{f"lodging.csv ({kind})": fixture._LODGING.get(kind, [])
+               for kind in ("word", "name", "amenity", "connection")},
+        }
+        empty = sorted(name for name, rows in lists.items() if not rows)
+        assert not empty, f"{empty} would produce 'undefined undefined' rather than fail"
+
+    def test_every_origin_has_usable_coordinates(self) -> None:
+        """A missing coordinate sorts an airport to the wrong end of the list."""
+        from travel_a2ui.providers import fixture
+
+        for entry in fixture._ORIGINS:
+            assert -90 <= entry["lat"] <= 90, entry["code"]
+            assert -180 <= entry["lon"] <= 180, entry["code"]
+            assert (entry["lat"], entry["lon"]) != (0.0, 0.0), (
+                f"{entry['code']} sits at Null Island, which means the column was blank"
+            )
+
+    def test_every_destination_a_tool_can_be_asked_for_actually_answers(self) -> None:
+        """The inventory in the prompt is a promise; this is the check on it.
+
+        The agent is now told which cities this deployment has data for, and it
+        is told not to start planning anywhere else. That is only safe if every
+        city on the list really does come back with flights and somewhere to
+        stay.
+        """
+        import asyncio
+
+        from travel_a2ui.providers.fixture import FixtureProvider
+
+        provider = FixtureProvider()
+
+        async def check() -> None:
+            for entry in await provider.destinations():
+                city = entry["city"]
+                flights = await provider.search_flights(
+                    {"destination": city, "origin": "JFK", "date": "2027-04-12", "travelers": 1}
+                )
+                assert getattr(flights, "items", None), f"no flights for {city}"
+                stays = await provider.search_hotels(
+                    {"destination": city, "nights": 3, "travelers": 2}
+                )
+                assert getattr(stays, "items", None), f"nowhere to stay in {city}"
+
+        asyncio.run(check())
+
+    def test_the_prompt_names_exactly_what_the_tools_serve(self) -> None:
+        """Two lists that must not drift: what the agent is told, and what exists."""
+        from travel_a2ui.providers.fixture import _DESTINATIONS
+        from travel_a2ui.skills import _inventory
+
+        said = _inventory()
+        for entry in _DESTINATIONS:
+            assert entry["city"] in said, f"{entry['city']} is servable but unadvertised"

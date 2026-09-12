@@ -226,6 +226,43 @@ def describe_trip(trip: dict[str, Any], today: str, surface: str) -> str:
     return "\n".join(lines)
 
 
+def _inventory() -> str:
+    """What this deployment can actually answer about.
+
+    The agent was never told. It would take "a week in Ulaanbaatar", start
+    planning it, call `search_flights`, and only then be handed
+    `unknown-destination` with the list of nine cities attached — having already
+    said it was looking. Discovering the inventory by failing against it is a
+    turn wasted and a promise broken, and the traveller watched both.
+
+    It belongs in the *stable* half, before the cache breakpoint: it comes from
+    `data/` and does not change between turns, so it is paid for once per
+    conversation rather than on every one.
+
+    Deliberately not the whole of `data/`. Airlines, lodging words and
+    currencies are how a fixture is *assembled* — the agent never picks from
+    them and naming them would be a thousand tokens of noise. Destinations and
+    departure airports are the two lists a request can fail against, so they are
+    the two the agent needs.
+    """
+    from .providers.fixture import _DESTINATIONS, _ORIGINS
+
+    cities = ", ".join(f"{entry['city']} ({entry['airport']})" for entry in _DESTINATIONS)
+    airports = ", ".join(f"{entry['city']} ({entry['code']})" for entry in _ORIGINS)
+    return (
+        "## What this deployment has data for\n\n"
+        "The travel tools answer for these and refuse politely for anything else. "
+        "Knowing the list up front is the difference between offering somewhere you "
+        "can actually plan and apologising after a failed lookup.\n\n"
+        f"- **Destinations**: {cities}\n"
+        f"- **Departure airports**: {airports}\n\n"
+        "If they ask for somewhere not on the list, say so in one line before you "
+        "start planning, and offer the nearest of these that fits what they wanted — "
+        "a beach, a city, a short flight — rather than a bare list. Never begin "
+        "searching a destination you can see is not here."
+    )
+
+
 def build_system_prompt(
     *,
     variant: str,
@@ -247,7 +284,7 @@ def build_system_prompt(
     and cache nothing.
     """
     stable = "\n\n---\n\n".join(
-        [ROLE, *(_body(source) for source in _SKILL_SOURCES[variant])]
+        [ROLE, _inventory(), *(_body(source) for source in _SKILL_SOURCES[variant])]
     )
 
     parts = [
