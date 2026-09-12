@@ -65,31 +65,45 @@ VALUE_EDITORS = frozenset(
 
 
 def plan_rows(trip: dict[str, Any]) -> dict[str, Any]:
-    """The trip as rows a surface can bind to without computing anything.
+    """Every decision the traveler has made, as rows a surface binds to.
+
+    **This is what the panel is.** Not a progress checklist — that was a ladder
+    of stages in Python, and it is gone — but the record of what has been
+    decided, each row addressed so a Change button can release exactly that one
+    and nothing else.
+
+    Two kinds of row, because decisions come in two scopes:
+
+      `decisions`     the trip's own — where to, from where, the dates, the
+                      budget. One answer for the whole journey.
+      `route[].decisions`
+                      a hop's own — who is on it, its ticket, where they sleep.
+                      Keyed `legs/1/travelers`, which `release` understands, so
+                      "actually three of us on the way back" changes one hop
+                      rather than undoing the answer on another.
 
     Labels and lines are resolved here, which keeps a Flutter client from
-    needing an opinion about what "somewhere to stay" is called in English —
-    and means a value changing does not cost a model turn.
-
-    What it no longer contains is a checklist. This used to walk a seven-rung
-    ladder of stages in `trip.py`, mark each done or next, and hand the panel a
-    progress count; the ladder is gone, because which step comes next is the
-    agent's to judge from `prompts/flow.md` rather than Python's to assert. What
-    is left is what the panel is actually for: **every decision recorded, and
-    the route it belongs to** — so the traveler can see what they have said and
-    press Change on any of it.
+    needing an opinion about what "somewhere to stay" is called in English, and
+    means a value changing costs no model turn.
     """
     varies = model.party_varies(trip)
+    hops = model.journey(trip)
 
+    #: The trip-wide half. A hop's own decisions are reported on the hop, so
+    #: they are left out here rather than said twice with different scopes.
+    on_a_hop = {"travelers", "selectedFlight", "selectedHotel"}
     decisions: list[dict[str, Any]] = []
     for field in model.FIELDS:
-        value = trip.get(field["key"])
+        key = field["key"]
+        value = trip.get(key)
         if value is None or value == "" or field.get("kind") in model.LIST_KINDS:
+            continue
+        if key in on_a_hop and hops:
             continue
         text = _value_text(value)
         decisions.append(
             {
-                "key": field["key"],
+                "key": key,
                 "label": field["label"],
                 "value": text,
                 "line": f"{field['label']} — {text}",
@@ -97,9 +111,11 @@ def plan_rows(trip: dict[str, Any]) -> dict[str, Any]:
         )
 
     route: list[dict[str, Any]] = []
-    for hop in model.journey(trip):
+    for hop in hops:
+        nights = hop.get("nights")
         detail = [
             f"{hop['travelers']}\u00d7" if hop.get("travelers") is not None and varies else "",
+            f"{nights} nights" if nights else "same day" if nights == 0 else "",
             hop["mode"] if hop.get("mode") and hop["mode"] != "air" else "",
             hop.get("purpose") or "",
             ", ".join(hop["wants"]) if hop["wants"] else "",
@@ -109,16 +125,27 @@ def plan_rows(trip: dict[str, Any]) -> dict[str, Any]:
         route.append(
             {
                 "place": hop["to"],
+                "from": hop.get("from") or "",
+                "nights": nights if nights is not None else 0,
                 "detail": joined,
                 "line": f"{hop['to']} \u2014 {joined}" if detail else hop["to"],
+                # Each one changeable on its own. The panel draws a Change
+                # button per row and the host answers it with `release`.
+                "decisions": [
+                    {**row, "value": _value_text(row["value"]),
+                     "line": f"{row['label']} \u2014 {_value_text(row['value'])}"}
+                    for row in hop["decisions"]
+                ],
+                "wants": hop["wants"],
             }
         )
 
-    open_hops = sum(1 for hop in model.journey(trip) if hop["wants"])
+    open_hops = sum(1 for hop in hops if hop["wants"])
+    settled = len(decisions) + sum(len(stop["decisions"]) for stop in route)
     return {
         "decisions": decisions,
         "route": route,
-        "caption": f"{len(decisions)} decided"
+        "caption": f"{settled} decided"
         + (f" \u00b7 {len(route)} hops" if route else "")
         + (f" \u00b7 {open_hops} open" if open_hops else ""),
         "complete": bool(route) and open_hops == 0,

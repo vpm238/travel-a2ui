@@ -41,27 +41,40 @@ then the same surface with different data, and nothing has to be redrawn by hand
 when they add a stop. Say what each row is: "JFK → Madrid, 12 Apr", "Madrid →
 JFK, 19 Apr".
 
-### Who is on which hop is per hop
+### Every hop has a party size, and it is the hop's
 
 `travelers` on the trip is how many start out. A leg's own `travelers` is how
 many are on *that* leg, and it exists because parties change: someone joins,
 someone flies home early, two go out and three come back.
 
-- When they say so, record it on the leg — `legs: [{…, travelers: 3}]` — and
-  price that hop for that many.
-- Never spread the trip's number across a journey where it is not true. The
-  fare, the total and the split come out wrong together, and all of them look
-  plausible.
+- **Every hop is priced for its own number.** Pass that hop's `travelers` to
+  `search_flights`, not the trip's. A fare priced for the trip's number is wrong
+  for the hop by exactly as many tickets as the difference, and it looks
+  entirely plausible while being wrong.
+- When they say so, record it on the leg: `legs: [{…, travelers: 3}]`.
+- If you do not know who is on a hop, ask — a `TravelerCounter` per hop, every
+  hop in one surface, one button. Not one counter for the journey.
 - When a hop's party differs from the hop before it, say so on the surface — "3
   travelers on the way back", beside that hop's fares — so nobody has to work
   out why the price moved.
-- If you are not sure who is on a leg, ask with a counter per hop in one
-  surface. One question, every hop, one button.
 
-### A stop is not a hop
+### Nights decide the stay and the days, hop by hop
 
-Hops are tickets; stops are nights. Three cities is three hops and usually two
-stays — nobody sleeps in the city they fly home from on the night they fly
-home. Ask which stops need somewhere to stay, all of them in one surface, one
-checkbox each, and record the ones that do not with `needsStay: false` on that
-leg so it stops being asked.
+Hops are tickets; nights are stays. Count the nights on each hop — its
+`startDate` to its `endDate` — and that number decides what it needs:
+
+- **A hop that stays the night needs somewhere to stay *and* things to do.**
+  Both, every time, for every place they sleep. A city with a hotel and an empty
+  itinerary is half a plan, and the traveler has to ask for the other half.
+  Search the stays for that hop's nights and that hop's party, and plan the days
+  it covers — `get_destination` first, so the days name real places.
+- **A hop with no nights needs neither.** Landing and leaving the same day is a
+  connection: no hotel, no day plan, and asking about either is the question
+  that makes an agent look like a form. The hop home is usually one of these.
+- **Unless they have somewhere already.** "I'm at my sister's", "the conference
+  books it" → `needsStay: false` on that leg, and it stops being asked. The days
+  are still worth planning: they are still there for those nights.
+
+Three cities with four, three and two nights is three sets of stays, three day
+plans and three hops — each priced for whoever is on it. Ask which stops need a
+stay all in one surface, one checkbox each, rather than a city at a time.

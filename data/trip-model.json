@@ -103,6 +103,13 @@
       "note": "Filters stays. Distinct from the trip budget."
     },
     {
+      "key": "needsStay",
+      "kind": "flag",
+      "label": "whether the first stop needs somewhere to stay",
+      "stage": "stay",
+      "note": "False when they have somewhere already — staying with family, a conference booking it. Every other stop says this on its own leg; the first stop is the flat fields, so it says it here. Without it there was no way to answer the question for the first city, and the agent went on asking."
+    },
+    {
       "key": "selectedHotel",
       "kind": "text",
       "label": "where you are staying",

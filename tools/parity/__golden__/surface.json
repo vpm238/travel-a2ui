@@ -19,8 +19,16 @@
       "route": [
         {
           "place": "Madrid",
-          "detail": "dates, a ticket, to know whether a stay is needed",
-          "line": "Madrid — dates, a ticket, to know whether a stay is needed"
+          "from": "",
+          "nights": 0,
+          "detail": "dates, who is on it, a ticket",
+          "line": "Madrid — dates, who is on it, a ticket",
+          "decisions": [],
+          "wants": [
+            "dates",
+            "who is on it",
+            "a ticket"
+          ]
         }
       ],
       "caption": "1 decided · 1 hops · 1 open",
@@ -52,19 +60,28 @@
           "label": "when you are coming back",
           "value": "2027-04-19",
           "line": "when you are coming back — 2027-04-19"
-        },
-        {
-          "key": "travelers",
-          "label": "how many of you are going",
-          "value": "2",
-          "line": "how many of you are going — 2"
         }
       ],
       "route": [
         {
           "place": "Madrid",
-          "detail": "a ticket, to know whether a stay is needed",
-          "line": "Madrid — a ticket, to know whether a stay is needed"
+          "from": "JFK",
+          "nights": 7,
+          "detail": "7 nights · a ticket, somewhere to stay, things to do",
+          "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": "2",
+              "line": "who is on this hop — 2"
+            }
+          ],
+          "wants": [
+            "a ticket",
+            "somewhere to stay",
+            "things to do"
+          ]
         }
       ],
       "caption": "5 decided · 1 hops · 1 open",
@@ -89,8 +106,16 @@
       "route": [
         {
           "place": "Madrid",
-          "detail": "dates, a ticket, to know whether a stay is needed",
-          "line": "Madrid — dates, a ticket, to know whether a stay is needed"
+          "from": "JFK",
+          "nights": 0,
+          "detail": "dates, who is on it, a ticket",
+          "line": "Madrid — dates, who is on it, a ticket",
+          "decisions": [],
+          "wants": [
+            "dates",
+            "who is on it",
+            "a ticket"
+          ]
         }
       ],
       "caption": "2 decided · 1 hops · 1 open",
@@ -122,32 +147,70 @@
           "label": "when you are coming back",
           "value": "2027-04-14",
           "line": "when you are coming back — 2027-04-14"
-        },
-        {
-          "key": "travelers",
-          "label": "how many of you are going",
-          "value": "1",
-          "line": "how many of you are going — 1"
         }
       ],
       "route": [
         {
           "place": "Chicago",
-          "detail": "1× · a ticket, to know whether a stay is needed",
-          "line": "Chicago — 1× · a ticket, to know whether a stay is needed"
+          "from": "SFO",
+          "nights": 2,
+          "detail": "1× · 2 nights · a ticket, somewhere to stay, things to do",
+          "line": "Chicago — 1× · 2 nights · a ticket, somewhere to stay, things to do",
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": "1",
+              "line": "who is on this hop — 1"
+            }
+          ],
+          "wants": [
+            "a ticket",
+            "somewhere to stay",
+            "things to do"
+          ]
         },
         {
           "place": "New York",
-          "detail": "1× · a wedding · a ticket, to know whether a stay is needed",
-          "line": "New York — 1× · a wedding · a ticket, to know whether a stay is needed"
+          "from": "Chicago",
+          "nights": 4,
+          "detail": "1× · 4 nights · a wedding · a ticket, somewhere to stay, things to do",
+          "line": "New York — 1× · 4 nights · a wedding · a ticket, somewhere to stay, things to do",
+          "decisions": [
+            {
+              "key": "legs/0/travelers",
+              "label": "who is on this hop",
+              "value": "1",
+              "line": "who is on this hop — 1"
+            }
+          ],
+          "wants": [
+            "a ticket",
+            "somewhere to stay",
+            "things to do"
+          ]
         },
         {
           "place": "San Francisco",
+          "from": "New York",
+          "nights": 0,
           "detail": "2× · dates, a ticket",
-          "line": "San Francisco — 2× · dates, a ticket"
+          "line": "San Francisco — 2× · dates, a ticket",
+          "decisions": [
+            {
+              "key": "legs/1/travelers",
+              "label": "who is on this hop",
+              "value": "2",
+              "line": "who is on this hop — 2"
+            }
+          ],
+          "wants": [
+            "dates",
+            "a ticket"
+          ]
         }
       ],
-      "caption": "5 decided · 3 hops · 3 open",
+      "caption": "7 decided · 3 hops · 3 open",
       "complete": false,
       "multiStop": true
     }
@@ -195,8 +258,16 @@
             "route": [
               {
                 "place": "Madrid",
-                "detail": "dates, a ticket, to know whether a stay is needed",
-                "line": "Madrid — dates, a ticket, to know whether a stay is needed"
+                "from": "",
+                "nights": 0,
+                "detail": "dates, who is on it, a ticket",
+                "line": "Madrid — dates, who is on it, a ticket",
+                "decisions": [],
+                "wants": [
+                  "dates",
+                  "who is on it",
+                  "a ticket"
+                ]
               }
             ],
             "caption": "1 decided · 1 hops · 1 open",
@@ -277,19 +348,28 @@
                 "label": "when you are coming back",
                 "value": "2027-04-19",
                 "line": "when you are coming back — 2027-04-19"
-              },
-              {
-                "key": "travelers",
-                "label": "how many of you are going",
-                "value": "2",
-                "line": "how many of you are going — 2"
               }
             ],
             "route": [
               {
                 "place": "Madrid",
-                "detail": "a ticket, to know whether a stay is needed",
-                "line": "Madrid — a ticket, to know whether a stay is needed"
+                "from": "JFK",
+                "nights": 7,
+                "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                "decisions": [
+                  {
+                    "key": "travelers",
+                    "label": "who is on this hop",
+                    "value": "2",
+                    "line": "who is on this hop — 2"
+                  }
+                ],
+                "wants": [
+                  "a ticket",
+                  "somewhere to stay",
+                  "things to do"
+                ]
               }
             ],
             "caption": "5 decided · 1 hops · 1 open",
@@ -350,8 +430,16 @@
             "route": [
               {
                 "place": "Madrid",
-                "detail": "dates, a ticket, to know whether a stay is needed",
-                "line": "Madrid — dates, a ticket, to know whether a stay is needed"
+                "from": "JFK",
+                "nights": 0,
+                "detail": "dates, who is on it, a ticket",
+                "line": "Madrid — dates, who is on it, a ticket",
+                "decisions": [],
+                "wants": [
+                  "dates",
+                  "who is on it",
+                  "a ticket"
+                ]
               }
             ],
             "caption": "2 decided · 1 hops · 1 open",
@@ -453,32 +541,70 @@
                 "label": "when you are coming back",
                 "value": "2027-04-14",
                 "line": "when you are coming back — 2027-04-14"
-              },
-              {
-                "key": "travelers",
-                "label": "how many of you are going",
-                "value": "1",
-                "line": "how many of you are going — 1"
               }
             ],
             "route": [
               {
                 "place": "Chicago",
-                "detail": "1× · a ticket, to know whether a stay is needed",
-                "line": "Chicago — 1× · a ticket, to know whether a stay is needed"
+                "from": "SFO",
+                "nights": 2,
+                "detail": "1× · 2 nights · a ticket, somewhere to stay, things to do",
+                "line": "Chicago — 1× · 2 nights · a ticket, somewhere to stay, things to do",
+                "decisions": [
+                  {
+                    "key": "travelers",
+                    "label": "who is on this hop",
+                    "value": "1",
+                    "line": "who is on this hop — 1"
+                  }
+                ],
+                "wants": [
+                  "a ticket",
+                  "somewhere to stay",
+                  "things to do"
+                ]
               },
               {
                 "place": "New York",
-                "detail": "1× · a wedding · a ticket, to know whether a stay is needed",
-                "line": "New York — 1× · a wedding · a ticket, to know whether a stay is needed"
+                "from": "Chicago",
+                "nights": 4,
+                "detail": "1× · 4 nights · a wedding · a ticket, somewhere to stay, things to do",
+                "line": "New York — 1× · 4 nights · a wedding · a ticket, somewhere to stay, things to do",
+                "decisions": [
+                  {
+                    "key": "legs/0/travelers",
+                    "label": "who is on this hop",
+                    "value": "1",
+                    "line": "who is on this hop — 1"
+                  }
+                ],
+                "wants": [
+                  "a ticket",
+                  "somewhere to stay",
+                  "things to do"
+                ]
               },
               {
                 "place": "San Francisco",
+                "from": "New York",
+                "nights": 0,
                 "detail": "2× · dates, a ticket",
-                "line": "San Francisco — 2× · dates, a ticket"
+                "line": "San Francisco — 2× · dates, a ticket",
+                "decisions": [
+                  {
+                    "key": "legs/1/travelers",
+                    "label": "who is on this hop",
+                    "value": "2",
+                    "line": "who is on this hop — 2"
+                  }
+                ],
+                "wants": [
+                  "dates",
+                  "a ticket"
+                ]
               }
             ],
-            "caption": "5 decided · 3 hops · 3 open",
+            "caption": "7 decided · 3 hops · 3 open",
             "complete": false,
             "multiStop": true
           }
@@ -526,19 +652,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -663,19 +798,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -776,19 +920,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -889,19 +1042,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -1021,19 +1183,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -1134,19 +1305,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -1247,19 +1427,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -1360,19 +1549,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -1445,19 +1643,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -1540,19 +1747,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -1622,19 +1838,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -1718,19 +1943,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",
@@ -1831,19 +2065,28 @@
                   "label": "when you are coming back",
                   "value": "2027-04-19",
                   "line": "when you are coming back — 2027-04-19"
-                },
-                {
-                  "key": "travelers",
-                  "label": "how many of you are going",
-                  "value": "2",
-                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "a ticket, to know whether a stay is needed",
-                  "line": "Madrid — a ticket, to know whether a stay is needed"
+                  "from": "JFK",
+                  "nights": 7,
+                  "detail": "7 nights · a ticket, somewhere to stay, things to do",
+                  "line": "Madrid — 7 nights · a ticket, somewhere to stay, things to do",
+                  "decisions": [
+                    {
+                      "key": "travelers",
+                      "label": "who is on this hop",
+                      "value": "2",
+                      "line": "who is on this hop — 2"
+                    }
+                  ],
+                  "wants": [
+                    "a ticket",
+                    "somewhere to stay",
+                    "things to do"
+                  ]
                 }
               ],
               "caption": "5 decided · 1 hops · 1 open",

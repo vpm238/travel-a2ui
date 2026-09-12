@@ -764,10 +764,14 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
         return result, False
 
     if name == "release_decision":
+        # A trip field — `startDate` — or one hop's own, `legs/1/travelers`.
+        # Both are decisions somebody made and can change, and releasing the
+        # trip's party size because they changed their mind about one leg is
+        # how a correction undoes an answer nobody was correcting.
         asked = [
             str(key)
             for key in (args.get("fields") or [])
-            if model.is_trip_key(str(key))
+            if model.is_trip_key(str(key)) or model.is_hop_key(str(key))
         ]
         stages = [str(stage) for stage in (args.get("stages") or [])]
 

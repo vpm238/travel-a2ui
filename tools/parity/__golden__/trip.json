@@ -92,6 +92,13 @@
         "note": "Filters stays. Distinct from the trip budget."
       },
       {
+        "key": "needsStay",
+        "kind": "flag",
+        "label": "whether the first stop needs somewhere to stay",
+        "stage": "stay",
+        "note": "False when they have somewhere already — staying with family, a conference booking it. Every other stop says this on its own leg; the first stop is the flat fields, so it says it here. Without it there was no way to answer the question for the first city, and the agent went on asking."
+      },
+      {
         "key": "selectedHotel",
         "kind": "text",
         "label": "where you are staying",
@@ -175,6 +182,7 @@
       "flightPrice",
       "neighborhood",
       "maxNightly",
+      "needsStay",
       "selectedHotel",
       "nightlyPrice",
       "budget",
@@ -222,6 +230,7 @@
       "flightPrice": "/trip/flightPrice",
       "neighborhood": "/trip/neighborhood",
       "maxNightly": "/trip/maxNightly",
+      "needsStay": "/trip/needsStay",
       "selectedHotel": "/trip/selectedHotel",
       "nightlyPrice": "/trip/nightlyPrice",
       "budget": "/trip/budget",
@@ -457,9 +466,10 @@
           "to": "Madrid",
           "wants": [
             "dates",
-            "a ticket",
-            "to know whether a stay is needed"
-          ]
+            "who is on it",
+            "a ticket"
+          ],
+          "decisions": []
         }
       ]
     },
@@ -536,11 +546,20 @@
           "to": "Madrid",
           "wants": [
             "a ticket",
-            "to know whether a stay is needed"
+            "somewhere to stay",
+            "things to do"
           ],
+          "nights": 7,
           "startDate": "2027-04-12",
           "endDate": "2027-04-19",
-          "travelers": 2
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
         }
       ]
     },
@@ -625,12 +644,18 @@
           "from": "JFK",
           "to": "Madrid",
           "wants": [
-            "a ticket",
-            "to know whether a stay is needed"
+            "a ticket"
           ],
           "startDate": "2027-04-19",
           "endDate": "2027-04-12",
-          "travelers": 2
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
         }
       ]
     },
@@ -717,11 +742,20 @@
           "to": "Madrid",
           "wants": [
             "a ticket",
-            "to know whether a stay is needed"
+            "somewhere to stay",
+            "things to do"
           ],
+          "nights": 7,
           "startDate": "2020-04-12",
           "endDate": "2020-04-19",
-          "travelers": 2
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
         }
       ]
     },
@@ -807,10 +841,16 @@
           "to": "Madrid",
           "wants": [
             "dates",
-            "a ticket",
-            "to know whether a stay is needed"
+            "a ticket"
           ],
-          "travelers": 2
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
         }
       ]
     },
@@ -914,15 +954,33 @@
           "from": "JFK",
           "to": "Madrid",
           "wants": [
-            "to know whether a stay is needed"
+            "things to do"
           ],
+          "nights": 7,
           "startDate": "2027-04-12",
           "endDate": "2027-04-19",
           "travelers": 2,
           "selectedFlight": "IB426",
           "flightPrice": 352,
           "selectedHotel": "h_MAD_1",
-          "nightlyPrice": 140
+          "nightlyPrice": 140,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            },
+            {
+              "key": "selectedFlight",
+              "label": "the flight for this hop",
+              "value": "IB426"
+            },
+            {
+              "key": "selectedHotel",
+              "label": "where you are staying here",
+              "value": "h_MAD_1"
+            }
+          ]
         }
       ]
     },
@@ -1040,11 +1098,20 @@
           "to": "Chicago",
           "wants": [
             "a ticket",
-            "to know whether a stay is needed"
+            "somewhere to stay",
+            "things to do"
           ],
+          "nights": 2,
           "startDate": "2027-04-10",
           "endDate": "2027-04-12",
-          "travelers": 1
+          "travelers": 1,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 1
+            }
+          ]
         },
         {
           "hop": 1,
@@ -1052,11 +1119,20 @@
           "to": "New York",
           "wants": [
             "a ticket",
-            "to know whether a stay is needed"
+            "somewhere to stay",
+            "things to do"
           ],
+          "nights": 4,
           "startDate": "2027-04-12",
           "endDate": "2027-04-16",
-          "travelers": 1
+          "travelers": 1,
+          "decisions": [
+            {
+              "key": "legs/0/travelers",
+              "label": "who is on this hop",
+              "value": 1
+            }
+          ]
         },
         {
           "hop": 2,
@@ -1064,11 +1140,17 @@
           "to": "SFO",
           "wants": [
             "dates",
-            "a ticket",
-            "to know whether a stay is needed"
+            "a ticket"
           ],
           "startDate": "2027-04-16",
-          "travelers": 2
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "legs/1/travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
         }
       ]
     },
@@ -1145,11 +1227,20 @@
           "to": "Madrid",
           "wants": [
             "a ticket",
-            "to know whether a stay is needed"
+            "somewhere to stay",
+            "things to do"
           ],
+          "nights": 7,
           "startDate": "2027-04-12",
           "endDate": "2027-04-19",
-          "travelers": 2
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
         }
       ]
     }

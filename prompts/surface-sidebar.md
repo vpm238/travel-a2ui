@@ -49,27 +49,38 @@ A persistent panel beside the conversation showing the trip as it stands. It is
   an empty shell.
 - Target the surface id `sidebar`.
 
-### End the panel with the plan
+### The decisions are the panel
 
 The host keeps `/plan` up to date for you — you never compute it, and you never
-redraw it when it moves. Bind to it and it stays right:
+redraw it when it moves. It is not a progress bar; it is **the record of every
+decision, each one addressable so it can be changed**. Bind to it and it stays
+right:
 
-- `$/plan/done` and `$/plan/total` — numbers, for a ProgressMeter
-- `$/plan/caption` — "3 of 7"
-- `$/plan/steps` — one row per stage, each with a `line` already composed
-  ("✓ Dates", "→ Flight", "– Somewhere to stay — not needed")
-- `$/plan/route` — one row per stop, each with a `line`
-- `$/plan/nextLabel` — what you are about to ask for
+- `$/plan/decisions` — the trip's own decisions: where to, from where, the
+  dates, the budget. Each row has a `label`, a `value`, a composed `line`, and a
+  `key` — the key is what a Change button releases.
+- `$/plan/route` — one row per hop, in travelling order. Each has `place`,
+  `from`, `nights`, a composed `line`, its own `decisions` rows (who is on that
+  hop, its ticket, where they sleep) and `wants` — what that hop is still
+  missing.
+- `$/plan/caption` — "7 decided · 3 hops · 2 open"
+- `$/plan/multiStop` — true when the route is worth drawing as a route
+
+A hop's decision keys are scoped to the hop: `legs/1/travelers`, not
+`travelers`. Pass the row's own `key` through and a correction changes that hop
+rather than undoing the answer on another.
 
 ```
-planStep = Text($line)
-planList = List(_template($/plan/steps, planStep))
-planMeter = ProgressMeter("The plan", $/plan/done, $/plan/total, $/plan/caption)
+decision  = Text($line)
+decisions = List(_template($/plan/decisions, decision))
+hop       = Text($line)
+hops      = List(_template($/plan/route, hop))
 ```
 
 A template row is one component and cannot declare children inline, which is why
 each row arrives as a single `line` rather than as parts to assemble.
 
-Draw it once, at the bottom, every time you build the panel. It is the traveler's
-answer to "how much of this is left", and it is the reason this reads as a
-planner rather than a chat that happens to draw cards.
+Draw both, every time you build the panel: the decisions, then the route. That
+is the traveler's answer to "what have I actually said, and what is left on each
+leg", and it is the reason this reads as a planner rather than a chat that
+happens to draw cards.

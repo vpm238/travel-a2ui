@@ -309,6 +309,10 @@
           "notes": {
             "type": "string",
             "description": "Anything else worth remembering, in one line."
+          },
+          "needsStay": {
+            "type": "boolean",
+            "description": "Whether the first stop needs somewhere to stay. False when they already have somewhere. Later stops carry this on their leg."
           }
         },
         "required": [],

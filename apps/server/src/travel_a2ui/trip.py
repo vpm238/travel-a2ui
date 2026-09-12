@@ -83,9 +83,17 @@ _LEADING_NUMBER = re.compile(r"^[+-]?(?:\d+\.?\d*|\.\d+)")
 
 _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
+#: A decision that belongs to a hop rather than to the trip: `legs/1/travelers`.
+_LEG_KEY = re.compile(r"^legs/(\d+)/([A-Za-z]+)$")
+
 
 def is_trip_key(key: str) -> bool:
     return key in BY_KEY
+
+
+def is_hop_key(key: str) -> bool:
+    """True for a decision that belongs to one hop: `legs/1/travelers`."""
+    return bool(_LEG_KEY.match(key))
 
 
 def field_for(key: str) -> dict[str, Any] | None:
@@ -452,11 +460,32 @@ def released(keys: Sequence[str]) -> list[str]:
 
 
 def release(trip: Trip, keys: Sequence[str]) -> tuple[Trip, list[str]]:
-    """Lets go of a decision so it can be made again."""
-    cleared = [key for key in released(keys) if trip.get(key) is not None]
+    """Lets go of a decision so it can be made again.
+
+    A key is either a trip field — `startDate` — or one that belongs to a
+    single hop — `legs/1/travelers`. Both spellings matter, because both are
+    decisions somebody made and can change: "actually three of us on the way
+    back" is a change to one leg's party, and clearing the trip's `travelers`
+    for it would undo a different answer on a different hop.
+    """
     nxt = dict(trip)
-    for key in cleared:
-        nxt.pop(key, None)
+    cleared: list[str] = []
+
+    for key in released(keys):
+        leg_key = _LEG_KEY.match(key)
+        if leg_key is None:
+            if trip.get(key) is not None:
+                cleared.append(key)
+                nxt.pop(key, None)
+            continue
+
+        index, field = int(leg_key.group(1)), leg_key.group(2)
+        legs = [dict(leg) for leg in _legs_of(nxt)]
+        if index < len(legs) and legs[index].get(field) is not None:
+            legs[index].pop(field, None)
+            nxt["legs"] = legs
+            cleared.append(key)
+
     return nxt, cleared
 
 
@@ -719,7 +748,17 @@ def stops(trip: Trip) -> list[Leg]:
         # anything totalling the trip either guessed at it or dropped it. The
         # flat fields *are* the first leg; they are flat because most trips have
         # only one.
-        for field in ("selectedHotel", "selectedFlight", "flightPrice", "nightlyPrice"):
+        for field in (
+            "selectedHotel",
+            "selectedFlight",
+            "flightPrice",
+            "nightlyPrice",
+            # "I'm at my sister's" has to be answerable for the first stop too.
+            # Every other stop carries `needsStay` on its leg; the first stop is
+            # the flat fields, so it carries it here — and without this the
+            # question had no answer and the agent asked it every turn.
+            "needsStay",
+        ):
             if index == 0 and leg.get(field) is None and trip.get(field) is not None:
                 out[field] = trip[field]
         resolved.append(out)
@@ -731,6 +770,40 @@ def party_varies(trip: Trip) -> bool:
     """True when the legs do not all carry the same number of people."""
     counts = {leg["travelers"] for leg in stops(trip) if leg.get("travelers") is not None}
     return len(counts) > 1
+
+
+#: What a hop records, and what to call it on the panel.
+#:
+#: Flat on the trip for the first hop and on the leg for every other one —
+#: `stops` resolves that, so this is one table rather than two.
+_HOP_DECISIONS: tuple[tuple[str, str], ...] = (
+    ("travelers", "who is on this hop"),
+    ("selectedFlight", "the flight for this hop"),
+    ("selectedHotel", "where you are staying here"),
+)
+
+
+def _nights_of(leg: Leg) -> int | None:
+    """Nights this hop stays for, or None when it has no coherent range."""
+    start, end = leg.get("startDate"), leg.get("endDate")
+    if not isinstance(start, str) or not isinstance(end, str):
+        return None
+    span = _days_between(end, start)
+    return span if span is not None and span >= 0 else None
+
+
+def _planned_days(trip: Trip, leg: Leg) -> int:
+    """Days of the plan that fall inside this hop's stay."""
+    start, end = leg.get("startDate"), leg.get("endDate")
+    if not isinstance(start, str) or not isinstance(end, str):
+        return 0
+    return sum(
+        1
+        for day in (trip.get("days") or [])
+        if isinstance(day, dict)
+        and isinstance(day.get("date"), str)
+        and start <= day["date"] <= end
+    )
 
 
 def journey(trip: Trip) -> list[dict[str, Any]]:
@@ -745,18 +818,38 @@ def journey(trip: Trip) -> list[dict[str, Any]]:
     `stops` has already resolved each hop against the one before it, so a leg
     that never said where it departs from or how many are on it arrives here
     filled in, and every hop can be priced for the right number of people.
+
+    **Three things are per hop, and the nights decide two of them.** Who is
+    travelling, because parties change — somebody joins in Chicago, somebody
+    flies home early, and a fare priced for the trip's number is wrong for the
+    hop by exactly as many tickets as the difference. Then, for a hop that stays
+    the night: somewhere to sleep, and something to do with the days. A hop that
+    lands and leaves the same day wants neither, and asking about a hotel for
+    nought nights is the question that makes an agent look like a form.
     """
     out: list[dict[str, Any]] = []
     for index, leg in enumerate(stops(trip)):
+        nights_here = _nights_of(leg)
+        planned = _planned_days(trip, leg)
+        flown = leg.get("mode") in (None, "", "air")
+
         wants: list[str] = []
         if not leg.get("startDate") or not leg.get("endDate"):
             wants.append("dates")
-        if not leg.get("selectedFlight") and leg.get("mode") in (None, "", "air"):
+        if leg.get("travelers") is None:
+            wants.append("who is on it")
+        if flown and not leg.get("selectedFlight"):
             wants.append("a ticket")
-        if leg.get("needsStay") is None:
-            wants.append("to know whether a stay is needed")
-        elif leg.get("needsStay") is True and not leg.get("selectedHotel"):
-            wants.append("somewhere to stay")
+        # Nights decide both, and they are two separate answers. "I'm at my
+        # sister's" — `needsStay: false` — settles the bed and nothing else:
+        # they are still in that city for four days with nothing planned, and
+        # treating one answer as both is how a stay somebody already had took
+        # the itinerary down with it.
+        if nights_here:
+            if leg.get("needsStay") is not False and not leg.get("selectedHotel"):
+                wants.append("somewhere to stay")
+            if not planned:
+                wants.append("things to do")
 
         hop: dict[str, Any] = {
             "hop": index,
@@ -764,12 +857,29 @@ def journey(trip: Trip) -> list[dict[str, Any]]:
             "to": leg["destination"],
             "wants": wants,
         }
+        if nights_here is not None:
+            hop["nights"] = nights_here
+        if planned:
+            hop["plannedDays"] = planned
         for key in ("startDate", "endDate", "travelers", "mode", "purpose"):
             if leg.get(key) is not None:
                 hop[key] = leg[key]
         for key in ("selectedFlight", "flightPrice", "selectedHotel", "nightlyPrice"):
             if leg.get(key) is not None:
                 hop[key] = leg[key]
+
+        # What has been decided *on this hop*, addressed so the panel's Change
+        # button can release exactly one of them. The first hop's decisions are
+        # the trip's flat fields; every other hop's live on its leg.
+        hop["decisions"] = [
+            {
+                "key": field if index == 0 else f"legs/{index - 1}/{field}",
+                "label": label,
+                "value": leg[field],
+            }
+            for field, label in _HOP_DECISIONS
+            if leg.get(field) is not None
+        ]
         out.append(hop)
     return out
 

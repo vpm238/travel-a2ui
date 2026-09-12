@@ -301,3 +301,74 @@ class TestAFlightPerHop:
         }
         hops = model.journey(trip)
         assert not any("stay" in want for want in hops[1]["wants"])
+
+
+class TestNightsDecideWhatAHopNeeds:
+    """A place you sleep needs a bed and something to do; a connection needs neither.
+
+    Both halves matter. A city with a hotel and an empty itinerary is half a
+    plan and the traveler has to ask for the other half; a hotel offered for the
+    night they fly home is the question that makes an agent look like a form.
+    """
+
+    TRIP = {
+        "origin": "SFO",
+        "destination": "Chicago",
+        "startDate": "2027-04-10",
+        "endDate": "2027-04-12",
+        "travelers": 1,
+        "legs": [
+            # Four nights, and somebody joins.
+            {
+                "destination": "New York",
+                "startDate": "2027-04-12",
+                "endDate": "2027-04-16",
+                "travelers": 3,
+            },
+            # Home the same day: a connection, not a stay.
+            {"destination": "SFO", "startDate": "2027-04-16", "endDate": "2027-04-16"},
+        ],
+    }
+
+    def hops(self, trip=None):  # noqa: ANN001, ANN201
+        return model.journey(trip or self.TRIP)
+
+    def test_a_hop_that_stays_the_night_wants_a_bed_and_a_day(self) -> None:
+        chicago = self.hops()[0]
+        assert chicago["nights"] == 2
+        assert "somewhere to stay" in chicago["wants"]
+        assert "things to do" in chicago["wants"]
+
+    def test_a_hop_that_lands_and_leaves_wants_neither(self) -> None:
+        home = self.hops()[2]
+        assert home["nights"] == 0
+        assert not [want for want in home["wants"] if "stay" in want or "things" in want]
+
+    def test_a_stay_they_already_have_still_wants_the_days(self) -> None:
+        """"I'm at my sister's" answers the bed, not what they do all week."""
+        trip = {**self.TRIP, "selectedHotel": None, "needsStay": False}
+        chicago = self.hops(trip)[0]
+        assert "somewhere to stay" not in chicago["wants"]
+        assert "things to do" in chicago["wants"], "four days there, still unplanned"
+
+    def test_days_already_planned_for_those_dates_answer_it(self) -> None:
+        trip = {**self.TRIP, "days": [{"title": "Day one", "date": "2027-04-11"}]}
+        assert self.hops(trip)[0]["plannedDays"] == 1
+        assert "things to do" not in self.hops(trip)[0]["wants"]
+
+    def test_every_hop_carries_its_own_party_as_its_own_decision(self) -> None:
+        """Addressed per hop, so changing one does not undo another."""
+        keys = [
+            row["key"]
+            for hop in self.hops()
+            for row in hop["decisions"]
+            if row["label"].startswith("who")
+        ]
+        assert keys == ["travelers", "legs/0/travelers", "legs/1/travelers"]
+        assert [hop["travelers"] for hop in self.hops()] == [1, 3, 1]
+
+    def test_releasing_one_hops_party_leaves_the_others_alone(self) -> None:
+        released, cleared = model.release(model.normalize(self.TRIP), ["legs/0/travelers"])
+        assert cleared == ["legs/0/travelers"]
+        assert model.journey(released)[1]["travelers"] == 1, "back to the trip's number"
+        assert released["travelers"] == 1, "the trip's own answer is untouched"
