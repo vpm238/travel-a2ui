@@ -100,6 +100,39 @@ check(
   'Say it, or type it',
 );
 
+/*
+ * Instantiating the Live agent.
+ *
+ * The key here is deliberately fake, so the handshake must fail — and that is
+ * the assertion worth having. `ready` used to be sent as soon as the setup
+ * frame had been written, without waiting for the Live API to accept it, so any
+ * key at all "instantiated" successfully and the app recorded a receipt for a
+ * session that did not exist. Nothing downstream could tell.
+ *
+ * What is asserted is only what holds with or without a route to Google: the
+ * strip is on screen, the microphone is not usable until the agent it talks to
+ * exists, and no receipt is written for a handshake that did not complete.
+ */
+check('says it is instantiating the Live agent', await page.locator('.composer__live').count(), 1);
+check(
+  'and will not arm the microphone before the agent exists',
+  await page.locator('.composer__call').first().isEnabled(),
+  false,
+);
+
+await page
+  .waitForFunction(
+    () => !document.querySelector('.composer__live')?.className.includes('is-instantiating'),
+    { timeout: 30000 },
+  )
+  .catch(() => {});
+
+check(
+  'refuses a key the Live API rejected, rather than recording one',
+  await page.evaluate(() => localStorage.getItem('travel-a2ui:live')),
+  null,
+);
+
 check('and the choice survived the reload', await page.evaluate(() => {
   try {
     return JSON.parse(localStorage.getItem('travel-a2ui:backend') ?? '{}').id;

@@ -132,10 +132,12 @@ export class TripSession {
       const { relay } = await import('./voice.js');
       const { buildSystemPrompt } = await import('./skills.js');
       const { CATALOG_ID } = await import('./agent.js');
+      const { contractStamp } = await import('./contract.js');
 
       await relay({
         client: server,
         trip: state.trip,
+        contract: contractStamp(),
         systemInstruction: buildSystemPrompt({
           variant: 'express-monolithic',
           surface: 'inline',

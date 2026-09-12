@@ -66,6 +66,16 @@ export interface Meta {
   keyProvided: boolean;
   /** Which agent runtimes this deployment knows about. */
   backends?: BackendOption[];
+  /**
+   * What a Gemini Live session would be bound to right now.
+   *
+   * `stamp` fingerprints the catalog, the skill, the tool declarations and the
+   * model — exactly what the Live API's opening `setup` frame carries, and
+   * nothing that varies per session. A client that instantiated against a
+   * different stamp is holding a receipt for a contract this deployment no
+   * longer serves, and is asked to instantiate again.
+   */
+  contract?: { stamp: string; maxAgeMs: number };
   /** Which runtime answered this request. */
   runtime?: BackendId;
 }

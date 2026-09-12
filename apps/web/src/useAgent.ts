@@ -18,7 +18,7 @@ import { SurfaceStore, type A2uiEvent } from '@travel-a2ui/renderer';
 import { TRIP_KEYS, plan as planTrip, type Trip } from '@travel-a2ui/trip';
 
 import { consumeKeyFromUrl } from './apiKey.js';
-import { startCall, type VoiceCall } from './voice.js';
+import { instantiateLive, startCall, type VoiceCall } from './voice.js';
 import {
   clientHints,
   fetchMeta,
@@ -38,6 +38,42 @@ import {
 const API_KEY = 'travel-a2ui:key';
 const PREFS_KEY = 'travel-a2ui:prefs';
 const BACKEND_KEY = 'travel-a2ui:backend';
+const LIVE_KEY = 'travel-a2ui:live';
+
+/**
+ * What the app remembers about instantiating the Live agent.
+ *
+ * The Live API has no agent object to look up, so the client keeps the receipt:
+ * which contract the handshake bound to, which model answered, and when.
+ */
+interface LiveRecord {
+  contract: string;
+  model: string;
+  at: number;
+}
+
+export type LiveStatus =
+  /** No key yet, or never instantiated. */
+  | 'absent'
+  /** Handshaking now. */
+  | 'instantiating'
+  /** Bound to the contract this deployment is currently serving. */
+  | 'ready'
+  /** Bound to something this deployment no longer serves, or bound too long ago. */
+  | 'stale'
+  /** The handshake was refused — usually the key. */
+  | 'failed';
+
+function readLiveRecord(): LiveRecord | null {
+  try {
+    const stored = readStored(LIVE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as LiveRecord;
+    return typeof parsed?.contract === 'string' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface ToolCall {
   name: string;
@@ -703,6 +739,76 @@ export function useAgent() {
     [],
   );
 
+  /* ------------------------------------------------- instantiating Live */
+
+  const [liveRecord, setLiveRecord] = useState<LiveRecord | null>(() => readLiveRecord());
+  const [liveBusy, setLiveBusy] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
+
+  /**
+   * Whether the stored instantiation still describes this deployment.
+   *
+   * Two ways to go stale, and they answer different questions. The stamp moving
+   * means the contract itself changed — a component added, a skill rewritten,
+   * a tool signature altered — and a session bound to the old one would compose
+   * against a catalog that is gone. The age is a backstop for what a stamp
+   * cannot see: a key revoked upstream, a quota since exhausted.
+   */
+  const liveStatus: LiveStatus = (() => {
+    if (liveBusy) return 'instantiating';
+    if (liveError) return 'failed';
+    if (!liveRecord || !apiKey) return 'absent';
+    const stamp = meta?.contract?.stamp;
+    if (stamp && liveRecord.contract !== stamp) return 'stale';
+    const maxAge = meta?.contract?.maxAgeMs ?? 24 * 60 * 60 * 1000;
+    if (Date.now() - liveRecord.at > maxAge) return 'stale';
+    return 'ready';
+  })();
+
+  const runInstantiate = useCallback(async (): Promise<boolean> => {
+    if (!keyRef.current) {
+      setLiveError('Add your Gemini key first.');
+      return false;
+    }
+    setLiveBusy(true);
+    setLiveError(null);
+    try {
+      const bound = await instantiateLive({
+        origin: backendRef.current,
+        sessionId,
+        apiKey: keyRef.current,
+      });
+      const record: LiveRecord = { ...bound, at: Date.now() };
+      writeStored(LIVE_KEY, JSON.stringify(record));
+      setLiveRecord(record);
+      return true;
+    } catch (error) {
+      setLiveError(error instanceof Error ? error.message : String(error));
+      return false;
+    } finally {
+      setLiveBusy(false);
+    }
+  }, [sessionId]);
+
+  /**
+   * Instantiate as soon as there is a key and a reason to.
+   *
+   * "Add your key and it says instantiating" is the intended experience, so
+   * this runs on its own rather than waiting to be pressed. It is keyed on the
+   * thing being instantiated against, so a redeploy that moves the stamp
+   * re-runs it exactly once — and a failure does not, because `liveError` puts
+   * the status in `failed` and the button below is then the way back.
+   */
+  const attempted = useRef<string | null>(null);
+  useEffect(() => {
+    if (backend.id !== 'live' || !apiKey) return;
+    if (liveStatus !== 'absent' && liveStatus !== 'stale') return;
+    const target = `${apiKey.slice(-6)}:${meta?.contract?.stamp ?? ''}`;
+    if (attempted.current === target) return;
+    attempted.current = target;
+    void runInstantiate();
+  }, [backend.id, apiKey, liveStatus, meta?.contract?.stamp, runInstantiate]);
+
   const [call, setCall] = useState<VoiceCall | null>(null);
   /** The same call, readable synchronously — `setCall` lands a tick too late. */
   const callRef = useRef<VoiceCall | null>(null);
@@ -783,6 +889,18 @@ export function useAgent() {
     store,
     /** True when the chosen framework has a microphone. */
     canSpeak: (meta?.backends ?? []).find((entry) => entry.id === backend.id)?.voice === true,
+    /**
+     * Instantiating the Live agent: a real handshake that binds the catalog,
+     * the skill and the tools, and reports what it bound to.
+     */
+    live: {
+      status: liveStatus,
+      error: liveError,
+      model: liveRecord?.model ?? null,
+      boundAt: liveRecord?.at ?? null,
+      contract: liveRecord?.contract ?? null,
+      instantiate: runInstantiate,
+    },
     voice: {
       listening,
       speaking: agentSpeaking,

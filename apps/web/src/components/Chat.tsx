@@ -174,6 +174,43 @@ export function Chat({ agent }: { agent: Agent }) {
 
       {agent.voice.error ? <p className="composer__voiceError">{agent.voice.error}</p> : null}
 
+      {/*
+        Instantiating the Live agent, said out loud.
+
+        The Live API keeps no agent object, so the app holds the receipt for one
+        — which contract it bound to, and when. This is where that shows: while
+        the handshake runs, when it fails, and when the deployment has moved on
+        from what was instantiated. It is only ever on screen for the framework
+        that has an agent to instantiate.
+      */}
+      {agent.canSpeak && agent.live.status !== 'ready' ? (
+        <p className={`composer__live is-${agent.live.status}`}>
+          {agent.live.status === 'instantiating' ? (
+            <>
+              <span className="composer__liveDot" aria-hidden />
+              Instantiating the Gemini Live agent — binding the catalog, the skill and the tools…
+            </>
+          ) : agent.live.status === 'stale' ? (
+            <>
+              This deployment&rsquo;s catalog has changed since you instantiated. Initialise again
+              with your key to pick it up.{' '}
+              <button type="button" onClick={() => void agent.live.instantiate()}>
+                Re-initialise
+              </button>
+            </>
+          ) : agent.live.status === 'failed' ? (
+            <>
+              Could not instantiate: {agent.live.error}{' '}
+              <button type="button" onClick={() => void agent.live.instantiate()}>
+                Try again
+              </button>
+            </>
+          ) : (
+            <>Add your Gemini key to instantiate the Live agent.</>
+          )}
+        </p>
+      ) : null}
+
       <form className="composer" onSubmit={submit}>
         {/*
           The microphone belongs to the framework that has one.
@@ -192,7 +229,14 @@ export function Chat({ agent }: { agent: Agent }) {
             }`}
             onClick={() => void agent.voice.start()}
             aria-pressed={agent.voice.listening}
-            title={agent.voice.listening ? 'End the call' : 'Talk to it'}
+            disabled={agent.live.status !== 'ready'}
+            title={
+              agent.live.status !== 'ready'
+                ? 'Instantiate the Live agent first'
+                : agent.voice.listening
+                  ? 'End the call'
+                  : 'Talk to it'
+            }
           >
             <span aria-hidden>{agent.voice.listening ? '■' : '🎙'}</span>
             <span className="visually-hidden">

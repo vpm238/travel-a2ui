@@ -89,6 +89,17 @@ export function describeSkill(variant: SkillVariant): SkillInfo {
   };
 }
 
+/**
+ * The raw instructions a variant loads, joined.
+ *
+ * Exported for fingerprinting rather than for reading: `describeSkill` reports
+ * skill *names*, which do not change when the instructions behind them do, so a
+ * stamp built from those would happily call a rewritten skill unchanged.
+ */
+export function skillText(variant: SkillVariant): string {
+  return SKILL_SOURCES[variant].join('\n');
+}
+
 export function describeAllSkills(): SkillInfo[] {
   return SKILL_VARIANTS.map(describeSkill);
 }

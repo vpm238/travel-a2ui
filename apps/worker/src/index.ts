@@ -31,6 +31,7 @@ import { handleMcp, MCP_TOOLS } from './mcp.js';
 import { SessionClient, TripSession } from './session.js';
 import { describeAllSkills, isSkillVariant, type SkillVariant, type SurfaceKind } from './skills.js';
 import { providerFor } from './providers/index.js';
+import { contractStamp, INSTANTIATION_MAX_AGE_MS } from './contract.js';
 
 export { TripSession };
 
@@ -254,6 +255,17 @@ async function handleMeta(env: Env): Promise<Response> {
      * can tell a demo from a live deployment without guessing from the prices.
      */
     provenance: provider.provenance,
+    /**
+     * What a Gemini Live session would be bound to right now.
+     *
+     * The Live API keeps no agent object, so a client remembers its own
+     * instantiation; this is how it finds out that the thing it instantiated
+     * against no longer exists. Change the catalog, the skill, the tools or the
+     * model and this moves, and every stored instantiation goes stale on its
+     * next look — rather than a Live session composing happily against a
+     * catalog that was replaced last night.
+     */
+    contract: { stamp: contractStamp(), maxAgeMs: INSTANTIATION_MAX_AGE_MS },
     mcpEndpoint: '/mcp',
     /** True when the deployment carries its own key and the UI need not ask. */
     keyProvided: Boolean(env.GEMINI_API_KEY),

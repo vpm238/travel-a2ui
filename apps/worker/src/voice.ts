@@ -56,6 +56,14 @@ const LIVE_ENDPOINT =
   'https://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
 
 /** Native-audio models. Only these speak; the text models refuse `setup`. */
+/**
+ * How long to wait for the Live API to acknowledge a `setup` frame.
+ *
+ * Long enough for a cold upstream, short enough that a rejected key reports
+ * itself rather than leaving "Instantiating…" on screen indefinitely.
+ */
+const SETUP_TIMEOUT_MS = 15000;
+
 export const VOICE_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025';
 
 /** What the browser sends up. */
@@ -68,7 +76,7 @@ export type ClientMessage =
 
 /** What the browser gets back. Deliberately the same `ui` event the SSE turn emits. */
 export type ServerMessage =
-  | { type: 'ready'; model: string }
+  | { type: 'ready'; model: string; contract: string }
   | { type: 'audio'; data: string }
   | { type: 'transcript'; text: string; who: 'you' | 'agent' }
   | { type: 'ui'; surfaceId: string; messages: A2uiMessage[]; done: boolean }
@@ -237,6 +245,16 @@ export async function relay(options: {
   onTrip: (trip: Record<string, unknown>) => void;
   /** Where travel data comes from. Fixtures when the caller has no opinion. */
   provider?: TravelProvider;
+  /**
+   * The contract this session is being bound to, echoed back on `ready`.
+   *
+   * Passed in rather than imported so that `contract.ts` — which fingerprints
+   * this module's model and tools — is not imported by the module it
+   * fingerprints. The cycle worked, because both sides only touch each other
+   * inside functions, but it is the kind of thing that stops working because of
+   * an unrelated edit.
+   */
+  contract: string;
 }): Promise<void> {
   const { client } = options;
   const send = (message: ServerMessage) => {
@@ -286,7 +304,45 @@ export async function relay(options: {
         upstream.addEventListener('error', (e) =>
           send({ type: 'error', message: `Live socket error: ${String((e as ErrorEvent).message ?? e)}` }),
         );
-        wire(upstream, send, context, () => trip);
+        /*
+         * `ready` waits for `setupComplete`.
+         *
+         * It used to be sent as soon as the setup frame had been *written*,
+         * which is not the same claim at all: a rejected key, a model that does
+         * not exist and a tool schema the API will not accept all get as far as
+         * the write. The client then believed it had a session, and found out
+         * otherwise when somebody spoke.
+         *
+         * That was survivable while `ready` only unlocked a microphone. It is
+         * not survivable now that instantiating the agent is a thing the app
+         * does on your behalf and remembers: an instantiation that succeeds for
+         * any key is worse than none, because it is recorded.
+         */
+        let settled = false;
+        const settle = (message: ServerMessage) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          send(message);
+        };
+        const timer = setTimeout(() => {
+          settle({
+            type: 'error',
+            message: 'The Live API accepted the connection but never acknowledged the session.',
+          });
+        }, SETUP_TIMEOUT_MS);
+
+        upstream.addEventListener('close', () =>
+          settle({
+            type: 'error',
+            message: 'The Live API closed the session. This is usually a rejected API key.',
+          }),
+        );
+
+        wire(upstream, send, context, () => trip, () =>
+          settle({ type: 'ready', model, contract: options.contract }),
+        );
+
         upstream.send(
           JSON.stringify(
             setupFrame({
@@ -296,7 +352,6 @@ export async function relay(options: {
             }),
           ),
         );
-        send({ type: 'ready', model });
       } catch (error) {
         send({ type: 'error', message: describe(error) });
       }
@@ -352,6 +407,8 @@ function wire(
   send: (message: ServerMessage) => void,
   context: ToolContext,
   trip: () => Record<string, unknown>,
+  /** Called when the Live API acknowledges the `setup` frame, and only then. */
+  onSetupComplete: () => void,
 ): void {
   upstream.addEventListener('message', async (event) => {
     // Three shapes, and the third is the one that cost an evening: the Workers
@@ -369,7 +426,13 @@ function wire(
     }
 
     if (DEBUG) console.log('[live]', raw.slice(0, 400));
-    if (frame['setupComplete']) return;
+    // The acknowledgement, and the only honest moment to call a session open.
+    // Writing the setup frame proves nothing: a rejected key, a model that does
+    // not exist and a malformed tool schema all get as far as the write.
+    if (frame['setupComplete']) {
+      onSetupComplete();
+      return;
+    }
 
     const server = frame['serverContent'];
     if (server) {

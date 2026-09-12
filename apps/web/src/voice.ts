@@ -23,7 +23,7 @@
 
 /** What the relay sends down. Mirrors `ServerMessage` in the Worker. */
 export type VoiceEvent =
-  | { type: 'ready'; model: string }
+  | { type: 'ready'; model: string; contract: string }
   | { type: 'audio'; data: string }
   | { type: 'transcript'; text: string; who: 'you' | 'agent' }
   | { type: 'ui'; surfaceId: string; messages: unknown[]; done: boolean }
@@ -85,6 +85,92 @@ export interface VoiceOptions {
   apiKey: string;
   onEvent: (event: VoiceEvent) => void;
   onSpeakingChange?: (speaking: boolean) => void;
+}
+
+/**
+ * What instantiating the Live agent returns.
+ *
+ * `contract` is the fingerprint of what the session was actually bound to —
+ * catalog, skill, tools, model — echoed back by the server rather than read
+ * from `/api/meta` a moment earlier, so a deploy landing mid-handshake cannot
+ * leave a client believing it bound to something it did not.
+ */
+export interface LiveInstantiation {
+  model: string;
+  contract: string;
+}
+
+/**
+ * Instantiates the Live agent, without touching the microphone.
+ *
+ * The Live API keeps no agent object: a session is whatever its opening `setup`
+ * frame says it is — a model, a system instruction built from the catalog's
+ * skill, and the tool declarations. So this opens a session, lets the server
+ * send that frame, waits for the API to accept it, and hangs up. Real work: it
+ * proves the key is good and reports the contract that was accepted, which is
+ * what the app then remembers.
+ *
+ * Deliberately no `getUserMedia`. Asking for a microphone in order to check a
+ * key is a permission prompt at the wrong moment, and a traveller who only ever
+ * types should never see one.
+ */
+export async function instantiateLive(options: {
+  origin: string;
+  sessionId: string;
+  apiKey: string;
+  /** Milliseconds before giving up. The upstream handshake is normally fast. */
+  timeoutMs?: number;
+}): Promise<LiveInstantiation> {
+  const base = options.origin || window.location.origin;
+  const url = new URL('/api/voice', base);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  url.searchParams.set('sessionId', options.sessionId);
+
+  const socket = new WebSocket(url.toString());
+
+  try {
+    return await new Promise<LiveInstantiation>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('The voice service did not answer in time.')),
+        options.timeoutMs ?? 20000,
+      );
+      const finish = (error: Error | null, value?: LiveInstantiation) => {
+        clearTimeout(timer);
+        if (error) reject(error);
+        else resolve(value!);
+      };
+
+      socket.addEventListener('open', () => {
+        socket.send(JSON.stringify({ type: 'start', apiKey: options.apiKey }));
+      });
+      socket.addEventListener('message', (event) => {
+        let message: VoiceEvent;
+        try {
+          message = JSON.parse(String(event.data)) as VoiceEvent;
+        } catch {
+          return;
+        }
+        // `error` carries what the upstream said — a rejected key reads as a
+        // rejected key rather than as "the socket closed".
+        if (message.type === 'error') finish(new Error(message.message));
+        if (message.type === 'ready') {
+          finish(null, { model: message.model, contract: message.contract });
+        }
+      });
+      socket.addEventListener('error', () =>
+        finish(new Error('Could not reach the voice service.')),
+      );
+      socket.addEventListener('close', () =>
+        finish(new Error('The voice service closed the connection.')),
+      );
+    });
+  } finally {
+    try {
+      socket.close();
+    } catch {
+      /* already closing */
+    }
+  }
 }
 
 /**
