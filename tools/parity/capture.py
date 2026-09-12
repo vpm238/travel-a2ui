@@ -85,7 +85,7 @@ TRIPS: dict[str, dict] = {
 }
 
 SURFACES = ("inline", "sidebar", "home")
-VARIANTS = ("express-monolithic", "express-modular", "direct-json-monolithic")
+VARIANTS = ("express-modular",)
 
 #: Every prompt the golden holds, in the order it holds them.
 LABELS: list[str] = [
@@ -112,7 +112,7 @@ def build(label: str) -> str:
             today=TODAY,
         )
     return skills.build_system_prompt(
-        variant="express-monolithic",
+        variant="express-modular",
         surface=rest,
         surface_id="inline-1" if rest == "inline" else rest,
         catalog_id="travel",

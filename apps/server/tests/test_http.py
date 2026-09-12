@@ -619,7 +619,7 @@ class TestWhereTheyAreFlyingFrom:
         from travel_a2ui.skills import build_system_prompt
 
         said = build_system_prompt(
-            variant="express-monolithic",
+            variant="express-modular",
             surface="inline",
             surface_id="inline-1",
             catalog_id="travel",

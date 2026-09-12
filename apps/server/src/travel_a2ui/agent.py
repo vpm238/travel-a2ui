@@ -108,6 +108,14 @@ def _parser(surface_id: str) -> ExpressParser:
 #: Flash Lite is still one keystroke away in the header for anyone who wants to
 #: watch the difference.
 #:
+#: The honest caveat, measured on the same eval, is availability. Of twelve
+#: turns on Flash 3.8, four came back with no surface at all — every one of them
+#: "currently experiencing high demand", a capacity spike rather than anything
+#: the model got wrong. Of the eight that ran, eight drew the right thing; Flash
+#: Lite, never once busy, drew it ten times in twelve. That is what
+#: `FALLBACK_MODEL` is for: the turn degrades to the model that is up rather
+#: than ending the conversation, and the traveller is told it happened.
+#:
 #: Lives here rather than in `main.py` because the voice relay redraws the
 #: standing panel with its own model call, and a second opinion about the
 #: default is how two doors quietly end up on two models.
@@ -117,6 +125,17 @@ DEFAULT_MODEL = "gemini-3.8-flash"
 #: clamps this to what the chosen model accepts — Flash 3.8 rejects `minimal`
 #: outright, where Flash Lite takes it.
 DEFAULT_EFFORT = "low"
+
+#: Who answers when the chosen model is busy. See `_open` in `gemini.py`.
+#:
+#: Measured on the eval that settled the default: twelve of thirty-six turns on
+#: Flash 3.8 came back with no surface at all, every one of them "currently
+#: experiencing high demand" — the model was not there, rather than wrong. A
+#: capacity spike on Google's side is not something a traveller halfway through
+#: planning a trip can do anything about, and "the model is busy" is a worse
+#: answer than a smaller model's surface. So the turn degrades instead of dying,
+#: and the client is told which model actually answered.
+FALLBACK_MODEL = "gemini-3.5-flash-lite"
 
 
 def _today(client: Any = None) -> str:
@@ -180,7 +199,7 @@ class TurnRequest:
     trip: dict[str, Any] = field(default_factory=dict)
     surface: str = "inline"
     surface_id: str = "inline-1"
-    skill: str = "express-monolithic"
+    skill: str = "express-modular"
     effort: str = DEFAULT_EFFORT
     #: What the browser knows about when the traveller is. See `_today`.
     client_hints: dict[str, Any] | None = None
@@ -495,11 +514,17 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 system_instruction=system,
                 thinking_level=request.effort,
                 previous_interaction_id=previous_interaction_id,
+                fallback_model=FALLBACK_MODEL,
                 client=request.client,
             ):
                 if event["type"] == "text":
                     for out in rendered(stream.push(event["delta"]), "stream"):
                         yield out
+                elif event["type"] == "served_by":
+                    # Said rather than hidden. The traveller asked for one model
+                    # and a different one is answering; a demo that quietly
+                    # swaps the thing it is demonstrating is a demo that lies.
+                    yield event
                 elif event["type"] == "result":
                     result = event["result"]
         except Exception as error:  # noqa: BLE001 - every failure gets a sentence

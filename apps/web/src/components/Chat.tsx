@@ -219,6 +219,12 @@ export function Chat({ agent }: { agent: Agent }) {
                 </p>
               ) : null}
 
+              {turn.servedBy ? (
+                <p className="turn__retry">
+                  The model you picked was busy; {turn.servedBy} answered this turn.
+                </p>
+              ) : null}
+
               {turn.streaming && turn.parts.length === 0 && turn.tools.length === 0 ? (
                 <Spinner label="Thinking" />
               ) : null}

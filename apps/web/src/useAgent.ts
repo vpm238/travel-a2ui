@@ -120,6 +120,8 @@ export interface Turn {
   error?: string;
   /** Set while the agent is rewriting a block that did not compile. */
   retrying?: string;
+  /** The model that actually answered, when the chosen one was busy. */
+  servedBy?: string;
   streaming: boolean;
   /** True when this user turn came from tapping the interface, not typing. */
   fromSurface?: boolean;
@@ -340,7 +342,7 @@ export function useAgent() {
     } catch {
       /* fall through to defaults */
     }
-    return { model: 'gemini-3.5-flash-lite', skill: 'express-monolithic', effort: 'minimal' };
+    return { model: 'gemini-3.5-flash-lite', skill: 'express-modular', effort: 'minimal' };
   });
 
   /**
@@ -589,6 +591,9 @@ export function useAgent() {
             break;
           case 'retry':
             if (!options.silent) patchTurn(assistantId, { retrying: event.reason });
+            break;
+          case 'served_by':
+            if (!options.silent) patchTurn(assistantId, { servedBy: event.model });
             break;
           case 'tool':
             if (!options.silent) {

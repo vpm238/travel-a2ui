@@ -16,7 +16,7 @@
 
 import type { A2uiMessage } from '@travel-a2ui/express';
 
-export type SkillVariant = 'express-monolithic' | 'express-modular' | 'direct-json-monolithic';
+export type SkillVariant = 'express-modular';
 export type SurfaceKind = 'inline' | 'sidebar' | 'home';
 
 export type AgentEvent =
@@ -25,6 +25,16 @@ export type AgentEvent =
   | { type: 'ui'; surfaceId: string; messages: A2uiMessage[]; done: boolean }
   | { type: 'ui_error'; message: string; source: string; express?: string }
   | { type: 'retry'; reason: string }
+  /**
+   * A different model answered this turn, because the chosen one was busy.
+   *
+   * Said rather than hidden. Google's capacity spikes are real — a third of the
+   * turns in one eval run came back "currently experiencing high demand" with
+   * no surface at all — and the server degrades to a smaller model rather than
+   * ending the conversation. A demo that quietly swaps the thing it is
+   * demonstrating is a demo that lies, so the swap reaches the transcript.
+   */
+  | { type: 'served_by'; model: string }
   | { type: 'tool'; name: string; input: unknown; status: 'running' }
   | { type: 'tool_result'; name: string; result: unknown; isError: boolean }
   | { type: 'trip'; trip: Record<string, unknown> }

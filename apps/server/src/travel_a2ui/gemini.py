@@ -27,6 +27,7 @@ kept in comments where they were learned:
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Sequence
@@ -67,6 +68,10 @@ class InteractionResult:
     text: str = ""
     usage: Usage = field(default_factory=Usage)
     status: str | None = None
+    #: The model that actually answered, when it is not the one that was asked
+    #: for. Set only on a fallback, so a caller can say so rather than quietly
+    #: reporting a model that was busy.
+    served_by: str | None = None
 
 
 class GeminiError(Exception):
@@ -228,6 +233,8 @@ async def stream_interaction(
     tools: Sequence[dict[str, Any]] | None = None,
     thinking_level: str | None = None,
     previous_interaction_id: str | None = None,
+    #: Where to go when the model asked for is busy. See `_open`.
+    fallback_model: str | None = None,
     client: Any | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """One model turn, streamed.
@@ -260,10 +267,10 @@ async def stream_interaction(
     # several deltas as partial JSON — whole only once the step stops.
     open_steps: dict[int, dict[str, str]] = {}
 
-    try:
-        stream = await genai.aio.interactions.create(**body)
-    except Exception as error:  # noqa: BLE001 - every failure gets a sentence
-        raise _from_sdk_error(error) from error
+    stream, served_by = await _open(genai, body, model, fallback_model)
+    if served_by:
+        result.served_by = served_by
+        yield {"type": "served_by", "model": served_by}
 
     async for event in stream:
         raw = _as_dict(event)
@@ -361,6 +368,62 @@ async def stream_interaction(
             )
 
     yield {"type": "result", "result": result}
+
+
+#: How long to wait before trying a busy model again, in seconds.
+#:
+#: Two attempts, not ten. "Currently experiencing high demand" is a capacity
+#: spike on Google's side, and it either clears in a couple of seconds or it is
+#: lasting minutes — measured, it lasted minutes. A retry loop long enough to
+#: outlast one of those is a traveller watching a spinner for a minute, which is
+#: worse than an answer from a smaller model.
+_BACKOFF = (1.5, 4.0)
+
+
+async def _open(
+    genai: Any, body: dict[str, Any], model: str, fallback_model: str | None
+) -> tuple[Any, str | None]:
+    """The stream, from the model asked for or from one that is actually up.
+
+    A demo dies differently from a product. A product can return 503 and let the
+    caller decide; a demo has one traveller in front of it, halfway through
+    planning a trip, and "the model is busy" ends the conversation.
+
+    So: two attempts at what was asked for, then — if the deployment named a
+    fallback — the same turn on that instead, and the caller is told which model
+    answered so it can say so on screen. Only for failures that are about
+    capacity. A rejected key, a bad request or a model that does not exist are
+    not going to go better on a second model, and pretending otherwise turns one
+    clear error into three confusing ones.
+
+    Measured, and the reason this exists: twelve of thirty-six eval turns on
+    Flash 3.8 came back with no surface at all, every one of them "currently
+    experiencing high demand". Not a wrong component, not a compile failure —
+    the model was simply not there. Every turn that *ran* drew the right thing.
+    """
+    attempts = len(_BACKOFF) + 1
+    last: GeminiError | None = None
+
+    for attempt in range(attempts):
+        try:
+            return await genai.aio.interactions.create(**body), None
+        except Exception as error:  # noqa: BLE001 - every failure gets a sentence
+            described = _from_sdk_error(error)
+            if not described.retryable:
+                raise described from error
+            last = described
+            if attempt < len(_BACKOFF):
+                await asyncio.sleep(_BACKOFF[attempt])
+
+    if fallback_model and fallback_model != model:
+        try:
+            return await genai.aio.interactions.create(
+                **{**body, "model": fallback_model}
+            ), fallback_model
+        except Exception as error:  # noqa: BLE001
+            raise _from_sdk_error(error) from error
+
+    raise last or GeminiError("The model did not answer.", 503, True)
 
 
 def _from_sdk_error(error: Exception) -> GeminiError:

@@ -210,7 +210,7 @@ class VoiceSession:
     voice: str | None = None
     #: What the browser knows about when the traveller is. See `agent._today`.
     client_hints: dict[str, Any] | None = None
-    skill: str = "express-monolithic"
+    skill: str = "express-modular"
     #: Injectable so a test can drive a whole call from a scripted session.
     client: Any = None
 

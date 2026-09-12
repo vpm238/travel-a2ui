@@ -91,7 +91,7 @@ class TestOneSetOfRules:
         from travel_a2ui.skills import build_system_prompt
 
         said = build_system_prompt(
-            variant="express-monolithic",
+            variant="express-modular",
             surface="inline",
             surface_id="voice-1",
             catalog_id="travel",
@@ -113,7 +113,7 @@ class TestOneSetOfRules:
 
         for surface in ("inline", "sidebar", "home"):
             said = build_system_prompt(
-                variant="express-monolithic",
+                variant="express-modular",
                 surface=surface,
                 surface_id="voice-1",
                 catalog_id="travel",
@@ -286,7 +286,7 @@ class TestNothingIsPromisedThatCannotBeDrawn:
         catalog = json.loads(
             (ROOT / "catalogs" / "a2ui-travel" / "catalog.json").read_text("utf-8")
         )
-        skill = (ROOT / "skills" / "express-monolithic" / "a2ui" / "SKILL.md").read_text("utf-8")
+        skill = (ROOT / "skills" / "express-modular" / "a2ui-travel" / "SKILL.md").read_text("utf-8")
         return {name for name in catalog["components"] if name in skill}
 
     def test_the_flutter_client_draws_everything_it_is_told_about(self) -> None:

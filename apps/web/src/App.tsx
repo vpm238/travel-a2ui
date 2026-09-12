@@ -2,11 +2,17 @@
  * The shell.
  *
  * Four views, one per modality, over one conversation and one surface store —
- * so switching tabs does not switch context. The controls in the header
- * (model, skill variant, effort) are deliberately in the product rather than in
- * a config file: comparing the monolithic and modular skills on the same trip,
- * mid-conversation, is the fastest way to find out whether the split costs you
- * anything.
+ * so switching tabs does not switch context. The model and effort controls are
+ * deliberately in the product rather than in a config file: switching models
+ * mid-trip, on the same conversation, is the fastest way to see what a model
+ * buys you — and on this app the difference is whether the agent remembers to
+ * get you home.
+ *
+ * The skill picker that used to sit beside them is gone. Three generated skill
+ * shapes were kept so they could be compared, they were compared
+ * (`tools/eval/skills.py`), and one won; a picker with one option is a control
+ * that asks a question with no answer. The line under the header still says
+ * which skills are loaded.
  */
 
 import { useEffect, useState } from 'react';
@@ -65,17 +71,6 @@ export default function App() {
 
   const needsKey = !agent.apiKey && agent.meta !== null && !agent.meta.keyProvided;
 
-  const skillOptions =
-    agent.meta?.skills.map((skill) => ({
-      value: skill.variant,
-      label:
-        skill.variant === 'express-monolithic'
-          ? 'Express · one skill'
-          : skill.variant === 'express-modular'
-            ? 'Express · core + catalog'
-            : 'JSON · one skill',
-    })) ?? [];
-
   const activeSkill = agent.meta?.skills.find((skill) => skill.variant === agent.prefs.skill);
 
   return (
@@ -123,12 +118,6 @@ export default function App() {
                 value={agent.prefs.model}
                 options={agent.meta.models.map((model) => ({ value: model.id, label: model.label }))}
                 onChange={(model) => agent.setPrefs({ model })}
-              />
-              <Select
-                label="Skill"
-                value={agent.prefs.skill}
-                options={skillOptions}
-                onChange={(skill) => agent.setPrefs({ skill })}
               />
               <Select
                 label="Effort"

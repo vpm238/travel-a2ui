@@ -125,7 +125,7 @@ class TestShippedSkills:
     def test_the_checked_in_skill_matches_the_allow_list(self):
         """The shipped prompt documents exactly what the catalog allows."""
         allow = json.loads(ALLOW.read_text(encoding="utf-8"))
-        body = (SKILLS / "express-monolithic" / "a2ui" / "SKILL.md").read_text(encoding="utf-8")
+        body = (SKILLS / "express-modular" / "a2ui-travel" / "SKILL.md").read_text(encoding="utf-8")
 
         # A word boundary, because `Card(` is a substring of `HotelCard(` — a
         # plain `in` test failed on the one component whose name ends in another

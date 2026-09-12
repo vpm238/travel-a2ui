@@ -18,8 +18,14 @@ from typing import Any
 
 import pytest
 
-from travel_a2ui.agent import SurfaceAction, TurnRequest, run_turn, run_turn_collected
-from travel_a2ui.gemini import InteractionResult, ToolCall, Usage
+from travel_a2ui.agent import (
+    FALLBACK_MODEL,
+    SurfaceAction,
+    TurnRequest,
+    run_turn,
+    run_turn_collected,
+)
+from travel_a2ui.gemini import GeminiError, InteractionResult, ToolCall, Usage
 from travel_a2ui.providers.fixture import FixtureProvider
 
 A2UI_OPEN = "<a2ui>"
@@ -707,7 +713,7 @@ class TestTheSetupIsSentOnce:
         import hashlib
 
         stable, _ = build_prompt_parts(
-            variant="express-monolithic",
+            variant="express-modular",
             surface="inline",
             surface_id="inline-1",
             catalog_id=CATALOG_ID,
@@ -780,3 +786,75 @@ class TestWhatTheHostAlreadyDrew:
         assert "Do not draw this surface again" in said["alreadyOnScreen"]["note"]
         # And the flights themselves are still there to talk about.
         assert said.get("items") or said.get("flights")
+
+
+class TestABusyModelDegradesRatherThanDies:
+    """"Currently experiencing high demand" must not end a conversation.
+
+    Measured on the eval that chose the default model: twelve of thirty-six
+    turns on Flash 3.8 came back with no surface at all, every one of them a
+    capacity spike on Google's side rather than anything the surface got wrong.
+    Every turn that actually ran drew the right thing. A traveller halfway
+    through planning a trip cannot do anything about that, and an error banner
+    is a worse answer than a smaller model's interface.
+    """
+
+    class Busy(FakeModel):
+        """Refuses `refusals` times, then answers — recording each model asked."""
+
+        def __init__(self, refusals: int, status: int, turns) -> None:  # noqa: ANN001
+            super().__init__(turns)
+            self.refusals = refusals
+            self.status = status
+            self.asked: list[str] = []
+
+        async def create(self, **body: Any):  # noqa: ANN201
+            self.asked.append(str(body.get("model")))
+            if self.refusals > 0:
+                self.refusals -= 1
+                # Retryable exactly as the real classifier judges it: capacity
+                # and rate limits, not a rejected key.
+                raise GeminiError(
+                    "high demand", self.status, self.status >= 500 or self.status == 429
+                )
+            return await super().create(**body)
+
+    def _run(self, client) -> list[dict[str, Any]]:  # noqa: ANN001
+        import asyncio
+
+        return asyncio.run(
+            collect(
+                TurnRequest(
+                    api_key="k",
+                    model="gemini-3.8-flash",
+                    message="hello",
+                    provider=FixtureProvider(),
+                    client=client,
+                )
+            )
+        )
+
+    def test_a_spike_that_clears_is_never_seen(self) -> None:
+        client = self.Busy(1, 503, [(["Hi."], [])])
+        events = self._run(client)
+
+        assert not [event for event in events if event["type"] == "error"]
+        assert client.asked == ["gemini-3.8-flash", "gemini-3.8-flash"], "retried, same model"
+        assert not [event for event in events if event["type"] == "served_by"], "nothing to say"
+
+    def test_a_spike_that_lasts_falls_back_and_says_so(self) -> None:
+        client = self.Busy(3, 503, [(["Hi."], [])])
+        events = self._run(client)
+
+        assert not [event for event in events if event["type"] == "error"]
+        assert client.asked[-1] == FALLBACK_MODEL, "answered by the model that was up"
+        said = [event for event in events if event["type"] == "served_by"]
+        assert said and said[0]["model"] == FALLBACK_MODEL, "a swap the traveller is told about"
+
+    def test_a_rejected_key_fails_immediately_on_the_model_asked_for(self) -> None:
+        """A second model will not make a bad key good, and trying is confusing."""
+        client = self.Busy(3, 401, [(["Hi."], [])])
+        events = self._run(client)
+
+        assert [event for event in events if event["type"] == "error"], "said once, plainly"
+        assert client.asked == ["gemini-3.8-flash"], "asked once, not four times"

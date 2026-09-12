@@ -99,7 +99,7 @@ root = Column([title, flight, changeFlight, stray], align="stretch")`;
 const sse = (events) => events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('');
 
 const surfaceTurn = (surfaceId, prose, source, trip) => [
-  { type: 'start', model: 'canned', skill: 'express-monolithic', surfaceId },
+  { type: 'start', model: 'canned', skill: 'express-modular', surfaceId },
   ...(prose ? [{ type: 'text', delta: prose, round: 0 }] : []),
   { type: 'ui', surfaceId, messages: compile(surfaceId, source), done: true },
   ...(trip ? [{ type: 'trip', trip }] : []),

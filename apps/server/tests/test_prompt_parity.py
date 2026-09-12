@@ -132,7 +132,7 @@ class TestThePromptOnlyNamesComponentsTheModelHas:
         catalog = json.loads(
             (root / "catalogs" / "a2ui-travel" / "catalog.json").read_text("utf-8")
         )
-        skill = (root / "skills" / "express-monolithic" / "a2ui" / "SKILL.md").read_text("utf-8")
+        skill = (root / "skills" / "express-modular" / "a2ui-travel" / "SKILL.md").read_text("utf-8")
         return {name for name in catalog["components"] if name not in skill}
 
     @pytest.mark.parametrize("brief", ["role", "surface-inline", "surface-sidebar", "surface-home"])

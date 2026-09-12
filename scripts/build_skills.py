@@ -116,13 +116,24 @@ def make_format(inference_format: str, catalog, examples_glob: str):
     return fmt
 
 
-#: `<format>-<shape>` → the two axes. Sibling directories rather than different
-#: skill names, so a monolithic Express `a2ui` and a monolithic JSON `a2ui` can
-#: both exist without either renaming itself to say which it is.
+#: `<format>-<shape>`, in a sibling directory named for both.
+#:
+#: There were three, and generating all three was the point: the same catalog as
+#: one Express skill, as Express split into notation and catalog, and as raw
+#: A2UI JSON, so they could be compared on the same traffic rather than argued
+#: about. `tools/eval/skills.py` compared them — four asks, three samples each —
+#: and modular won on every axis; direct JSON drew nothing at all on three of
+#: the four asks. See `SKILL_VARIANTS` in `apps/server/src/travel_a2ui/skills.py`
+#: for the table.
+#:
+#: The directory name still carries both axes, because the skill *name* inside
+#: it is `a2ui-core` + `a2ui-travel` and should stay clean: a skill that has to
+#: rename itself to say which generator produced it is a skill whose description
+#: is doing the wrong job. A generated sample of each retired shape is kept under
+#: `docs/skill-variants/` — changing this list and re-running is all it takes to
+#: bring one back for another measurement.
 VARIANTS: list[tuple[str, str]] = [
-    ("express", "monolithic"),
     ("express", "modular"),
-    ("direct_json", "monolithic"),
 ]
 
 

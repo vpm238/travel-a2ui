@@ -340,7 +340,7 @@ def _skill_express() -> str:
     """The Express skill, body only — what the model is taught."""
     from .skills import _body
 
-    return _body(skill_text("express-monolithic"))
+    return _body(skill_text("express-modular"))
 
 
 def read_resource(

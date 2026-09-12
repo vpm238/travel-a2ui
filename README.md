@@ -618,26 +618,42 @@ The design principle it implements is worth stating on its own:
 > words that do. Those details go in `metadata`, where SDKs and humans can read
 > them and the model pays nothing for them.
 
-Three variants are generated, in sibling directories so the skill *names* stay
-clean:
-
 ```
 skills/
-├── express-monolithic/a2ui/SKILL.md                one skill: rules + catalog + examples
-├── express-modular/
-│   ├── a2ui-core/SKILL.md                          the notation, which never varies
-│   └── a2ui-travel/SKILL.md                        this catalog's components
-└── direct-json-monolithic/a2ui/SKILL.md            the same UI, emitted as raw A2UI JSON
+└── express-modular/
+    ├── a2ui-core/SKILL.md                          the notation, which never varies
+    └── a2ui-travel/SKILL.md                        this catalog's components
 ```
 
-The modular shape is what scales past one domain: an agent working on travel
-loads `a2ui-core` + `a2ui-travel` and never pays for the charting catalog. The
-`direct_json` variant exists to measure what Express is actually buying you —
-same catalog, same examples, different wire form.
+Three shapes used to be generated — this one, the same catalog as a single
+Express skill, and the same interfaces as raw A2UI JSON — and you could switch
+between them in the running app. The point was to answer "what is Express
+actually buying you" by measurement rather than by argument, so it was measured
+(`tools/eval/skills.py`, four asks, three samples each):
 
-You can switch between all three **in the running app**, mid-conversation, from
-the header. That is the fastest way to find out whether the split costs anything
-on a given model.
+| Variant | drew the right component | compiled first time |
+|---|---|---|
+| `express-modular` | 11/12 | 10/12 |
+| `express-monolithic` | 10/12 | 9/12 |
+| `direct-json-monolithic` | 3/12 | 3/12 |
+
+Direct JSON drew nothing at all on three of the four asks, and took longest
+doing it. Between the two Express shapes, five more samples on the scenarios
+where they differed put modular ahead again with no scenario going the other
+way — so there is one shape now, and no picker for a question with one answer.
+A generated sample of each retired shape is in `docs/skill-variants/`, and
+`VARIANTS` in `scripts/build_skills.py` is one line: put a shape back and re-run
+the evaluation whenever a new model makes the question live again.
+
+The modular shape is also what scales past one domain: an agent working on
+travel loads `a2ui-core` + `a2ui-travel` and never pays for the charting
+catalog.
+
+**These generated skills are half the contract.** They say what components exist
+and how to emit them. What the agent does *when* — which step comes next, how a
+route with three hops and two parties is shaped, which control a decision is
+asked in — is authored markdown in `prompts/`, because it is judgement rather
+than a catalog.
 
 No skill ships a script. They are instructions, and a test asserts that each
 directory contains nothing but `SKILL.md`.

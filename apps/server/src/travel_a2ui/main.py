@@ -120,7 +120,7 @@ async def meta() -> JSONResponse:
             "catalogId": CATALOG_ID,
             "protocolVersion": "v0.9.1",
             "defaultModel": os.environ.get("DEFAULT_MODEL", AGENT_DEFAULT_MODEL),
-            "defaultSkill": os.environ.get("DEFAULT_SKILL", "express-monolithic"),
+            "defaultSkill": os.environ.get("DEFAULT_SKILL", "express-modular"),
             "models": MODELS,
             "surfaces": SURFACES,
             "skills": describe_all_skills(),

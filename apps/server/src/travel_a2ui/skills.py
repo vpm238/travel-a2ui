@@ -31,23 +31,40 @@ from . import trip as model
 
 _ROOT = pathlib.Path(__file__).resolve().parents[4]
 
-SkillVariant = Literal["express-monolithic", "express-modular", "direct-json-monolithic"]
+SkillVariant = Literal["express-modular"]
 SurfaceKind = Literal["inline", "sidebar", "home"]
 
-SKILL_VARIANTS: list[str] = [
-    "express-monolithic",
-    "express-modular",
-    "direct-json-monolithic",
-]
+#: The generated skill shapes this app ships. One, now, and the measurement
+#: that settled it is in `tools/eval/skills.py`.
+#:
+#: There were three, kept because the comparison was the interesting part:
+#: Express in one skill, Express split into notation and catalog, and the same
+#: interfaces emitted as raw A2UI JSON. Run over four asks — a form, a list to
+#: choose from, a schedule, a total — three samples each:
+#:
+#:     express-modular            right 11/12   clean 10/12   drew 11/12
+#:     express-monolithic         right 10/12   clean  9/12   drew 10/12
+#:     direct-json-monolithic     right  3/12   clean  3/12   drew  3/12
+#:
+#: Direct JSON drew *nothing at all* on three of the four asks, and was the
+#: slowest of the three doing it. Five more samples on the two scenarios where
+#: the Express shapes differed put modular ahead again, 10/10 against 9/10, and
+#: there was no scenario where monolithic won — so there is nothing to split per
+#: scenario either. One skill set, and it is the modular one, which is also the
+#: shape that scales: a second domain adds a catalog skill rather than a second
+#: copy of the grammar.
+#:
+#: A generated sample of each retired variant is kept under
+#: `docs/skill-variants/`, because what the generator produces for a format is
+#: worth being able to read without running it.
+SKILL_VARIANTS: list[str] = ["express-modular"]
 
 #: Which generated skill files each variant loads, in load order.
 _SKILL_FILES: dict[str, list[str]] = {
-    "express-monolithic": ["express-monolithic/a2ui/SKILL.md"],
     "express-modular": [
         "express-modular/a2ui-core/SKILL.md",
         "express-modular/a2ui-travel/SKILL.md",
     ],
-    "direct-json-monolithic": ["direct-json-monolithic/a2ui/SKILL.md"],
 }
 
 

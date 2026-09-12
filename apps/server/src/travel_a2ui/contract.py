@@ -83,7 +83,7 @@ def contract_stamp() -> str:
         json.dumps(CATALOG_JSON, separators=(",", ":"), ensure_ascii=False),
         # The voice relay builds its prompt from this variant, so these are the
         # instructions that actually reach a Live session.
-        skill_text("express-monolithic"),
+        skill_text("express-modular"),
         json.dumps(voice_tools(), separators=(",", ":"), ensure_ascii=False),
         VOICE_MODEL,
     ]
