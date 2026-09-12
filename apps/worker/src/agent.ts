@@ -29,6 +29,7 @@ import catalog from '../../../catalogs/a2ui-travel/catalog.json';
 import { buildSystemPrompt, type SkillVariant, type SurfaceKind } from './skills.js';
 import { geminiTools, runTool, type ToolContext } from './tools.js';
 import { providerFor, type TravelProvider } from './providers/index.js';
+import { pendingSurfaceFor } from './skeleton.js';
 import { GeminiError, streamInteraction, type InteractionInput } from './gemini.js';
 import { originForTimeZone } from './travel.js';
 import {
@@ -466,8 +467,35 @@ export async function runTurn(
     const results: InteractionInput[] = [];
     for (const call of result.toolCalls) {
       emit({ type: 'tool', name: call.name, input: call.args, status: 'running' });
+
+      /*
+       * Draw the shape of the answer before going to look for it.
+       *
+       * The screen used to stay empty for as long as a search takes and then
+       * fill all at once. The shape is known the moment the tool is chosen, so
+       * the layout goes out now — bound, blank, and pending — and the rows
+       * arrive into it below. Only on the surface this turn is answering: a
+       * standing panel is not what the traveller just asked a question about.
+       */
+      const pending =
+        request.surface === 'inline'
+          ? pendingSurfaceFor(call.name, request.surfaceId, compiler, CATALOG_ID, 'v0.9.1')
+          : undefined;
+      if (pending) {
+        emit({ type: 'ui', surfaceId: request.surfaceId, messages: pending.opening, done: false });
+      }
+
       const { result: output, isError } = await runTool(call.name, call.args, toolContext);
       emit({ type: 'tool_result', name: call.name, result: output, isError });
+
+      // The same components, now with something in them. No recompile and no
+      // second component send: the data model is the only thing that moved.
+      if (pending && !isError) {
+        const filled = pending.fill(output);
+        if (filled) {
+          emit({ type: 'ui', surfaceId: request.surfaceId, messages: filled, done: false });
+        }
+      }
       results.push({
         type: 'function_result',
         name: call.name,

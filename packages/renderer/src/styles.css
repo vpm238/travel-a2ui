@@ -1430,3 +1430,45 @@
   box-shadow: none;
   transform: none;
 }
+
+
+/*
+ * A value that has not arrived.
+ *
+ * Drawn as the space it will occupy, so a card laid out before its data does
+ * not resize under the reader when the data lands. The rule for what counts as
+ * "not arrived" is the data model's own: a binding whose path does not resolve
+ * is pending; one that resolves to an empty string is empty. Nothing extra is
+ * sent to say which.
+ */
+.tv-pending {
+  display: inline-block;
+  min-width: 2.5em;
+  height: 0.85em;
+  vertical-align: -0.08em;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--tv-surface-2) 0%,
+    var(--tv-line-strong) 50%,
+    var(--tv-surface-2) 100%
+  );
+  background-size: 220% 100%;
+  animation: tv-pending-sweep 1.25s ease-in-out infinite;
+}
+
+@keyframes tv-pending-sweep {
+  0% {
+    background-position: 220% 0;
+  }
+  100% {
+    background-position: -220% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-pending {
+    animation: none;
+    background: var(--tv-surface-2);
+  }
+}

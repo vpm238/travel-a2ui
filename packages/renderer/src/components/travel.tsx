@@ -10,7 +10,7 @@
 
 import type { Json } from '@travel-a2ui/express';
 
-import { resolveBoolean, resolveNumber, resolveText } from '../binding.js';
+import { isPending, resolveBoolean, resolveNumber, resolveText } from '../binding.js';
 import { runAction, type ComponentProps } from '../context.js';
 import { isSafeUrl } from '../functions.js';
 import { Icon } from './icons.js';
@@ -38,6 +38,33 @@ function carrierCode(flightNumber: string): string {
   return match ? match[1]! : '';
 }
 
+/**
+ * Bound text, or the shape of it while the data is still on its way.
+ *
+ * This is what lets a surface be drawn before the thing that fills it exists.
+ * The agent creates the rows, the card lays out immediately, and each field
+ * arrives as an `updateDataModel` — so the interface is on screen while the
+ * flights are still being searched for, instead of after.
+ *
+ * `width` is a guess at the finished text, and being a guess is the point: a
+ * placeholder roughly the size of a price stops the card resizing under the
+ * reader when the price lands.
+ */
+function Bound({
+  value,
+  scope,
+  width,
+}: {
+  value: Parameters<typeof resolveText>[0];
+  scope: Parameters<typeof resolveText>[1];
+  width?: number;
+}) {
+  if (isPending(value, scope)) {
+    return <span className="tv-pending" style={{ width }} aria-hidden />;
+  }
+  return <>{resolveText(value, scope)}</>;
+}
+
 export function FlightOption({ node, scope, ctx }: ComponentProps) {
   const selected = resolveBoolean(node['selected'], scope);
   const badge = resolveText(node['badge'], scope);
@@ -62,29 +89,45 @@ export function FlightOption({ node, scope, ctx }: ComponentProps) {
         <span className={cx('tv-flight__mark', code && 'is-code')} aria-hidden>
           {code || <Icon name="plane" />}
         </span>
-        <span className="tv-flight__airline">{resolveText(node['airline'], scope)}</span>
+        <span className="tv-flight__airline">
+          <Bound value={node['airline']} scope={scope} width={84} />
+        </span>
         <span className="tv-flight__number">{flightNumber}</span>
       </div>
 
       <div className="tv-flight__times">
         <div className="tv-flight__endpoint">
-          <strong>{resolveText(node['departTime'], scope)}</strong>
-          <span>{resolveText(node['origin'], scope)}</span>
+          <strong>
+            <Bound value={node['departTime']} scope={scope} width={46} />
+          </strong>
+          <span>
+            <Bound value={node['origin']} scope={scope} width={30} />
+          </span>
         </div>
         <div className="tv-flight__leg" aria-hidden>
-          <span className="tv-flight__duration">{resolveText(node['duration'], scope)}</span>
+          <span className="tv-flight__duration">
+            <Bound value={node['duration']} scope={scope} width={44} />
+          </span>
           <span className="tv-flight__line" />
-          <span className="tv-flight__stops">{resolveText(node['stops'], scope)}</span>
+          <span className="tv-flight__stops">
+            <Bound value={node['stops']} scope={scope} width={58} />
+          </span>
         </div>
         <div className="tv-flight__endpoint">
-          <strong>{resolveText(node['arriveTime'], scope)}</strong>
-          <span>{resolveText(node['destination'], scope)}</span>
+          <strong>
+            <Bound value={node['arriveTime']} scope={scope} width={46} />
+          </strong>
+          <span>
+            <Bound value={node['destination']} scope={scope} width={30} />
+          </span>
         </div>
       </div>
 
       <div className="tv-flight__price">
         {badge ? <span className="tv-badge">{badge}</span> : null}
-        <strong>{resolveText(node['price'], scope)}</strong>
+        <strong>
+          <Bound value={node['price']} scope={scope} width={62} />
+        </strong>
         <span className="tv-flight__cabin">{str(node['cabin']) || 'economy'}</span>
       </div>
 

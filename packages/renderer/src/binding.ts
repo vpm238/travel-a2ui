@@ -122,6 +122,28 @@ export function resolveText(value: Json | undefined, scope: ResolveScope): strin
   return '';
 }
 
+/**
+ * Whether a binding is waiting for data rather than holding none.
+ *
+ * The difference matters as soon as a surface is drawn before the data that
+ * fills it. A component bound to `$/flights/0/price` on a row the server has
+ * created but not yet filled should show that something is coming; the same
+ * component bound to a field that genuinely has no value should show nothing.
+ *
+ * The rule is the one the data model already gives for free: **a path that does
+ * not resolve is pending, a path that resolves to an empty string is empty.**
+ * Nothing new has to be sent to say so — seeding `/flights` with blank rows and
+ * filling them later is enough, which is why this needs no protocol of its own.
+ *
+ * A literal is never pending: text written into the component by the model is
+ * as arrived as it will ever be.
+ */
+export function isPending(value: Json | undefined, scope: ResolveScope): boolean {
+  if (!isBinding(value)) return false;
+  const resolved = resolve(value, scope);
+  return resolved === null || resolved === undefined;
+}
+
 export function resolveNumber(value: Json | undefined, scope: ResolveScope): number | undefined {
   const resolved = resolve(value, scope);
   if (typeof resolved === 'number') return resolved;
