@@ -102,16 +102,48 @@ jobs:
       - name: Fixtures match data/
         run: npm run check:fixtures
 
+      # The trip model is the one piece neither generated from the catalog nor
+      # provided by the SDK, and it is being reimplemented in Python. The golden
+      # is what stops the two drifting into subtly different agents.
+      - name: The trip model matches its golden
+        run: npm run check:trip
+
       - name: Examples compile and their JSON is current
         run: npm run check:examples
 
       - name: Skills are current
         run: npm run check:skills
 
+      # The rest of the port, each against a golden written by the TypeScript.
+      # These are the layers where two implementations drift without either
+      # looking wrong: the tools' manners, the prompt the model is actually
+      # given, the skeleton's compiled output, and the four passes the server
+      # makes over a surface before it goes out.
+      - name: The tools match their golden
+        run: npm run check:tools
+
+      - name: The prompt matches its golden
+        run: npm run check:prompt
+
+      - name: The skeleton matches its golden
+        run: npm run check:skeleton
+
+      - name: The surface passes match their golden
+        run: npm run check:surface
+
       - name: Python tests
         run: |
           python3 -m pip install --quiet pytest
           python3 -m pytest tools/tests -q
+
+      # The server itself. Separate from the tooling tests above because it
+      # needs the app's own dependencies, and because a failure here is a
+      # failure of the thing that ships rather than of a build script.
+      - name: The Python server
+        run: |
+          python3 -m pip install --quiet -e ./apps/server
+          python3 -m pip install --quiet pytest httpx
+          python3 -m pytest apps/server/tests -q
 
       - name: Build
         run: npm run build

@@ -50,6 +50,21 @@ export interface ToolContext {
    * and a tool that imported one directly could not be handed the other.
    */
   provider: TravelProvider;
+  /**
+   * The date the turn is happening on, as `YYYY-MM-DD`.
+   *
+   * Optional, and defaulted from the clock, because every caller in the app
+   * means *now*. It is on the context at all because a tool that reads the
+   * clock directly cannot be tested: `save_trip` rejects a start date in the
+   * past, so what it does depends on the day it runs, and a golden of that
+   * behaviour would rot overnight.
+   */
+  today?: string;
+}
+
+/** The day this turn happens on: what the caller said, or the clock. */
+function dayOf(context: ToolContext): string {
+  return context.today ?? new Date().toISOString().slice(0, 10);
 }
 
 /**
@@ -573,7 +588,7 @@ export async function runTool(
         Object.assign(context.trip, trip);
         context.saveTrip({});
 
-        const today = new Date().toISOString().slice(0, 10);
+        const today = dayOf(context);
         return {
           result: {
             released: cleared,
@@ -595,7 +610,7 @@ export async function runTool(
         // Normalised on the way in, so what is stored is in the trip's own
         // shapes rather than whatever the model happened to type.
         const next = mergeTrip(normalizeTrip(context.trip), input);
-        const today = new Date().toISOString().slice(0, 10);
+        const today = dayOf(context);
         const wrong = problems(next, today);
 
         // Refused rather than recorded: everything downstream prices against

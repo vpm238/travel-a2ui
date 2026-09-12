@@ -78,6 +78,8 @@ sed -i \
   -e 's#(\.\./\.github/workflows/travel-a2ui-ci\.yml)#(.github/workflows/ci.yml)#g' \
   -e 's#`\.github/workflows/travel-a2ui-deploy\.yml`#`.github/workflows/deploy.yml`#g' \
   -e 's#`\.github/workflows/travel-a2ui-ci\.yml`#`.github/workflows/ci.yml`#g' \
+  -e 's#(\.\./\.github/workflows/travel-a2ui-cloudrun\.yml)#(.github/workflows/cloudrun.yml)#g' \
+  -e 's#`\.github/workflows/travel-a2ui-cloudrun\.yml`#`.github/workflows/cloudrun.yml`#g' \
   "$TARGET/README.md"
 
 cat <<'DONE'

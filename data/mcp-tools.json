@@ -1,0 +1,259 @@
+{
+  "a2uiMimeType": "application/vnd.a2ui+json",
+  "tools": [
+    {
+      "name": "show_flight_options",
+      "title": "Show flight options",
+      "description": "Searches flights and returns them as an interactive A2UI surface the user can pick from, instead of a list of text. Use whenever the user is choosing a flight.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string",
+            "description": "City name or airport code."
+          },
+          "origin": {
+            "type": "string",
+            "description": "Departure airport code. Required — the trip is not priced without one."
+          },
+          "date": {
+            "type": "string",
+            "description": "Outbound date, YYYY-MM-DD."
+          },
+          "travelers": {
+            "type": "integer"
+          },
+          "cabin": {
+            "type": "string",
+            "enum": [
+              "economy",
+              "premium",
+              "business",
+              "first"
+            ]
+          },
+          "maxPrice": {
+            "type": "number"
+          },
+          "nonstopOnly": {
+            "type": "boolean"
+          },
+          "surface": {
+            "type": "string",
+            "enum": [
+              "inline",
+              "sidebar",
+              "home"
+            ],
+            "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+          }
+        },
+        "required": [
+          "destination"
+        ]
+      }
+    },
+    {
+      "name": "show_hotel_options",
+      "title": "Show places to stay",
+      "description": "Searches stays and returns them as A2UI hotel cards with rating, neighbourhood and nightly rate.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string"
+          },
+          "nights": {
+            "type": "integer"
+          },
+          "travelers": {
+            "type": "integer"
+          },
+          "maxNightly": {
+            "type": "number"
+          },
+          "neighborhood": {
+            "type": "string"
+          },
+          "surface": {
+            "type": "string",
+            "enum": [
+              "inline",
+              "sidebar",
+              "home"
+            ],
+            "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+          }
+        },
+        "required": [
+          "destination"
+        ]
+      }
+    },
+    {
+      "name": "show_trip_controls",
+      "title": "Show trip controls (sidebar)",
+      "description": "Returns the sidebar flow: a panel of controls for the trip as a whole — dates, party size, budget, stop preference — with one commit action. Use it when the user wants to *adjust* the trip rather than discuss it. The panel replaces itself each time; it is not a feed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "description": "Current start date, YYYY-MM-DD."
+          },
+          "endDate": {
+            "type": "string",
+            "description": "Current end date, YYYY-MM-DD."
+          },
+          "travelers": {
+            "type": "integer"
+          },
+          "maxPrice": {
+            "type": "number",
+            "description": "Current fare cap."
+          },
+          "nonstopOnly": {
+            "type": "boolean"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "show_itinerary",
+      "title": "Show a day-by-day itinerary",
+      "description": "Builds a day-by-day plan for a destination from its real highlights and returns it as an A2UI itinerary the user can tap through.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string"
+          },
+          "days": {
+            "type": "integer",
+            "description": "How many days to plan, 1–7."
+          },
+          "startDate": {
+            "type": "string",
+            "description": "First day, YYYY-MM-DD."
+          },
+          "surface": {
+            "type": "string",
+            "enum": [
+              "inline",
+              "sidebar",
+              "home"
+            ],
+            "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+          }
+        },
+        "required": [
+          "destination"
+        ]
+      }
+    },
+    {
+      "name": "show_trip_dashboard",
+      "title": "Show a trip dashboard",
+      "description": "Returns a generated dashboard for a trip: days remaining, budget used, forecast and a map of what is planned. Use for \"how is my trip looking\" questions.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "description": "Departure date, YYYY-MM-DD."
+          },
+          "travelers": {
+            "type": "integer"
+          },
+          "nights": {
+            "type": "integer"
+          },
+          "budget": {
+            "type": "number"
+          },
+          "spent": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "destination"
+        ]
+      }
+    },
+    {
+      "name": "show_price_summary",
+      "title": "Show what a trip costs",
+      "description": "Returns an itemised cost breakdown and total as an A2UI price summary.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string"
+          },
+          "travelers": {
+            "type": "integer"
+          },
+          "nights": {
+            "type": "integer"
+          },
+          "flightPrice": {
+            "type": "number"
+          },
+          "nightlyPrice": {
+            "type": "number"
+          },
+          "surface": {
+            "type": "string",
+            "enum": [
+              "inline",
+              "sidebar",
+              "home"
+            ],
+            "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+          }
+        },
+        "required": [
+          "destination"
+        ]
+      }
+    },
+    {
+      "name": "get_a2ui_component_reference",
+      "title": "Read the component catalog",
+      "description": "Returns the full A2UI Express output contract: the grammar, the streaming rules, and the positional signature of every component and function in the travel catalog — flight and hotel cards, itinerary days, maps, price summaries, stat tiles, sliders, pickers, and the layout primitives. Call this once before render_a2ui_express, then compose whatever interface the conversation actually needs. Costs one call and makes every layout possible rather than the six this server hard-codes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "render_a2ui_express",
+      "title": "Compose a custom interface",
+      "description": "Compiles A2UI Express you have written into a live interface, rendered by the same React component library as every other tool here. This is the general case and the other tools are shortcuts: use it whenever the layout you want is not one of them — a comparison table of three hotels next to a budget meter, a packing checklist, a single decision card. Call get_a2ui_component_reference first for the grammar and the signatures. Compile errors come back naming exactly what was wrong, so a second attempt can fix it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "A2UI Express source. Declare components in order and finish with `root = …`; sentinel tags are optional, the compiler strips them."
+          },
+          "surfaceId": {
+            "type": "string",
+            "description": "Surface id to draw into. Defaults to \"mcp\"."
+          }
+        },
+        "required": [
+          "source"
+        ]
+      }
+    }
+  ]
+}

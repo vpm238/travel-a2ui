@@ -203,19 +203,39 @@ const REFUSABLE = new Set<TripKey>(['startDate', 'endDate', 'travelers', 'legs']
  * dates did not stick.
  */
 function commit(saved: Trip, proposed: Trip): { trip: Trip; refused: string[] } {
-  const found = problems(proposed, today()).filter((problem) => REFUSABLE.has(problem.field));
+  const refusable = (candidate: Trip) =>
+    problems(candidate, today()).filter((problem) => REFUSABLE.has(problem.field));
+
+  const found = refusable(proposed);
   if (found.length === 0) return { trip: proposed, refused: [] };
 
-  const trip = { ...proposed };
-  for (const problem of found) {
-    // Back to what was saved — deleting outright would lose a value the
-    // traveler had already agreed to, which is a second wrong answer.
-    if (problem.field in saved) {
-      (trip as Record<string, unknown>)[problem.field] = saved[problem.field];
-    } else {
-      delete (trip as Record<string, unknown>)[problem.field];
+  // Back to what was saved — deleting outright would lose a value the traveler
+  // had already agreed to, which is a second wrong answer.
+  const revert = (candidate: Trip, fields: readonly TripKey[]): Trip => {
+    const out = { ...candidate } as Record<string, unknown>;
+    for (const field of fields) {
+      if (field in saved) out[field] = saved[field];
+      else delete out[field];
     }
+    return out as Trip;
+  };
+
+  let trip = revert(proposed, found.map((problem) => problem.field));
+
+  // Reverting the field that *reported* the problem is not always enough, and
+  // the date pair is the case that proves it. `problems` names `endDate` for a
+  // range that runs backwards, so a commit of 20 Apr → 12 Apr over a saved
+  // 1 Apr → 8 Apr reverts only the end and leaves 20 Apr → 8 Apr: still
+  // backwards, still the negative nights this exists to prevent, and now a
+  // pair the traveler never typed. A range is one decision, so when putting
+  // one end back does not settle it, the whole decision goes back.
+  if (refusable(trip).length > 0) {
+    const changed = [...REFUSABLE].filter(
+      (field) => (proposed as Record<string, unknown>)[field] !== (saved as Record<string, unknown>)[field],
+    );
+    trip = revert(proposed, changed);
   }
+
   return { trip, refused: found.map((problem) => problem.message) };
 }
 
@@ -279,7 +299,16 @@ export async function runTurn(
   // guess, however it got into the control — the agent's suggestion, a value
   // carried over from an earlier turn, or something typed just now.
   const said = [...Object.keys(fromSurface), ...Object.keys(fromContext)];
-  if (said.length > 0) Object.assign(trip, confirm(trip, said));
+  if (said.length > 0) {
+    // Replaced, not merged. `confirm` returns a trip with the `assumed` key
+    // *removed* once nothing is assumed any more, and `Object.assign` from a
+    // object that lacks a key cannot take that key off the target — so the
+    // mark survived every press, the host kept the question open, and the
+    // agent went on re-asking something the traveler had already pressed.
+    const confirmed = confirm(trip, said);
+    for (const key of Object.keys(trip)) delete (trip as Record<string, unknown>)[key];
+    Object.assign(trip, confirmed);
+  }
   const toolContext: ToolContext = {
     trip,
     provider: request.provider ?? providerFor(undefined),

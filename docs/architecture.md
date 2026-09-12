@@ -10,71 +10,131 @@ The claim this repository is built to test:
 Everything below is how that is arranged, and — as importantly — where it isn't
 true and why.
 
+If you have not read the [README](../README.md), start there: it explains the
+problem this shape exists to solve. This document assumes you want the
+engineering.
+
 ---
 
-## 1 · One build, four places
+## 0 · Six words, before any diagram
 
-There are exactly four things that are written once, and everything else is a
-thin adapter around them.
+Everything here is built out of six ideas. Each is simpler than its name.
+
+**Component.** One piece of interface the app already knows how to draw — a
+flight card, a date picker, a price summary. The app ships the code for it. The
+agent never sends code, only the *name* of a component and what to put in it.
+
+**Catalog.** The list of every component the app has, with the exact inputs each
+one takes, written as JSON Schema. `catalogs/a2ui-travel/catalog.json` is ours:
+30 components. It is the vocabulary — the agent can say anything the catalog
+lists and nothing it does not.
+
+**Surface.** One screen's worth of interface, with an id. The card under a reply
+is a surface (`inline-1`); the panel down the side is a surface (`sidebar`); the
+home screen is a surface (`home`). Surfaces are addressed by id, so the agent can
+update one without touching the others.
+
+**Data model.** A little store of values attached to a surface, addressed by
+path — `/trip/startDate`, `/flights/0/price`. Components do not usually hold
+their own values; they hold a *binding*, which is a path into this store. Change
+the store and everything bound to it redraws, with no round trip to the server.
+This is the piece that makes "draw the layout first, fill it in later" work at
+all.
+
+**Express.** A compact shorthand for writing a tree of components, so the model
+does not have to emit verbose JSON:
 
 ```
-                    ┌───────────────────────────────────────┐
-                    │  catalogs/a2ui-travel/catalog.json     │  the vocabulary
-                    │  40 components, JSON Schema            │
-                    └────────────────┬──────────────────────┘
+head = Text("Flights to London", variant="h3")
+root = Column([head])
+```
+
+About a third the tokens of the JSON it compiles to, and — crucially — a
+half-written Express program is still a valid program, so a surface can be
+compiled and painted while the model is still typing.
+
+**Skill.** The document that teaches the model all of the above: which
+components exist, what each takes, and how to write Express. It is *generated*
+from the catalog rather than written by hand, so it can never describe a
+component that does not exist.
+
+Put together, one turn reads: the agent writes **Express** naming
+**components** from the **catalog**, the server compiles it to A2UI messages
+addressed to a **surface**, the client draws it, and values flow through the
+**data model** — all of it taught by the **skill**.
+
+---
+
+## 1 · One build, many places
+
+A small number of things are written once. Everything else is a thin adapter
+around them.
+
+```
+                 ┌────────────────────────────────────────────┐
+                 │   data/          the facts                  │
+                 │   prompts/*.md   what the agent is told      │
+                 │   catalog.json   the vocabulary (30 pieces)  │
+                 └───────────────────┬────────────────────────┘
                                      │  generated from
-                    ┌────────────────┴──────────────────────┐
-                    │  scripts/build_catalog.py             │  ← edit here
-                    └────────────────┬──────────────────────┘
+                 ┌───────────────────┴────────────────────────┐
+                 │  scripts/build_catalog.py   ← edit here     │
+                 │  scripts/build_skills.py    (SDK generator) │
+                 └───────────────────┬────────────────────────┘
                                      │
-             ┌───────────────────────┼───────────────────────┐
-             │                       │                       │
-   ┌─────────▼─────────┐  ┌──────────▼─────────┐  ┌──────────▼─────────┐
-   │ packages/express  │  │ packages/renderer  │  │ skills/*/SKILL.md  │
-   │ Express ⇄ A2UI    │  │ React components   │  │ what the model     │
-   │ compiler +        │  │ for every catalog  │  │ is told, generated │
-   │ decompiler +      │  │ entry              │  │ from the catalog   │
-   │ stream splitter   │  │                    │  │                    │
-   └─────────┬─────────┘  └──────────┬─────────┘  └──────────┬─────────┘
-             │                       │                       │
-   ══════════╪═══════════════════════╪═══════════════════════╪══════════
-             │        consumed, never reimplemented, by       │
-   ┌─────────▼────────┬──────────────▼──────────┬─────────────▼────────┐
-   │ apps/web         │ apps/mcp-view           │ apps/worker          │
-   │ the React app    │ the same renderer, for  │ agent loop + the MCP │
-   │ (3 flows)        │ an MCP host's iframe    │ server + compile API │
-   └──────────────────┴─────────────────────────┴──────────────────────┘
-   ┌──────────────────┬─────────────────────────────────────────────────┐
-   │ apps/gallery     │ voice relay (Gemini Live, via the session DO)  │
-   │ static showcase  │ same wire protocol, Google runs the loop        │
-   └──────────────────┴─────────────────────────────────────────────────┘
+           ┌─────────────────────────┼─────────────────────────┐
+           │                         │                         │
+ ┌─────────▼──────────┐   ┌──────────▼─────────┐   ┌───────────▼────────┐
+ │  Express ⇄ A2UI    │   │  renderers         │   │  skills/*/SKILL.md │
+ │  the SDK's parser  │   │  React (packages/) │   │  what the model    │
+ │  (Python) and our  │   │  Flutter (apps/)   │   │  is told           │
+ │  port (TypeScript) │   │                    │   │                    │
+ └─────────┬──────────┘   └──────────┬─────────┘   └───────────┬────────┘
+           │                         │                         │
+ ══════════╪═════════════════════════╪═════════════════════════╪════════
+           │      consumed, never reimplemented, by            │
+ ┌─────────▼───────────────┬─────────▼──────────┬──────────────▼────────┐
+ │ apps/server  (Python)   │ apps/web           │ apps/mcp-view         │
+ │ the agent, the tools,   │ the React client   │ the same renderer,    │
+ │ the trip, MCP, voice    │ (3 flows)          │ for an MCP host       │
+ └─────────────────────────┴────────────────────┴───────────────────────┘
+ ┌─────────────────────────┬────────────────────┬───────────────────────┐
+ │ apps/worker  (retiring) │ apps/flutter_client│ apps/gallery          │
+ │ the original TypeScript │ the second client  │ static showcase       │
+ └─────────────────────────┴────────────────────┴───────────────────────┘
 ```
 
-There is a fifth, `packages/trip`, which the catalog does not generate: what a
-trip *is*, shared by the agent, the tools, the prompt and the browser. See
-[The trip is a model](#the-trip-is-a-model-not-a-bag-of-keys).
+**Two servers, for now.** `apps/server` is Python and is the one that ships;
+`apps/worker` is the original TypeScript implementation, still deployed, being
+retired once the cutover is verified. They implement the same agent, which makes
+the interesting risk *silent disagreement* rather than breakage — so every layer
+where they could disagree is pinned by a golden file. See
+[§9](#9--testing-and-what-is-simulated).
+
+**Python, because the SDK is Python.** The A2UI agent SDK — the Express parser,
+the catalog loader, the skill generator — exists in exactly one language, and it
+is the reference implementation. Using it directly means the compiler in the
+path is the one the protocol authors wrote, not our reading of it. The
+TypeScript port remains, checked against the same goldens; when the two were
+compared on a non-trivial surface they agreed on every field but one (the
+catalog identifier — the port emits the short name, the SDK the canonical URI).
 
 **The catalog is the single source of truth.** `scripts/build_catalog.py` is the
-only file you edit to add a component; `npm run generate` then regenerates the
-catalog JSON, the compiled examples, and all four `SKILL.md` files. `npm run
-check` fails CI if any of them drifts, so "the docs are stale" is not a state
-this repo can be in.
+only file you edit to add a component; `npm run generate` regenerates the
+catalog JSON, the fixtures, the compiled examples and every `SKILL.md`. `npm run
+check` fails CI if any drifts, so "the docs are stale" is not a state this
+repository can be in.
 
-A component is only *complete* when three things exist: a schema entry in
-`build_catalog.py`, a React case in `packages/renderer/src/components/`, and an
-example in `catalogs/a2ui-travel/examples/`. The Catalog tab in the running app
-flags any component with a schema but no renderer, in red, so the gap is visible
-rather than discovered at runtime.
+**What the model is told is a file, not a string in code.** The tool
+descriptions live in `data/tools.json`; the agent's role and the per-surface
+briefs live in `prompts/*.md`. Both servers read the same files. That is not
+tidiness — a retyped prompt is a different agent, and two agents with different
+manners is a bug nobody can see in a diff.
 
-### What is *not* shared, and why
-
-| Thing | Per-surface, because |
-| --- | --- |
-| Layout chrome | a chat feed, a 340 px panel and an iframe are different shapes |
-| The runtime picker | only the web app chooses its backend; inside Claude, Claude *is* the runtime |
-| Session storage | the Worker uses a Durable Object; the managed agent's session holds its own history |
-| Conversation lifetime | a reload starts a new one in the web app; in Claude, the host owns the thread |
-| Tool execution | the Worker calls its own functions; the managed agent calls the MCP server |
+There is one thing the catalog does not generate: **the trip model** — what a
+trip *is*, which fields block which goals, and what to ask for next. It is
+shared by the agent, the tools, the prompt and the panels. See
+[The trip is a model](#the-trip-is-a-model-not-a-bag-of-keys).
 
 ---
 
@@ -275,7 +335,7 @@ change the trip.
 
 The panel is also, now, **entirely A2UI**. It used to be half-and-half: an A2UI
 surface on top, and underneath a React checklist and a key/value dump of the
-trip, both reading `packages/trip` directly. They worked well and they were the
+trip, both reading the trip model directly. They worked well and they were the
 one part of the panel a mobile client could not draw, because they were not in
 the protocol at all.
 
@@ -318,7 +378,7 @@ does nothing is worse than one that looks finished.
 
 ### The trip is a model, not a bag of keys
 
-`packages/trip` is the schema, and it is the only definition. Before it existed
+The trip model is the schema, and it is the only definition. Before it existed
 the agent, the tools, the prompt and the browser each had their own opinion
 about what a trip was, and every bug worth reporting came out of that gap: dates
 in two formats, `cabin` arriving from a picker as `["economy"]` and reaching a
@@ -327,8 +387,10 @@ ways, two copies of the field list drifting apart.
 
 It carries four things:
 
-- **`FIELDS`** — what a trip is made of. Seventeen fields across seven stages,
+- **`FIELDS`** — what a trip is made of. Twenty-one fields across seven stages,
   each with the kind it holds and how to name it when asking a person for it.
+  They are declared in `data/trip-model.json` and read by both servers, so the
+  two cannot hold different opinions about what a trip is.
 - **`normalize`** — the only way values get in. It coerces the shapes a real
   interface produces: a picker's single-item array, an RFC 3339 instant from a
   date input, `"$2,600"` typed into a text field.
@@ -337,8 +399,11 @@ It carries four things:
 - **`plan`** — the trip as a sequence of steps, which is what makes the agent
   lead instead of wait.
 
-It has no dependencies and no I/O, because it is imported by a Cloudflare
-Worker, a browser bundle and a test suite alike.
+It reads one file and does nothing else — no network, no database — because it
+is imported by a Python server, a Cloudflare Worker, a browser bundle and a test
+suite alike. It exists twice, once in each language, and a golden file holds the
+two to the same answers: 9 trips chosen for the decisions they force, every
+function's output pinned.
 
 ### The agent leads, and finishes
 
@@ -442,71 +507,114 @@ party size — in its heading. `LHR → Madrid · 12–19 Apr · 3 travellers`, 
 ## 6 · A turn, end to end
 
 ```
- browser                    Worker                       Gemini
- ───────                    ──────                       ─────────
- POST /api/chat  ─────────▶ runTurn()
- x-goog-api-key             │  build system prompt from
-                            │  skills/<variant>/…/SKILL.md
-                            │  (cached at a prompt breakpoint)
-                            ├──── messages.stream ─────────▶
+ client                     server                       Gemini
+ ──────                     ──────                       ─────────
+ POST /api/chat  ─────────▶ run_turn()
+ x-goog-api-key             │
+ + action or message        │  1. commit what the traveller set
+                            │     on screen — before asking the
+                            │     model anything
+                            │
+                            │  2. build the system prompt:
+                            │     role + skill + surface brief
+                            │     (stable half first, so the
+                            │     catalog is cached)
+                            ├──── interactions.create ─────▶
                             │
                             │◀─── text deltas ─────────────┤
                             │
-                            │  ExpressStreamParser.push()
-                            │  splits prose from <a2ui> blocks
-                            │  and recompiles the open block
+                            │  3. ExpressStream splits prose
+                            │     from <a2ui> blocks and
+                            │     recompiles the open block
                             │
-      ◀── SSE: text ────────┤   prose
-      ◀── SSE: ui ──────────┤   partial surface, then done:true
+      ◀── SSE: text ────────┤   prose, as it arrives
+      ◀── SSE: ui ──────────┤   partial surface, then done
                             │
-                            │◀─── tool_use ────────────────┤
-                            │  execute, all in parallel
-                            ├──── tool results ───────────▶
+                            │◀─── function_call ───────────┤
                             │
+      ◀── SSE: ui ──────────┤  4. the SKELETON: the layout for
+                            │     this answer, bound and blank
+      ◀── SSE: tool ────────┤     …the tool runs…
+      ◀── SSE: ui ──────────┤  5. the FILL: only the data model
+                            ├──── results, all in one ─────▶
+                            │
+      ◀── SSE: ui ──────────┤  6. the panels, brought up to date
       ◀── SSE: done ────────┤
  store.apply(messages)
- <A2uiSurface/> renders
- user clicks a card
-      ──── next turn ──────▶  "[interface] select_flight (id: "IB6250", …)"
+ the surface renders
+ the traveller taps a card
+      ──── next turn ──────▶  { name: "select_flight",
+                                context: { id: "IB6250" } }
 ```
 
-Two decisions in there are load-bearing:
+Six decisions in there are load-bearing:
 
-**Prose and UI are split server-side, as the model streams.** The model emits
-one text stream containing both; `ExpressStreamParser` separates them and
-recompiles the partial Express block on every chunk, so a surface materialises
-progressively instead of appearing all at once at the end. Doing this in the
-browser instead would mean shipping raw Express to the client and rendering it
-as prose for a few hundred milliseconds — which is exactly the bug the first
-version of the e2e test caught.
+**What the traveller set is committed before the model is asked.** A value typed
+into a control is a fact. Depending on the model to notice it and call
+`save_trip` is what made a second card forget what the first one asked, so the
+host records it directly. The model is *told* about anything it refused, because
+otherwise it reads back the old trip and nothing in it says a value was turned
+away.
+
+**The stable half of the prompt comes first, and that is the whole
+optimisation.** The skill is thousands of tokens and identical on every turn of
+a conversation; the trip state is a few dozen and changes constantly. Gemini
+caches a repeated prefix implicitly, so ordering them stable-then-volatile is
+the difference between paying for the catalog once per conversation and once per
+message. Swapping the halves produces a correct prompt, a correct demo, and a
+much larger bill — which is why there is a test asserting the order rather than
+trusting it.
+
+**Prose and UI are split server-side, as the model streams.** The model emits one
+text stream containing both; the splitter separates them and recompiles the
+partial Express block on every chunk, so a surface materialises progressively
+instead of appearing at the end. Doing it in the browser would mean shipping raw
+Express to the client and rendering it as prose for a few hundred milliseconds —
+exactly the bug the first version of the e2e test caught.
+
+**The interface is drawn before the data exists.** The moment the agent chooses
+`search_flights`, the *shape* of the answer is known: four cards, each with an
+airline, a time, a price. So the layout goes out immediately — `createSurface`,
+a data model seeded with four blank rows, `updateComponents` — and the real rows
+arrive into it when the tool returns. The components are sent **once**; only the
+data model moves. Nothing recompiles, and the card the traveller is looking at
+is not replaced underneath them.
+
+The pending state needs no new protocol: a binding whose path does not resolve
+is *pending*, and one resolving to `""` is *empty*. That is why the blank rows
+are `{}` and not rows of empty strings — seed the wrong one and every card
+paints as a flight with no airline and no price, which is worse than a spinner
+because it looks like an answer.
 
 **A turn is a sequence of parts, not "prose then UI".** A model says a sentence,
 draws, and says another. Rendering all the prose above all the surfaces puts
-"want me to hold one?" above the thing being held, so `TurnPart[]` interleaves
-them in arrival order. Each tool round starts a new text part, because two
-sentences separated by a tool call are two paragraphs — concatenated they read
-as `…anything.Nothing nonstop is showing`, which looks like a typo.
+"want me to hold one?" above the thing being held, so the parts interleave in
+arrival order. Each tool round starts a new text part, because two sentences
+separated by a tool call are two paragraphs — concatenated they read as
+`…anything.Nothing nonstop is showing`, which looks like a typo.
 
-**A reload is a new conversation.** The session id is generated per page load
-and deliberately not persisted, so reloading clears the transcript and the trip
-— which is what a person means by reloading a demo. The API key does persist;
-losing that would be a more annoying kind of forgetting. Every write to a
-session pushes a 24-hour alarm out, and the alarm deletes it, so the abandoned
-Durable Object each reload leaves behind expires instead of accumulating.
-
-**A block that does not compile is told to the model.** Express the model wrote
-wrong used to end the turn with a hole where a surface should be, and nothing
-ever said so. Now the compile error and the offending block go back as the next
+**A block that does not compile is told to the model.** Express written wrong
+used to end the turn with a hole where a surface should be, and nothing ever
+said so. Now the compile error and the offending block go back as the next
 message and it rewrites them — once, because a model that cannot fix it on the
-second attempt will not fix it on the fifth and the traveler is waiting. The
-parser helps: `variant: "h3"` instead of `variant="h3"` is the mistake a model
-actually makes, and it now says so instead of reporting `expected ')' but found
-':'`.
+second attempt will not fix it on the fifth and the traveller is waiting.
 
-**Clicking is a turn.** An interface event becomes
-`[interface] select_flight (id: "IB6250", price: "$412")` plus the surface's
-data model. Filling in a form *is* what the user said, so it goes in as the
-user's message rather than as an out-of-band state update.
+**Clicking is a turn, and the wire carries an action rather than a sentence.**
+A tap produces `{ name, surfaceId, context, dataModel }` — which is what *any*
+A2UI renderer produces when someone presses something, with nothing taught to
+it. It used to be a sentence the browser composed (`[interface] search_flights
+(origin: "JFK")`), which was a private protocol wearing the costume of a user
+message: a Flutter or Swift client that did not compose the same sentence simply
+did not work. The server turns the action into a sentence for the model, because
+how *this agent* interprets a tap on a read-only panel is a fact about this
+agent, not about the tap.
+
+**A reload is a new conversation.** The session id is generated per page load and
+deliberately not persisted, so reloading clears the transcript and the trip —
+which is what a person means by reloading a demo. The key does persist; losing
+that would be a more annoying kind of forgetting. Sessions live in memory with a
+24-hour idle expiry and a cap on how many can be live at once, so the abandoned
+session each reload leaves behind goes away instead of accumulating.
 
 ---
 
@@ -543,7 +651,7 @@ act on.
 
 Nowhere on the server. The browser holds it, sends it in `x-goog-api-key` on
 each request, and the Worker passes it to the SDK and forgets it. It is never
-written to a Durable Object, never logged, and never put in a URL — a key in a
+written to any session, never logged, and never put in a URL — a key in a
 query string lands in every access log between the browser and the edge.
 
 `#key=…` in the fragment is the supported way to hand one over, because a
@@ -563,26 +671,45 @@ server holds no credentials at all — which is also why it holds no trip data.
 
 | Layer | How |
 | --- | --- |
-| Trip model | 28 cases: coercion from real interface shapes, readiness, the plan, skipped stages, and a three-leg route with two party sizes |
+| Trip model | coercion from real interface shapes, readiness, the plan, skipped stages, and a three-leg route with two party sizes |
 | Compiler | 20 golden cases byte-checked against the reference Python compiler |
 | Skill generator | output byte-identical to the reference generator |
 | Renderer store | bindings, checks, templates, surface lifecycle |
-| MCP server | real JSON-RPC through `handleMcp`, not unit calls into helpers |
-| Agent loop | scripted model output through the real stream splitter |
+| MCP server | real JSON-RPC through the handler, not unit calls into helpers |
+| Agent loop | scripted model output through the real stream splitter, asserting *order*: that a surface paints before the turn ends, the skeleton goes out before the tool and the fill after it |
 | Web app | `tools/e2e/chat.mjs` — a real browser, a real turn, 14 assertions |
 | The agent itself | `tools/eval/live.mjs` — 10 scenarios against the real model, graded mechanically off the event stream. Not in CI; it costs about $2 a run |
 | Interaction model | `tools/e2e/interaction.mjs` — editing sends nothing, committing sends everything as an A2UI action, spent surfaces go inert, the panel stays read-only and holds no React, 21 assertions |
 | MCP app | `tools/e2e/mcp.mjs` — a live server, a sandboxed iframe, 24 assertions |
 | Data providers | the contract, and each of the four ways the code it replaced answered a question it could not answer |
-| Determinism | a golden file: the same query returns the same fares, so a screenshot stays true |
-| Freshness | `npm run check` fails if the catalog, the fixtures, the examples or the skills drift |
+| Two implementations | six golden files, described below |
+| Freshness | `npm run check` fails if the catalog, the fixtures, the examples, the skills or any golden drifts |
 
-415 unit tests, 16 Python tests, 71 browser assertions across three end-to-end
-runs, and a live evaluation of the agent.
+461 TypeScript tests, 294 Python tests for the server, 16 for the build tooling,
+71 browser assertions across three end-to-end runs, and a live evaluation of the
+agent. None of them needs an API key.
+
+### The goldens
+
+Two servers implementing one agent makes the dangerous failure *silent
+disagreement* rather than breakage: both answer, both draw, and only the details
+differ. So each layer where that could happen is pinned to a file the TypeScript
+writes and the Python must reproduce exactly — the fixtures' output, the trip
+model, the tools' wording, the whole system prompt, the compiled skeleton, and
+the four passes over a surface.
+
+The rule that makes them worth having: **write the golden from the incumbent
+before porting, then check the golden fails when you break the port.** A golden
+nobody has watched fail is a file, not a test. Following it found nine
+divergences in the tool layer, a 32-bit arithmetic bug, an iteration-order
+difference between a JavaScript `Set` and a Python `set` that changed the keys
+of a button's payload — and two bugs that were in the *original*, where a
+faithful port was the only reason they surfaced at all.
 
 ### Where the data comes from
 
-Travel data arrives through `TravelProvider` (`apps/worker/src/providers/`), and
+Travel data arrives through `TravelProvider`
+(`apps/server/src/travel_a2ui/providers/`), and
 the deployment picks the implementation: fixtures by default, Amadeus when
 `AMADEUS_CLIENT_ID` and `AMADEUS_CLIENT_SECRET` are set. There is no
 `PROVIDER=live` flag to go with them, because a flag can be set without a
@@ -596,8 +723,9 @@ not, because Amadeus has no weather product and the fixture's provenance travels
 with the delegated answer.
 
 **Fixtures** are a deterministic generator over the rows in `data/` — CSV and
-JSON, compiled into the Worker bundle by `scripts/build_fixtures.py` because a
-Worker has no filesystem. Prices move with distance, cabin and season; the same
+JSON. The Python server reads them from disk; the Worker cannot, having no
+filesystem, so `scripts/build_fixtures.py` compiles the same rows into its
+bundle. Prices move with distance, cabin and season; the same
 query returns the same result. Destination guidance is real; fares, schedules
 and hotels are not, and the UI says so. No booking happens.
 

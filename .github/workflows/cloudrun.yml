@@ -1,0 +1,130 @@
+name: travel-a2ui Cloud Run
+
+# Deploys the Python server — which also serves the built React client, the
+# Flutter client and the MCP endpoint — to a single Cloud Run service.
+#
+# One service, not two. Splitting the front end from the API would buy nothing
+# here (no independent scaling, no separate release cadence, no second team)
+# while costing a CORS configuration, a second deployment to keep in step, and
+# a class of bug where the two halves are different versions of the same app.
+#
+# Manual until the cutover is proven. The Cloudflare Worker is still the thing
+# on the public URL, and having two deploys race to serve the same users on
+# every push is how a demo becomes unexplainable.
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Cloud Run service name'
+        required: false
+        default: 'travel-a2ui'
+
+permissions:
+  contents: read
+  # Required for Workload Identity Federation: the token this mints is what
+  # Google exchanges for short-lived credentials. No service-account JSON key
+  # is stored anywhere, which is the point — a long-lived key in a repository
+  # secret is a credential that cannot be rotated by anyone who finds it
+  # leaked.
+  id-token: write
+
+concurrency:
+  group: travel-a2ui-cloudrun
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment: cloud-run
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check the deployment is configured
+        run: |
+          missing=()
+          for name in GCP_PROJECT_ID GCP_REGION WIF_PROVIDER WIF_SERVICE_ACCOUNT; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            # Said here rather than left to `gcloud` to fail obscurely three
+            # minutes into a build.
+            echo "Not configured for Cloud Run. Missing: ${missing[*]}" >&2
+            echo "See docs/deploying.md for what each one is and" >&2
+            echo "how to create the Workload Identity pool." >&2
+            exit 1
+          fi
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push the image
+        run: |
+          set -euo pipefail
+          region="${{ vars.GCP_REGION }}"
+          project="${{ vars.GCP_PROJECT_ID }}"
+          service="${{ inputs.service }}"
+          image="${region}-docker.pkg.dev/${project}/${service}/server"
+
+          gcloud auth configure-docker "${region}-docker.pkg.dev" --quiet
+
+          # Tagged with the commit as well as `latest`, so a rollback names a
+          # commit rather than "the one before this one".
+          docker build -t "${image}:${GITHUB_SHA}" -t "${image}:latest" .
+          docker push "${image}:${GITHUB_SHA}"
+          docker push "${image}:latest"
+
+          echo "IMAGE=${image}:${GITHUB_SHA}" >> "$GITHUB_ENV"
+
+      - name: Deploy
+        run: |
+          set -euo pipefail
+          gcloud run deploy "${{ inputs.service }}" \
+            --image "${IMAGE}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --cpu 1 \
+            --memory 1Gi \
+            --timeout 600 \
+            --concurrency 40 \
+            --min-instances 0 \
+            --max-instances 1 \
+            --set-env-vars "PUBLIC_NAME=Travel A2UI"
+
+          # `--max-instances 1` is not a cost control, it is a correctness one.
+          # Sessions live in this process's memory (see `sessions.py`), so a
+          # second instance would hold a second set of conversations and a
+          # traveller whose next request landed on it would find their trip
+          # gone. Raising it means putting the sessions somewhere shared first.
+          #
+          # `--timeout 600` because a turn is a streamed SSE response held open
+          # for as long as the model takes; the 5-minute default cuts a slow
+          # one off mid-answer.
+          #
+          # No GEMINI_API_KEY is set. The key arrives with each request and
+          # leaves with it, which is what lets this be a public demo that costs
+          # its owner nothing and stores nobody's credential.
+
+      - name: Say where it went
+        run: |
+          url=$(gcloud run services describe "${{ inputs.service }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --format 'value(status.url)')
+          echo "Deployed to ${url}" | tee -a "$GITHUB_STEP_SUMMARY"
+          # A deploy that returns 200 on the health check is a deploy; one that
+          # merely finished is a hope.
+          curl -fsS "${url}/healthz" | tee -a "$GITHUB_STEP_SUMMARY"

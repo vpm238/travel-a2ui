@@ -1,0 +1,2726 @@
+{
+  "planRows": {
+    "empty": {
+      "done": 0,
+      "total": 7,
+      "caption": "0 of 7",
+      "complete": false,
+      "nextLabel": "Where to, and from",
+      "steps": [
+        {
+          "stage": "route",
+          "label": "Where to, and from",
+          "mark": "→",
+          "state": "next",
+          "note": "",
+          "line": "→ Where to, and from"
+        },
+        {
+          "stage": "dates",
+          "label": "Dates",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Dates"
+        },
+        {
+          "stage": "party",
+          "label": "Who is going",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Who is going"
+        },
+        {
+          "stage": "flight",
+          "label": "Flight",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Flight"
+        },
+        {
+          "stage": "stay",
+          "label": "Somewhere to stay",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Somewhere to stay"
+        },
+        {
+          "stage": "budget",
+          "label": "Budget",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Budget"
+        },
+        {
+          "stage": "plan",
+          "label": "The days",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· The days"
+        }
+      ],
+      "route": [],
+      "multiStop": false
+    },
+    "started": {
+      "done": 0,
+      "total": 7,
+      "caption": "0 of 7",
+      "complete": false,
+      "nextLabel": "Where to, and from",
+      "steps": [
+        {
+          "stage": "route",
+          "label": "Where to, and from",
+          "mark": "→",
+          "state": "next",
+          "note": "",
+          "line": "→ Where to, and from"
+        },
+        {
+          "stage": "dates",
+          "label": "Dates",
+          "mark": "·",
+          "state": "todo",
+          "note": "Madrid",
+          "line": "· Dates — Madrid"
+        },
+        {
+          "stage": "party",
+          "label": "Who is going",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Who is going"
+        },
+        {
+          "stage": "flight",
+          "label": "Flight",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Flight"
+        },
+        {
+          "stage": "stay",
+          "label": "Somewhere to stay",
+          "mark": "·",
+          "state": "todo",
+          "note": "Madrid",
+          "line": "· Somewhere to stay — Madrid"
+        },
+        {
+          "stage": "budget",
+          "label": "Budget",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Budget"
+        },
+        {
+          "stage": "plan",
+          "label": "The days",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· The days"
+        }
+      ],
+      "route": [
+        {
+          "place": "Madrid",
+          "detail": "dates?",
+          "line": "Madrid — dates?"
+        }
+      ],
+      "multiStop": false
+    },
+    "ready": {
+      "done": 3,
+      "total": 7,
+      "caption": "3 of 7",
+      "complete": false,
+      "nextLabel": "Flight",
+      "steps": [
+        {
+          "stage": "route",
+          "label": "Where to, and from",
+          "mark": "✓",
+          "state": "done",
+          "note": "",
+          "line": "✓ Where to, and from"
+        },
+        {
+          "stage": "dates",
+          "label": "Dates",
+          "mark": "✓",
+          "state": "done",
+          "note": "",
+          "line": "✓ Dates"
+        },
+        {
+          "stage": "party",
+          "label": "Who is going",
+          "mark": "✓",
+          "state": "done",
+          "note": "",
+          "line": "✓ Who is going"
+        },
+        {
+          "stage": "flight",
+          "label": "Flight",
+          "mark": "→",
+          "state": "next",
+          "note": "",
+          "line": "→ Flight"
+        },
+        {
+          "stage": "stay",
+          "label": "Somewhere to stay",
+          "mark": "·",
+          "state": "todo",
+          "note": "Madrid",
+          "line": "· Somewhere to stay — Madrid"
+        },
+        {
+          "stage": "budget",
+          "label": "Budget",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Budget"
+        },
+        {
+          "stage": "plan",
+          "label": "The days",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· The days"
+        }
+      ],
+      "route": [
+        {
+          "place": "Madrid",
+          "detail": "",
+          "line": "Madrid"
+        }
+      ],
+      "multiStop": false
+    },
+    "skipping": {
+      "done": 3,
+      "total": 7,
+      "caption": "3 of 7",
+      "complete": false,
+      "nextLabel": "Dates",
+      "steps": [
+        {
+          "stage": "route",
+          "label": "Where to, and from",
+          "mark": "✓",
+          "state": "done",
+          "note": "",
+          "line": "✓ Where to, and from"
+        },
+        {
+          "stage": "dates",
+          "label": "Dates",
+          "mark": "→",
+          "state": "next",
+          "note": "Madrid",
+          "line": "→ Dates — Madrid"
+        },
+        {
+          "stage": "party",
+          "label": "Who is going",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Who is going"
+        },
+        {
+          "stage": "flight",
+          "label": "Flight",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Flight"
+        },
+        {
+          "stage": "stay",
+          "label": "Somewhere to stay",
+          "mark": "–",
+          "state": "skipped",
+          "note": "not needed",
+          "line": "– Somewhere to stay — not needed"
+        },
+        {
+          "stage": "budget",
+          "label": "Budget",
+          "mark": "–",
+          "state": "skipped",
+          "note": "not needed",
+          "line": "– Budget — not needed"
+        },
+        {
+          "stage": "plan",
+          "label": "The days",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· The days"
+        }
+      ],
+      "route": [
+        {
+          "place": "Madrid",
+          "detail": "dates?",
+          "line": "Madrid — dates?"
+        }
+      ],
+      "multiStop": false
+    },
+    "multiCity": {
+      "done": 2,
+      "total": 7,
+      "caption": "2 of 7",
+      "complete": false,
+      "nextLabel": "Dates",
+      "steps": [
+        {
+          "stage": "route",
+          "label": "Where to, and from",
+          "mark": "✓",
+          "state": "done",
+          "note": "",
+          "line": "✓ Where to, and from"
+        },
+        {
+          "stage": "dates",
+          "label": "Dates",
+          "mark": "→",
+          "state": "next",
+          "note": "San Francisco",
+          "line": "→ Dates — San Francisco"
+        },
+        {
+          "stage": "party",
+          "label": "Who is going",
+          "mark": "✓",
+          "state": "done",
+          "note": "",
+          "line": "✓ Who is going"
+        },
+        {
+          "stage": "flight",
+          "label": "Flight",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Flight"
+        },
+        {
+          "stage": "stay",
+          "label": "Somewhere to stay",
+          "mark": "·",
+          "state": "todo",
+          "note": "Chicago, New York",
+          "line": "· Somewhere to stay — Chicago, New York"
+        },
+        {
+          "stage": "budget",
+          "label": "Budget",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· Budget"
+        },
+        {
+          "stage": "plan",
+          "label": "The days",
+          "mark": "·",
+          "state": "todo",
+          "note": "",
+          "line": "· The days"
+        }
+      ],
+      "route": [
+        {
+          "place": "Chicago",
+          "detail": "1×",
+          "line": "Chicago — 1×"
+        },
+        {
+          "place": "New York",
+          "detail": "1× · a wedding",
+          "line": "New York — 1× · a wedding"
+        },
+        {
+          "place": "San Francisco",
+          "detail": "2× · no stay needed",
+          "line": "San Francisco — 2× · no stay needed"
+        }
+      ],
+      "multiStop": true
+    }
+  },
+  "tripUpdates": {
+    "empty": [
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/plan",
+          "value": {
+            "done": 0,
+            "total": 7,
+            "caption": "0 of 7",
+            "complete": false,
+            "nextLabel": "Where to, and from",
+            "steps": [
+              {
+                "stage": "route",
+                "label": "Where to, and from",
+                "mark": "→",
+                "state": "next",
+                "note": "",
+                "line": "→ Where to, and from"
+              },
+              {
+                "stage": "dates",
+                "label": "Dates",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Dates"
+              },
+              {
+                "stage": "party",
+                "label": "Who is going",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Who is going"
+              },
+              {
+                "stage": "flight",
+                "label": "Flight",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Flight"
+              },
+              {
+                "stage": "stay",
+                "label": "Somewhere to stay",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Somewhere to stay"
+              },
+              {
+                "stage": "budget",
+                "label": "Budget",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Budget"
+              },
+              {
+                "stage": "plan",
+                "label": "The days",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· The days"
+              }
+            ],
+            "route": [],
+            "multiStop": false
+          }
+        }
+      }
+    ],
+    "started": [
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/destination",
+          "value": "Madrid"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/plan",
+          "value": {
+            "done": 0,
+            "total": 7,
+            "caption": "0 of 7",
+            "complete": false,
+            "nextLabel": "Where to, and from",
+            "steps": [
+              {
+                "stage": "route",
+                "label": "Where to, and from",
+                "mark": "→",
+                "state": "next",
+                "note": "",
+                "line": "→ Where to, and from"
+              },
+              {
+                "stage": "dates",
+                "label": "Dates",
+                "mark": "·",
+                "state": "todo",
+                "note": "Madrid",
+                "line": "· Dates — Madrid"
+              },
+              {
+                "stage": "party",
+                "label": "Who is going",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Who is going"
+              },
+              {
+                "stage": "flight",
+                "label": "Flight",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Flight"
+              },
+              {
+                "stage": "stay",
+                "label": "Somewhere to stay",
+                "mark": "·",
+                "state": "todo",
+                "note": "Madrid",
+                "line": "· Somewhere to stay — Madrid"
+              },
+              {
+                "stage": "budget",
+                "label": "Budget",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Budget"
+              },
+              {
+                "stage": "plan",
+                "label": "The days",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· The days"
+              }
+            ],
+            "route": [
+              {
+                "place": "Madrid",
+                "detail": "dates?",
+                "line": "Madrid — dates?"
+              }
+            ],
+            "multiStop": false
+          }
+        }
+      }
+    ],
+    "ready": [
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/destination",
+          "value": "Madrid"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/origin",
+          "value": "JFK"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/startDate",
+          "value": "2027-04-12"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/endDate",
+          "value": "2027-04-19"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/travelers",
+          "value": 2
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/plan",
+          "value": {
+            "done": 3,
+            "total": 7,
+            "caption": "3 of 7",
+            "complete": false,
+            "nextLabel": "Flight",
+            "steps": [
+              {
+                "stage": "route",
+                "label": "Where to, and from",
+                "mark": "✓",
+                "state": "done",
+                "note": "",
+                "line": "✓ Where to, and from"
+              },
+              {
+                "stage": "dates",
+                "label": "Dates",
+                "mark": "✓",
+                "state": "done",
+                "note": "",
+                "line": "✓ Dates"
+              },
+              {
+                "stage": "party",
+                "label": "Who is going",
+                "mark": "✓",
+                "state": "done",
+                "note": "",
+                "line": "✓ Who is going"
+              },
+              {
+                "stage": "flight",
+                "label": "Flight",
+                "mark": "→",
+                "state": "next",
+                "note": "",
+                "line": "→ Flight"
+              },
+              {
+                "stage": "stay",
+                "label": "Somewhere to stay",
+                "mark": "·",
+                "state": "todo",
+                "note": "Madrid",
+                "line": "· Somewhere to stay — Madrid"
+              },
+              {
+                "stage": "budget",
+                "label": "Budget",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Budget"
+              },
+              {
+                "stage": "plan",
+                "label": "The days",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· The days"
+              }
+            ],
+            "route": [
+              {
+                "place": "Madrid",
+                "detail": "",
+                "line": "Madrid"
+              }
+            ],
+            "multiStop": false
+          }
+        }
+      }
+    ],
+    "skipping": [
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/destination",
+          "value": "Madrid"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/origin",
+          "value": "JFK"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/skip",
+          "value": [
+            "stay",
+            "budget"
+          ]
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/plan",
+          "value": {
+            "done": 3,
+            "total": 7,
+            "caption": "3 of 7",
+            "complete": false,
+            "nextLabel": "Dates",
+            "steps": [
+              {
+                "stage": "route",
+                "label": "Where to, and from",
+                "mark": "✓",
+                "state": "done",
+                "note": "",
+                "line": "✓ Where to, and from"
+              },
+              {
+                "stage": "dates",
+                "label": "Dates",
+                "mark": "→",
+                "state": "next",
+                "note": "Madrid",
+                "line": "→ Dates — Madrid"
+              },
+              {
+                "stage": "party",
+                "label": "Who is going",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Who is going"
+              },
+              {
+                "stage": "flight",
+                "label": "Flight",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Flight"
+              },
+              {
+                "stage": "stay",
+                "label": "Somewhere to stay",
+                "mark": "–",
+                "state": "skipped",
+                "note": "not needed",
+                "line": "– Somewhere to stay — not needed"
+              },
+              {
+                "stage": "budget",
+                "label": "Budget",
+                "mark": "–",
+                "state": "skipped",
+                "note": "not needed",
+                "line": "– Budget — not needed"
+              },
+              {
+                "stage": "plan",
+                "label": "The days",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· The days"
+              }
+            ],
+            "route": [
+              {
+                "place": "Madrid",
+                "detail": "dates?",
+                "line": "Madrid — dates?"
+              }
+            ],
+            "multiStop": false
+          }
+        }
+      }
+    ],
+    "multiCity": [
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/destination",
+          "value": "Chicago"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/origin",
+          "value": "SFO"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/startDate",
+          "value": "2027-04-12"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/endDate",
+          "value": "2027-04-14"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/travelers",
+          "value": 1
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/trip/legs",
+          "value": [
+            {
+              "destination": "New York",
+              "startDate": "2027-04-14",
+              "endDate": "2027-04-18",
+              "purpose": "a wedding"
+            },
+            {
+              "destination": "San Francisco",
+              "startDate": "2027-04-18",
+              "travelers": 2,
+              "needsStay": false
+            }
+          ]
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/plan",
+          "value": {
+            "done": 2,
+            "total": 7,
+            "caption": "2 of 7",
+            "complete": false,
+            "nextLabel": "Dates",
+            "steps": [
+              {
+                "stage": "route",
+                "label": "Where to, and from",
+                "mark": "✓",
+                "state": "done",
+                "note": "",
+                "line": "✓ Where to, and from"
+              },
+              {
+                "stage": "dates",
+                "label": "Dates",
+                "mark": "→",
+                "state": "next",
+                "note": "San Francisco",
+                "line": "→ Dates — San Francisco"
+              },
+              {
+                "stage": "party",
+                "label": "Who is going",
+                "mark": "✓",
+                "state": "done",
+                "note": "",
+                "line": "✓ Who is going"
+              },
+              {
+                "stage": "flight",
+                "label": "Flight",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Flight"
+              },
+              {
+                "stage": "stay",
+                "label": "Somewhere to stay",
+                "mark": "·",
+                "state": "todo",
+                "note": "Chicago, New York",
+                "line": "· Somewhere to stay — Chicago, New York"
+              },
+              {
+                "stage": "budget",
+                "label": "Budget",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· Budget"
+              },
+              {
+                "stage": "plan",
+                "label": "The days",
+                "mark": "·",
+                "state": "todo",
+                "note": "",
+                "line": "· The days"
+              }
+            ],
+            "route": [
+              {
+                "place": "Chicago",
+                "detail": "1×",
+                "line": "Chicago — 1×"
+              },
+              {
+                "place": "New York",
+                "detail": "1× · a wedding",
+                "line": "New York — 1× · a wedding"
+              },
+              {
+                "place": "San Francisco",
+                "detail": "2× · no stay needed",
+                "line": "San Francisco — 2× · no stay needed"
+              }
+            ],
+            "multiStop": true
+          }
+        }
+      }
+    ]
+  },
+  "surfaces": {
+    "editors with a button that binds nothing": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "from",
+              "component": "TextField",
+              "label": "From",
+              "text": {
+                "path": "/trip/origin"
+              }
+            },
+            {
+              "id": "when",
+              "component": "DateRangePicker",
+              "label": "Dates",
+              "start": {
+                "path": "/trip/startDate"
+              },
+              "end": {
+                "path": "/trip/endDate"
+              },
+              "nightsLabel": {
+                "call": "formatString",
+                "args": {
+                  "value": "${calcNights(start:${/trip/startDate}, end:${/trip/endDate})} nights"
+                }
+              }
+            },
+            {
+              "id": "who",
+              "component": "TravelerCounter",
+              "label": "Travelers",
+              "value": {
+                "path": "/trip/travelers"
+              }
+            },
+            {
+              "id": "go",
+              "component": "Button",
+              "label": "Search",
+              "action": {
+                "event": {
+                  "name": "search_flights",
+                  "context": {
+                    "origin": {
+                      "path": "/trip/origin"
+                    },
+                    "startDate": {
+                      "path": "/trip/startDate"
+                    },
+                    "endDate": {
+                      "path": "/trip/endDate"
+                    },
+                    "travelers": {
+                      "path": "/trip/travelers"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "from",
+                "when",
+                "who",
+                "go"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "a button that already bound one thing itself": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "from",
+              "component": "TextField",
+              "label": "From",
+              "text": {
+                "path": "/trip/origin"
+              }
+            },
+            {
+              "id": "who",
+              "component": "TravelerCounter",
+              "label": "Travelers",
+              "value": {
+                "path": "/trip/travelers"
+              }
+            },
+            {
+              "id": "go",
+              "component": "Button",
+              "label": "Search",
+              "action": {
+                "event": {
+                  "name": "search_flights",
+                  "context": {
+                    "departingFrom": {
+                      "path": "/trip/origin"
+                    },
+                    "travelers": {
+                      "path": "/trip/travelers"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "from",
+                "who",
+                "go"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "editors and no button at all, which is a dead end": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "from",
+              "component": "TextField",
+              "label": "From",
+              "text": {
+                "path": "/trip/origin"
+              }
+            },
+            {
+              "id": "who",
+              "component": "TravelerCounter",
+              "label": "Travelers",
+              "value": {
+                "path": "/trip/travelers"
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "from",
+                "who",
+                "__commit"
+              ]
+            },
+            {
+              "id": "__commit",
+              "component": "Button",
+              "label": "Send",
+              "action": {
+                "event": {
+                  "name": "commit_surface",
+                  "context": {
+                    "origin": {
+                      "path": "/trip/origin"
+                    },
+                    "travelers": {
+                      "path": "/trip/travelers"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "two buttons, both of which must carry the answer": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "when",
+              "component": "DateRangePicker",
+              "label": "Dates",
+              "start": {
+                "path": "/trip/startDate"
+              },
+              "end": {
+                "path": "/trip/endDate"
+              },
+              "nightsLabel": {
+                "call": "formatString",
+                "args": {
+                  "value": "${calcNights(start:${/trip/startDate}, end:${/trip/endDate})} nights"
+                }
+              }
+            },
+            {
+              "id": "a",
+              "component": "Button",
+              "label": "Search flights",
+              "action": {
+                "event": {
+                  "name": "search_flights",
+                  "context": {
+                    "startDate": {
+                      "path": "/trip/startDate"
+                    },
+                    "endDate": {
+                      "path": "/trip/endDate"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "id": "b",
+              "component": "Button",
+              "label": "Search hotels",
+              "action": {
+                "event": {
+                  "name": "search_hotels",
+                  "context": {
+                    "startDate": {
+                      "path": "/trip/startDate"
+                    },
+                    "endDate": {
+                      "path": "/trip/endDate"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "when",
+                "a",
+                "b"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "colliding key names from two different paths": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "a",
+              "component": "TextField",
+              "label": "From",
+              "text": {
+                "path": "/trip/origin"
+              }
+            },
+            {
+              "id": "b",
+              "component": "TextField",
+              "label": "Leg from",
+              "text": {
+                "path": "/leg/origin"
+              }
+            },
+            {
+              "id": "go",
+              "component": "Button",
+              "label": "Go",
+              "action": {
+                "event": {
+                  "name": "go",
+                  "context": {
+                    "origin": {
+                      "path": "/trip/origin"
+                    },
+                    "legOrigin": {
+                      "path": "/leg/origin"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "a",
+                "b",
+                "go"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "a night count written as literal text": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "when",
+              "component": "DateRangePicker",
+              "label": "Dates",
+              "start": {
+                "path": "/trip/startDate"
+              },
+              "end": {
+                "path": "/trip/endDate"
+              },
+              "nightsLabel": {
+                "call": "formatString",
+                "args": {
+                  "value": "${calcNights(start:${/trip/startDate}, end:${/trip/endDate})} nights"
+                }
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "when",
+                "__commit"
+              ]
+            },
+            {
+              "id": "__commit",
+              "component": "Button",
+              "label": "Send",
+              "action": {
+                "event": {
+                  "name": "commit_surface",
+                  "context": {
+                    "startDate": {
+                      "path": "/trip/startDate"
+                    },
+                    "endDate": {
+                      "path": "/trip/endDate"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "a night count the model already wrote as a template": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "when",
+              "component": "DateRangePicker",
+              "label": "Dates",
+              "start": {
+                "path": "/trip/startDate"
+              },
+              "end": {
+                "path": "/trip/endDate"
+              },
+              "nightsLabel": {
+                "call": "formatString",
+                "args": {
+                  "value": "${calcNights(start:${/trip/startDate}, end:${/trip/endDate})} nights, including the wedding"
+                }
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "when",
+                "__commit"
+              ]
+            },
+            {
+              "id": "__commit",
+              "component": "Button",
+              "label": "Send",
+              "action": {
+                "event": {
+                  "name": "commit_surface",
+                  "context": {
+                    "startDate": {
+                      "path": "/trip/startDate"
+                    },
+                    "endDate": {
+                      "path": "/trip/endDate"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "a picker whose ends are literal dates": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "when",
+              "component": "DateRangePicker",
+              "label": "Dates",
+              "start": "2027-04-12",
+              "end": "2027-04-19",
+              "nightsLabel": "7 nights"
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "when"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "a change button drawn inline, where it does not belong": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "ask",
+              "component": "Text",
+              "text": "When are you going?"
+            },
+            {
+              "id": "label",
+              "component": "Text",
+              "text": "Route"
+            },
+            {
+              "id": "recap",
+              "component": "Row",
+              "children": [
+                "label"
+              ]
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "ask",
+                "recap"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "a change button alone in a row, which leaves the row empty": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "ask",
+              "component": "Text",
+              "text": "When are you going?"
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "ask"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "the same change button on the panel, where it does": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "sidebar",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "sidebar",
+          "components": [
+            {
+              "id": "label",
+              "component": "Text",
+              "text": "Route"
+            },
+            {
+              "id": "change",
+              "component": "Button",
+              "label": "Change",
+              "action": {
+                "event": {
+                  "name": "change",
+                  "context": {
+                    "field": "destination"
+                  }
+                }
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "label",
+                "change"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "a surface that already seeded a value itself": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "startDate": "2027-06-01",
+              "destination": "Madrid",
+              "origin": "JFK",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "when",
+              "component": "DateRangePicker",
+              "label": "Dates",
+              "start": {
+                "path": "/trip/startDate"
+              },
+              "end": {
+                "path": "/trip/endDate"
+              },
+              "nightsLabel": {
+                "call": "formatString",
+                "args": {
+                  "value": "${calcNights(start:${/trip/startDate}, end:${/trip/endDate})} nights"
+                }
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "when",
+                "__commit"
+              ]
+            },
+            {
+              "id": "__commit",
+              "component": "Button",
+              "label": "Send",
+              "action": {
+                "event": {
+                  "name": "commit_surface",
+                  "context": {
+                    "startDate": {
+                      "path": "/trip/startDate"
+                    },
+                    "endDate": {
+                      "path": "/trip/endDate"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "a template row, whose path is a collection and not an answer": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "travel",
+          "dataModel": {
+            "trip": {
+              "destination": "Madrid",
+              "origin": "JFK",
+              "startDate": "2027-04-12",
+              "endDate": "2027-04-19",
+              "travelers": 2
+            },
+            "plan": {
+              "done": 3,
+              "total": 7,
+              "caption": "3 of 7",
+              "complete": false,
+              "nextLabel": "Flight",
+              "steps": [
+                {
+                  "stage": "route",
+                  "label": "Where to, and from",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Where to, and from"
+                },
+                {
+                  "stage": "dates",
+                  "label": "Dates",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Dates"
+                },
+                {
+                  "stage": "party",
+                  "label": "Who is going",
+                  "mark": "✓",
+                  "state": "done",
+                  "note": "",
+                  "line": "✓ Who is going"
+                },
+                {
+                  "stage": "flight",
+                  "label": "Flight",
+                  "mark": "→",
+                  "state": "next",
+                  "note": "",
+                  "line": "→ Flight"
+                },
+                {
+                  "stage": "stay",
+                  "label": "Somewhere to stay",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "Madrid",
+                  "line": "· Somewhere to stay — Madrid"
+                },
+                {
+                  "stage": "budget",
+                  "label": "Budget",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· Budget"
+                },
+                {
+                  "stage": "plan",
+                  "label": "The days",
+                  "mark": "·",
+                  "state": "todo",
+                  "note": "",
+                  "line": "· The days"
+                }
+              ],
+              "route": [
+                {
+                  "place": "Madrid",
+                  "detail": "",
+                  "line": "Madrid"
+                }
+              ],
+              "multiStop": false
+            }
+          }
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "row",
+              "component": "Text",
+              "text": {
+                "path": "name"
+              }
+            },
+            {
+              "id": "list",
+              "component": "List",
+              "children": {
+                "path": "/hotels",
+                "componentId": "row"
+              }
+            },
+            {
+              "id": "pick",
+              "component": "TextField",
+              "label": "Note",
+              "text": {
+                "path": "/trip/neighborhood"
+              }
+            },
+            {
+              "id": "go",
+              "component": "Button",
+              "label": "Go",
+              "action": {
+                "event": {
+                  "name": "go",
+                  "context": {
+                    "neighborhood": {
+                      "path": "/trip/neighborhood"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "list",
+                "pick",
+                "go"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

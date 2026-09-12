@@ -295,7 +295,11 @@ export class FixtureProvider implements TravelProvider {
       const nightly = 95 + random() * 240;
       const amenityCount = 2 + Math.floor(random() * 3);
       const amenities: string[] = [];
-      while (amenities.length < amenityCount) {
+      // Bounded, like the airline picker above. Drawing distinct values out of
+      // a seeded sequence terminates in practice rather than by construction,
+      // and an unbounded loop here is a hung request rather than a wrong answer.
+      let guard = 0;
+      while (amenities.length < amenityCount && guard++ < 32) {
         const amenity = pick(AMENITIES, random);
         if (!amenities.includes(amenity)) amenities.push(amenity);
       }

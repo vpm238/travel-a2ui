@@ -8,7 +8,7 @@ Flows 1–5 need the web app and a Gemini key. Flow 6 needs nothing at all.
 Flow 7 runs inside Claude.
 
 ```bash
-npm run setup && npm run dev:worker
+npm run setup && npm run dev:worker   # or the Python server — see the README
 open http://127.0.0.1:8787/#key=AIza...
 ```
 
@@ -223,7 +223,7 @@ components.
 Everything above has a scripted equivalent that needs no key and costs nothing.
 
 ```bash
-npm run dev:worker      # in another terminal
+npm run dev:worker      # in another terminal (or the Python server)
 
 node tools/e2e/chat.mjs   # flow 1, 14 assertions
 node tools/e2e/mcp.mjs    # flows 4 + 6, 24 assertions

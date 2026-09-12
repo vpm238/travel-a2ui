@@ -1,0 +1,232 @@
+{
+  "search_flights": {
+    "opening": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "inline-1",
+          "path": "/flights",
+          "value": [
+            {},
+            {},
+            {},
+            {}
+          ]
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "head",
+              "component": "Text",
+              "text": "Finding flights",
+              "variant": "h3"
+            },
+            {
+              "id": "row",
+              "component": "FlightOption",
+              "airline": {
+                "path": "airline"
+              },
+              "departTime": {
+                "path": "departTime"
+              },
+              "arriveTime": {
+                "path": "arriveTime"
+              },
+              "origin": {
+                "path": "origin"
+              },
+              "destination": {
+                "path": "destination"
+              },
+              "price": {
+                "path": "price"
+              },
+              "action": {
+                "event": {
+                  "name": "select_flight",
+                  "context": {
+                    "id": {
+                      "path": "id"
+                    },
+                    "price": {
+                      "path": "price"
+                    }
+                  }
+                }
+              },
+              "duration": {
+                "path": "duration"
+              },
+              "stops": {
+                "path": "stops"
+              },
+              "flightNumber": {
+                "path": "flightNumber"
+              },
+              "badge": {
+                "path": "badge"
+              }
+            },
+            {
+              "id": "list",
+              "component": "List",
+              "children": {
+                "path": "/flights",
+                "componentId": "row"
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "head",
+                "list"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "filled": {
+      "withRows": [
+        {
+          "version": "v0.9.1",
+          "updateDataModel": {
+            "surfaceId": "inline-1",
+            "path": "/flights",
+            "value": [
+              {
+                "id": "a",
+                "airline": "Iberia",
+                "price": "$257",
+                "name": "Hotel One"
+              }
+            ]
+          }
+        }
+      ],
+      "withNothing": null,
+      "withGarbage": null
+    }
+  },
+  "search_hotels": {
+    "opening": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "inline-1",
+          "path": "/hotels",
+          "value": [
+            {},
+            {},
+            {},
+            {}
+          ]
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "inline-1",
+          "components": [
+            {
+              "id": "head",
+              "component": "Text",
+              "text": "Finding places to stay",
+              "variant": "h3"
+            },
+            {
+              "id": "row",
+              "component": "HotelCard",
+              "name": {
+                "path": "name"
+              },
+              "price": {
+                "path": "price"
+              },
+              "action": {
+                "event": {
+                  "name": "select_hotel",
+                  "context": {
+                    "id": {
+                      "path": "id"
+                    },
+                    "name": {
+                      "path": "name"
+                    }
+                  }
+                }
+              },
+              "neighborhood": {
+                "path": "neighborhood"
+              },
+              "rating": {
+                "path": "rating"
+              },
+              "badge": {
+                "path": "badge"
+              }
+            },
+            {
+              "id": "list",
+              "component": "List",
+              "children": {
+                "path": "/hotels",
+                "componentId": "row"
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "head",
+                "list"
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "filled": {
+      "withRows": [
+        {
+          "version": "v0.9.1",
+          "updateDataModel": {
+            "surfaceId": "inline-1",
+            "path": "/hotels",
+            "value": [
+              {
+                "id": "a",
+                "airline": "Iberia",
+                "price": "$257",
+                "name": "Hotel One"
+              }
+            ]
+          }
+        }
+      ],
+      "withNothing": null,
+      "withGarbage": null
+    }
+  },
+  "estimate_cost": null
+}

@@ -1,0 +1,2209 @@
+{
+  "model": {
+    "fields": [
+      {
+        "key": "destination",
+        "kind": "text",
+        "label": "where you are going",
+        "stage": "route",
+        "note": "City or airport. Everything else is priced against it."
+      },
+      {
+        "key": "origin",
+        "kind": "code",
+        "label": "which airport you are flying from",
+        "stage": "route",
+        "note": "Three-letter code. Never assumed — suggested from the browser, confirmed by the traveler."
+      },
+      {
+        "key": "startDate",
+        "kind": "date",
+        "label": "when you are leaving",
+        "stage": "dates",
+        "note": "YYYY-MM-DD. No fare is real without it."
+      },
+      {
+        "key": "endDate",
+        "kind": "date",
+        "label": "when you are coming back",
+        "stage": "dates",
+        "note": "YYYY-MM-DD. With startDate it gives the number of nights."
+      },
+      {
+        "key": "travelers",
+        "kind": "count",
+        "label": "how many of you are going",
+        "stage": "party",
+        "note": "Adults and older children — everyone needing a seat and a bed."
+      },
+      {
+        "key": "cabin",
+        "kind": "choice",
+        "label": "which cabin",
+        "stage": "flight",
+        "options": [
+          "economy",
+          "premium",
+          "business",
+          "first"
+        ],
+        "note": "Defaults to economy when nobody says otherwise."
+      },
+      {
+        "key": "nonstopOnly",
+        "kind": "flag",
+        "label": "whether to exclude connections",
+        "stage": "flight",
+        "note": "A preference, not a requirement: it filters the search."
+      },
+      {
+        "key": "maxFare",
+        "kind": "money",
+        "label": "the most you would pay per seat",
+        "stage": "flight",
+        "note": "Per traveler, one way. Filters the search rather than the display."
+      },
+      {
+        "key": "selectedFlight",
+        "kind": "text",
+        "label": "the flight you chose",
+        "stage": "flight",
+        "note": "The id from the card they tapped. Its fare feeds the total."
+      },
+      {
+        "key": "flightPrice",
+        "kind": "money",
+        "label": "what that flight costs",
+        "stage": "flight",
+        "note": "Per traveler. Saved alongside the id so the total is theirs, not an average."
+      },
+      {
+        "key": "neighborhood",
+        "kind": "text",
+        "label": "which part of town",
+        "stage": "stay",
+        "note": "Narrows the stays that come back."
+      },
+      {
+        "key": "maxNightly",
+        "kind": "money",
+        "label": "the most per night",
+        "stage": "stay",
+        "note": "Filters stays. Distinct from the trip budget."
+      },
+      {
+        "key": "selectedHotel",
+        "kind": "text",
+        "label": "where you are staying",
+        "stage": "stay",
+        "note": "The id from the card they tapped."
+      },
+      {
+        "key": "nightlyPrice",
+        "kind": "money",
+        "label": "what that stay costs a night",
+        "stage": "stay",
+        "note": "Saved with the id, for the same reason as flightPrice."
+      },
+      {
+        "key": "budget",
+        "kind": "money",
+        "label": "what the whole trip should come to",
+        "stage": "budget",
+        "note": "All in, for everyone. What the progress meter measures against."
+      },
+      {
+        "key": "spent",
+        "kind": "money",
+        "label": "what is committed so far",
+        "stage": "budget",
+        "note": "Booked, not estimated."
+      },
+      {
+        "key": "notes",
+        "kind": "text",
+        "label": "anything else worth remembering",
+        "stage": "budget",
+        "note": "One line. Preferences and constraints that do not have a field."
+      },
+      {
+        "key": "planned",
+        "kind": "flag",
+        "label": "a day-by-day plan",
+        "stage": "plan",
+        "note": "Set once the itinerary has been drawn and the traveler is happy with it."
+      },
+      {
+        "key": "skip",
+        "kind": "stages",
+        "label": "the parts that do not apply",
+        "stage": "route",
+        "note": "Stages this trip does not need — driving rather than flying, staying with family, no fixed budget. A skipped stage counts as settled and is never asked about again."
+      },
+      {
+        "key": "assumed",
+        "kind": "fields",
+        "label": "the values nobody confirmed",
+        "stage": "route",
+        "note": "Fields filled in without being told. They pre-fill controls but do not settle a stage, so the traveler is still asked."
+      },
+      {
+        "key": "legs",
+        "kind": "legs",
+        "label": "the other stops",
+        "stage": "route",
+        "note": "Additional stops beyond the first, each with its own dates. The flat fields describe the first leg; this is how a two-city trip stops being two half-described trips."
+      }
+    ],
+    "stages": [
+      "route",
+      "dates",
+      "party",
+      "flight",
+      "stay",
+      "budget",
+      "plan"
+    ],
+    "tripKeys": [
+      "destination",
+      "origin",
+      "startDate",
+      "endDate",
+      "travelers",
+      "cabin",
+      "nonstopOnly",
+      "maxFare",
+      "selectedFlight",
+      "flightPrice",
+      "neighborhood",
+      "maxNightly",
+      "selectedHotel",
+      "nightlyPrice",
+      "budget",
+      "spent",
+      "notes",
+      "planned",
+      "skip",
+      "assumed",
+      "legs"
+    ],
+    "requirements": {
+      "priceFlights": [
+        "destination",
+        "origin",
+        "startDate"
+      ],
+      "priceStay": [
+        "destination",
+        "startDate",
+        "endDate"
+      ],
+      "totalTrip": [
+        "destination",
+        "startDate",
+        "endDate",
+        "travelers"
+      ],
+      "planDays": [
+        "destination",
+        "startDate",
+        "endDate"
+      ]
+    },
+    "bindings": {
+      "destination": "/trip/destination",
+      "origin": "/trip/origin",
+      "startDate": "/trip/startDate",
+      "endDate": "/trip/endDate",
+      "travelers": "/trip/travelers",
+      "cabin": "/trip/cabin",
+      "nonstopOnly": "/trip/nonstopOnly",
+      "maxFare": "/trip/maxFare",
+      "selectedFlight": "/trip/selectedFlight",
+      "flightPrice": "/trip/flightPrice",
+      "neighborhood": "/trip/neighborhood",
+      "maxNightly": "/trip/maxNightly",
+      "selectedHotel": "/trip/selectedHotel",
+      "nightlyPrice": "/trip/nightlyPrice",
+      "budget": "/trip/budget",
+      "spent": "/trip/spent",
+      "notes": "/trip/notes",
+      "planned": "/trip/planned",
+      "skip": "/trip/skip",
+      "assumed": "/trip/assumed",
+      "legs": "/trip/legs"
+    }
+  },
+  "coerce": [
+    {
+      "key": "travelers",
+      "input": "3",
+      "output": 3
+    },
+    {
+      "key": "travelers",
+      "input": 3.7,
+      "output": 4
+    },
+    {
+      "key": "travelers",
+      "input": [
+        "4"
+      ],
+      "output": 4
+    },
+    {
+      "key": "travelers",
+      "input": "lots",
+      "output": null
+    },
+    {
+      "key": "startDate",
+      "input": "2027-04-12T00:00:00Z",
+      "output": "2027-04-12"
+    },
+    {
+      "key": "startDate",
+      "input": "not a date",
+      "output": null
+    },
+    {
+      "key": "cabin",
+      "input": [
+        "business"
+      ],
+      "output": "business"
+    },
+    {
+      "key": "cabin",
+      "input": "BUSINESS",
+      "output": "business"
+    },
+    {
+      "key": "cabin",
+      "input": "spaceship",
+      "output": null
+    },
+    {
+      "key": "destination",
+      "input": "  Madrid  ",
+      "output": "Madrid"
+    },
+    {
+      "key": "nonstopOnly",
+      "input": "true",
+      "output": true
+    },
+    {
+      "key": "nonstopOnly",
+      "input": false,
+      "output": false
+    },
+    {
+      "key": "maxFare",
+      "input": "450",
+      "output": 450
+    },
+    {
+      "key": "legs",
+      "input": [
+        {
+          "destination": "Lisbon"
+        }
+      ],
+      "output": [
+        {
+          "destination": "Lisbon"
+        }
+      ]
+    },
+    {
+      "key": "legs",
+      "input": {
+        "destination": "Lisbon"
+      },
+      "output": [
+        {
+          "destination": "Lisbon"
+        }
+      ]
+    },
+    {
+      "key": "assumed",
+      "input": [
+        "travelers",
+        "nonsense"
+      ],
+      "output": [
+        "travelers"
+      ]
+    },
+    {
+      "key": "unknownKey",
+      "input": "x",
+      "output": null
+    }
+  ],
+  "trips": {
+    "empty": {
+      "normalize": {},
+      "nights": null,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [
+          "destination",
+          "origin",
+          "startDate"
+        ],
+        "priceStay": [
+          "destination",
+          "startDate",
+          "endDate"
+        ],
+        "totalTrip": [
+          "destination",
+          "startDate",
+          "endDate",
+          "travelers"
+        ],
+        "planDays": [
+          "destination",
+          "startDate",
+          "endDate"
+        ]
+      },
+      "canDo": {
+        "priceFlights": false,
+        "priceStay": false,
+        "totalTrip": false,
+        "planDays": false
+      },
+      "summarize": {
+        "decided": [],
+        "missing": [
+          "destination",
+          "origin",
+          "startDate",
+          "endDate",
+          "travelers"
+        ],
+        "problems": []
+      },
+      "basisOf": "",
+      "plan": {
+        "steps": [
+          {
+            "stage": "route",
+            "label": "settle where they are going and flying from",
+            "needs": [
+              "destination",
+              "origin"
+            ],
+            "missing": [
+              "destination",
+              "origin"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "dates",
+            "label": "settle the dates",
+            "needs": [
+              "startDate",
+              "endDate"
+            ],
+            "missing": [
+              "startDate",
+              "endDate"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "party",
+            "label": "settle how many are travelling",
+            "needs": [
+              "travelers"
+            ],
+            "missing": [
+              "travelers"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "flight",
+            "label": "choose a flight",
+            "needs": [
+              "selectedFlight"
+            ],
+            "missing": [
+              "selectedFlight"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "stay",
+            "label": "sort out where you are sleeping, stop by stop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [],
+              "want": "a destination first"
+            },
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "budget",
+            "label": "agree what the trip should cost",
+            "needs": [
+              "budget"
+            ],
+            "missing": [
+              "budget"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "plan",
+            "label": "plan the days",
+            "needs": [
+              "planned"
+            ],
+            "missing": [
+              "planned"
+            ],
+            "done": false,
+            "skipped": false
+          }
+        ],
+        "next": {
+          "stage": "route",
+          "label": "settle where they are going and flying from",
+          "needs": [
+            "destination",
+            "origin"
+          ],
+          "missing": [
+            "destination",
+            "origin"
+          ],
+          "done": false,
+          "skipped": false
+        },
+        "done": 0,
+        "total": 7,
+        "complete": false
+      },
+      "nextStepFor": "Step 1 of 7: settle where they are going and flying from. You still need where you are going and which airport you are flying from — ask for all of it in one surface, bound to $/trip/destination, $/trip/origin, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"route\"]) and go to the next one instead of asking a question they have already answered.",
+      "stops": [],
+      "stayStatus": {
+        "unasked": [],
+        "needed": [],
+        "booked": [],
+        "notNeeded": []
+      },
+      "partyVaries": false,
+      "decisionShape": "||||"
+    },
+    "destination only": {
+      "normalize": {
+        "destination": "Madrid"
+      },
+      "nights": null,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [
+          "origin",
+          "startDate"
+        ],
+        "priceStay": [
+          "startDate",
+          "endDate"
+        ],
+        "totalTrip": [
+          "startDate",
+          "endDate",
+          "travelers"
+        ],
+        "planDays": [
+          "startDate",
+          "endDate"
+        ]
+      },
+      "canDo": {
+        "priceFlights": false,
+        "priceStay": false,
+        "totalTrip": false,
+        "planDays": false
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          }
+        ],
+        "missing": [
+          "origin",
+          "startDate",
+          "endDate",
+          "travelers"
+        ],
+        "problems": []
+      },
+      "basisOf": "Madrid",
+      "plan": {
+        "steps": [
+          {
+            "stage": "route",
+            "label": "settle where they are going and flying from",
+            "needs": [
+              "destination",
+              "origin"
+            ],
+            "missing": [
+              "origin"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "dates",
+            "label": "settle the dates",
+            "needs": [
+              "startDate",
+              "endDate"
+            ],
+            "missing": [
+              "startDate",
+              "endDate"
+            ],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "dates"
+            },
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "party",
+            "label": "settle how many are travelling",
+            "needs": [
+              "travelers"
+            ],
+            "missing": [
+              "travelers"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "flight",
+            "label": "choose a flight",
+            "needs": [
+              "selectedFlight"
+            ],
+            "missing": [
+              "selectedFlight"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "stay",
+            "label": "sort out where you are sleeping, stop by stop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "to know whether a stay is needed"
+            },
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "budget",
+            "label": "agree what the trip should cost",
+            "needs": [
+              "budget"
+            ],
+            "missing": [
+              "budget"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "plan",
+            "label": "plan the days",
+            "needs": [
+              "planned"
+            ],
+            "missing": [
+              "planned"
+            ],
+            "done": false,
+            "skipped": false
+          }
+        ],
+        "next": {
+          "stage": "route",
+          "label": "settle where they are going and flying from",
+          "needs": [
+            "destination",
+            "origin"
+          ],
+          "missing": [
+            "origin"
+          ],
+          "done": false,
+          "skipped": false
+        },
+        "done": 0,
+        "total": 7,
+        "complete": false
+      },
+      "nextStepFor": "Step 1 of 7: settle where they are going and flying from. You still need which airport you are flying from — ask for all of it in one surface, bound to $/trip/origin, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"route\"]) and go to the next one instead of asking a question they have already answered.",
+      "stops": [
+        {
+          "destination": "Madrid"
+        }
+      ],
+      "stayStatus": {
+        "unasked": [
+          "Madrid"
+        ],
+        "needed": [],
+        "booked": [],
+        "notNeeded": []
+      },
+      "partyVaries": false,
+      "decisionShape": "|Madrid|||"
+    },
+    "ready to price flights": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2
+      },
+      "nights": 7,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2027-04-12",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2027-04-19",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          }
+        ],
+        "missing": [],
+        "nights": 7,
+        "problems": []
+      },
+      "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
+      "plan": {
+        "steps": [
+          {
+            "stage": "route",
+            "label": "settle where they are going and flying from",
+            "needs": [
+              "destination",
+              "origin"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "dates",
+            "label": "settle the dates",
+            "needs": [
+              "startDate",
+              "endDate"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "party",
+            "label": "settle how many are travelling",
+            "needs": [
+              "travelers"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "flight",
+            "label": "choose a flight",
+            "needs": [
+              "selectedFlight"
+            ],
+            "missing": [
+              "selectedFlight"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "stay",
+            "label": "sort out where you are sleeping, stop by stop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "to know whether a stay is needed"
+            },
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "budget",
+            "label": "agree what the trip should cost",
+            "needs": [
+              "budget"
+            ],
+            "missing": [
+              "budget"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "plan",
+            "label": "plan the days",
+            "needs": [
+              "planned"
+            ],
+            "missing": [
+              "planned"
+            ],
+            "done": false,
+            "skipped": false
+          }
+        ],
+        "next": {
+          "stage": "flight",
+          "label": "choose a flight",
+          "needs": [
+            "selectedFlight"
+          ],
+          "missing": [
+            "selectedFlight"
+          ],
+          "done": false,
+          "skipped": false
+        },
+        "done": 3,
+        "total": 7,
+        "complete": false
+      },
+      "nextStepFor": "Step 4 of 7: choose a flight. You still need the flight you chose — ask for all of it in one surface, bound to $/trip/selectedFlight, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2
+        }
+      ],
+      "stayStatus": {
+        "unasked": [
+          "Madrid"
+        ],
+        "needed": [],
+        "booked": [],
+        "notNeeded": []
+      },
+      "partyVaries": false,
+      "decisionShape": "route,dates,party|Madrid|||"
+    },
+    "dates backwards": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-19",
+        "endDate": "2027-04-12",
+        "travelers": 2
+      },
+      "nights": null,
+      "problems": [
+        {
+          "field": "endDate",
+          "message": "2027-04-12 is not after 2027-04-19."
+        }
+      ],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2027-04-19",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2027-04-12",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          }
+        ],
+        "missing": [],
+        "problems": [
+          {
+            "field": "endDate",
+            "message": "2027-04-12 is not after 2027-04-19."
+          }
+        ]
+      },
+      "basisOf": "JFK → Madrid · 19–12 Apr · 2 travellers",
+      "plan": {
+        "steps": [
+          {
+            "stage": "route",
+            "label": "settle where they are going and flying from",
+            "needs": [
+              "destination",
+              "origin"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "dates",
+            "label": "settle the dates",
+            "needs": [
+              "startDate",
+              "endDate"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "party",
+            "label": "settle how many are travelling",
+            "needs": [
+              "travelers"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "flight",
+            "label": "choose a flight",
+            "needs": [
+              "selectedFlight"
+            ],
+            "missing": [
+              "selectedFlight"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "stay",
+            "label": "sort out where you are sleeping, stop by stop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "to know whether a stay is needed"
+            },
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "budget",
+            "label": "agree what the trip should cost",
+            "needs": [
+              "budget"
+            ],
+            "missing": [
+              "budget"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "plan",
+            "label": "plan the days",
+            "needs": [
+              "planned"
+            ],
+            "missing": [
+              "planned"
+            ],
+            "done": false,
+            "skipped": false
+          }
+        ],
+        "next": {
+          "stage": "flight",
+          "label": "choose a flight",
+          "needs": [
+            "selectedFlight"
+          ],
+          "missing": [
+            "selectedFlight"
+          ],
+          "done": false,
+          "skipped": false
+        },
+        "done": 3,
+        "total": 7,
+        "complete": false
+      },
+      "nextStepFor": "Step 4 of 7: choose a flight. You still need the flight you chose — ask for all of it in one surface, bound to $/trip/selectedFlight, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "startDate": "2027-04-19",
+          "endDate": "2027-04-12",
+          "travelers": 2
+        }
+      ],
+      "stayStatus": {
+        "unasked": [
+          "Madrid"
+        ],
+        "needed": [],
+        "booked": [],
+        "notNeeded": []
+      },
+      "partyVaries": false,
+      "decisionShape": "route,dates,party|Madrid|||"
+    },
+    "in the past": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2020-04-12",
+        "endDate": "2020-04-19",
+        "travelers": 2
+      },
+      "nights": 7,
+      "problems": [
+        {
+          "field": "startDate",
+          "message": "2020-04-12 is in the past."
+        }
+      ],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2020-04-12",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2020-04-19",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          }
+        ],
+        "missing": [],
+        "nights": 7,
+        "problems": [
+          {
+            "field": "startDate",
+            "message": "2020-04-12 is in the past."
+          }
+        ]
+      },
+      "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
+      "plan": {
+        "steps": [
+          {
+            "stage": "route",
+            "label": "settle where they are going and flying from",
+            "needs": [
+              "destination",
+              "origin"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "dates",
+            "label": "settle the dates",
+            "needs": [
+              "startDate",
+              "endDate"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "party",
+            "label": "settle how many are travelling",
+            "needs": [
+              "travelers"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "flight",
+            "label": "choose a flight",
+            "needs": [
+              "selectedFlight"
+            ],
+            "missing": [
+              "selectedFlight"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "stay",
+            "label": "sort out where you are sleeping, stop by stop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "to know whether a stay is needed"
+            },
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "budget",
+            "label": "agree what the trip should cost",
+            "needs": [
+              "budget"
+            ],
+            "missing": [
+              "budget"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "plan",
+            "label": "plan the days",
+            "needs": [
+              "planned"
+            ],
+            "missing": [
+              "planned"
+            ],
+            "done": false,
+            "skipped": false
+          }
+        ],
+        "next": {
+          "stage": "flight",
+          "label": "choose a flight",
+          "needs": [
+            "selectedFlight"
+          ],
+          "missing": [
+            "selectedFlight"
+          ],
+          "done": false,
+          "skipped": false
+        },
+        "done": 3,
+        "total": 7,
+        "complete": false
+      },
+      "nextStepFor": "Step 4 of 7: choose a flight. You still need the flight you chose — ask for all of it in one surface, bound to $/trip/selectedFlight, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "startDate": "2020-04-12",
+          "endDate": "2020-04-19",
+          "travelers": 2
+        }
+      ],
+      "stayStatus": {
+        "unasked": [
+          "Madrid"
+        ],
+        "needed": [],
+        "booked": [],
+        "notNeeded": []
+      },
+      "partyVaries": false,
+      "decisionShape": "route,dates,party|Madrid|||"
+    },
+    "assumed": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "travelers": 2,
+        "assumed": [
+          "travelers"
+        ]
+      },
+      "nights": null,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [
+          "startDate"
+        ],
+        "priceStay": [
+          "startDate",
+          "endDate"
+        ],
+        "totalTrip": [
+          "startDate",
+          "endDate"
+        ],
+        "planDays": [
+          "startDate",
+          "endDate"
+        ]
+      },
+      "canDo": {
+        "priceFlights": false,
+        "priceStay": false,
+        "totalTrip": false,
+        "planDays": false
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          },
+          {
+            "key": "assumed",
+            "value": [
+              "travelers"
+            ],
+            "label": "the values nobody confirmed"
+          }
+        ],
+        "missing": [
+          "startDate",
+          "endDate"
+        ],
+        "problems": []
+      },
+      "basisOf": "JFK → Madrid · 2 travellers",
+      "plan": {
+        "steps": [
+          {
+            "stage": "route",
+            "label": "settle where they are going and flying from",
+            "needs": [
+              "destination",
+              "origin"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "dates",
+            "label": "settle the dates",
+            "needs": [
+              "startDate",
+              "endDate"
+            ],
+            "missing": [
+              "startDate",
+              "endDate"
+            ],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "dates"
+            },
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "party",
+            "label": "settle how many are travelling",
+            "needs": [
+              "travelers"
+            ],
+            "missing": [
+              "travelers"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "flight",
+            "label": "choose a flight",
+            "needs": [
+              "selectedFlight"
+            ],
+            "missing": [
+              "selectedFlight"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "stay",
+            "label": "sort out where you are sleeping, stop by stop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "to know whether a stay is needed"
+            },
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "budget",
+            "label": "agree what the trip should cost",
+            "needs": [
+              "budget"
+            ],
+            "missing": [
+              "budget"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "plan",
+            "label": "plan the days",
+            "needs": [
+              "planned"
+            ],
+            "missing": [
+              "planned"
+            ],
+            "done": false,
+            "skipped": false
+          }
+        ],
+        "next": {
+          "stage": "dates",
+          "label": "settle the dates",
+          "needs": [
+            "startDate",
+            "endDate"
+          ],
+          "missing": [
+            "startDate",
+            "endDate"
+          ],
+          "pending": {
+            "stops": [
+              "Madrid"
+            ],
+            "want": "dates"
+          },
+          "done": false,
+          "skipped": false
+        },
+        "done": 1,
+        "total": 7,
+        "complete": false
+      },
+      "nextStepFor": "Step 2 of 7: settle the dates. Waiting on Madrid — dates. A trip with several stops needs one for each, not one covering all of them. You still need when you are leaving and when you are coming back — ask for all of it in one surface, bound to $/trip/startDate, $/trip/endDate, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"dates\"]) and go to the next one instead of asking a question they have already answered.",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "travelers": 2
+        }
+      ],
+      "stayStatus": {
+        "unasked": [
+          "Madrid"
+        ],
+        "needed": [],
+        "booked": [],
+        "notNeeded": []
+      },
+      "partyVaries": false,
+      "decisionShape": "route|Madrid|||"
+    },
+    "chosen": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2,
+        "selectedFlight": "IB426",
+        "flightPrice": 352,
+        "selectedHotel": "h_MAD_1",
+        "nightlyPrice": 140
+      },
+      "nights": 7,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2027-04-12",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2027-04-19",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          },
+          {
+            "key": "selectedFlight",
+            "value": "IB426",
+            "label": "the flight you chose"
+          },
+          {
+            "key": "flightPrice",
+            "value": 352,
+            "label": "what that flight costs"
+          },
+          {
+            "key": "selectedHotel",
+            "value": "h_MAD_1",
+            "label": "where you are staying"
+          },
+          {
+            "key": "nightlyPrice",
+            "value": 140,
+            "label": "what that stay costs a night"
+          }
+        ],
+        "missing": [],
+        "nights": 7,
+        "problems": []
+      },
+      "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
+      "plan": {
+        "steps": [
+          {
+            "stage": "route",
+            "label": "settle where they are going and flying from",
+            "needs": [
+              "destination",
+              "origin"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "dates",
+            "label": "settle the dates",
+            "needs": [
+              "startDate",
+              "endDate"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "party",
+            "label": "settle how many are travelling",
+            "needs": [
+              "travelers"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "flight",
+            "label": "choose a flight",
+            "needs": [
+              "selectedFlight"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "stay",
+            "label": "sort out where you are sleeping, stop by stop",
+            "needs": [],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "budget",
+            "label": "agree what the trip should cost",
+            "needs": [
+              "budget"
+            ],
+            "missing": [
+              "budget"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "plan",
+            "label": "plan the days",
+            "needs": [
+              "planned"
+            ],
+            "missing": [
+              "planned"
+            ],
+            "done": false,
+            "skipped": false
+          }
+        ],
+        "next": {
+          "stage": "budget",
+          "label": "agree what the trip should cost",
+          "needs": [
+            "budget"
+          ],
+          "missing": [
+            "budget"
+          ],
+          "done": false,
+          "skipped": false
+        },
+        "done": 5,
+        "total": 7,
+        "complete": false
+      },
+      "nextStepFor": "Step 6 of 7: agree what the trip should cost. You still need what the whole trip should come to — ask for all of it in one surface, bound to $/trip/budget, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"budget\"]) and go to the next one instead of asking a question they have already answered.",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2,
+          "selectedHotel": "h_MAD_1"
+        }
+      ],
+      "stayStatus": {
+        "unasked": [],
+        "needed": [],
+        "booked": [
+          "Madrid"
+        ],
+        "notNeeded": []
+      },
+      "partyVaries": false,
+      "decisionShape": "route,dates,party,flight,stay|Madrid|IB426|h_MAD_1|"
+    },
+    "multi-leg, party varies": {
+      "normalize": {
+        "origin": "SFO",
+        "destination": "Chicago",
+        "startDate": "2027-04-10",
+        "endDate": "2027-04-12",
+        "travelers": 1,
+        "legs": [
+          {
+            "destination": "New York",
+            "startDate": "2027-04-12",
+            "endDate": "2027-04-16"
+          },
+          {
+            "destination": "SFO",
+            "startDate": "2027-04-16",
+            "travelers": 2
+          }
+        ]
+      },
+      "nights": 2,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Chicago",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "SFO",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2027-04-10",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2027-04-12",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 1,
+            "label": "how many of you are going"
+          },
+          {
+            "key": "legs",
+            "value": [
+              {
+                "destination": "New York",
+                "startDate": "2027-04-12",
+                "endDate": "2027-04-16"
+              },
+              {
+                "destination": "SFO",
+                "startDate": "2027-04-16",
+                "travelers": 2
+              }
+            ],
+            "label": "the other stops"
+          }
+        ],
+        "missing": [],
+        "nights": 2,
+        "problems": []
+      },
+      "basisOf": "SFO → Chicago · 10–12 Apr · 1 traveller",
+      "plan": {
+        "steps": [
+          {
+            "stage": "route",
+            "label": "settle where they are going and flying from",
+            "needs": [
+              "destination",
+              "origin"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "dates",
+            "label": "settle the dates",
+            "needs": [
+              "startDate",
+              "endDate"
+            ],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "SFO"
+              ],
+              "want": "dates"
+            },
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "party",
+            "label": "settle how many are travelling",
+            "needs": [
+              "travelers"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "flight",
+            "label": "choose a flight",
+            "needs": [
+              "selectedFlight"
+            ],
+            "missing": [
+              "selectedFlight"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "stay",
+            "label": "sort out where you are sleeping, stop by stop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Chicago",
+                "New York",
+                "SFO"
+              ],
+              "want": "to know whether a stay is needed"
+            },
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "budget",
+            "label": "agree what the trip should cost",
+            "needs": [
+              "budget"
+            ],
+            "missing": [
+              "budget"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "plan",
+            "label": "plan the days",
+            "needs": [
+              "planned"
+            ],
+            "missing": [
+              "planned"
+            ],
+            "done": false,
+            "skipped": false
+          }
+        ],
+        "next": {
+          "stage": "dates",
+          "label": "settle the dates",
+          "needs": [
+            "startDate",
+            "endDate"
+          ],
+          "missing": [],
+          "pending": {
+            "stops": [
+              "SFO"
+            ],
+            "want": "dates"
+          },
+          "done": false,
+          "skipped": false
+        },
+        "done": 2,
+        "total": 7,
+        "complete": false
+      },
+      "nextStepFor": "Step 3 of 7: settle the dates. Waiting on SFO — dates. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"dates\"]) and go to the next one instead of asking a question they have already answered.",
+      "stops": [
+        {
+          "destination": "Chicago",
+          "origin": "SFO",
+          "startDate": "2027-04-10",
+          "endDate": "2027-04-12",
+          "travelers": 1
+        },
+        {
+          "destination": "New York",
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-16",
+          "origin": "Chicago",
+          "travelers": 1
+        },
+        {
+          "destination": "SFO",
+          "startDate": "2027-04-16",
+          "travelers": 2,
+          "origin": "New York"
+        }
+      ],
+      "stayStatus": {
+        "unasked": [
+          "Chicago",
+          "New York",
+          "SFO"
+        ],
+        "needed": [],
+        "booked": [],
+        "notNeeded": []
+      },
+      "partyVaries": true,
+      "decisionShape": "route,party|Chicago|||New York>SFO"
+    },
+    "skipped a stage": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2
+      },
+      "nights": 7,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2027-04-12",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2027-04-19",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          }
+        ],
+        "missing": [],
+        "nights": 7,
+        "problems": []
+      },
+      "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
+      "plan": {
+        "steps": [
+          {
+            "stage": "route",
+            "label": "settle where they are going and flying from",
+            "needs": [
+              "destination",
+              "origin"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "dates",
+            "label": "settle the dates",
+            "needs": [
+              "startDate",
+              "endDate"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "party",
+            "label": "settle how many are travelling",
+            "needs": [
+              "travelers"
+            ],
+            "missing": [],
+            "done": true,
+            "skipped": false
+          },
+          {
+            "stage": "flight",
+            "label": "choose a flight",
+            "needs": [
+              "selectedFlight"
+            ],
+            "missing": [
+              "selectedFlight"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "stay",
+            "label": "sort out where you are sleeping, stop by stop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "to know whether a stay is needed"
+            },
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "budget",
+            "label": "agree what the trip should cost",
+            "needs": [
+              "budget"
+            ],
+            "missing": [
+              "budget"
+            ],
+            "done": false,
+            "skipped": false
+          },
+          {
+            "stage": "plan",
+            "label": "plan the days",
+            "needs": [
+              "planned"
+            ],
+            "missing": [
+              "planned"
+            ],
+            "done": false,
+            "skipped": false
+          }
+        ],
+        "next": {
+          "stage": "flight",
+          "label": "choose a flight",
+          "needs": [
+            "selectedFlight"
+          ],
+          "missing": [
+            "selectedFlight"
+          ],
+          "done": false,
+          "skipped": false
+        },
+        "done": 3,
+        "total": 7,
+        "complete": false
+      },
+      "nextStepFor": "Step 4 of 7: choose a flight. You still need the flight you chose — ask for all of it in one surface, bound to $/trip/selectedFlight, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2
+        }
+      ],
+      "stayStatus": {
+        "unasked": [
+          "Madrid"
+        ],
+        "needed": [],
+        "booked": [],
+        "notNeeded": []
+      },
+      "partyVaries": false,
+      "decisionShape": "route,dates,party|Madrid|||"
+    }
+  },
+  "askFor": [
+    "",
+    "where you are going",
+    "where you are going and which airport you are flying from",
+    "where you are going, which airport you are flying from and when you are leaving"
+  ],
+  "merge": [
+    {
+      "into": {},
+      "patch": {
+        "destination": "Madrid"
+      },
+      "result": {
+        "destination": "Madrid"
+      }
+    },
+    {
+      "into": {
+        "destination": "Madrid"
+      },
+      "patch": {
+        "destination": "Lisbon"
+      },
+      "result": {
+        "destination": "Lisbon"
+      }
+    },
+    {
+      "into": {
+        "travelers": 2,
+        "assumed": [
+          "travelers"
+        ]
+      },
+      "patch": {
+        "travelers": 3
+      },
+      "result": {
+        "travelers": 3
+      }
+    },
+    {
+      "into": {
+        "destination": "Madrid"
+      },
+      "patch": {
+        "legs": [
+          {
+            "destination": "Lisbon"
+          }
+        ]
+      },
+      "result": {
+        "destination": "Madrid",
+        "legs": [
+          {
+            "destination": "Lisbon"
+          }
+        ]
+      }
+    },
+    {
+      "into": {
+        "destination": "Madrid"
+      },
+      "patch": null,
+      "result": {
+        "destination": "Madrid"
+      }
+    }
+  ],
+  "confirm": [
+    {
+      "trip": {
+        "travelers": 2,
+        "assumed": [
+          "travelers",
+          "cabin"
+        ]
+      },
+      "fields": [
+        "travelers"
+      ],
+      "result": {
+        "travelers": 2,
+        "assumed": [
+          "cabin"
+        ]
+      }
+    }
+  ],
+  "release": [
+    {
+      "keys": [
+        "startDate"
+      ],
+      "trip": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "endDate": "2027-04-19",
+        "travelers": 2
+      },
+      "cleared": [
+        "startDate",
+        "selectedFlight",
+        "flightPrice",
+        "selectedHotel",
+        "nightlyPrice"
+      ]
+    },
+    {
+      "keys": [
+        "destination"
+      ],
+      "trip": {
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2
+      },
+      "cleared": [
+        "destination",
+        "selectedFlight",
+        "flightPrice",
+        "selectedHotel",
+        "nightlyPrice"
+      ]
+    },
+    {
+      "keys": [],
+      "trip": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2,
+        "selectedFlight": "IB426",
+        "flightPrice": 352,
+        "selectedHotel": "h_MAD_1",
+        "nightlyPrice": 140
+      },
+      "cleared": []
+    }
+  ],
+  "unskip": [
+    {
+      "stage": "stay",
+      "result": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2
+      }
+    }
+  ]
+}

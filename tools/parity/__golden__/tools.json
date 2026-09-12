@@ -1,0 +1,1797 @@
+{
+  "flights with nothing saved": {
+    "tool": "search_flights",
+    "input": {
+      "destination": "Madrid"
+    },
+    "tripBefore": {},
+    "result": {
+      "needs": [
+        "origin",
+        "startDate"
+      ],
+      "message": "Cannot price flights without which airport you are flying from and when you are leaving, and inventing a plausible answer is worse than asking. Draw the controls for all of it in one surface — bound to $/trip/origin, $/trip/startDate so the host pre-fills them — with a single commit button, and wait. If the traveler explicitly asked for a rough or seasonal figure, call again with flexible: true and label what you draw as indicative."
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "flights with nothing saved, but explicitly rough": {
+    "tool": "search_flights",
+    "input": {
+      "destination": "Madrid",
+      "flexible": true
+    },
+    "tripBefore": {},
+    "result": {
+      "flights": [
+        {
+          "id": "LH7733",
+          "airline": "Lufthansa",
+          "flightNumber": "LH610",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "09:38",
+          "arriveTime": "21:15",
+          "duration": "11h 37m",
+          "stops": "1 stop · LHR",
+          "price": "$244",
+          "priceValue": 244,
+          "cabin": "economy",
+          "badge": "Cheapest"
+        },
+        {
+          "id": "IB8694",
+          "airline": "Iberia",
+          "flightNumber": "IB614",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "13:18",
+          "arriveTime": "23:57",
+          "duration": "10h 39m",
+          "stops": "1 stop · AMS",
+          "price": "$257",
+          "priceValue": 257,
+          "cabin": "economy"
+        },
+        {
+          "id": "AF1917",
+          "airline": "Air France",
+          "flightNumber": "AF985",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "14:19",
+          "arriveTime": "23:04",
+          "duration": "8h 45m",
+          "stops": "Nonstop",
+          "price": "$305",
+          "priceValue": 305,
+          "cabin": "economy"
+        },
+        {
+          "id": "TP2754",
+          "airline": "TAP Air Portugal",
+          "flightNumber": "TP558",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "12:01",
+          "arriveTime": "20:29",
+          "duration": "8h 28m",
+          "stops": "Nonstop",
+          "price": "$344",
+          "priceValue": 344,
+          "cabin": "economy",
+          "badge": "Fastest"
+        }
+      ],
+      "currency": "USD",
+      "note": "4 option(s) for JFK → MAD. Typical fares: no departure city — sampled from New York (JFK).",
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      },
+      "relaxed": [
+        "no departure city — sampled from New York (JFK)"
+      ],
+      "searchedFor": {
+        "basis": "Madrid",
+        "date": null,
+        "origin": null,
+        "travelers": null,
+        "cabin": "economy",
+        "indicative": true
+      }
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "flights against a fully saved trip": {
+    "tool": "search_flights",
+    "input": {
+      "destination": "Madrid"
+    },
+    "tripBefore": {
+      "origin": "JFK",
+      "destination": "Madrid",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2
+    },
+    "result": {
+      "flights": [
+        {
+          "id": "DL3056",
+          "airline": "Delta",
+          "flightNumber": "DL275",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "15:06",
+          "arriveTime": "01:49 +1",
+          "duration": "10h 43m",
+          "stops": "1 stop · LIS",
+          "price": "$352",
+          "priceValue": 352,
+          "cabin": "economy",
+          "badge": "Cheapest"
+        },
+        {
+          "id": "AA1023",
+          "airline": "American",
+          "flightNumber": "AA350",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "06:09",
+          "arriveTime": "18:05",
+          "duration": "11h 56m",
+          "stops": "1 stop · AMS",
+          "price": "$353",
+          "priceValue": 353,
+          "cabin": "economy"
+        },
+        {
+          "id": "TP6924",
+          "airline": "TAP Air Portugal",
+          "flightNumber": "TP257",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "11:27",
+          "arriveTime": "18:54",
+          "duration": "7h 27m",
+          "stops": "Nonstop",
+          "price": "$362",
+          "priceValue": 362,
+          "cabin": "economy",
+          "badge": "Fastest"
+        },
+        {
+          "id": "IB6415",
+          "airline": "Iberia",
+          "flightNumber": "IB950",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "17:52",
+          "arriveTime": "01:49 +1",
+          "duration": "7h 57m",
+          "stops": "Nonstop",
+          "price": "$415",
+          "priceValue": 415,
+          "cabin": "economy"
+        }
+      ],
+      "currency": "USD",
+      "note": "4 option(s) for JFK → MAD on 2027-04-12.",
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      },
+      "relaxed": [],
+      "searchedFor": {
+        "basis": "JFK → Madrid · 12–19 Apr · 2 travellers",
+        "date": "2027-04-12",
+        "origin": "JFK",
+        "travelers": 2,
+        "cabin": "economy",
+        "indicative": false
+      }
+    },
+    "isError": false,
+    "trip": {
+      "origin": "JFK",
+      "destination": "Madrid",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2
+    },
+    "saved": []
+  },
+  "flights, nonstop only, business": {
+    "tool": "search_flights",
+    "input": {
+      "destination": "Madrid",
+      "nonstopOnly": true,
+      "cabin": "business"
+    },
+    "tripBefore": {
+      "origin": "JFK",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2
+    },
+    "result": {
+      "flights": [
+        {
+          "id": "DL7008",
+          "airline": "Delta",
+          "flightNumber": "DL622",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "15:39",
+          "arriveTime": "00:49 +1",
+          "duration": "9h 10m",
+          "stops": "Nonstop",
+          "price": "$1,369",
+          "priceValue": 1369,
+          "cabin": "business",
+          "badge": "Cheapest"
+        },
+        {
+          "id": "UA4808",
+          "airline": "United",
+          "flightNumber": "UA351",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "14:58",
+          "arriveTime": "00:06 +1",
+          "duration": "9h 8m",
+          "stops": "Nonstop",
+          "price": "$1,681",
+          "priceValue": 1681,
+          "cabin": "business",
+          "badge": "Fastest"
+        }
+      ],
+      "currency": "USD",
+      "note": "2 option(s) for JFK → MAD on 2027-04-12.",
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      },
+      "relaxed": [],
+      "searchedFor": {
+        "basis": "JFK → Madrid · 12–19 Apr · 2 travellers",
+        "date": "2027-04-12",
+        "origin": "JFK",
+        "travelers": 2,
+        "cabin": "business",
+        "indicative": false
+      }
+    },
+    "isError": false,
+    "trip": {
+      "origin": "JFK",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2
+    },
+    "saved": []
+  },
+  "flights under a cap nothing meets": {
+    "tool": "search_flights",
+    "input": {
+      "destination": "Tokyo",
+      "maxPrice": 1
+    },
+    "tripBefore": {
+      "origin": "LAX",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 1
+    },
+    "result": {
+      "flights": [
+        {
+          "id": "TP4510",
+          "airline": "TAP Air Portugal",
+          "flightNumber": "TP172",
+          "origin": "LAX",
+          "destination": "NRT",
+          "departTime": "09:30",
+          "arriveTime": "21:07",
+          "duration": "11h 37m",
+          "stops": "1 stop · FRA",
+          "price": "$370",
+          "priceValue": 370,
+          "cabin": "economy",
+          "badge": "Cheapest"
+        },
+        {
+          "id": "DL2170",
+          "airline": "Delta",
+          "flightNumber": "DL494",
+          "origin": "LAX",
+          "destination": "NRT",
+          "departTime": "10:12",
+          "arriveTime": "22:02",
+          "duration": "11h 50m",
+          "stops": "1 stop · LHR",
+          "price": "$376",
+          "priceValue": 376,
+          "cabin": "economy"
+        },
+        {
+          "id": "UA1948",
+          "airline": "United",
+          "flightNumber": "UA783",
+          "origin": "LAX",
+          "destination": "NRT",
+          "departTime": "08:19",
+          "arriveTime": "16:04",
+          "duration": "7h 45m",
+          "stops": "Nonstop",
+          "price": "$383",
+          "priceValue": 383,
+          "cabin": "economy",
+          "badge": "Fastest"
+        },
+        {
+          "id": "AA8568",
+          "airline": "American",
+          "flightNumber": "AA238",
+          "origin": "LAX",
+          "destination": "NRT",
+          "departTime": "14:54",
+          "arriveTime": "00:23 +1",
+          "duration": "9h 29m",
+          "stops": "Nonstop",
+          "price": "$404",
+          "priceValue": 404,
+          "cabin": "economy"
+        }
+      ],
+      "currency": "USD",
+      "note": "Nothing matched the $1 cap — closest 4 for LAX → NRT on 2027-04-12.",
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      },
+      "relaxed": [
+        "the $1 cap"
+      ],
+      "searchedFor": {
+        "basis": "LAX → Tokyo · 12–19 Apr · 1 traveller",
+        "date": "2027-04-12",
+        "origin": "LAX",
+        "travelers": 1,
+        "cabin": "economy",
+        "indicative": false
+      }
+    },
+    "isError": false,
+    "trip": {
+      "origin": "LAX",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 1
+    },
+    "saved": []
+  },
+  "flights somewhere the agent does not know": {
+    "tool": "search_flights",
+    "input": {
+      "destination": "Atlantis"
+    },
+    "tripBefore": {
+      "origin": "JFK",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 1
+    },
+    "result": {
+      "found": false,
+      "reason": "unknown-destination",
+      "message": "This demo does not have data for “Atlantis”. It covers 9 cities.",
+      "options": [
+        "Madrid, Spain",
+        "Lisbon, Portugal",
+        "Paris, France",
+        "Tokyo, Japan",
+        "Mexico City, Mexico",
+        "New York, United States",
+        "Chicago, United States",
+        "San Francisco, United States",
+        "Athens, Greece"
+      ],
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      },
+      "instruction": "Say this in one short line and draw the options as choices the traveler can press. Do not substitute a different city, invent an airport code, or show an empty list."
+    },
+    "isError": false,
+    "trip": {
+      "origin": "JFK",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 1
+    },
+    "saved": []
+  },
+  "flights for the second leg, which has its own party and origin": {
+    "tool": "search_flights",
+    "input": {
+      "destination": "Lisbon"
+    },
+    "tripBefore": {
+      "origin": "JFK",
+      "destination": "Madrid",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2,
+      "legs": [
+        {
+          "destination": "Madrid",
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-16"
+        },
+        {
+          "destination": "Lisbon",
+          "startDate": "2027-04-16",
+          "endDate": "2027-04-19",
+          "travelers": 3
+        }
+      ]
+    },
+    "result": {
+      "flights": [
+        {
+          "id": "DL6354",
+          "airline": "Delta",
+          "flightNumber": "DL808",
+          "origin": "MAD",
+          "destination": "LIS",
+          "departTime": "10:23",
+          "arriveTime": "21:27",
+          "duration": "11h 4m",
+          "stops": "1 stop · CDG",
+          "price": "$256",
+          "priceValue": 256,
+          "cabin": "economy",
+          "badge": "Cheapest"
+        },
+        {
+          "id": "AA1703",
+          "airline": "American",
+          "flightNumber": "AA602",
+          "origin": "MAD",
+          "destination": "LIS",
+          "departTime": "11:22",
+          "arriveTime": "21:45",
+          "duration": "10h 23m",
+          "stops": "1 stop · CDG",
+          "price": "$268",
+          "priceValue": 268,
+          "cabin": "economy"
+        },
+        {
+          "id": "LH2106",
+          "airline": "Lufthansa",
+          "flightNumber": "LH499",
+          "origin": "MAD",
+          "destination": "LIS",
+          "departTime": "12:04",
+          "arriveTime": "19:49",
+          "duration": "7h 45m",
+          "stops": "Nonstop",
+          "price": "$321",
+          "priceValue": 321,
+          "cabin": "economy"
+        },
+        {
+          "id": "AF4280",
+          "airline": "Air France",
+          "flightNumber": "AF266",
+          "origin": "MAD",
+          "destination": "LIS",
+          "departTime": "16:55",
+          "arriveTime": "02:09 +1",
+          "duration": "9h 14m",
+          "stops": "Nonstop",
+          "price": "$344",
+          "priceValue": 344,
+          "cabin": "economy"
+        }
+      ],
+      "currency": "USD",
+      "note": "4 option(s) for MAD → LIS on 2027-04-16.",
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      },
+      "relaxed": [],
+      "searchedFor": {
+        "basis": "Madrid → Lisbon · 16–19 Apr · 3 travellers",
+        "date": "2027-04-16",
+        "origin": "Madrid",
+        "travelers": 3,
+        "cabin": "economy",
+        "indicative": false
+      }
+    },
+    "isError": false,
+    "trip": {
+      "origin": "JFK",
+      "destination": "Madrid",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2,
+      "legs": [
+        {
+          "destination": "Madrid",
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-16"
+        },
+        {
+          "destination": "Lisbon",
+          "startDate": "2027-04-16",
+          "endDate": "2027-04-19",
+          "travelers": 3
+        }
+      ]
+    },
+    "saved": []
+  },
+  "hotels with nothing saved": {
+    "tool": "search_hotels",
+    "input": {
+      "destination": "Madrid"
+    },
+    "tripBefore": {},
+    "result": {
+      "needs": [
+        "startDate",
+        "endDate"
+      ],
+      "message": "Cannot price a stay without when you are leaving and when you are coming back, and inventing a plausible answer is worse than asking. Draw the controls for all of it in one surface — bound to $/trip/startDate, $/trip/endDate so the host pre-fills them — with a single commit button, and wait. If the traveler explicitly asked for a rough or seasonal figure, call again with flexible: true and label what you draw as indicative."
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "hotels with an explicit night count and nothing saved": {
+    "tool": "search_hotels",
+    "input": {
+      "destination": "Madrid",
+      "nights": 4
+    },
+    "tripBefore": {},
+    "result": {
+      "hotels": [
+        {
+          "id": "h_MAD_1",
+          "name": "Residencia Miradouro",
+          "neighborhood": "Lavapiés",
+          "rating": "4.8 (1015)",
+          "price": "€101 / night",
+          "priceValue": 101,
+          "amenities": [
+            "Kitchenette",
+            "Rooftop",
+            "Bikes"
+          ],
+          "badge": "Best value"
+        },
+        {
+          "id": "h_MAD_3",
+          "name": "Casa Nueve",
+          "neighborhood": "Chueca",
+          "rating": "4.8 (700)",
+          "price": "€157 / night",
+          "priceValue": 157,
+          "amenities": [
+            "Air-con",
+            "Kitchenette",
+            "Rooftop",
+            "Late check-out"
+          ]
+        },
+        {
+          "id": "h_MAD_4",
+          "name": "Villa Bruma",
+          "neighborhood": "Salamanca",
+          "rating": "4.8 (1900)",
+          "price": "€165 / night",
+          "priceValue": 165,
+          "amenities": [
+            "Rooftop",
+            "Laundry"
+          ]
+        },
+        {
+          "id": "h_MAD_2",
+          "name": "Hotel Barrio",
+          "neighborhood": "Lavapiés",
+          "rating": "3.9 (1414)",
+          "price": "€251 / night",
+          "priceValue": 251,
+          "amenities": [
+            "Kitchenette",
+            "Air-con",
+            "Bikes",
+            "Late check-out"
+          ]
+        }
+      ],
+      "currency": "EUR",
+      "note": "4 stay(s) in Madrid for 4 night(s).",
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      },
+      "relaxed": [],
+      "searchedFor": {
+        "basis": "Madrid",
+        "nights": 4,
+        "travelers": null,
+        "checkIn": null,
+        "indicative": false
+      }
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "hotels against a saved stay": {
+    "tool": "search_hotels",
+    "input": {
+      "destination": "Madrid"
+    },
+    "tripBefore": {
+      "origin": "JFK",
+      "destination": "Madrid",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2
+    },
+    "result": {
+      "hotels": [
+        {
+          "id": "h_MAD_1",
+          "name": "Hotel Miradouro",
+          "neighborhood": "Salamanca",
+          "rating": "4.4 (1586)",
+          "price": "€121 / night",
+          "priceValue": 121,
+          "amenities": [
+            "Rooftop",
+            "Air-con",
+            "Bikes"
+          ],
+          "badge": "Best value"
+        },
+        {
+          "id": "h_MAD_4",
+          "name": "Casa Nueve",
+          "neighborhood": "Chueca",
+          "rating": "4.2 (1972)",
+          "price": "€158 / night",
+          "priceValue": 158,
+          "amenities": [
+            "Air-con",
+            "Breakfast",
+            "Late check-out"
+          ]
+        },
+        {
+          "id": "h_MAD_0",
+          "name": "Casa Verano",
+          "neighborhood": "Salamanca",
+          "rating": "4.0 (1219)",
+          "price": "€175 / night",
+          "priceValue": 175,
+          "amenities": [
+            "Laundry",
+            "Breakfast",
+            "Bikes",
+            "Rooftop"
+          ]
+        },
+        {
+          "id": "h_MAD_2",
+          "name": "Villa Lumière",
+          "neighborhood": "Malasaña",
+          "rating": "3.9 (1061)",
+          "price": "€258 / night",
+          "priceValue": 258,
+          "amenities": [
+            "Laundry",
+            "Late check-out"
+          ]
+        }
+      ],
+      "currency": "EUR",
+      "note": "4 stay(s) in Madrid for 7 night(s).",
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      },
+      "relaxed": [],
+      "searchedFor": {
+        "basis": "JFK → Madrid · 12–19 Apr · 2 travellers",
+        "nights": 7,
+        "travelers": 2,
+        "checkIn": "2027-04-12",
+        "indicative": false
+      }
+    },
+    "isError": false,
+    "trip": {
+      "origin": "JFK",
+      "destination": "Madrid",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2
+    },
+    "saved": []
+  },
+  "hotels under a nightly cap nothing meets": {
+    "tool": "search_hotels",
+    "input": {
+      "destination": "Paris",
+      "maxNightly": 1
+    },
+    "tripBefore": {
+      "origin": "JFK",
+      "destination": "Paris",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-15",
+      "travelers": 2
+    },
+    "result": {
+      "hotels": [
+        {
+          "id": "h_CDG_3",
+          "name": "Villa Lumière",
+          "neighborhood": "Belleville",
+          "rating": "4.4 (1601)",
+          "price": "€181 / night",
+          "priceValue": 181,
+          "amenities": [
+            "Kitchenette",
+            "Bikes"
+          ],
+          "badge": "Best value"
+        },
+        {
+          "id": "h_CDG_4",
+          "name": "Pensão Verano",
+          "neighborhood": "Le Marais",
+          "rating": "4.3 (211)",
+          "price": "€236 / night",
+          "priceValue": 236,
+          "amenities": [
+            "Rooftop",
+            "Air-con",
+            "Breakfast",
+            "Laundry"
+          ]
+        },
+        {
+          "id": "h_CDG_2",
+          "name": "Residencia Verano",
+          "neighborhood": "Canal Saint-Martin",
+          "rating": "4.0 (1486)",
+          "price": "€249 / night",
+          "priceValue": 249,
+          "amenities": [
+            "Rooftop",
+            "Breakfast"
+          ]
+        },
+        {
+          "id": "h_CDG_0",
+          "name": "Pensão Nueve",
+          "neighborhood": "Saint-Germain",
+          "rating": "4.5 (1996)",
+          "price": "€283 / night",
+          "priceValue": 283,
+          "amenities": [
+            "Kitchenette",
+            "Laundry",
+            "Breakfast",
+            "Air-con"
+          ]
+        }
+      ],
+      "currency": "EUR",
+      "note": "Nothing under the €1 a night cap. Closest 4 in Paris.",
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      },
+      "relaxed": [
+        "the €1 a night cap"
+      ],
+      "searchedFor": {
+        "basis": "JFK → Paris · 12–15 Apr · 2 travellers",
+        "nights": 3,
+        "travelers": 2,
+        "checkIn": "2027-04-12",
+        "indicative": false
+      }
+    },
+    "isError": false,
+    "trip": {
+      "origin": "JFK",
+      "destination": "Paris",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-15",
+      "travelers": 2
+    },
+    "saved": []
+  },
+  "hotels somewhere the agent does not know": {
+    "tool": "search_hotels",
+    "input": {
+      "destination": "Atlantis",
+      "nights": 3
+    },
+    "tripBefore": {},
+    "result": {
+      "found": false,
+      "reason": "unknown-destination",
+      "message": "This demo does not have data for “Atlantis”. It covers 9 cities.",
+      "options": [
+        "Madrid, Spain",
+        "Lisbon, Portugal",
+        "Paris, France",
+        "Tokyo, Japan",
+        "Mexico City, Mexico",
+        "New York, United States",
+        "Chicago, United States",
+        "San Francisco, United States",
+        "Athens, Greece"
+      ],
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      },
+      "instruction": "Say this in one short line and draw the options as choices the traveler can press. Do not substitute a different city, invent an airport code, or show an empty list."
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "every destination": {
+    "tool": "get_destination",
+    "input": {},
+    "tripBefore": {},
+    "result": {
+      "destinations": [
+        {
+          "city": "Madrid",
+          "country": "Spain",
+          "airport": "MAD",
+          "currency": "EUR",
+          "bestMonths": "April–June, September–October",
+          "summary": "Dense, walkable and late-running. The art is world class and the eating starts at 21:00.",
+          "highlights": [
+            {
+              "name": "Museo del Prado",
+              "category": "sight",
+              "note": "Go at opening or in the last free hours"
+            },
+            {
+              "name": "Mercado de San Fernando",
+              "category": "food",
+              "note": "Cheaper and less touristed than San Miguel"
+            },
+            {
+              "name": "Retiro Park",
+              "category": "outdoors",
+              "note": "Rowboats on the lake until 19:00"
+            },
+            {
+              "name": "Toledo day trip",
+              "category": "sight",
+              "note": "33 minutes by AVE from Atocha"
+            }
+          ],
+          "neighbourhoods": [
+            "Malasaña",
+            "La Latina",
+            "Chueca",
+            "Salamanca",
+            "Lavapiés"
+          ]
+        },
+        {
+          "city": "Lisbon",
+          "country": "Portugal",
+          "airport": "LIS",
+          "currency": "EUR",
+          "bestMonths": "March–June, September–October",
+          "summary": "Hills, tiles and light. Plan for the gradients — the trams exist for a reason.",
+          "highlights": [
+            {
+              "name": "Alfama at dawn",
+              "category": "sight",
+              "note": "Empty streets before the tour groups"
+            },
+            {
+              "name": "Time Out Market",
+              "category": "food",
+              "note": "Busy at 13:00; go at 11:30"
+            },
+            {
+              "name": "Sintra",
+              "category": "sight",
+              "note": "A full day, and book Pena Palace ahead"
+            },
+            {
+              "name": "Belém",
+              "category": "food",
+              "note": "The pastéis really are better at the original"
+            }
+          ],
+          "neighbourhoods": [
+            "Alfama",
+            "Príncipe Real",
+            "Baixa",
+            "Graça",
+            "Cais do Sodré"
+          ]
+        },
+        {
+          "city": "Paris",
+          "country": "France",
+          "airport": "CDG",
+          "currency": "EUR",
+          "bestMonths": "April–June, September–October",
+          "summary": "Everything you expect, plus a lot that only shows up if you walk between the sights.",
+          "highlights": [
+            {
+              "name": "Musée d’Orsay",
+              "category": "sight",
+              "note": "Better than the Louvre for a first visit"
+            },
+            {
+              "name": "Canal Saint-Martin",
+              "category": "outdoors",
+              "note": "Sunday, when the roads close"
+            },
+            {
+              "name": "Marché d’Aligre",
+              "category": "food",
+              "note": "Morning market, closed Mondays"
+            }
+          ],
+          "neighbourhoods": [
+            "Le Marais",
+            "Canal Saint-Martin",
+            "Saint-Germain",
+            "Belleville"
+          ]
+        },
+        {
+          "city": "Tokyo",
+          "country": "Japan",
+          "airport": "NRT",
+          "currency": "JPY",
+          "bestMonths": "March–May, October–November",
+          "summary": "Vast and legible at once. Pick two neighbourhoods a day and do them properly.",
+          "highlights": [
+            {
+              "name": "Tsukiji outer market",
+              "category": "food",
+              "note": "Before 09:00 or not at all"
+            },
+            {
+              "name": "Shimokitazawa",
+              "category": "shopping",
+              "note": "Second-hand, coffee, small venues"
+            },
+            {
+              "name": "Meiji Jingu",
+              "category": "outdoors",
+              "note": "Enter from Harajuku, leave via Yoyogi"
+            }
+          ],
+          "neighbourhoods": [
+            "Shibuya",
+            "Yanaka",
+            "Nakameguro",
+            "Kagurazaka"
+          ]
+        },
+        {
+          "city": "Mexico City",
+          "country": "Mexico",
+          "airport": "MEX",
+          "currency": "MXN",
+          "bestMonths": "March–May, October–November",
+          "summary": "A capital that rewards a slow itinerary. Altitude is real on the first day.",
+          "highlights": [
+            {
+              "name": "Museo Nacional de Antropología",
+              "category": "sight",
+              "note": "Half a day, minimum"
+            },
+            {
+              "name": "Mercado de Coyoacán",
+              "category": "food",
+              "note": "Tostadas, then the Frida Kahlo house"
+            },
+            {
+              "name": "Roma Norte",
+              "category": "food",
+              "note": "Where to eat every evening"
+            }
+          ],
+          "neighbourhoods": [
+            "Roma Norte",
+            "Condesa",
+            "Juárez",
+            "Coyoacán"
+          ]
+        },
+        {
+          "city": "New York",
+          "country": "United States",
+          "airport": "JFK",
+          "currency": "USD",
+          "bestMonths": "April–June, September–early November",
+          "summary": "Walkable in bursts, and the subway covers the rest. Book nothing for the first evening.",
+          "highlights": [
+            {
+              "name": "The Met",
+              "category": "sight",
+              "note": "Enter at 10:00 and start on the top floor"
+            },
+            {
+              "name": "Prospect Park",
+              "category": "outdoors",
+              "note": "Quieter than Central Park and better for a Saturday"
+            },
+            {
+              "name": "Essex Market",
+              "category": "food",
+              "note": "Lunch, then walk the Williamsburg Bridge"
+            },
+            {
+              "name": "The Frick",
+              "category": "sight",
+              "note": "One hour, and the best small collection in the city"
+            }
+          ],
+          "neighbourhoods": [
+            "West Village",
+            "Lower East Side",
+            "Fort Greene",
+            "Harlem",
+            "Astoria"
+          ]
+        },
+        {
+          "city": "Chicago",
+          "country": "United States",
+          "airport": "ORD",
+          "currency": "USD",
+          "bestMonths": "May–June, September–October",
+          "summary": "The best architecture in the country and a lakefront to walk it off on. Winter is not a suggestion.",
+          "highlights": [
+            {
+              "name": "Chicago Architecture river cruise",
+              "category": "sight",
+              "note": "Do it first; everything else makes more sense after"
+            },
+            {
+              "name": "Art Institute",
+              "category": "sight",
+              "note": "The Thorne Rooms are worth the detour"
+            },
+            {
+              "name": "Pilsen",
+              "category": "food",
+              "note": "Murals, then tacos on 18th Street"
+            }
+          ],
+          "neighbourhoods": [
+            "Wicker Park",
+            "Logan Square",
+            "Pilsen",
+            "Hyde Park",
+            "Andersonville"
+          ]
+        },
+        {
+          "city": "San Francisco",
+          "country": "United States",
+          "airport": "SFO",
+          "currency": "USD",
+          "bestMonths": "September–October",
+          "summary": "Small, steep and a dozen microclimates. Bring a layer even in August — especially in August.",
+          "highlights": [
+            {
+              "name": "Lands End",
+              "category": "outdoors",
+              "note": "The coastal trail, ending at the Sutro Baths"
+            },
+            {
+              "name": "Ferry Building",
+              "category": "food",
+              "note": "Saturday market before 10:00"
+            },
+            {
+              "name": "Mission murals",
+              "category": "sight",
+              "note": "Balmy Alley and Clarion Alley, half an hour apart"
+            }
+          ],
+          "neighbourhoods": [
+            "Mission",
+            "Hayes Valley",
+            "North Beach",
+            "Outer Sunset",
+            "Potrero Hill"
+          ]
+        },
+        {
+          "city": "Athens",
+          "country": "Greece",
+          "airport": "ATH",
+          "currency": "EUR",
+          "bestMonths": "April–June, September–October",
+          "summary": "Ancient and scruffy and excellent. The islands are two hours away when you want them.",
+          "highlights": [
+            {
+              "name": "Acropolis",
+              "category": "sight",
+              "note": "First entry slot, before the heat"
+            },
+            {
+              "name": "Anafiotika",
+              "category": "sight",
+              "note": "Island village inside the city"
+            },
+            {
+              "name": "Varvakios market",
+              "category": "food",
+              "note": "Not for the squeamish; superb"
+            }
+          ],
+          "neighbourhoods": [
+            "Koukaki",
+            "Plaka",
+            "Exarchia",
+            "Kolonaki"
+          ]
+        }
+      ]
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "one destination": {
+    "tool": "get_destination",
+    "input": {
+      "destination": "Madrid"
+    },
+    "tripBefore": {},
+    "result": {
+      "found": true,
+      "city": "Madrid",
+      "country": "Spain",
+      "airport": "MAD",
+      "currency": "EUR",
+      "bestMonths": "April–June, September–October",
+      "summary": "Dense, walkable and late-running. The art is world class and the eating starts at 21:00.",
+      "highlights": [
+        {
+          "name": "Museo del Prado",
+          "category": "sight",
+          "note": "Go at opening or in the last free hours"
+        },
+        {
+          "name": "Mercado de San Fernando",
+          "category": "food",
+          "note": "Cheaper and less touristed than San Miguel"
+        },
+        {
+          "name": "Retiro Park",
+          "category": "outdoors",
+          "note": "Rowboats on the lake until 19:00"
+        },
+        {
+          "name": "Toledo day trip",
+          "category": "sight",
+          "note": "33 minutes by AVE from Atocha"
+        }
+      ],
+      "neighbourhoods": [
+        "Malasaña",
+        "La Latina",
+        "Chueca",
+        "Salamanca",
+        "Lavapiés"
+      ]
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "a destination by airport code": {
+    "tool": "get_destination",
+    "input": {
+      "destination": "MAD"
+    },
+    "tripBefore": {},
+    "result": {
+      "found": true,
+      "city": "Madrid",
+      "country": "Spain",
+      "airport": "MAD",
+      "currency": "EUR",
+      "bestMonths": "April–June, September–October",
+      "summary": "Dense, walkable and late-running. The art is world class and the eating starts at 21:00.",
+      "highlights": [
+        {
+          "name": "Museo del Prado",
+          "category": "sight",
+          "note": "Go at opening or in the last free hours"
+        },
+        {
+          "name": "Mercado de San Fernando",
+          "category": "food",
+          "note": "Cheaper and less touristed than San Miguel"
+        },
+        {
+          "name": "Retiro Park",
+          "category": "outdoors",
+          "note": "Rowboats on the lake until 19:00"
+        },
+        {
+          "name": "Toledo day trip",
+          "category": "sight",
+          "note": "33 minutes by AVE from Atocha"
+        }
+      ],
+      "neighbourhoods": [
+        "Malasaña",
+        "La Latina",
+        "Chueca",
+        "Salamanca",
+        "Lavapiés"
+      ]
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "a destination nobody knows": {
+    "tool": "get_destination",
+    "input": {
+      "destination": "Atlantis"
+    },
+    "tripBefore": {},
+    "result": {
+      "found": false,
+      "message": "No detailed guide for 'Atlantis'.",
+      "available": [
+        "Madrid",
+        "Lisbon",
+        "Paris",
+        "Tokyo",
+        "Mexico City",
+        "New York",
+        "Chicago",
+        "San Francisco",
+        "Athens"
+      ]
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "weather": {
+    "tool": "get_weather",
+    "input": {
+      "destination": "Madrid",
+      "startDate": "2027-04-12",
+      "days": 5
+    },
+    "tripBefore": {},
+    "result": {
+      "place": "Madrid",
+      "days": [
+        {
+          "day": "Mon",
+          "high": "21°",
+          "low": "14°",
+          "condition": "rain"
+        },
+        {
+          "day": "Tue",
+          "high": "20°",
+          "low": "15°",
+          "condition": "sun"
+        },
+        {
+          "day": "Wed",
+          "high": "19°",
+          "low": "13°",
+          "condition": "rain"
+        },
+        {
+          "day": "Thu",
+          "high": "21°",
+          "low": "14°",
+          "condition": "fog"
+        },
+        {
+          "day": "Fri",
+          "high": "23°",
+          "low": "17°",
+          "condition": "fog"
+        }
+      ],
+      "note": "Rain on more than one day — pack a shell.",
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      }
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "weather somewhere the agent does not know": {
+    "tool": "get_weather",
+    "input": {
+      "destination": "Atlantis"
+    },
+    "tripBefore": {},
+    "result": {
+      "found": false,
+      "reason": "unknown-destination",
+      "message": "This demo does not have data for “Atlantis”. It covers 9 cities.",
+      "options": [
+        "Madrid, Spain",
+        "Lisbon, Portugal",
+        "Paris, France",
+        "Tokyo, Japan",
+        "Mexico City, Mexico",
+        "New York, United States",
+        "Chicago, United States",
+        "San Francisco, United States",
+        "Athens, Greece"
+      ],
+      "provenance": {
+        "source": "fixture",
+        "live": false,
+        "label": "Sample data",
+        "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+      },
+      "instruction": "Say this in one short line and draw the options as choices the traveler can press. Do not substitute a different city, invent an airport code, or show an empty list."
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "a total with nothing saved": {
+    "tool": "estimate_cost",
+    "input": {},
+    "tripBefore": {},
+    "result": {
+      "needs": [
+        "destination",
+        "startDate",
+        "endDate",
+        "travelers"
+      ],
+      "message": "Cannot total up a trip without where you are going, when you are leaving, when you are coming back and how many of you are going, and inventing a plausible answer is worse than asking. Draw the controls for all of it in one surface — bound to $/trip/destination, $/trip/startDate, $/trip/endDate, $/trip/travelers so the host pre-fills them — with a single commit button, and wait. If the traveler explicitly asked for a rough or seasonal figure, call again with flexible: true and label what you draw as indicative."
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "a total against a saved trip with prices chosen": {
+    "tool": "estimate_cost",
+    "input": {},
+    "tripBefore": {
+      "origin": "JFK",
+      "destination": "Madrid",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2,
+      "flightPrice": 780,
+      "nightlyPrice": 190
+    },
+    "result": {
+      "lines": [
+        {
+          "label": "Flights (2 travelers)",
+          "amount": "$1,560"
+        },
+        {
+          "label": "Stay (7 nights)",
+          "amount": "$1,330"
+        },
+        {
+          "label": "Food and drink",
+          "amount": "$880",
+          "note": "estimated"
+        },
+        {
+          "label": "Local transport",
+          "amount": "$192",
+          "note": "metro and taxis"
+        }
+      ],
+      "total": "$3,962",
+      "totalValue": 3962,
+      "currency": "USD",
+      "basis": {
+        "summary": "JFK → Madrid · 12–19 Apr · 2 travellers",
+        "nights": 7,
+        "travelers": 2,
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "indicative": false
+      }
+    },
+    "isError": false,
+    "trip": {
+      "origin": "JFK",
+      "destination": "Madrid",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2,
+      "flightPrice": 780,
+      "nightlyPrice": 190
+    },
+    "saved": []
+  },
+  "a total with prices passed rather than saved": {
+    "tool": "estimate_cost",
+    "input": {
+      "destination": "Madrid",
+      "flightPrice": 640,
+      "nightlyPrice": 150,
+      "nights": 4,
+      "flexible": true
+    },
+    "tripBefore": {},
+    "result": {
+      "lines": [
+        {
+          "label": "Flights (2 travelers)",
+          "amount": "$1,280"
+        },
+        {
+          "label": "Stay (4 nights)",
+          "amount": "$600"
+        },
+        {
+          "label": "Food and drink",
+          "amount": "$550",
+          "note": "estimated"
+        },
+        {
+          "label": "Local transport",
+          "amount": "$120",
+          "note": "metro and taxis"
+        }
+      ],
+      "total": "$2,550",
+      "totalValue": 2550,
+      "currency": "USD",
+      "basis": {
+        "summary": "Madrid",
+        "nights": 4,
+        "travelers": null,
+        "startDate": null,
+        "endDate": null,
+        "indicative": true
+      }
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "saving a trip": {
+    "tool": "save_trip",
+    "input": {
+      "destination": "Madrid",
+      "origin": "JFK",
+      "travelers": 2
+    },
+    "tripBefore": {},
+    "result": {
+      "saved": true,
+      "trip": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "travelers": 2
+      },
+      "stillNeeded": [
+        "startDate",
+        "endDate"
+      ]
+    },
+    "isError": false,
+    "trip": {
+      "destination": "Madrid",
+      "origin": "JFK",
+      "travelers": 2
+    },
+    "saved": [
+      {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "travelers": 2
+      }
+    ]
+  },
+  "saving dates that end before they start": {
+    "tool": "save_trip",
+    "input": {
+      "startDate": "2027-04-20",
+      "endDate": "2027-04-12"
+    },
+    "tripBefore": {
+      "destination": "Madrid",
+      "origin": "JFK"
+    },
+    "result": {
+      "saved": false,
+      "problems": [
+        {
+          "field": "endDate",
+          "message": "2027-04-12 is not after 2027-04-20."
+        }
+      ],
+      "message": "Not saved: 2027-04-12 is not after 2027-04-20. Ask the traveler to confirm."
+    },
+    "isError": true,
+    "trip": {
+      "destination": "Madrid",
+      "origin": "JFK"
+    },
+    "saved": []
+  },
+  "saving a date already past": {
+    "tool": "save_trip",
+    "input": {
+      "startDate": "2020-01-01"
+    },
+    "tripBefore": {
+      "destination": "Madrid"
+    },
+    "result": {
+      "saved": false,
+      "problems": [
+        {
+          "field": "startDate",
+          "message": "2020-01-01 is in the past."
+        }
+      ],
+      "message": "Not saved: 2020-01-01 is in the past. Ask the traveler to confirm."
+    },
+    "isError": true,
+    "trip": {
+      "destination": "Madrid"
+    },
+    "saved": []
+  },
+  "saving a trip that is over budget, which is a real state and not a mistake": {
+    "tool": "save_trip",
+    "input": {
+      "budget": 100
+    },
+    "tripBefore": {
+      "destination": "Madrid",
+      "origin": "JFK",
+      "travelers": 2,
+      "flightPrice": 780,
+      "nightlyPrice": 190,
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19"
+    },
+    "result": {
+      "saved": true,
+      "trip": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "travelers": 2,
+        "flightPrice": 780,
+        "nightlyPrice": 190,
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "budget": 100
+      },
+      "stillNeeded": []
+    },
+    "isError": false,
+    "trip": {
+      "destination": "Madrid",
+      "origin": "JFK",
+      "travelers": 2,
+      "flightPrice": 780,
+      "nightlyPrice": 190,
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "budget": 100
+    },
+    "saved": [
+      {
+        "budget": 100
+      }
+    ]
+  },
+  "releasing a decision": {
+    "tool": "release_decision",
+    "input": {
+      "fields": [
+        "startDate",
+        "endDate"
+      ]
+    },
+    "tripBefore": {
+      "destination": "Madrid",
+      "origin": "JFK",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-19",
+      "travelers": 2
+    },
+    "result": {
+      "released": [
+        "startDate",
+        "endDate"
+      ],
+      "unskipped": [],
+      "trip": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "travelers": 2
+      },
+      "stillNeeded": [
+        "startDate",
+        "endDate"
+      ],
+      "message": "Released startDate, endDate. Re-ask inline, pre-filled with what was there, and say what else this undid."
+    },
+    "isError": false,
+    "trip": {
+      "destination": "Madrid",
+      "origin": "JFK",
+      "travelers": 2
+    },
+    "saved": [
+      {}
+    ]
+  },
+  "releasing something that was never set": {
+    "tool": "release_decision",
+    "input": {
+      "fields": [
+        "selectedHotel"
+      ]
+    },
+    "tripBefore": {
+      "destination": "Madrid"
+    },
+    "result": {
+      "released": [],
+      "unskipped": [],
+      "trip": {
+        "destination": "Madrid"
+      },
+      "stillNeeded": [
+        "origin",
+        "startDate",
+        "endDate",
+        "travelers"
+      ],
+      "message": "Nothing to release — it was not set."
+    },
+    "isError": false,
+    "trip": {
+      "destination": "Madrid"
+    },
+    "saved": [
+      {}
+    ]
+  },
+  "putting a skipped stage back": {
+    "tool": "release_decision",
+    "input": {
+      "stages": [
+        "stay"
+      ]
+    },
+    "tripBefore": {
+      "destination": "Madrid",
+      "skipped": [
+        "stay"
+      ]
+    },
+    "result": {
+      "released": [],
+      "unskipped": [
+        "stay"
+      ],
+      "trip": {
+        "destination": "Madrid"
+      },
+      "stillNeeded": [
+        "origin",
+        "startDate",
+        "endDate",
+        "travelers"
+      ],
+      "message": "Released nothing; put stay back in the plan. Re-ask inline, pre-filled with what was there, and say what else this undid."
+    },
+    "isError": false,
+    "trip": {
+      "destination": "Madrid"
+    },
+    "saved": [
+      {}
+    ]
+  },
+  "reading the trip back": {
+    "tool": "get_trip",
+    "input": {},
+    "tripBefore": {
+      "destination": "Madrid",
+      "travelers": 2
+    },
+    "result": {
+      "trip": {
+        "destination": "Madrid",
+        "travelers": 2
+      }
+    },
+    "isError": false,
+    "trip": {
+      "destination": "Madrid",
+      "travelers": 2
+    },
+    "saved": []
+  },
+  "a tool that does not exist": {
+    "tool": "no_such_tool",
+    "input": {},
+    "tripBefore": {},
+    "result": {
+      "error": "Unknown tool 'no_such_tool'."
+    },
+    "isError": true,
+    "trip": {},
+    "saved": []
+  }
+}

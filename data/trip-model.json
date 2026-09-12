@@ -1,0 +1,201 @@
+{
+  "$comment": [
+    "What a trip is made of: the fields, the stages they belong to, and what",
+    "each goal cannot be done without.",
+    "",
+    "Data rather than code because two implementations read it. It was a literal",
+    "inside the TypeScript model, which was fine while there was one; a second",
+    "copy in Python would have been a table that drifts silently, and the drift",
+    "would show up as an agent that asks for something it already has.",
+    "",
+    "Generated from the TypeScript model's golden the first time; the golden",
+    "keeps them equal after that."
+  ],
+  "fields": [
+    {
+      "key": "destination",
+      "kind": "text",
+      "label": "where you are going",
+      "stage": "route",
+      "note": "City or airport. Everything else is priced against it."
+    },
+    {
+      "key": "origin",
+      "kind": "code",
+      "label": "which airport you are flying from",
+      "stage": "route",
+      "note": "Three-letter code. Never assumed — suggested from the browser, confirmed by the traveler."
+    },
+    {
+      "key": "startDate",
+      "kind": "date",
+      "label": "when you are leaving",
+      "stage": "dates",
+      "note": "YYYY-MM-DD. No fare is real without it."
+    },
+    {
+      "key": "endDate",
+      "kind": "date",
+      "label": "when you are coming back",
+      "stage": "dates",
+      "note": "YYYY-MM-DD. With startDate it gives the number of nights."
+    },
+    {
+      "key": "travelers",
+      "kind": "count",
+      "label": "how many of you are going",
+      "stage": "party",
+      "note": "Adults and older children — everyone needing a seat and a bed."
+    },
+    {
+      "key": "cabin",
+      "kind": "choice",
+      "label": "which cabin",
+      "stage": "flight",
+      "options": [
+        "economy",
+        "premium",
+        "business",
+        "first"
+      ],
+      "note": "Defaults to economy when nobody says otherwise."
+    },
+    {
+      "key": "nonstopOnly",
+      "kind": "flag",
+      "label": "whether to exclude connections",
+      "stage": "flight",
+      "note": "A preference, not a requirement: it filters the search."
+    },
+    {
+      "key": "maxFare",
+      "kind": "money",
+      "label": "the most you would pay per seat",
+      "stage": "flight",
+      "note": "Per traveler, one way. Filters the search rather than the display."
+    },
+    {
+      "key": "selectedFlight",
+      "kind": "text",
+      "label": "the flight you chose",
+      "stage": "flight",
+      "note": "The id from the card they tapped. Its fare feeds the total."
+    },
+    {
+      "key": "flightPrice",
+      "kind": "money",
+      "label": "what that flight costs",
+      "stage": "flight",
+      "note": "Per traveler. Saved alongside the id so the total is theirs, not an average."
+    },
+    {
+      "key": "neighborhood",
+      "kind": "text",
+      "label": "which part of town",
+      "stage": "stay",
+      "note": "Narrows the stays that come back."
+    },
+    {
+      "key": "maxNightly",
+      "kind": "money",
+      "label": "the most per night",
+      "stage": "stay",
+      "note": "Filters stays. Distinct from the trip budget."
+    },
+    {
+      "key": "selectedHotel",
+      "kind": "text",
+      "label": "where you are staying",
+      "stage": "stay",
+      "note": "The id from the card they tapped."
+    },
+    {
+      "key": "nightlyPrice",
+      "kind": "money",
+      "label": "what that stay costs a night",
+      "stage": "stay",
+      "note": "Saved with the id, for the same reason as flightPrice."
+    },
+    {
+      "key": "budget",
+      "kind": "money",
+      "label": "what the whole trip should come to",
+      "stage": "budget",
+      "note": "All in, for everyone. What the progress meter measures against."
+    },
+    {
+      "key": "spent",
+      "kind": "money",
+      "label": "what is committed so far",
+      "stage": "budget",
+      "note": "Booked, not estimated."
+    },
+    {
+      "key": "notes",
+      "kind": "text",
+      "label": "anything else worth remembering",
+      "stage": "budget",
+      "note": "One line. Preferences and constraints that do not have a field."
+    },
+    {
+      "key": "planned",
+      "kind": "flag",
+      "label": "a day-by-day plan",
+      "stage": "plan",
+      "note": "Set once the itinerary has been drawn and the traveler is happy with it."
+    },
+    {
+      "key": "skip",
+      "kind": "stages",
+      "label": "the parts that do not apply",
+      "stage": "route",
+      "note": "Stages this trip does not need — driving rather than flying, staying with family, no fixed budget. A skipped stage counts as settled and is never asked about again."
+    },
+    {
+      "key": "assumed",
+      "kind": "fields",
+      "label": "the values nobody confirmed",
+      "stage": "route",
+      "note": "Fields filled in without being told. They pre-fill controls but do not settle a stage, so the traveler is still asked."
+    },
+    {
+      "key": "legs",
+      "kind": "legs",
+      "label": "the other stops",
+      "stage": "route",
+      "note": "Additional stops beyond the first, each with its own dates. The flat fields describe the first leg; this is how a two-city trip stops being two half-described trips."
+    }
+  ],
+  "stages": [
+    "route",
+    "dates",
+    "party",
+    "flight",
+    "stay",
+    "budget",
+    "plan"
+  ],
+  "requirements": {
+    "priceFlights": [
+      "destination",
+      "origin",
+      "startDate"
+    ],
+    "priceStay": [
+      "destination",
+      "startDate",
+      "endDate"
+    ],
+    "totalTrip": [
+      "destination",
+      "startDate",
+      "endDate",
+      "travelers"
+    ],
+    "planDays": [
+      "destination",
+      "startDate",
+      "endDate"
+    ]
+  }
+}

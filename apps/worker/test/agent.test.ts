@@ -843,6 +843,35 @@ describe('committing a surface', () => {
     expect(result.trip['travelers']).toBe(2);
   });
 
+  it('does not leave a date pair half-reverted and still backwards', async () => {
+    script.push({ chunks: ['That range will not work.'] });
+    const { result } = await collect(
+      commitOf(
+        { startDate: '2027-04-20', endDate: '2027-04-12' },
+        { destination: 'Madrid', startDate: '2027-04-01', endDate: '2027-04-08' },
+      ),
+    );
+
+    // `problems` names only `endDate` for a backwards range, so reverting just
+    // the field that reported it left 20 Apr → 8 Apr: still backwards, still
+    // the negative nights this guard exists to prevent, and a pair the
+    // traveler never typed. A range is one decision and goes back as one.
+    expect(result.trip).toMatchObject({ startDate: '2027-04-01', endDate: '2027-04-08' });
+  });
+
+  it('stops calling a value assumed once the traveler has pressed for it', async () => {
+    script.push({ chunks: ['Two it is.'] });
+    const { result } = await collect(
+      commitOf({ travelers: 2 }, { destination: 'Madrid', travelers: 2, assumed: ['travelers'] }),
+    );
+
+    // `confirm` returns a trip with `assumed` *removed*, and `Object.assign`
+    // from an object that lacks a key cannot take that key off the target — so
+    // the mark used to survive every press, the host kept the question open,
+    // and the agent went on re-asking something already answered.
+    expect(result.trip['assumed']).toBeUndefined();
+  });
+
   it('says nothing about a refusal when there was none', async () => {
     script.push({ chunks: ['On it.'] });
     await collect(commitOf({ origin: 'JFK' }));

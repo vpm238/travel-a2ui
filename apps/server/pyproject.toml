@@ -1,0 +1,35 @@
+[project]
+name = "travel-a2ui-server"
+version = "0.1.0"
+description = "The travel agent, server-side: A2UI out, React renderer in front."
+requires-python = ">=3.11"
+
+dependencies = [
+  # The A2UI reference implementation. Compiling Express, pruning the catalog
+  # and generating the skills all go through it rather than through a port —
+  # which is the reason this server is Python: `agent_sdks/` upstream contains
+  # exactly one language, and it is this one.
+  "a2ui-agent-sdk>=0.6.0",
+  # Both Gemini surfaces this app uses: `client.interactions` for the typed
+  # loop, `client.aio.live` for voice. The voice half replaces a hand-rolled
+  # relay that had four bugs in it, three of them silent.
+  "google-genai>=2.23.0",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "httpx>=0.27"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/travel_a2ui"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# `asyncio_mode` goes back when the first async test does — pytest warns about
+# an unknown option, and a warning nobody can act on trains people to ignore
+# the ones they can.

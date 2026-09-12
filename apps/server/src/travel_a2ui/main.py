@@ -1,0 +1,298 @@
+"""The HTTP surface: one service, three front ends and an agent behind them.
+
+    /               the React client
+    /flutter        the Flutter web client
+    /api/*          the agent, the session and the catalog
+    /mcp            the same agent, for Claude and other MCP hosts
+
+One Cloud Run service rather than two, and that is a decision worth stating.
+Splitting the front end from the API would buy nothing here — there is no
+independent scaling story, no separate release cadence, and no second team —
+while costing a cross-origin configuration, a second deployment to keep in
+step, and a class of bug where the two halves are different versions of the
+same app. Same origin means the browser sends no preflight and the client needs
+no base URL at all.
+
+The API key is never stored. It arrives on the request that uses it and leaves
+with it; a deployment may carry its own, and then the UI stops asking.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import pathlib
+from typing import Any, AsyncIterator
+
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+
+from .agent import CATALOG_ID, CATALOG_JSON, SurfaceAction, TurnRequest, run_turn
+from .contract import INSTANTIATION_MAX_AGE_MS, contract_stamp
+from .providers.fixture import FixtureProvider
+from .sessions import SessionStore
+from .skills import SKILL_VARIANTS, describe_all_skills, is_skill_variant
+
+_ROOT = pathlib.Path(__file__).resolve().parents[4]
+
+#: Where the built clients are, when they have been built.
+#:
+#: Absent in development, which is deliberate rather than unhandled: `npm run
+#: dev` serves the React app on its own port against this API, and mounting a
+#: stale `dist/` underneath it is how you end up debugging a build from
+#: yesterday.
+WEB_DIST = _ROOT / "apps" / "web" / "dist"
+FLUTTER_DIST = _ROOT / "apps" / "flutter_client" / "build" / "web"
+
+MODELS = [
+    {"id": "gemini-3.8-flash", "label": "Flash 3.8", "note": "Default. Fastest to first surface"},
+    {"id": "gemini-3.7-flash", "label": "Flash 3.7", "note": "The previous Flash"},
+    {"id": "gemini-3.5-flash-lite", "label": "Flash Lite", "note": "Cheapest; simpler surfaces"},
+]
+
+SURFACES = ["inline", "sidebar", "home"]
+
+sessions = SessionStore()
+provider = FixtureProvider()
+
+app = FastAPI(title="Travel A2UI", docs_url=None, redoc_url=None)
+
+
+def _no_store(payload: Any, status: int = 200) -> JSONResponse:
+    return JSONResponse(payload, status_code=status, headers={"cache-control": "no-store"})
+
+
+@app.get("/api/meta")
+async def meta() -> JSONResponse:
+    """Everything a client needs to configure itself, so none of it is compiled in."""
+    destinations = await provider.destinations()
+    return _no_store(
+        {
+            "name": os.environ.get("PUBLIC_NAME", "Travel A2UI"),
+            "catalogId": CATALOG_ID,
+            "protocolVersion": "v0.9.1",
+            "defaultModel": os.environ.get("DEFAULT_MODEL", "gemini-3.8-flash"),
+            "defaultSkill": os.environ.get("DEFAULT_SKILL", "express-monolithic"),
+            "models": MODELS,
+            "surfaces": SURFACES,
+            "skills": describe_all_skills(),
+            "destinations": [
+                {
+                    "city": entry["city"],
+                    "country": entry["country"],
+                    "airport": entry["airport"],
+                    "summary": entry["summary"],
+                }
+                for entry in destinations
+            ],
+            # Where this deployment's travel data comes from, advertised so the
+            # front end can say so once in the chrome instead of every surface
+            # carrying a badge — and so a reader of the API can tell a demo
+            # from a live deployment without guessing from the prices.
+            "provenance": provider.provenance.as_dict(),
+            "contract": {"stamp": contract_stamp(), "maxAgeMs": INSTANTIATION_MAX_AGE_MS},
+            "mcpEndpoint": "/mcp",
+            # True when the deployment carries its own key and the UI need not ask.
+            "keyProvided": bool(os.environ.get("GEMINI_API_KEY")),
+            "runtime": "python",
+            # The two agent frameworks, offered to the traveller as a choice.
+            # They are genuinely different runtimes — a request/response loop
+            # this server drives against the Interactions API, and a
+            # bidirectional session Google drives against the Live API — and
+            # the honest way to show that the interface layer is independent of
+            # the runtime is to let someone switch and watch the same
+            # components come back.
+            #
+            # They share nothing. The front end reloads on a switch, so each
+            # opens on its own session with an empty trip: two APIs with two
+            # conversation histories is difference enough without also deciding
+            # which parts of a half-made trip survive the crossing.
+            "backends": [
+                {
+                    "id": "python",
+                    "label": "Python server",
+                    "origin": "",
+                    "voice": False,
+                    "note": (
+                        "Gemini Interactions API, driven from this server. Typed "
+                        "conversation; surfaces stream in as the model composes them."
+                    ),
+                },
+                {
+                    "id": "live",
+                    "label": "Gemini Live",
+                    "origin": "",
+                    "voice": True,
+                    "note": (
+                        "Gemini Live API, relayed through this server. Speak or type; "
+                        "it answers out loud and draws the same surfaces."
+                    ),
+                },
+            ],
+        }
+    )
+
+
+@app.get("/api/catalog")
+async def catalog() -> JSONResponse:
+    return JSONResponse(CATALOG_JSON, headers={"cache-control": "public, max-age=300"})
+
+
+@app.get("/api/session")
+async def get_session(sessionId: str = "") -> JSONResponse:  # noqa: N803 - wire name
+    if not sessionId:
+        raise HTTPException(status_code=400, detail="sessionId is required")
+    session = sessions.get(sessionId)
+    return _no_store({"trip": session.trip, "turns": session.turns})
+
+
+@app.post("/api/session/reset")
+async def reset_session(request: Request) -> JSONResponse:
+    body = await _json_body(request)
+    session_id = body.get("sessionId")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="sessionId is required")
+    sessions.reset(str(session_id))
+    return _no_store({"ok": True})
+
+
+async def _json_body(request: Request) -> dict[str, Any]:
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001 - a malformed body is a 400, not a 500
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+@app.post("/api/chat")
+async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> StreamingResponse:
+    """One turn, as server-sent events.
+
+    SSE rather than a WebSocket because the traffic is one-directional for the
+    length of a turn and SSE reconnects, proxies and debugs like ordinary HTTP.
+    The stream carries the same events the agent yields, so a second client
+    implements a renderer and not a protocol.
+    """
+    body = await _json_body(request)
+    api_key = (x_goog_api_key or os.environ.get("GEMINI_API_KEY", "")).strip()
+    if not api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="A Gemini API key is required. Send it as the x-goog-api-key header.",
+        )
+
+    session_id = str(body.get("sessionId") or sessions.new_id())
+    session = sessions.get(session_id)
+
+    skill = body.get("skill")
+    if not is_skill_variant(skill):
+        skill = os.environ.get("DEFAULT_SKILL", SKILL_VARIANTS[0])
+
+    action_body = body.get("action")
+    action = None
+    if isinstance(action_body, dict) and action_body.get("name"):
+        action = SurfaceAction(
+            name=str(action_body["name"]),
+            surface_id=str(action_body.get("surfaceId") or "inline-1"),
+            context=action_body.get("context") or {},
+            data_model=action_body.get("dataModel"),
+            source_component_id=action_body.get("sourceComponentId"),
+        )
+
+    turn = TurnRequest(
+        api_key=api_key,
+        model=str(body.get("model") or os.environ.get("DEFAULT_MODEL", "gemini-3.8-flash")),
+        message=str(body.get("message") or ""),
+        action=action,
+        interaction_id=session.interaction_id,
+        trip=dict(session.trip),
+        surface=str(body.get("surface") or "inline"),
+        surface_id=str(body.get("surfaceId") or "inline-1"),
+        skill=str(skill),
+        effort=str(body.get("effort") or "medium"),
+        shape=session.shape,
+        origin_hint=_origin_hint(body.get("client")),
+        provider=provider,
+    )
+
+    async def events() -> AsyncIterator[bytes]:
+        # The session id goes out first, so a client that did not send one
+        # knows what to send next time. Everything after it is a turn event.
+        yield _sse({"type": "session", "sessionId": session_id})
+        async for event in run_turn(turn):
+            if event["type"] == "__result__":
+                result = event["result"]
+                sessions.save(
+                    session_id,
+                    interaction_id=result.interaction_id,
+                    trip=result.trip,
+                    shape=result.shape,
+                )
+                continue
+            yield _sse(event)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "cache-control": "no-store",
+            # Proxies that buffer a stream turn streaming into a slow
+            # request/response, which looks to the traveller exactly like the
+            # empty-screen wait this whole design is about avoiding.
+            "x-accel-buffering": "no",
+            "connection": "keep-alive",
+        },
+    )
+
+
+def _sse(event: dict[str, Any]) -> bytes:
+    return f"data: {json.dumps(event, ensure_ascii=False)}\n\n".encode("utf-8")
+
+
+def _origin_hint(client: Any) -> dict[str, str] | None:
+    """A departure airport the browser's timezone suggests. Never a decision."""
+    if not isinstance(client, dict):
+        return None
+    zone = client.get("timeZone")
+    if not isinstance(zone, str) or not zone:
+        return None
+    from .providers.fixture import origin_for_time_zone
+
+    suggested = origin_for_time_zone(zone)
+    if not suggested:
+        return None
+    return {"code": suggested["code"], "city": suggested["city"], "timeZone": zone}
+
+
+@app.get("/healthz")
+async def healthz() -> JSONResponse:
+    """For Cloud Run, which wants to know before it sends traffic."""
+    return JSONResponse({"ok": True, "sessions": len(sessions)})
+
+
+def mount_clients() -> None:
+    """Serves the built front ends, when they have been built.
+
+    Mounted last so nothing here can shadow an API route, and each only if its
+    build output exists — a missing `dist/` in development is the normal case,
+    not a misconfiguration.
+    """
+    if FLUTTER_DIST.is_dir():
+        app.mount("/flutter", StaticFiles(directory=FLUTTER_DIST, html=True), name="flutter")
+
+    if WEB_DIST.is_dir():
+        app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
+
+        @app.exception_handler(404)
+        async def spa_fallback(request: Request, _exc: Any) -> Any:
+            # A single-page app owns its own routing, so an unknown path that
+            # is not an API path is a route the client knows about and the
+            # server does not. An API path stays a 404, or a typo in a fetch
+            # silently returns HTML and fails somewhere much less obvious.
+            if request.url.path.startswith(("/api/", "/mcp", "/healthz")):
+                return _no_store({"error": f"No route for {request.url.path}"}, 404)
+            return FileResponse(WEB_DIST / "index.html")
+
+
+mount_clients()
