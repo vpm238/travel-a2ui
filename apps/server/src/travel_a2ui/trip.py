@@ -867,55 +867,61 @@ def plan(trip: Trip) -> dict[str, Any]:
     return out
 
 
-def next_step_for(trip: Trip) -> str:
-    """What the agent should be doing on this turn, in one line.
+def outstanding(trip: Trip) -> str:
+    """Everything the trip has not settled, as facts rather than as orders.
 
-    Deliberately imperative, because it is dropped straight into the prompt and
-    the job it has to do there is stop the agent from stalling politely.
+    This used to be `next_step_for`, and it gave instructions: *"Step 4 of 7:
+    choose a flight. You still need dates — ask for all of it in one surface…"*.
+    Reading a fixed ladder out as an imperative is a fixed ladder however much
+    the data underneath it bends. It picked one open question out of several,
+    always the earliest in `STAGES`, and told the agent to ask that one — on a
+    trip it had never seen. Trips are not all that shape: somebody arrives
+    knowing the dates and not the city, somebody wants a total before anything
+    is chosen, somebody wants the days sketched before the flights are.
+
+    So Python states what is true and stops there. Every open stage, and what
+    each is waiting on — which stops have no ticket, which have not been asked
+    about a stay, which fields are still blank and what they bind to. Which of
+    them to take next is judgement, and judgement lives in `prompts/role.md`
+    under "Lead the trip", where it is English a person can argue with rather
+    than an `if` nobody reads.
+
+    Nothing is loosened by the move. The facts here are still computed from the
+    trip, `problems` still catches a return before a departure, and the tools
+    still refuse to price a trip with no dates. What is gone is the running
+    order.
     """
     state = plan(trip)
     legs = stops(trip)
 
     if state["complete"]:
         across = f", across all {len(legs)} stops" if len(legs) > 1 else ""
-        return (
-            f"The trip is planned — every stage is settled or ruled out{across}. Do not invent "
-            "another question about it. Show them the whole trip on one surface, offer the two "
-            "things that are actually left — adding more to the days, or sharing the plan with "
-            "whoever else is coming — and wish them a good trip."
-        )
+        return f"Nothing — every stage is settled or ruled out{across}."
 
-    step = state["next"]
-    parts = [f"Step {state['done'] + 1} of {state['total']}: {step['label']}."]
+    said: list[str] = []
+    for step in state["steps"]:
+        if step["done"]:
+            continue
 
-    pending = step.get("pending")
-    if pending and pending["stops"]:
-        tail = (
-            "Ask per stop, in one surface: which of these need somewhere to stay and which do "
-            "not. Record a stop that does not with needsStay: false on its leg, and stop asking "
-            "about it."
-            if step["stage"] == "stay"
-            else "A trip with several stops needs one for each, not one covering all of them."
-        )
-        parts.append(f"Waiting on {', '.join(pending['stops'])} — {pending['want']}. {tail}")
+        bits: list[str] = []
+        if step["missing"]:
+            bound = ", ".join(f"${binding_for(key)}" for key in step["missing"])
+            bits.append(f"needs {ask_for(step['missing'])}, bound to {bound}")
 
-    if step["missing"]:
-        bound = ", ".join(f"${binding_for(key)}" for key in step["missing"])
-        parts.append(
-            f"You still need {ask_for(step['missing'])} — ask for all of it in one surface, "
-            f"bound to {bound}, with one button."
-        )
-    if not step["missing"] and not pending:
-        parts.append("Draw what it needs and move it forward.")
+        pending = step.get("pending")
+        if pending:
+            # Named stops rather than a count: "Madrid, home (JFK) have no
+            # ticket" is a sentence the agent can act on, where "2 stops
+            # pending" is one it has to go and resolve first.
+            bits.append(
+                f"{', '.join(pending['stops'])} still want {pending['want']}"
+                if pending["stops"]
+                else f"needs {pending['want']}"
+            )
 
-    parts.append(
-        "End every turn having moved the trip on, or having asked exactly what it takes to. If "
-        "this stage does not apply to their trip — driving rather than flying, staying with "
-        f'family, no fixed budget — record that with save_trip (skip: ["{step["stage"]}"]) and go '
-        "to the next one instead of asking a question they have already answered."
-    )
+        said.append(f"**{step['label']}** — {'; '.join(bits)}" if bits else f"**{step['label']}**")
 
-    return " ".join(parts)
+    return " · ".join(said)
 
 
 def decision_shape(trip: Trip) -> str:

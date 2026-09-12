@@ -209,19 +209,19 @@ def describe_trip(trip: dict[str, Any], today: str, surface: str) -> str:
     # panel turn, and the model resolves it the way it was always going to: it
     # advances the plan, in the panel, with the controls the next step needs —
     # which the host then ignores. So the instruction is scoped: on this turn
-    # the next step is somebody else's job.
-    next_step = model.next_step_for(normalized)
+    # advancing the trip is somebody else's job.
+    still_open = model.outstanding(normalized)
     if surface == "inline":
-        lines.append(f"- **Do this next.** {next_step}")
+        lines.append(f"- **Still open.** {still_open}")
     else:
         scoped = (
             "You are drawing the record, not advancing the plan. Ask for nothing here. "
-            "The next step is asked in the conversation, on the next inline turn."
+            "What is open is asked in the conversation, on the next inline turn."
             if surface == "sidebar"
             else "You are drawing a standing summary, not advancing the plan. Ask for nothing "
-            "here; the next step is asked in the conversation."
+            "here; what is open is asked in the conversation."
         )
-        lines.append(f"- **Not this turn.** {scoped} For context, what is outstanding is: {next_step}")
+        lines.append(f"- **Not this turn.** {scoped} For context, still open: {still_open}")
 
     return "\n".join(lines)
 

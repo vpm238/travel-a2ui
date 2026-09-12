@@ -61,29 +61,56 @@ def as_rules() -> str:
     )
 
 
-#: Keys whose bindings are not the component asking for anything.
+#: Components that take an answer, read off the catalog rather than listed here.
 #:
-#: `action` is the big one, and leaving it out is the difference between a check
-#: that works and one that rejects every correct surface. A button carrying the
-#: answer — `Event("search_flights", {origin: $/trip/origin, ...})` — is how a
-#: surface commits what the controls above it collected, so those paths appear
-#: on a `Button` in every well-formed surface this app draws. Judging the button
-#: by them would say "a Button cannot ask for an airport", which is true and
-#: beside the point: the button is not asking, it is carrying.
-NOT_ASKING = frozenset({"action", "onChange", "onSubmit"})
+#: The spec marks them, indirectly but reliably: `Checkable` gives a component
+#: `checks`, client-side validation rules — and only something the traveller can
+#: fill in has anything to validate. So the components carrying it are exactly
+#: the inputs: `TextField`, `ChoicePicker`, `Slider`, `DateTimeInput`,
+#: `DateRangePicker`, `TravelerCounter`, `CheckBox`, `Button`. `FlightOption`,
+#: `PriceSummary` and `Text` do not carry it, because they show a value rather
+#: than collect one.
+#:
+#: Without this the check fired on displays. A fare card is
+#: `FlightOption(origin=$/trip/origin, …)` — it is *showing* which airports the
+#: fare is between — and the rule read the binding, saw `origin`, and said an
+#: airport cannot be answered in a `FlightOption`. True, and beside the point.
+#: In the skill eval it rejected the flights turn on every variant, seven times
+#: out of nine: a check calling correct surfaces wrong, on the one scenario it
+#: was written to help with.
+_CATALOG = json.loads(
+    (pathlib.Path(__file__).resolve().parents[4] / "catalogs" / "a2ui-travel" / "catalog.json")
+    .read_text("utf-8")
+)
+
+ASKING: frozenset[str] = frozenset(
+    name
+    for name, entry in _CATALOG["components"].items()
+    if "$defs/Checkable" in json.dumps(entry)
+)
+
+#: The properties an answer actually arrives in.
+#:
+#: An input's other properties are its furniture: `label`, `caption`, `min`,
+#: `max`, `options`, and — on a `Button` — `action`, which carries what the
+#: controls above it collected (`Event("search_flights", {origin:
+#: $/trip/origin, …})`) rather than asking for any of it. Reading those as
+#: questions is how this check used to say "a Button cannot ask for an airport",
+#: which is true and not what the button was doing.
+#:
+#: `start` and `end` are here because `DateRangePicker` is the one input whose
+#: answer is two values rather than one.
+ANSWER_KEYS = frozenset({"value", "start", "end"})
 
 
 def _bound_paths(node: dict[str, Any]) -> Iterable[str]:
     """Every data-model path this component *asks* the traveller to fill."""
     for key, value in node.items():
-        if key in NOT_ASKING:
+        if key not in ANSWER_KEYS or not isinstance(value, dict):
             continue
-        if isinstance(value, dict):
-            path = value.get("path")
-            if isinstance(path, str):
-                yield path
-            else:
-                yield from _bound_paths(value)
+        path = value.get("path")
+        if isinstance(path, str):
+            yield path
 
 
 def wrong_controls(messages: Iterable[dict[str, Any]]) -> list[str]:
@@ -102,7 +129,7 @@ def wrong_controls(messages: Iterable[dict[str, Any]]) -> list[str]:
             if not isinstance(node, dict):
                 continue
             component = str(node.get("component") or "")
-            if not component:
+            if component not in ASKING:
                 continue
             for path in _bound_paths(node):
                 field = path.rsplit("/", 1)[-1]

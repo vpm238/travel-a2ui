@@ -508,7 +508,6 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 1 of 7: settle where they are going and flying from. You still need where you are going and which airport you are flying from — ask for all of it in one surface, bound to $/trip/destination, $/trip/origin, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"route\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [],
       "stayStatus": {
         "unasked": [],
@@ -517,7 +516,8 @@
         "notNeeded": []
       },
       "partyVaries": false,
-      "decisionShape": "||||"
+      "decisionShape": "||||",
+      "outstanding": "**settle where they are going and flying from** — needs where you are going and which airport you are flying from, bound to $/trip/destination, $/trip/origin · **settle the dates** — needs when you are leaving and when you are coming back, bound to $/trip/startDate, $/trip/endDate · **settle how many are travelling** — needs how many of you are going, bound to $/trip/travelers · **choose a flight for each hop** — needs a destination first · **sort out where you are sleeping, stop by stop** — needs a destination first · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
     },
     "destination only": {
       "normalize": {
@@ -684,7 +684,6 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 1 of 7: settle where they are going and flying from. You still need which airport you are flying from — ask for all of it in one surface, bound to $/trip/origin, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"route\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid"
@@ -699,7 +698,8 @@
         "notNeeded": []
       },
       "partyVaries": false,
-      "decisionShape": "|Madrid|||"
+      "decisionShape": "|Madrid|||",
+      "outstanding": "**settle where they are going and flying from** — needs which airport you are flying from, bound to $/trip/origin · **settle the dates** — needs when you are leaving and when you are coming back, bound to $/trip/startDate, $/trip/endDate; Madrid still want dates · **settle how many are travelling** — needs how many of you are going, bound to $/trip/travelers · **choose a flight for each hop** — Madrid still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
     },
     "ready to price flights": {
       "normalize": {
@@ -863,7 +863,6 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid, home (JFK) — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -882,7 +881,8 @@
         "notNeeded": []
       },
       "partyVaries": false,
-      "decisionShape": "route,dates,party|Madrid|||"
+      "decisionShape": "route,dates,party|Madrid|||",
+      "outstanding": "**choose a flight for each hop** — Madrid, home (JFK) still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
     },
     "dates backwards": {
       "normalize": {
@@ -1055,7 +1055,6 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid, home (JFK) — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -1074,7 +1073,8 @@
         "notNeeded": []
       },
       "partyVaries": false,
-      "decisionShape": "route,dates,party|Madrid|||"
+      "decisionShape": "route,dates,party|Madrid|||",
+      "outstanding": "**choose a flight for each hop** — Madrid, home (JFK) still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
     },
     "in the past": {
       "normalize": {
@@ -1248,7 +1248,6 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid, home (JFK) — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -1267,7 +1266,8 @@
         "notNeeded": []
       },
       "partyVaries": false,
-      "decisionShape": "route,dates,party|Madrid|||"
+      "decisionShape": "route,dates,party|Madrid|||",
+      "outstanding": "**choose a flight for each hop** — Madrid, home (JFK) still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
     },
     "assumed": {
       "normalize": {
@@ -1458,7 +1458,6 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 2 of 7: settle the dates. Waiting on Madrid — dates. A trip with several stops needs one for each, not one covering all of them. You still need when you are leaving and when you are coming back — ask for all of it in one surface, bound to $/trip/startDate, $/trip/endDate, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"dates\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -1475,7 +1474,8 @@
         "notNeeded": []
       },
       "partyVaries": false,
-      "decisionShape": "route|Madrid|||"
+      "decisionShape": "route|Madrid|||",
+      "outstanding": "**settle the dates** — needs when you are leaving and when you are coming back, bound to $/trip/startDate, $/trip/endDate; Madrid still want dates · **settle how many are travelling** — needs how many of you are going, bound to $/trip/travelers · **choose a flight for each hop** — Madrid, home (JFK) still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
     },
     "chosen": {
       "normalize": {
@@ -1655,7 +1655,6 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 5 of 7: choose a flight for each hop. Waiting on home (JFK) — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -1678,7 +1677,8 @@
         "notNeeded": []
       },
       "partyVaries": false,
-      "decisionShape": "route,dates,party,stay|Madrid|IB426|h_MAD_1|"
+      "decisionShape": "route,dates,party,stay|Madrid|IB426|h_MAD_1|",
+      "outstanding": "**choose a flight for each hop** — home (JFK) still want a flight · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
     },
     "multi-leg, party varies": {
       "normalize": {
@@ -1880,7 +1880,6 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 3 of 7: settle the dates. Waiting on SFO — dates. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"dates\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Chicago",
@@ -1915,7 +1914,8 @@
         ]
       },
       "partyVaries": true,
-      "decisionShape": "route,party|Chicago|||New York>SFO"
+      "decisionShape": "route,party|Chicago|||New York>SFO",
+      "outstanding": "**settle the dates** — SFO still want dates · **choose a flight for each hop** — Chicago, New York, SFO still want a flight · **sort out where you are sleeping, stop by stop** — Chicago, New York still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
     },
     "skipped a stage": {
       "normalize": {
@@ -2079,7 +2079,6 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid, home (JFK) — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -2098,7 +2097,8 @@
         "notNeeded": []
       },
       "partyVaries": false,
-      "decisionShape": "route,dates,party|Madrid|||"
+      "decisionShape": "route,dates,party|Madrid|||",
+      "outstanding": "**choose a flight for each hop** — Madrid, home (JFK) still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
     }
   },
   "askFor": [

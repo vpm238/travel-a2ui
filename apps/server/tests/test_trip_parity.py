@@ -110,15 +110,15 @@ class TestPerTrip:
         same(model.decision_shape(trip), want["decisionShape"], f"{name}: decisionShape")
 
     @pytest.mark.parametrize("name", TRIP_NAMES)
-    def test_next_step(self, name):
-        """The sentence that goes straight into the prompt.
+    def test_outstanding(self, name):
+        """The facts that go straight into the prompt.
 
-        Worth comparing exactly rather than loosely: it is the instruction that
-        decides whether the agent leads or stalls politely, and a port that
-        rephrases it has changed the agent's behaviour without changing a test.
+        Worth comparing exactly rather than loosely: this is the agent's whole
+        view of what the trip has not settled, and a rewrite that quietly drops
+        a stop or a field changes what it does without changing a test.
         """
         want = GOLDEN["trips"][name]
-        same(model.next_step_for(want["normalize"]), want["nextStepFor"], f"{name}: nextStepFor")
+        same(model.outstanding(want["normalize"]), want["outstanding"], f"{name}: outstanding")
 
 
 class TestSentences:
@@ -277,7 +277,7 @@ class TestAFlightPerHop:
         assert stage["done"] is False
 
     def test_and_the_agent_is_told_which_hop_is_missing_one(self):
-        said = model.next_step_for(self.OUT_AND_BACK)
+        said = model.outstanding(self.OUT_AND_BACK)
         assert "NYC" in said
         assert "flight" in said.lower()
 
