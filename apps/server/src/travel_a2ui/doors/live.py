@@ -301,6 +301,22 @@ async def relay(
                                 "mime_type": "audio/pcm;rate=16000",
                             }
                         )
+                    elif kind == "audio_end":
+                        # The microphone stopped; let the model take its turn.
+                        #
+                        # This is the frame the whole feature was missing. The
+                        # model answers on voice activity detection, and VAD
+                        # decides somebody has stopped talking by *hearing* the
+                        # silence after them. A browser that stops sending the
+                        # moment the traveller stops speaking never sends that
+                        # silence, so the model waits for audio that is not
+                        # coming and nothing happens — which is exactly what it
+                        # looked like.
+                        #
+                        # Ending the audio stream says it explicitly. The
+                        # session stays open: this is not a hang-up, it is the
+                        # end of one thing said.
+                        await live.send_realtime_input(audio_stream_end=True)
                     elif kind == "text" and message.get("text"):
                         await live.send_client_content(
                             turns={"role": "user", "parts": [{"text": message["text"]}]},

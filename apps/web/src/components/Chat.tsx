@@ -321,17 +321,21 @@ export function Chat({ agent }: { agent: Agent }) {
             onClick={() => void agent.voice.start()}
             aria-pressed={agent.voice.listening}
             disabled={agent.live.status !== 'ready'}
+            /* "End the call" was a lie about what this does, and it cost the
+               feature: pressing it after speaking hung up before the answer
+               arrived. It opens and closes the microphone over a session that
+               outlives both. */
             title={
               agent.live.status !== 'ready'
                 ? 'Instantiate the Live agent first'
                 : agent.voice.listening
-                  ? 'End the call'
+                  ? 'Stop talking and let it answer'
                   : 'Talk to it'
             }
           >
-            <span aria-hidden>{agent.voice.listening ? '■' : '🎙'}</span>
+            <span aria-hidden>{agent.voice.listening ? '◉' : '🎙'}</span>
             <span className="visually-hidden">
-              {agent.voice.listening ? 'End the call' : 'Start a voice call'}
+              {agent.voice.listening ? 'Stop talking and let it answer' : 'Talk to it'}
             </span>
           </button>
         ) : null}

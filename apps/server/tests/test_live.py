@@ -502,3 +502,53 @@ class TestACallIsAConversationNotOneCard:
         )
         drawn = next(event for event in seen if event["type"] == "ui")
         assert drawn["surfaceId"] == "voice-keep"
+
+
+class TestStoppingTheMicrophoneIsNotHangingUp:
+    """Speaking and then stopping has to produce an answer.
+
+    The surface here is a screen the traveller is looking at, not a phone call:
+    talking is one way to use it, and stopping talking ends a sentence rather
+    than the conversation. It was wired the other way — the microphone toggle
+    called `hangUp` — so speaking and pressing stop tore the session down before
+    the answer arrived, and the feature looked completely dead.
+
+    The half of that fix which lives on the server is this frame: the model
+    answers on voice activity detection, and VAD decides somebody has stopped by
+    *hearing* the silence after them. A browser that stops sending the moment
+    they stop speaking never sends that silence, so the model waits for audio
+    that is not coming.
+    """
+
+    def test_a_closed_microphone_lets_the_model_take_its_turn(self) -> None:
+        _, client, _ = run_call(
+            [],
+            incoming=[
+                {"type": "audio", "data": "AAAA"},
+                {"type": "audio_end"},
+            ],
+        )
+        assert ("audio", {"audio_stream_end": True}) in client.live_session.sent, (
+            "the end of the audio stream is what makes it answer"
+        )
+
+    def test_and_leaves_the_session_open_to_be_spoken_to_again(self) -> None:
+        """The socket outlives the microphone, so they can say a second thing."""
+        _, client, _ = run_call(
+            [],
+            incoming=[
+                {"type": "audio", "data": "AAAA"},
+                {"type": "audio_end"},
+                {"type": "audio", "data": "BBBB"},
+                {"type": "audio_end"},
+            ],
+        )
+        kinds = [kind for kind, _ in client.live_session.sent]
+        assert kinds == ["audio", "audio", "audio", "audio"], kinds
+        ends = [args for _, args in client.live_session.sent if args.get("audio_stream_end")]
+        assert len(ends) == 2, "each thing said gets its own end"
+
+    def test_leaving_still_ends_it(self) -> None:
+        """`end` is for closing the tab, and it still closes the session."""
+        _, client, _ = run_call([], incoming=[{"type": "end"}, {"type": "audio", "data": "X"}])
+        assert client.live_session.sent == [], "nothing is sent after they leave"

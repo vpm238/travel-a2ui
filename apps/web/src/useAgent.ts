@@ -909,8 +909,31 @@ export function useAgent() {
     setAgentSpeaking(false);
   }, [call]);
 
+  /**
+   * The microphone, toggled over a session that outlives it.
+   *
+   * This used to be `if (call) return hangUp()`: the same button opened a call
+   * and ended one. That is the phone-call model, and it is the wrong one here —
+   * the traveller has the screen in front of them the whole time and talking is
+   * one way to use it. Pressing stop after speaking therefore tore the session
+   * down before the answer could arrive, which is why speaking and then
+   * stopping did nothing at all.
+   *
+   * Now the first press opens a session and starts listening, and each press
+   * after that opens or closes the microphone. The session ends when they leave
+   * the tab or switch runtime, not when they finish a sentence.
+   */
   const startVoice = useCallback(async () => {
-    if (call) return hangUp();
+    if (call) {
+      if (call.listening()) {
+        call.stopListening();
+        setListening(false);
+      } else {
+        call.listen();
+        setListening(true);
+      }
+      return;
+    }
     if (!keyRef.current) {
       setVoiceError('Add your Gemini key first.');
       return;
@@ -946,6 +969,7 @@ export function useAgent() {
       });
       callRef.current = started;
       setCall(started);
+      started.listen();
       setListening(true);
       return started;
     } catch (error) {

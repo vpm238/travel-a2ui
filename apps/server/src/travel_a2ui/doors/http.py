@@ -556,6 +556,15 @@ async def healthz() -> JSONResponse:
     return JSONResponse({"ok": True, "sessions": len(sessions)})
 
 
+class _AnyOrigin(StaticFiles):
+    """Static files any page may read. See `mount_clients`."""
+
+    async def get_response(self, path: str, scope: Any) -> Any:  # noqa: ANN401
+        response = await super().get_response(path, scope)
+        response.headers["access-control-allow-origin"] = "*"
+        return response
+
+
 def mount_clients() -> None:
     """Serves the built front ends, when they have been built.
 
@@ -567,6 +576,24 @@ def mount_clients() -> None:
         app.mount("/flutter", StaticFiles(directory=FLUTTER_DIST, html=True), name="flutter")
 
     if WEB_DIST.is_dir():
+        # `/mcp-view/` before `/`, and with a permissive origin, because that
+        # bundle is loaded by somebody else's page.
+        #
+        # The MCP view is a one-kilobyte shell that links the renderer from this
+        # deployment, and an MCP host runs that shell in a sandboxed frame with
+        # a *null* origin. A null origin matches nothing, so the fetch needs
+        # `access-control-allow-origin: *` or the frame renders an empty box and
+        # says nothing about why — which is exactly what the end-to-end test has
+        # been reporting, red, since the day the Python server took over from
+        # the Worker that used to set this header.
+        #
+        # Scoped to this one directory. The app itself is same-origin and has no
+        # business being readable from anywhere.
+        app.mount(
+            "/mcp-view",
+            _AnyOrigin(directory=WEB_DIST / "mcp-view"),
+            name="mcp-view",
+        )
         app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
 
         @app.exception_handler(404)

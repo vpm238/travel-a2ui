@@ -19,7 +19,7 @@
  */
 
 import { launchBrowser } from '../browser.mjs';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const BASE = (process.env.BASE_URL ?? 'http://127.0.0.1:8787').replace(/\/$/, '');
@@ -60,6 +60,24 @@ async function rpc(method, params) {
   return body.result;
 }
 
+/**
+ * Whether a browser failure is about the thing under test.
+ *
+ * The MCP view is injected into an iframe on a page this harness navigates to —
+ * the web app — and that page loads a web font and asks for a favicon. Neither
+ * is the view's, and both fail behind a sandbox with no egress, which was
+ * reported as "the renderer booted with errors" and read as a defect in the
+ * view. Anything the *deployment* serves still counts, which is what the view
+ * actually depends on.
+ */
+const ours = (text) =>
+  !/fonts\.(googleapis|gstatic)\.com|favicon/i.test(text) &&
+  // The browser also logs a bare "Failed to load resource: <reason>" with no
+  // URL in it for every failed request. `requestfailed` reports the same event
+  // *with* the URL, so this line is a duplicate that cannot be attributed —
+  // which is how a web font on the harness page read as the view failing.
+  !/^Failed to load resource:/.test(text);
+
 async function main() {
   console.log(`MCP end-to-end against ${BASE}\n`);
 
@@ -69,14 +87,20 @@ async function main() {
   check('it tells the host these tools return interfaces', /user interfaces/i.test(init.instructions ?? ''));
 
   const { tools } = await rpc('tools/list');
-  check('all eight tools are listed', tools.length === 8, `${tools.length} listed`);
+
+  // Read from the file the server reads, rather than counted here. This
+  // asserted `tools.length === 8` against a tool set that has since grown by
+  // three, and the failure it produced said nothing about what had changed.
+  const declared = JSON.parse(
+    readFileSync(new URL('../../data/tools.json', import.meta.url), 'utf8'),
+  ).tools.map((tool) => tool.name);
+  const RENDERERS = ['get_a2ui_component_reference', 'render_a2ui_express'];
+
   check(
-    'every tool carries the three-flow argument or is a renderer',
-    tools.every(
-      (tool) =>
-        tool.inputSchema.properties.surface ||
-        ['show_trip_controls', 'show_trip_dashboard', 'render_a2ui_express', 'get_a2ui_component_reference'].includes(tool.name),
-    ),
+    'every declared tool is offered, and the two renderers with them',
+    JSON.stringify(tools.map((tool) => tool.name).sort()) ===
+      JSON.stringify([...declared, ...RENDERERS].sort()),
+    tools.map((tool) => tool.name).join(', '),
   );
 
   const { resources } = await rpc('resources/list');
@@ -90,10 +114,24 @@ async function main() {
     app?._meta?.ui?.csp?.resourceDomains?.length === 0,
     JSON.stringify(app?._meta?.ui?.csp ?? {}),
   );
+  // Only the two renderers point at the view, and that is the architecture
+  // rather than an oversight: every other tool returns *data*, and the skill
+  // turns data into UI. A host that rendered `search_flights` as a view would be
+  // rendering JSON. This used to assert the opposite, from a time when every
+  // tool was a `show_*` that drew its own surface.
   check(
-    'every tool points at it',
-    tools.every((entry) => entry._meta?.ui?.resourceUri === app?.uri),
-    tools.map((t) => t._meta?.ui?.resourceUri).join(', '),
+    'the renderers point at the view',
+    RENDERERS.every(
+      (name) => tools.find((entry) => entry.name === name)?._meta?.ui?.resourceUri === app?.uri,
+    ),
+    RENDERERS.map((name) => tools.find((t) => t.name === name)?._meta?.ui?.resourceUri).join(', '),
+  );
+  check(
+    'and the data tools do not, because they return data',
+    tools
+      .filter((entry) => !RENDERERS.includes(entry.name))
+      .every((entry) => !entry._meta?.ui),
+    tools.filter((e) => !RENDERERS.includes(e.name) && e._meta?.ui).map((e) => e.name).join(', '),
   );
   check(
     'the skill it serves is the generated one',
@@ -213,8 +251,13 @@ async function main() {
   async function renderInApp(page, template, result) {
     const errors = [];
     page.on('pageerror', (error) => errors.push(String(error)));
+    page.on('requestfailed', (request) => {
+      if (ours(request.url())) {
+        errors.push(`${request.url()} — ${request.failure()?.errorText ?? 'failed'}`);
+      }
+    });
     page.on('console', (message) => {
-      if (message.type() === 'error') errors.push(message.text());
+      if (message.type() === 'error' && ours(message.text())) errors.push(message.text());
     });
 
     await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
@@ -277,7 +320,7 @@ async function main() {
     const errors = [];
     page.on('pageerror', (error) => errors.push(String(error)));
     page.on('console', (message) => {
-      if (message.type() === 'error') errors.push(message.text());
+      if (message.type() === 'error' && ours(message.text())) errors.push(message.text());
     });
 
     await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });

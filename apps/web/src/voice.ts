@@ -72,9 +72,28 @@ function fromPcm16(bytes: Uint8Array): Float32Array<ArrayBuffer> {
   return out;
 }
 
+/**
+ * A live session over the screen the traveller is already looking at.
+ *
+ * Not a phone call, which is what it was modelled as and why stopping did
+ * nothing: the microphone toggle was wired to `hangUp`, so speaking and then
+ * pressing stop tore the session down before the answer arrived. A screen is in
+ * front of them the whole time; talking is one way to use it, and stopping
+ * talking is the end of a sentence rather than the end of the conversation.
+ *
+ * So `listen` and `stopListening` open and close the microphone, and the
+ * session — the socket, the surfaces, the transcript — outlives both. `hangUp`
+ * is for leaving.
+ */
 export interface VoiceCall {
-  /** Ends the call and releases the microphone. */
+  /** Ends the session and releases the microphone. */
   hangUp(): void;
+  /** Opens the microphone. Audio streams until `stopListening`. */
+  listen(): void;
+  /** Closes the microphone and lets the model take its turn. */
+  stopListening(): void;
+  /** Whether the microphone is open right now. */
+  listening(): boolean;
   /** Types into a voice call — useful when saying an airport code out loud fails. */
   say(text: string): void;
   /** True while the agent is speaking. */
@@ -268,8 +287,9 @@ export async function startCall(options: VoiceOptions): Promise<VoiceCall> {
   // upgrade when it stops being.
   const source = capture.createMediaStreamSource(stream);
   const processor = capture.createScriptProcessor(4096, 1, 1);
+  let open = false;
   processor.addEventListener('audioprocess', (event) => {
-    if (socket.readyState !== WebSocket.OPEN) return;
+    if (!open || socket.readyState !== WebSocket.OPEN) return;
     const pcm = toPcm16(event.inputBuffer.getChannelData(0), capture.sampleRate);
     socket.send(JSON.stringify({ type: 'audio', data: toBase64(pcm) }));
   });
@@ -291,6 +311,23 @@ export async function startCall(options: VoiceOptions): Promise<VoiceCall> {
       }
       stop();
     },
+    listen: () => {
+      open = true;
+    },
+    stopListening: () => {
+      if (!open) return;
+      open = false;
+      // The model answers on voice activity detection, and VAD notices somebody
+      // has stopped talking by hearing the silence after them. Cutting the
+      // stream dead sends no silence, so it waits for audio that is not coming.
+      // This says it instead, and the session stays open.
+      try {
+        socket.send(JSON.stringify({ type: 'audio_end' }));
+      } catch {
+        /* already closed */
+      }
+    },
+    listening: () => open,
     say: (text: string) => {
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'text', text }));
