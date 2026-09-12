@@ -20,6 +20,7 @@ import pathlib
 from dataclasses import dataclass
 from typing import Any
 
+from .skills import _read
 from .tools import gemini_tools
 
 _ROOT = pathlib.Path(__file__).resolve().parents[4]
@@ -61,22 +62,7 @@ VOICE_MODEL = os.environ.get(
 #: Appended to the ordinary system prompt rather than replacing it: the agent is
 #: the same agent, with the same catalog and the same refusals, talking instead
 #: of typing. Everything specific to *speaking* is here.
-VOICE_BRIEF = """
-You are on a phone call, not in a chat window. The traveler hears you and sees a
-screen beside you.
-
-- **Say one or two sentences, then draw.** Never read options aloud. Call a
-  show_* tool and say what it is — "four fares up, the Iberia one is cheapest and
-  gets in before lunch" — rather than reciting airlines and times.
-- **Ask one thing at a time.** On a screen you can ask for dates, airport and
-  party size at once. Out loud that is three questions in a row and nobody
-  remembers the first.
-- **Be brief.** Two sentences is usually one too many. No preamble, no
-  "certainly", no repeating what they just said back to them.
-- **Numbers out loud are rounded.** "About four hundred and twenty" — the screen
-  has the exact figure.
-- Never say the words A2UI, surface, component or tool.
-""".strip()
+VOICE_BRIEF = _read("prompts", "voice.md").strip()
 
 
 def voice_tools() -> list[dict[str, Any]]:
@@ -224,6 +210,8 @@ class VoiceSession:
     on_trip: Any = None
     model: str = ""
     voice: str | None = None
+    #: Where they might be flying from, as the typed path computes it.
+    origin_hint: dict[str, Any] | None = None
     skill: str = "express-monolithic"
     #: Injectable so a test can drive a whole call from a scripted session.
     client: Any = None
@@ -273,10 +261,15 @@ async def relay(
     system = build_system_prompt(
         variant=session.skill,
         surface="inline",
-        surface_id="voice",
+        surface_id="voice-1",
         catalog_id=CATALOG_ID,
         trip=trip,
         today=today,
+        # A call had no idea where the traveller was. The typed path has offered
+        # a departure airport since there was one to offer — from the timezone,
+        # and now from coordinates when they share them — and voice was simply
+        # never passed it, so it asked people to say an airport code out loud.
+        origin_hint=session.origin_hint,
     )
 
     genai = session.client or Client(api_key=session.api_key)
@@ -284,6 +277,8 @@ async def relay(
     # the trip like any other turn, and the panel beside it went on showing the
     # trip as it was when the call started — which is the gap this closes.
     shape = model.decision_shape(trip)
+    #: How many surfaces this call has drawn, so each gets its own id.
+    drawings = 0
 
     try:
         async with genai.aio.live.connect(
@@ -320,6 +315,7 @@ async def relay(
                         break
 
             async def pump_live() -> None:
+                nonlocal drawings
                 """Audio, transcripts, tool calls and surfaces, downstream."""
                 nonlocal shape
                 async for frame in live.receive():
@@ -355,6 +351,22 @@ async def relay(
                             await announce(
                                 {"type": "tool", "name": function.name, "input": args}
                             )
+                            # One surface per drawing, not one per tool.
+                            #
+                            # Surfaces were keyed by what they showed, so every
+                            # flight search in a call wrote to `mcp-flights`:
+                            # "flights to Madrid", then "what about Lisbon", and
+                            # the second replaced the first while the traveller
+                            # was still looking at it. The typed side had the
+                            # same bug under a different name and the same fix —
+                            # a call is a conversation, and a conversation is a
+                            # list of things asked, not one card rewritten.
+                            #
+                            # Only set when the model did not choose one itself,
+                            # so it can still redraw a surface on purpose.
+                            if function.name.startswith("show_") and not args.get("surfaceId"):
+                                drawings += 1
+                                args["surfaceId"] = f"voice-{drawings}"
                             outcome = await run_voice_tool(
                                 function.name, args, context, _parser
                             )

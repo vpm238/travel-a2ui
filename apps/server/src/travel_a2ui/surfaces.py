@@ -123,14 +123,26 @@ def _flow_of(args: dict[str, Any]) -> str:
     return value if value in ("sidebar", "home") else "inline"
 
 
-def _surface_id_for(flow: str, inline_id: str) -> str:
+def _surface_id_for(flow: str, inline_id: str, args: dict[str, Any] | None = None) -> str:
     """The surface id a flow writes to.
 
     `sidebar` and `home` are *singular*: writing to them again replaces the
-    panel, which is what makes them panels rather than a feed. Inline surfaces
-    are keyed by what they show, so two different questions get two cards.
+    panel, which is what makes them panels rather than a feed.
+
+    Inline is the opposite and used not to be. The default is keyed by what the
+    surface shows — `mcp-flights`, `mcp-hotels` — which gives two *different*
+    questions two cards and gives the same question asked twice only one. On a
+    voice call that is the common case: "flights to Madrid", then "what about
+    Lisbon", and the second search overwrote the first while the traveller was
+    still looking at it.
+
+    So a caller that knows the turn it is on may say. `surfaceId` in the args is
+    honoured for inline flows, which is how the voice relay hands out one id per
+    turn and how an MCP host can address a surface it already has.
     """
-    return inline_id if flow == "inline" else f"mcp-{flow}"
+    if flow != "inline":
+        return f"mcp-{flow}"
+    return _str((args or {}).get("surfaceId")) or inline_id
 
 
 def _limit_for(flow: str) -> int:
@@ -174,8 +186,32 @@ async def build_surface(
     if name == "show_price_summary":
         return await _price(args, provider)
     if name == "render_a2ui_express":
+        from .agent import COMPONENT_NAMES
+        from .express import unknown_components
+
+        source = _str(args.get("source"))
+        # Checked here because this is the one surface nobody wrote by hand.
+        #
+        # The Express compiler accepts an unknown constructor: `Colunm([Txt()])`
+        # parses, compiles, and comes back as a perfectly valid surface with no
+        # components in it. The renderer then draws a placeholder box, so a
+        # typo becomes a grey rectangle on the traveller's screen and a success
+        # reported to the model, which has no reason to try again.
+        #
+        # The streaming path has always checked this; the tool did not, and the
+        # tool is what MCP hosts and voice calls go through. Naming the
+        # offenders back to the model is the whole value: "Colunm is not a
+        # component" is a thing it can fix, where a blank card is not.
+        invented = unknown_components(source, COMPONENT_NAMES)
+        if invented:
+            raise ValueError(
+                f"Not components in this catalog: {', '.join(invented)}. "
+                f"The catalog has {len(COMPONENT_NAMES)}; call "
+                "get_a2ui_component_reference for the list and the exact "
+                "spelling, then write the block again."
+            )
         return Surface(
-            express=_str(args.get("source")),
+            express=source,
             summary="A custom interface.",
             surface_id=_str(args.get("surfaceId")) or "mcp",
         )
@@ -189,7 +225,7 @@ async def _place(provider: TravelProvider, query: str) -> str:
 
 async def _flights(args: dict[str, Any], provider: TravelProvider) -> Surface:
     flow = _flow_of(args)
-    surface_id = _surface_id_for(flow, "mcp-flights")
+    surface_id = _surface_id_for(flow, "mcp-flights", args)
     destination = _str(args.get("destination"))
 
     flexible = args.get("flexible") is True
@@ -264,7 +300,7 @@ async def _flights(args: dict[str, Any], provider: TravelProvider) -> Surface:
 
 async def _hotels(args: dict[str, Any], provider: TravelProvider) -> Surface:
     flow = _flow_of(args)
-    surface_id = _surface_id_for(flow, "mcp-hotels")
+    surface_id = _surface_id_for(flow, "mcp-hotels", args)
     destination = _str(args.get("destination"))
     nights = _int(args.get("nights"), 5)
 
@@ -410,7 +446,7 @@ async def _itinerary(
         raise ValueError(f"No itinerary data for '{query}'.")
 
     flow = _flow_of(args)
-    surface_id = _surface_id_for(flow, "mcp-itinerary")
+    surface_id = _surface_id_for(flow, "mcp-itinerary", args)
     # The home flow is a summary, not a plan: one day, the next one.
     days = 1 if flow == "home" else min(max(_int(args.get("days"), 3), 1), 7)
 
@@ -547,7 +583,7 @@ async def _price(args: dict[str, Any], provider: TravelProvider) -> Surface:
     from .tools import _estimate
 
     flow = _flow_of(args)
-    surface_id = _surface_id_for(flow, "mcp-price")
+    surface_id = _surface_id_for(flow, "mcp-price", args)
     query = _str(args.get("destination"))
     estimate = _estimate(
         query,

@@ -451,6 +451,10 @@ async def voice(socket: WebSocket) -> None:
         # Same session, one store — say "make it three of us" out loud and the
         # panel beside the conversation moves.
         on_trip=lambda value: sessions.patch_trip(session_id, value),
+        # The same hint the typed path gets, from the same function. A call had
+        # none of it, so it asked people to say an airport code out loud —
+        # exactly the question a suggestion exists to avoid.
+        origin_hint=_origin_hint(opening.get("client")),
     )
 
     try:

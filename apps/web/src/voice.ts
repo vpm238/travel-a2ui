@@ -21,6 +21,8 @@
  * arrival. Calling `start()` on arrival overlaps them into noise.
  */
 
+import { clientHints } from './api.js';
+
 /** What the relay sends down. Mirrors `ServerMessage` in the Worker. */
 export type VoiceEvent =
   | { type: 'ready'; model: string; contract: string }
@@ -141,7 +143,10 @@ export async function instantiateLive(options: {
       };
 
       socket.addEventListener('open', () => {
-        socket.send(JSON.stringify({ type: 'start', apiKey: options.apiKey }));
+        // The same hints a typed turn sends. A call had none of them, so it asked
+  // people to say an airport code out loud — the exact question a
+  // suggestion exists to avoid.
+  socket.send(JSON.stringify({ type: 'start', apiKey: options.apiKey, client: clientHints() }));
       });
       socket.addEventListener('message', (event) => {
         let message: VoiceEvent;
@@ -219,7 +224,10 @@ export async function startCall(options: VoiceOptions): Promise<VoiceCall> {
     );
   });
 
-  socket.send(JSON.stringify({ type: 'start', apiKey: options.apiKey }));
+  // The same hints a typed turn sends. A call had none of them, so it asked
+  // people to say an airport code out loud — the exact question a
+  // suggestion exists to avoid.
+  socket.send(JSON.stringify({ type: 'start', apiKey: options.apiKey, client: clientHints() }));
 
   socket.addEventListener('message', (event) => {
     const message = JSON.parse(String(event.data)) as VoiceEvent;

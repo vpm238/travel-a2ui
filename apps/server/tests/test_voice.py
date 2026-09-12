@@ -252,7 +252,11 @@ class TestDrawing:
             ]
         )
         drawn = next(e for e in seen if e["type"] == "ui")
-        assert drawn["surfaceId"] == "mcp-flights"
+        # One surface per drawing. This asserted `mcp-flights` — the id keyed
+        # by *what* was shown rather than *when* — which meant a second flight
+        # search in the same call overwrote the first while the traveller was
+        # still looking at it.
+        assert drawn["surfaceId"] == "voice-1"
         assert any("createSurface" in m for m in drawn["messages"])
 
         response = client.live_session.tool_responses[0]["function_responses"][0]["response"]
@@ -400,3 +404,50 @@ def test_the_tool_list_leads_with_the_surface_tools() -> None:
     names = [tool["name"] for tool in voice_tools()]
     shows = [index for index, name in enumerate(names) if name.startswith("show_")]
     assert shows == list(range(len(shows))), "the show_* tools come first"
+
+
+class TestACallIsAConversationNotOneCard:
+    """Two searches in a call are two surfaces.
+
+    Voice had the bug the typed path had, under a different name: surfaces were
+    keyed by what they showed, so every flight search wrote to `mcp-flights`.
+    "Flights to Madrid", then "what about Lisbon", and the second replaced the
+    first — on a *call*, where the screen is the only record of what was said,
+    and the traveller cannot scroll back to the answer they just heard.
+    """
+
+    def test_each_drawing_gets_its_own_surface(self) -> None:
+        seen, _, _ = run_call(
+            [
+                tool_frame(
+                    "show_flight_options",
+                    {"destination": "Madrid", "origin": "JFK", "date": "2099-04-12"},
+                ),
+                tool_frame(
+                    "show_flight_options",
+                    {"destination": "Lisbon", "origin": "JFK", "date": "2099-04-12"},
+                ),
+            ]
+        )
+        drawn = [event["surfaceId"] for event in seen if event["type"] == "ui"]
+        inline = [surface for surface in drawn if surface.startswith("voice-")]
+        assert len(inline) == 2, drawn
+        assert len(set(inline)) == 2, f"the second search overwrote the first: {inline}"
+
+    def test_the_model_may_still_redraw_one_on_purpose(self) -> None:
+        """Naming a surface is how you *mean* to replace it."""
+        seen, _, _ = run_call(
+            [
+                tool_frame(
+                    "show_flight_options",
+                    {
+                        "destination": "Madrid",
+                        "origin": "JFK",
+                        "date": "2099-04-12",
+                        "surfaceId": "voice-keep",
+                    },
+                )
+            ]
+        )
+        drawn = next(event for event in seen if event["type"] == "ui")
+        assert drawn["surfaceId"] == "voice-keep"

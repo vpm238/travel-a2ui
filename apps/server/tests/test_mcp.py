@@ -200,8 +200,13 @@ class TestTools:
         )
         result = body["result"]
         assert result["isError"] is True
-        # The host model wrote it, so it is the host model's to fix.
-        assert "did not compile" in result["content"][0]["text"]
+        # The host model wrote it, so it is the host model's to fix — and the
+        # error has to name what is wrong, not merely that something is. This
+        # asserted the generic "did not compile"; an invented component now
+        # comes back named, which is the difference between a message the model
+        # can act on and one it can only apologise for.
+        said = result["content"][0]["text"]
+        assert "NoSuchComponent" in said, said
 
 
 class TestWhatAToolResultCarries:
