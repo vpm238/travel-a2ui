@@ -89,14 +89,34 @@ def _parser(surface_id: str) -> ExpressParser:
 
 #: The model that answers when nobody picks one, and the panel's own model.
 #:
-#: Flash Lite, measured rather than assumed — see `MODELS` in `main.py` for the
-#: trace. Lives here rather than there because the voice relay redraws the
+#: This was Flash Lite, picked on latency: fastest to a first surface, and for a
+#: turn that is mostly recall — the catalog is in the prompt, the job is to bind
+#: three components — that looked like the right trade.
+#:
+#: It was the wrong trade, and the thing that showed it was the way home. A
+#: round trip needs a ticket each way; the skills say so, the route facts say
+#: the journey does not come back, and the `search_flights` result says it again
+#: at the moment the fares arrive. Flash Lite read all three, answered "here are
+#: the *outbound* flights" — so it had understood — and moved on to hotels, with
+#: the traveller still in Madrid. Four attempts, at `minimal` and at `low`, all
+#: four the same. On Flash 3.8, the same prompt and the same tools, first try:
+#: it recorded the hop home as a leg, priced both hops, and had an opinion about
+#: each.
+#:
+#: So the ceiling was never the instructions. A demo that is fast at being wrong
+#: is not fast, and the seconds are worth an agent that finishes the journey.
+#: Flash Lite is still one keystroke away in the header for anyone who wants to
+#: watch the difference.
+#:
+#: Lives here rather than in `main.py` because the voice relay redraws the
 #: standing panel with its own model call, and a second opinion about the
 #: default is how two doors quietly end up on two models.
-DEFAULT_MODEL = "gemini-3.5-flash-lite"
+DEFAULT_MODEL = "gemini-3.8-flash"
 
-#: How hard that model thinks when nobody says. See `supported_level`.
-DEFAULT_EFFORT = "minimal"
+#: How hard that model thinks when nobody says. See `supported_level`, which
+#: clamps this to what the chosen model accepts — Flash 3.8 rejects `minimal`
+#: outright, where Flash Lite takes it.
+DEFAULT_EFFORT = "low"
 
 
 def _today(client: Any = None) -> str:

@@ -51,6 +51,32 @@ TRIP_KEYS: list[str] = [field["key"] for field in FIELDS]
 #: Field kinds whose value really is a list, and so are not unwrapped.
 LIST_KINDS = frozenset({"stages", "legs", "fields", "days"})
 
+#: The fields that are decisions rather than refinements.
+#:
+#: A decision is something the traveler settled and can press Change on, and
+#: gaining or losing one is what makes the standing panel need *different*
+#: controls. Everything else on the trip — a cabin preference, a neighbourhood,
+#: a ceiling on the nightly rate, a note — refines a decision already made: it
+#: reaches a standing surface live as `updateDataModel` and costs no model turn.
+#:
+#: Order is the order they are usually settled in, which is all that is left of
+#: what used to be a stage ladder: a list for reading, not a sequence anything
+#: is held to. Which one to settle next is the agent's judgement — see
+#: `prompts/flow.md`.
+DECISIONS: tuple[str, ...] = (
+    "destination",
+    "origin",
+    "startDate",
+    "endDate",
+    "travelers",
+    "selectedFlight",
+    "selectedHotel",
+    "budget",
+    "planned",
+    "skip",
+    "legs",
+)
+
 _DATE_ONLY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _CODE = re.compile(r"^[A-Z]{3}$")
 _LEADING_NUMBER = re.compile(r"^[+-]?(?:\d+\.?\d*|\.\d+)")
@@ -264,6 +290,13 @@ def _to_leg(value: Any) -> Leg | None:
         leg["selectedHotel"] = text("selectedHotel")
     if nightly is not None:
         leg["nightlyPrice"] = _js_round(nightly)
+    # How they get there. Not every hop is flown: "we'll drive to Lisbon" and
+    # "the train down to Kyoto" are hops of the journey that want no fare, no
+    # search and no ticket — and without somewhere to say so, the agent either
+    # kept offering flights for them or quietly dropped the hop from the route.
+    mode = (raw.get("mode") or "").strip().lower() if isinstance(raw.get("mode"), str) else ""
+    if mode in ("air", "car", "train", "bus", "ferry"):
+        leg["mode"] = mode
     if text("purpose"):
         leg["purpose"] = text("purpose")
     if text("notes"):
@@ -640,27 +673,6 @@ def _legs_of(trip: Trip) -> list[dict[str, Any]]:
     return [leg for leg in legs if isinstance(leg, dict)] if isinstance(legs, list) else []
 
 
-STEPS: list[dict[str, Any]] = [
-    {
-        "stage": "route",
-        "label": "settle where they are going and flying from",
-        "needs": ["destination", "origin"],
-    },
-    {"stage": "dates", "label": "settle the dates", "needs": ["startDate", "endDate"]},
-    {"stage": "party", "label": "settle how many are travelling", "needs": ["travelers"]},
-    # No trip-level field, for the same reason `stay` has none: a journey with
-    # more than one hop needs a ticket for each, and `selectedFlight` alone
-    # declared the stage finished as soon as the outbound was chosen.
-    # `_pending_for` is what makes this step complete.
-    {"stage": "flight", "label": "choose a flight for each hop", "needs": []},
-    # No trip-level field: whether a stay is needed, and which one, is decided
-    # per stop. `_pending_for` is what makes this step complete.
-    {"stage": "stay", "label": "sort out where you are sleeping, stop by stop", "needs": []},
-    {"stage": "budget", "label": "agree what the trip should cost", "needs": ["budget"]},
-    {"stage": "plan", "label": "plan the days", "needs": ["planned"]},
-]
-
-
 def stops(trip: Trip) -> list[Leg]:
     """Stops in order, each resolved against the trip and the stop before it.
 
@@ -715,213 +727,51 @@ def stops(trip: Trip) -> list[Leg]:
     return resolved
 
 
-def stay_status(trip: Trip) -> dict[str, list[str]]:
-    """Stops grouped by where the question of somewhere to stay has got to."""
-    unasked: list[str] = []
-    needed: list[str] = []
-    booked: list[str] = []
-    not_needed: list[str] = []
-
-    legs = stops(trip)
-    for index, leg in enumerate(legs):
-        # Nobody books a hotel in the city they live in. The last hop of a round
-        # trip lands back where the trip started, and asking "where are you
-        # staying in San Francisco?" of someone who has just flown home is the
-        # kind of question that makes an agent look like a form.
-        if (
-            index == len(legs) - 1
-            and index > 0
-            and trip.get("origin")
-            and leg["destination"] == trip["origin"]
-            and not leg.get("selectedHotel")
-        ):
-            not_needed.append(leg["destination"])
-            continue
-        # A stay already chosen answers the question, whether or not anyone asked.
-        if leg.get("selectedHotel"):
-            booked.append(leg["destination"])
-        elif leg.get("needsStay") is False:
-            not_needed.append(leg["destination"])
-        elif leg.get("needsStay") is True:
-            needed.append(leg["destination"])
-        else:
-            unasked.append(leg["destination"])
-
-    return {"unasked": unasked, "needed": needed, "booked": booked, "notNeeded": not_needed}
-
-
 def party_varies(trip: Trip) -> bool:
     """True when the legs do not all carry the same number of people."""
     counts = {leg["travelers"] for leg in stops(trip) if leg.get("travelers") is not None}
     return len(counts) > 1
 
 
-def _pending_for(trip: Trip, stage: str, legs: list[Leg]) -> dict[str, Any] | None:
-    """What a per-stop stage is still waiting on, if anything.
+def journey(trip: Trip) -> list[dict[str, Any]]:
+    """The route as recorded, hop by hop, with what each hop has and lacks.
 
-    Three stages are per-stop. Dates, because every place needs a span.
-    Somewhere to stay, because that is a question you ask city by city — and the
-    answer "not there, I'm at my sister's" has to be recordable, or the agent
-    asks about it forever. And the flight, because a return is a separate ticket:
-    a trip with one `selectedFlight` counted the whole journey settled the moment
-    the outbound was chosen, and the traveller was never offered a way home.
+    Facts, in the order the traveler is travelling them — no opinion about which
+    gap matters most, and nothing invented. A hop the agent has not recorded
+    does not appear here, including the way home: noticing that a route ends
+    somewhere other than home is judgement, and it lives in
+    `prompts/journey.md` where it can be read and argued with.
+
+    `stops` has already resolved each hop against the one before it, so a leg
+    that never said where it departs from or how many are on it arrives here
+    filled in, and every hop can be priced for the right number of people.
     """
-    if stage == "flight":
-        if not legs:
-            return {"stops": [], "want": "a destination first"}
-        # The first leg is the flat `selectedFlight`; the rest carry their own.
-        # `stops()` has already resolved each leg's origin against the one
-        # before it, so "unflown" is genuinely the list of hops with no ticket.
-        unflown = [
-            leg["destination"]
-            for index, leg in enumerate(legs)
-            if not (trip.get("selectedFlight") if index == 0 else leg.get("selectedFlight"))
-        ]
+    out: list[dict[str, Any]] = []
+    for index, leg in enumerate(stops(trip)):
+        wants: list[str] = []
+        if not leg.get("startDate") or not leg.get("endDate"):
+            wants.append("dates")
+        if not leg.get("selectedFlight") and leg.get("mode") in (None, "", "air"):
+            wants.append("a ticket")
+        if leg.get("needsStay") is None:
+            wants.append("to know whether a stay is needed")
+        elif leg.get("needsStay") is True and not leg.get("selectedHotel"):
+            wants.append("somewhere to stay")
 
-        # The way home is a hop like any other, and it is the one that kept
-        # going missing. "SFO to New York" is one leg, so the moment the
-        # outbound was chosen the flight stage counted itself finished and the
-        # plan moved on to hotels — with the traveller still in New York.
-        #
-        # There is no `returnFlight` field, deliberately. A return *is* a leg,
-        # and saying so once here means a three-city trip and a round trip are
-        # the same shape rather than two cases. Record the journey home as a leg
-        # and this falls silent on its own; say it is one-way — `skip:
-        # ["return"]` — and it stays silent too.
-        home = trip.get("origin")
-        if home and "return" not in set(trip.get("skip") or []) and legs[-1]["destination"] != home:
-            # Named rather than listed as a bare code, because this reads out on
-            # the panel beside real city names — "Flight — Madrid, JFK" looks
-            # like a second destination, and "Madrid, home (JFK)" is the hop it
-            # actually is. The code stays so the agent knows what to search.
-            unflown.append(f"home ({home})")
-
-        return {"stops": unflown, "want": "a flight"} if unflown else None
-
-    if stage == "dates":
-        undated = [
-            leg["destination"] for leg in legs if not leg.get("startDate") or not leg.get("endDate")
-        ]
-        return {"stops": undated, "want": "dates"} if undated else None
-
-    if stage == "stay":
-        # A per-stop stage cannot be settled before there are stops. Without
-        # this an empty trip counts "somewhere to stay" as done, and the plan
-        # opens at step two of a trip nobody has started.
-        if not legs:
-            return {"stops": [], "want": "a destination first"}
-
-        status = stay_status(trip)
-        if status["unasked"]:
-            return {"stops": status["unasked"], "want": "to know whether a stay is needed"}
-        if status["needed"]:
-            return {"stops": status["needed"], "want": "somewhere to stay"}
-
-    return None
-
-
-def plan(trip: Trip) -> dict[str, Any]:
-    """The trip as steps, bending around what this particular trip does not need."""
-    skipped = set(trip.get("skip") or [])
-    assumed = set(trip.get("assumed") or [])
-    legs = stops(trip)
-
-    steps: list[dict[str, Any]] = []
-    for step in STEPS:
-        if step["stage"] in skipped:
-            steps.append({**step, "missing": [], "done": True, "skipped": True})
-            continue
-
-        missing: list[str] = []
-        for key in step["needs"]:
-            value = trip.get(key)
-            # A flag is only satisfied when it is actually true: `planned: false`
-            # means the days are still unplanned, not that the question was
-            # answered.
-            if _blank(value) or (BY_KEY.get(key, {}).get("kind") == "flag" and value is not True):
-                missing.append(key)
-            elif key in assumed:
-                # Present, but nobody said it. It pre-fills the control and
-                # still counts as missing, which is the whole point: a guess
-                # should not close a question.
-                missing.append(key)
-
-        pending = _pending_for(trip, step["stage"], legs)
-
-        entry: dict[str, Any] = {**step, "missing": missing}
-        if pending:
-            entry["pending"] = pending
-        entry["done"] = not missing and not pending
-        entry["skipped"] = False
-        steps.append(entry)
-
-    nxt = next((step for step in steps if not step["done"]), None)
-    done = sum(1 for step in steps if step["done"])
-
-    out: dict[str, Any] = {"steps": steps}
-    if nxt is not None:
-        out["next"] = nxt
-    out["done"] = done
-    out["total"] = len(steps)
-    out["complete"] = nxt is None
+        hop: dict[str, Any] = {
+            "hop": index,
+            "from": leg.get("origin"),
+            "to": leg["destination"],
+            "wants": wants,
+        }
+        for key in ("startDate", "endDate", "travelers", "mode", "purpose"):
+            if leg.get(key) is not None:
+                hop[key] = leg[key]
+        for key in ("selectedFlight", "flightPrice", "selectedHotel", "nightlyPrice"):
+            if leg.get(key) is not None:
+                hop[key] = leg[key]
+        out.append(hop)
     return out
-
-
-def outstanding(trip: Trip) -> str:
-    """Everything the trip has not settled, as facts rather than as orders.
-
-    This used to be `next_step_for`, and it gave instructions: *"Step 4 of 7:
-    choose a flight. You still need dates — ask for all of it in one surface…"*.
-    Reading a fixed ladder out as an imperative is a fixed ladder however much
-    the data underneath it bends. It picked one open question out of several,
-    always the earliest in `STAGES`, and told the agent to ask that one — on a
-    trip it had never seen. Trips are not all that shape: somebody arrives
-    knowing the dates and not the city, somebody wants a total before anything
-    is chosen, somebody wants the days sketched before the flights are.
-
-    So Python states what is true and stops there. Every open stage, and what
-    each is waiting on — which stops have no ticket, which have not been asked
-    about a stay, which fields are still blank and what they bind to. Which of
-    them to take next is judgement, and judgement lives in `prompts/role.md`
-    under "Lead the trip", where it is English a person can argue with rather
-    than an `if` nobody reads.
-
-    Nothing is loosened by the move. The facts here are still computed from the
-    trip, `problems` still catches a return before a departure, and the tools
-    still refuse to price a trip with no dates. What is gone is the running
-    order.
-    """
-    state = plan(trip)
-    legs = stops(trip)
-
-    if state["complete"]:
-        across = f", across all {len(legs)} stops" if len(legs) > 1 else ""
-        return f"Nothing — every stage is settled or ruled out{across}."
-
-    said: list[str] = []
-    for step in state["steps"]:
-        if step["done"]:
-            continue
-
-        bits: list[str] = []
-        if step["missing"]:
-            bound = ", ".join(f"${binding_for(key)}" for key in step["missing"])
-            bits.append(f"needs {ask_for(step['missing'])}, bound to {bound}")
-
-        pending = step.get("pending")
-        if pending:
-            # Named stops rather than a count: "Madrid, home (JFK) have no
-            # ticket" is a sentence the agent can act on, where "2 stops
-            # pending" is one it has to go and resolve first.
-            bits.append(
-                f"{', '.join(pending['stops'])} still want {pending['want']}"
-                if pending["stops"]
-                else f"needs {pending['want']}"
-            )
-
-        said.append(f"**{step['label']}** — {'; '.join(bits)}" if bits else f"**{step['label']}**")
-
-    return " · ".join(said)
 
 
 def decision_shape(trip: Trip) -> str:
@@ -932,8 +782,14 @@ def decision_shape(trip: Trip) -> str:
     and the panel's origin updates immediately. What warrants a *rebuild* is the
     panel needing different controls. Rebuilding on a slider value would mean a
     model turn every time someone dragged something.
+
+    Built from which *decisions* are recorded rather than from which rung of a
+    ladder the trip had reached, since there is no ladder any more. Not every
+    field: a neighbourhood they mentioned, a cabin preference or a note refines
+    a decision without changing which controls the panel needs, and rebuilding
+    on one would mean a model turn every time somebody said "somewhere central".
     """
-    settled = ",".join(step["stage"] for step in plan(trip)["steps"] if step["done"])
+    settled = ",".join(key for key in DECISIONS if not _blank(trip.get(key)))
     return "|".join(
         [
             settled,

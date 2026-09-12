@@ -1,372 +1,154 @@
 {
   "planRows": {
     "empty": {
-      "done": 0,
-      "total": 7,
-      "caption": "0 of 7",
-      "complete": false,
-      "nextLabel": "Where to, and from",
-      "steps": [
-        {
-          "stage": "route",
-          "label": "Where to, and from",
-          "mark": "→",
-          "state": "next",
-          "note": "",
-          "line": "→ Where to, and from"
-        },
-        {
-          "stage": "dates",
-          "label": "Dates",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· Dates"
-        },
-        {
-          "stage": "party",
-          "label": "Who is going",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· Who is going"
-        },
-        {
-          "stage": "flight",
-          "label": "Flight",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· Flight"
-        },
-        {
-          "stage": "stay",
-          "label": "Somewhere to stay",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· Somewhere to stay"
-        },
-        {
-          "stage": "budget",
-          "label": "Budget",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· Budget"
-        },
-        {
-          "stage": "plan",
-          "label": "The days",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· The days"
-        }
-      ],
+      "decisions": [],
       "route": [],
+      "caption": "0 decided",
+      "complete": false,
       "multiStop": false
     },
     "started": {
-      "done": 0,
-      "total": 7,
-      "caption": "0 of 7",
-      "complete": false,
-      "nextLabel": "Where to, and from",
-      "steps": [
+      "decisions": [
         {
-          "stage": "route",
-          "label": "Where to, and from",
-          "mark": "→",
-          "state": "next",
-          "note": "",
-          "line": "→ Where to, and from"
-        },
-        {
-          "stage": "dates",
-          "label": "Dates",
-          "mark": "·",
-          "state": "todo",
-          "note": "Madrid",
-          "line": "· Dates — Madrid"
-        },
-        {
-          "stage": "party",
-          "label": "Who is going",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· Who is going"
-        },
-        {
-          "stage": "flight",
-          "label": "Flight",
-          "mark": "·",
-          "state": "todo",
-          "note": "Madrid",
-          "line": "· Flight — Madrid"
-        },
-        {
-          "stage": "stay",
-          "label": "Somewhere to stay",
-          "mark": "·",
-          "state": "todo",
-          "note": "Madrid",
-          "line": "· Somewhere to stay — Madrid"
-        },
-        {
-          "stage": "budget",
-          "label": "Budget",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· Budget"
-        },
-        {
-          "stage": "plan",
-          "label": "The days",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· The days"
+          "key": "destination",
+          "label": "where you are going",
+          "value": "Madrid",
+          "line": "where you are going — Madrid"
         }
       ],
       "route": [
         {
           "place": "Madrid",
-          "detail": "dates?",
-          "line": "Madrid — dates?"
+          "detail": "dates, a ticket, to know whether a stay is needed",
+          "line": "Madrid — dates, a ticket, to know whether a stay is needed"
         }
       ],
+      "caption": "1 decided · 1 hops · 1 open",
+      "complete": false,
       "multiStop": false
     },
     "ready": {
-      "done": 3,
-      "total": 7,
-      "caption": "3 of 7",
-      "complete": false,
-      "nextLabel": "Flight",
-      "steps": [
+      "decisions": [
         {
-          "stage": "route",
-          "label": "Where to, and from",
-          "mark": "✓",
-          "state": "done",
-          "note": "",
-          "line": "✓ Where to, and from"
+          "key": "destination",
+          "label": "where you are going",
+          "value": "Madrid",
+          "line": "where you are going — Madrid"
         },
         {
-          "stage": "dates",
-          "label": "Dates",
-          "mark": "✓",
-          "state": "done",
-          "note": "",
-          "line": "✓ Dates"
+          "key": "origin",
+          "label": "which airport you are flying from",
+          "value": "JFK",
+          "line": "which airport you are flying from — JFK"
         },
         {
-          "stage": "party",
-          "label": "Who is going",
-          "mark": "✓",
-          "state": "done",
-          "note": "",
-          "line": "✓ Who is going"
+          "key": "startDate",
+          "label": "when you are leaving",
+          "value": "2027-04-12",
+          "line": "when you are leaving — 2027-04-12"
         },
         {
-          "stage": "flight",
-          "label": "Flight",
-          "mark": "→",
-          "state": "next",
-          "note": "Madrid, home (JFK)",
-          "line": "→ Flight — Madrid, home (JFK)"
+          "key": "endDate",
+          "label": "when you are coming back",
+          "value": "2027-04-19",
+          "line": "when you are coming back — 2027-04-19"
         },
         {
-          "stage": "stay",
-          "label": "Somewhere to stay",
-          "mark": "·",
-          "state": "todo",
-          "note": "Madrid",
-          "line": "· Somewhere to stay — Madrid"
-        },
-        {
-          "stage": "budget",
-          "label": "Budget",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· Budget"
-        },
-        {
-          "stage": "plan",
-          "label": "The days",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· The days"
+          "key": "travelers",
+          "label": "how many of you are going",
+          "value": "2",
+          "line": "how many of you are going — 2"
         }
       ],
       "route": [
         {
           "place": "Madrid",
-          "detail": "",
-          "line": "Madrid"
+          "detail": "a ticket, to know whether a stay is needed",
+          "line": "Madrid — a ticket, to know whether a stay is needed"
         }
       ],
+      "caption": "5 decided · 1 hops · 1 open",
+      "complete": false,
       "multiStop": false
     },
     "skipping": {
-      "done": 3,
-      "total": 7,
-      "caption": "3 of 7",
-      "complete": false,
-      "nextLabel": "Dates",
-      "steps": [
+      "decisions": [
         {
-          "stage": "route",
-          "label": "Where to, and from",
-          "mark": "✓",
-          "state": "done",
-          "note": "",
-          "line": "✓ Where to, and from"
+          "key": "destination",
+          "label": "where you are going",
+          "value": "Madrid",
+          "line": "where you are going — Madrid"
         },
         {
-          "stage": "dates",
-          "label": "Dates",
-          "mark": "→",
-          "state": "next",
-          "note": "Madrid",
-          "line": "→ Dates — Madrid"
-        },
-        {
-          "stage": "party",
-          "label": "Who is going",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· Who is going"
-        },
-        {
-          "stage": "flight",
-          "label": "Flight",
-          "mark": "·",
-          "state": "todo",
-          "note": "Madrid, home (JFK)",
-          "line": "· Flight — Madrid, home (JFK)"
-        },
-        {
-          "stage": "stay",
-          "label": "Somewhere to stay",
-          "mark": "–",
-          "state": "skipped",
-          "note": "not needed",
-          "line": "– Somewhere to stay — not needed"
-        },
-        {
-          "stage": "budget",
-          "label": "Budget",
-          "mark": "–",
-          "state": "skipped",
-          "note": "not needed",
-          "line": "– Budget — not needed"
-        },
-        {
-          "stage": "plan",
-          "label": "The days",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· The days"
+          "key": "origin",
+          "label": "which airport you are flying from",
+          "value": "JFK",
+          "line": "which airport you are flying from — JFK"
         }
       ],
       "route": [
         {
           "place": "Madrid",
-          "detail": "dates?",
-          "line": "Madrid — dates?"
+          "detail": "dates, a ticket, to know whether a stay is needed",
+          "line": "Madrid — dates, a ticket, to know whether a stay is needed"
         }
       ],
+      "caption": "2 decided · 1 hops · 1 open",
+      "complete": false,
       "multiStop": false
     },
     "multiCity": {
-      "done": 2,
-      "total": 7,
-      "caption": "2 of 7",
-      "complete": false,
-      "nextLabel": "Dates",
-      "steps": [
+      "decisions": [
         {
-          "stage": "route",
-          "label": "Where to, and from",
-          "mark": "✓",
-          "state": "done",
-          "note": "",
-          "line": "✓ Where to, and from"
+          "key": "destination",
+          "label": "where you are going",
+          "value": "Chicago",
+          "line": "where you are going — Chicago"
         },
         {
-          "stage": "dates",
-          "label": "Dates",
-          "mark": "→",
-          "state": "next",
-          "note": "San Francisco",
-          "line": "→ Dates — San Francisco"
+          "key": "origin",
+          "label": "which airport you are flying from",
+          "value": "SFO",
+          "line": "which airport you are flying from — SFO"
         },
         {
-          "stage": "party",
-          "label": "Who is going",
-          "mark": "✓",
-          "state": "done",
-          "note": "",
-          "line": "✓ Who is going"
+          "key": "startDate",
+          "label": "when you are leaving",
+          "value": "2027-04-12",
+          "line": "when you are leaving — 2027-04-12"
         },
         {
-          "stage": "flight",
-          "label": "Flight",
-          "mark": "·",
-          "state": "todo",
-          "note": "Chicago, New York, San Francisco, home (SFO)",
-          "line": "· Flight — Chicago, New York, San Francisco, home (SFO)"
+          "key": "endDate",
+          "label": "when you are coming back",
+          "value": "2027-04-14",
+          "line": "when you are coming back — 2027-04-14"
         },
         {
-          "stage": "stay",
-          "label": "Somewhere to stay",
-          "mark": "·",
-          "state": "todo",
-          "note": "Chicago, New York",
-          "line": "· Somewhere to stay — Chicago, New York"
-        },
-        {
-          "stage": "budget",
-          "label": "Budget",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· Budget"
-        },
-        {
-          "stage": "plan",
-          "label": "The days",
-          "mark": "·",
-          "state": "todo",
-          "note": "",
-          "line": "· The days"
+          "key": "travelers",
+          "label": "how many of you are going",
+          "value": "1",
+          "line": "how many of you are going — 1"
         }
       ],
       "route": [
         {
           "place": "Chicago",
-          "detail": "1×",
-          "line": "Chicago — 1×"
+          "detail": "1× · a ticket, to know whether a stay is needed",
+          "line": "Chicago — 1× · a ticket, to know whether a stay is needed"
         },
         {
           "place": "New York",
-          "detail": "1× · a wedding",
-          "line": "New York — 1× · a wedding"
+          "detail": "1× · a wedding · a ticket, to know whether a stay is needed",
+          "line": "New York — 1× · a wedding · a ticket, to know whether a stay is needed"
         },
         {
           "place": "San Francisco",
-          "detail": "2× · no stay needed",
-          "line": "San Francisco — 2× · no stay needed"
+          "detail": "2× · dates, a ticket",
+          "line": "San Francisco — 2× · dates, a ticket"
         }
       ],
+      "caption": "5 decided · 3 hops · 3 open",
+      "complete": false,
       "multiStop": true
     }
   },
@@ -378,70 +160,10 @@
           "surfaceId": "sidebar",
           "path": "/plan",
           "value": {
-            "done": 0,
-            "total": 7,
-            "caption": "0 of 7",
-            "complete": false,
-            "nextLabel": "Where to, and from",
-            "steps": [
-              {
-                "stage": "route",
-                "label": "Where to, and from",
-                "mark": "→",
-                "state": "next",
-                "note": "",
-                "line": "→ Where to, and from"
-              },
-              {
-                "stage": "dates",
-                "label": "Dates",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· Dates"
-              },
-              {
-                "stage": "party",
-                "label": "Who is going",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· Who is going"
-              },
-              {
-                "stage": "flight",
-                "label": "Flight",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· Flight"
-              },
-              {
-                "stage": "stay",
-                "label": "Somewhere to stay",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· Somewhere to stay"
-              },
-              {
-                "stage": "budget",
-                "label": "Budget",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· Budget"
-              },
-              {
-                "stage": "plan",
-                "label": "The days",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· The days"
-              }
-            ],
+            "decisions": [],
             "route": [],
+            "caption": "0 decided",
+            "complete": false,
             "multiStop": false
           }
         }
@@ -462,76 +184,23 @@
           "surfaceId": "sidebar",
           "path": "/plan",
           "value": {
-            "done": 0,
-            "total": 7,
-            "caption": "0 of 7",
-            "complete": false,
-            "nextLabel": "Where to, and from",
-            "steps": [
+            "decisions": [
               {
-                "stage": "route",
-                "label": "Where to, and from",
-                "mark": "→",
-                "state": "next",
-                "note": "",
-                "line": "→ Where to, and from"
-              },
-              {
-                "stage": "dates",
-                "label": "Dates",
-                "mark": "·",
-                "state": "todo",
-                "note": "Madrid",
-                "line": "· Dates — Madrid"
-              },
-              {
-                "stage": "party",
-                "label": "Who is going",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· Who is going"
-              },
-              {
-                "stage": "flight",
-                "label": "Flight",
-                "mark": "·",
-                "state": "todo",
-                "note": "Madrid",
-                "line": "· Flight — Madrid"
-              },
-              {
-                "stage": "stay",
-                "label": "Somewhere to stay",
-                "mark": "·",
-                "state": "todo",
-                "note": "Madrid",
-                "line": "· Somewhere to stay — Madrid"
-              },
-              {
-                "stage": "budget",
-                "label": "Budget",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· Budget"
-              },
-              {
-                "stage": "plan",
-                "label": "The days",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· The days"
+                "key": "destination",
+                "label": "where you are going",
+                "value": "Madrid",
+                "line": "where you are going — Madrid"
               }
             ],
             "route": [
               {
                 "place": "Madrid",
-                "detail": "dates?",
-                "line": "Madrid — dates?"
+                "detail": "dates, a ticket, to know whether a stay is needed",
+                "line": "Madrid — dates, a ticket, to know whether a stay is needed"
               }
             ],
+            "caption": "1 decided · 1 hops · 1 open",
+            "complete": false,
             "multiStop": false
           }
         }
@@ -584,76 +253,47 @@
           "surfaceId": "sidebar",
           "path": "/plan",
           "value": {
-            "done": 3,
-            "total": 7,
-            "caption": "3 of 7",
-            "complete": false,
-            "nextLabel": "Flight",
-            "steps": [
+            "decisions": [
               {
-                "stage": "route",
-                "label": "Where to, and from",
-                "mark": "✓",
-                "state": "done",
-                "note": "",
-                "line": "✓ Where to, and from"
+                "key": "destination",
+                "label": "where you are going",
+                "value": "Madrid",
+                "line": "where you are going — Madrid"
               },
               {
-                "stage": "dates",
-                "label": "Dates",
-                "mark": "✓",
-                "state": "done",
-                "note": "",
-                "line": "✓ Dates"
+                "key": "origin",
+                "label": "which airport you are flying from",
+                "value": "JFK",
+                "line": "which airport you are flying from — JFK"
               },
               {
-                "stage": "party",
-                "label": "Who is going",
-                "mark": "✓",
-                "state": "done",
-                "note": "",
-                "line": "✓ Who is going"
+                "key": "startDate",
+                "label": "when you are leaving",
+                "value": "2027-04-12",
+                "line": "when you are leaving — 2027-04-12"
               },
               {
-                "stage": "flight",
-                "label": "Flight",
-                "mark": "→",
-                "state": "next",
-                "note": "Madrid, home (JFK)",
-                "line": "→ Flight — Madrid, home (JFK)"
+                "key": "endDate",
+                "label": "when you are coming back",
+                "value": "2027-04-19",
+                "line": "when you are coming back — 2027-04-19"
               },
               {
-                "stage": "stay",
-                "label": "Somewhere to stay",
-                "mark": "·",
-                "state": "todo",
-                "note": "Madrid",
-                "line": "· Somewhere to stay — Madrid"
-              },
-              {
-                "stage": "budget",
-                "label": "Budget",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· Budget"
-              },
-              {
-                "stage": "plan",
-                "label": "The days",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· The days"
+                "key": "travelers",
+                "label": "how many of you are going",
+                "value": "2",
+                "line": "how many of you are going — 2"
               }
             ],
             "route": [
               {
                 "place": "Madrid",
-                "detail": "",
-                "line": "Madrid"
+                "detail": "a ticket, to know whether a stay is needed",
+                "line": "Madrid — a ticket, to know whether a stay is needed"
               }
             ],
+            "caption": "5 decided · 1 hops · 1 open",
+            "complete": false,
             "multiStop": false
           }
         }
@@ -693,76 +333,29 @@
           "surfaceId": "sidebar",
           "path": "/plan",
           "value": {
-            "done": 3,
-            "total": 7,
-            "caption": "3 of 7",
-            "complete": false,
-            "nextLabel": "Dates",
-            "steps": [
+            "decisions": [
               {
-                "stage": "route",
-                "label": "Where to, and from",
-                "mark": "✓",
-                "state": "done",
-                "note": "",
-                "line": "✓ Where to, and from"
+                "key": "destination",
+                "label": "where you are going",
+                "value": "Madrid",
+                "line": "where you are going — Madrid"
               },
               {
-                "stage": "dates",
-                "label": "Dates",
-                "mark": "→",
-                "state": "next",
-                "note": "Madrid",
-                "line": "→ Dates — Madrid"
-              },
-              {
-                "stage": "party",
-                "label": "Who is going",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· Who is going"
-              },
-              {
-                "stage": "flight",
-                "label": "Flight",
-                "mark": "·",
-                "state": "todo",
-                "note": "Madrid, home (JFK)",
-                "line": "· Flight — Madrid, home (JFK)"
-              },
-              {
-                "stage": "stay",
-                "label": "Somewhere to stay",
-                "mark": "–",
-                "state": "skipped",
-                "note": "not needed",
-                "line": "– Somewhere to stay — not needed"
-              },
-              {
-                "stage": "budget",
-                "label": "Budget",
-                "mark": "–",
-                "state": "skipped",
-                "note": "not needed",
-                "line": "– Budget — not needed"
-              },
-              {
-                "stage": "plan",
-                "label": "The days",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· The days"
+                "key": "origin",
+                "label": "which airport you are flying from",
+                "value": "JFK",
+                "line": "which airport you are flying from — JFK"
               }
             ],
             "route": [
               {
                 "place": "Madrid",
-                "detail": "dates?",
-                "line": "Madrid — dates?"
+                "detail": "dates, a ticket, to know whether a stay is needed",
+                "line": "Madrid — dates, a ticket, to know whether a stay is needed"
               }
             ],
+            "caption": "2 decided · 1 hops · 1 open",
+            "complete": false,
             "multiStop": false
           }
         }
@@ -836,86 +429,57 @@
           "surfaceId": "sidebar",
           "path": "/plan",
           "value": {
-            "done": 2,
-            "total": 7,
-            "caption": "2 of 7",
-            "complete": false,
-            "nextLabel": "Dates",
-            "steps": [
+            "decisions": [
               {
-                "stage": "route",
-                "label": "Where to, and from",
-                "mark": "✓",
-                "state": "done",
-                "note": "",
-                "line": "✓ Where to, and from"
+                "key": "destination",
+                "label": "where you are going",
+                "value": "Chicago",
+                "line": "where you are going — Chicago"
               },
               {
-                "stage": "dates",
-                "label": "Dates",
-                "mark": "→",
-                "state": "next",
-                "note": "San Francisco",
-                "line": "→ Dates — San Francisco"
+                "key": "origin",
+                "label": "which airport you are flying from",
+                "value": "SFO",
+                "line": "which airport you are flying from — SFO"
               },
               {
-                "stage": "party",
-                "label": "Who is going",
-                "mark": "✓",
-                "state": "done",
-                "note": "",
-                "line": "✓ Who is going"
+                "key": "startDate",
+                "label": "when you are leaving",
+                "value": "2027-04-12",
+                "line": "when you are leaving — 2027-04-12"
               },
               {
-                "stage": "flight",
-                "label": "Flight",
-                "mark": "·",
-                "state": "todo",
-                "note": "Chicago, New York, San Francisco, home (SFO)",
-                "line": "· Flight — Chicago, New York, San Francisco, home (SFO)"
+                "key": "endDate",
+                "label": "when you are coming back",
+                "value": "2027-04-14",
+                "line": "when you are coming back — 2027-04-14"
               },
               {
-                "stage": "stay",
-                "label": "Somewhere to stay",
-                "mark": "·",
-                "state": "todo",
-                "note": "Chicago, New York",
-                "line": "· Somewhere to stay — Chicago, New York"
-              },
-              {
-                "stage": "budget",
-                "label": "Budget",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· Budget"
-              },
-              {
-                "stage": "plan",
-                "label": "The days",
-                "mark": "·",
-                "state": "todo",
-                "note": "",
-                "line": "· The days"
+                "key": "travelers",
+                "label": "how many of you are going",
+                "value": "1",
+                "line": "how many of you are going — 1"
               }
             ],
             "route": [
               {
                 "place": "Chicago",
-                "detail": "1×",
-                "line": "Chicago — 1×"
+                "detail": "1× · a ticket, to know whether a stay is needed",
+                "line": "Chicago — 1× · a ticket, to know whether a stay is needed"
               },
               {
                 "place": "New York",
-                "detail": "1× · a wedding",
-                "line": "New York — 1× · a wedding"
+                "detail": "1× · a wedding · a ticket, to know whether a stay is needed",
+                "line": "New York — 1× · a wedding · a ticket, to know whether a stay is needed"
               },
               {
                 "place": "San Francisco",
-                "detail": "2× · no stay needed",
-                "line": "San Francisco — 2× · no stay needed"
+                "detail": "2× · dates, a ticket",
+                "line": "San Francisco — 2× · dates, a ticket"
               }
             ],
+            "caption": "5 decided · 3 hops · 3 open",
+            "complete": false,
             "multiStop": true
           }
         }
@@ -938,76 +502,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -1104,76 +639,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -1246,76 +752,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -1388,76 +865,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -1549,76 +997,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -1691,76 +1110,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -1833,76 +1223,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -1975,76 +1336,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -2089,76 +1421,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -2213,76 +1516,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -2324,76 +1598,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -2449,76 +1694,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }
@@ -2591,76 +1807,47 @@
               "travelers": 2
             },
             "plan": {
-              "done": 3,
-              "total": 7,
-              "caption": "3 of 7",
-              "complete": false,
-              "nextLabel": "Flight",
-              "steps": [
+              "decisions": [
                 {
-                  "stage": "route",
-                  "label": "Where to, and from",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Where to, and from"
+                  "key": "destination",
+                  "label": "where you are going",
+                  "value": "Madrid",
+                  "line": "where you are going — Madrid"
                 },
                 {
-                  "stage": "dates",
-                  "label": "Dates",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Dates"
+                  "key": "origin",
+                  "label": "which airport you are flying from",
+                  "value": "JFK",
+                  "line": "which airport you are flying from — JFK"
                 },
                 {
-                  "stage": "party",
-                  "label": "Who is going",
-                  "mark": "✓",
-                  "state": "done",
-                  "note": "",
-                  "line": "✓ Who is going"
+                  "key": "startDate",
+                  "label": "when you are leaving",
+                  "value": "2027-04-12",
+                  "line": "when you are leaving — 2027-04-12"
                 },
                 {
-                  "stage": "flight",
-                  "label": "Flight",
-                  "mark": "→",
-                  "state": "next",
-                  "note": "Madrid, home (JFK)",
-                  "line": "→ Flight — Madrid, home (JFK)"
+                  "key": "endDate",
+                  "label": "when you are coming back",
+                  "value": "2027-04-19",
+                  "line": "when you are coming back — 2027-04-19"
                 },
                 {
-                  "stage": "stay",
-                  "label": "Somewhere to stay",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "Madrid",
-                  "line": "· Somewhere to stay — Madrid"
-                },
-                {
-                  "stage": "budget",
-                  "label": "Budget",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· Budget"
-                },
-                {
-                  "stage": "plan",
-                  "label": "The days",
-                  "mark": "·",
-                  "state": "todo",
-                  "note": "",
-                  "line": "· The days"
+                  "key": "travelers",
+                  "label": "how many of you are going",
+                  "value": "2",
+                  "line": "how many of you are going — 2"
                 }
               ],
               "route": [
                 {
                   "place": "Madrid",
-                  "detail": "",
-                  "line": "Madrid"
+                  "detail": "a ticket, to know whether a stay is needed",
+                  "line": "Madrid — a ticket, to know whether a stay is needed"
                 }
               ],
+              "caption": "5 decided · 1 hops · 1 open",
+              "complete": false,
               "multiStop": false
             }
           }

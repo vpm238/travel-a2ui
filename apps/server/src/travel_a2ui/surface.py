@@ -65,96 +65,75 @@ VALUE_EDITORS = frozenset(
 
 
 def plan_rows(trip: dict[str, Any]) -> dict[str, Any]:
-    """The plan, as rows a surface can bind to without computing anything.
+    """The trip as rows a surface can bind to without computing anything.
 
-    The shape is the agent's and the rows are the server's. Labels, marks and
-    notes are resolved here, which keeps a Flutter client from needing an
-    opinion about what "stay" is called in English — and means ticking a
-    checkbox does not cost a model turn.
+    Labels and lines are resolved here, which keeps a Flutter client from
+    needing an opinion about what "somewhere to stay" is called in English —
+    and means a value changing does not cost a model turn.
+
+    What it no longer contains is a checklist. This used to walk a seven-rung
+    ladder of stages in `trip.py`, mark each done or next, and hand the panel a
+    progress count; the ladder is gone, because which step comes next is the
+    agent's to judge from `prompts/flow.md` rather than Python's to assert. What
+    is left is what the panel is actually for: **every decision recorded, and
+    the route it belongs to** — so the traveler can see what they have said and
+    press Change on any of it.
     """
-    state = model.plan(trip)
     varies = model.party_varies(trip)
 
-    steps: list[dict[str, Any]] = []
-    for step in state["steps"]:
-        is_next = bool(state.get("next")) and state["next"]["stage"] == step["stage"]
-        pending = step.get("pending") or {}
-        note = (
-            "not needed"
-            if step.get("skipped")
-            else ", ".join(pending.get("stops", []))
-            if pending.get("stops")
-            else ""
-        )
-        # A glyph rather than a state name: the panel is read, not parsed, and
-        # this keeps the binding to one component instead of a conditional.
-        mark = (
-            "–"
-            if step.get("skipped")
-            else "✓"
-            if step.get("done")
-            else "→"
-            if is_next
-            else "·"
-        )
-        label = _STAGE_LABELS.get(step["stage"], step["stage"])
-        steps.append(
+    decisions: list[dict[str, Any]] = []
+    for field in model.FIELDS:
+        value = trip.get(field["key"])
+        if value is None or value == "" or field.get("kind") in model.LIST_KINDS:
+            continue
+        text = _value_text(value)
+        decisions.append(
             {
-                "stage": step["stage"],
-                "label": label,
-                "mark": mark,
-                "state": (
-                    "skipped"
-                    if step.get("skipped")
-                    else "done"
-                    if step.get("done")
-                    else "next"
-                    if is_next
-                    else "todo"
-                ),
-                "note": note,
-                # One string, ready to draw. A template row is a single
-                # component and its children cannot be declared inline, so a Row
-                # of mark/label/note is not something the agent can express
-                # here — and composing it server-side is one less thing for the
-                # model to get subtly wrong every turn.
-                "line": f"{mark} {label}" + (f" — {note}" if note else ""),
+                "key": field["key"],
+                "label": field["label"],
+                "value": text,
+                "line": f"{field['label']} — {text}",
             }
         )
 
     route: list[dict[str, Any]] = []
-    for leg in model.stops(trip):
+    for hop in model.journey(trip):
         detail = [
-            f"{leg['travelers']}×" if leg.get("travelers") is not None and varies else "",
-            leg.get("purpose") or "",
-            "no stay needed" if leg.get("needsStay") is False else "",
-            "dates?" if not leg.get("startDate") else "",
-            "stay?" if leg.get("needsStay") is True and not leg.get("selectedHotel") else "",
+            f"{hop['travelers']}\u00d7" if hop.get("travelers") is not None and varies else "",
+            hop["mode"] if hop.get("mode") and hop["mode"] != "air" else "",
+            hop.get("purpose") or "",
+            ", ".join(hop["wants"]) if hop["wants"] else "",
         ]
         detail = [part for part in detail if part]
-        joined = " · ".join(detail)
+        joined = " \u00b7 ".join(detail)
         route.append(
             {
-                "place": leg["destination"],
+                "place": hop["to"],
                 "detail": joined,
-                "line": f"{leg['destination']} — {joined}" if detail else leg["destination"],
+                "line": f"{hop['to']} \u2014 {joined}" if detail else hop["to"],
             }
         )
 
-    next_stage = state.get("next")
+    open_hops = sum(1 for hop in model.journey(trip) if hop["wants"])
     return {
-        "done": state["done"],
-        "total": state["total"],
-        "caption": f"{state['done']} of {state['total']}",
-        "complete": state["complete"],
-        "nextLabel": (
-            _STAGE_LABELS.get(next_stage["stage"], next_stage["stage"]) if next_stage else ""
-        ),
-        "steps": steps,
+        "decisions": decisions,
         "route": route,
+        "caption": f"{len(decisions)} decided"
+        + (f" \u00b7 {len(route)} hops" if route else "")
+        + (f" \u00b7 {open_hops} open" if open_hops else ""),
+        "complete": bool(route) and open_hops == 0,
         # So the panel can decide whether the route is worth drawing at all.
         "multiStop": len(route) > 1,
     }
+
+
+def _value_text(value: Any) -> str:
+    """A decided value as one short string, whatever kind it is."""
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value if item) or "—"
+    return str(value)
 
 
 def _stated_facts(trip: dict[str, Any]) -> list[tuple[str, Any]]:

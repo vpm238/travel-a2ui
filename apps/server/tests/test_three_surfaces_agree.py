@@ -185,6 +185,8 @@ class TestBehaviourLivesInMarkdown:
     def test_every_brief_is_a_file(self) -> None:
         briefs = sorted(path.name for path in (ROOT / "prompts").glob("*.md"))
         assert briefs == [
+            "flow.md",
+            "journey.md",
             "role.md",
             "surface-home.md",
             "surface-inline.md",

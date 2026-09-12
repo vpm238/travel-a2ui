@@ -57,6 +57,25 @@ def _read(*parts: str) -> str:
 
 ROLE = _read("prompts", "role.md").strip()
 
+#: How a journey is shaped, and which step comes next — as instructions rather
+#: than as Python.
+#:
+#: Both of these were code. `trip.py` held a seven-rung ladder of stages, worked
+#: out which rung the trip was on, and told the agent to climb it; and when the
+#: last leg did not land back at `origin` it invented a hop home and reported it
+#: missing a ticket. Two guesses about somebody's trip, made in a language that
+#: cannot be argued with — and both wrong the moment a trip was not a
+#: there-and-back, which is most of the interesting ones.
+#:
+#: So the flow is a skill the model reads and the route is a skill the model
+#: reads, and what Python still does is state facts: what is recorded, what is
+#: blank, what contradicts itself. Deciding what to do about them is the agent's
+#: job, which is the only way an agent handles a trip nobody anticipated.
+#:
+#: Stable half: they come from files and do not change between turns.
+FLOW = _read("prompts", "flow.md").strip()
+JOURNEY = _read("prompts", "journey.md").strip()
+
 SURFACE_BRIEFS: dict[str, str] = {
     kind: _read("prompts", f"surface-{kind}.md").strip()
     for kind in ("inline", "sidebar", "home")
@@ -184,7 +203,15 @@ def describe_trip(trip: dict[str, Any], today: str, surface: str) -> str:
         if blocked:
             lines.append(f"- Blocked until then: {'; '.join(blocked)}.")
     else:
-        lines.append("- Everything needed is known. Do not ask again; build on it.")
+        # Precisely what it means, because the shorter version — "everything
+        # needed is known" — reads as "the trip is finished" and was taken that
+        # way: a trip with an outbound fare and no way home was declared
+        # complete and the agent moved on to hotels. What is actually true is
+        # narrower: no *tool* is blocked for want of a field.
+        lines.append(
+            "- No tool is blocked: every field the lookups need is known. That is not the "
+            "same as the trip being settled — the route below says what still is not."
+        )
 
     if summary["problems"]:
         lines.append(
@@ -197,31 +224,68 @@ def describe_trip(trip: dict[str, Any], today: str, surface: str) -> str:
     if basis:
         lines.append(f'- Any priced surface says so on screen: "{basis}".')
 
-    progress = model.plan(normalized)
-    ruled_out = [step["stage"] for step in progress["steps"] if step.get("skipped")]
-    lines.append(
-        f"- Progress: {progress['done']} of {progress['total']} stages settled"
-        + (f" ({', '.join(ruled_out)} ruled out)" if ruled_out else "")
-        + "."
-    )
+    ruled_out = [stage for stage in (normalized.get("skip") or []) if stage]
+    if ruled_out:
+        lines.append(f"- Ruled out, do not ask again: {', '.join(ruled_out)}.")
+
+    # The route as recorded, hop by hop — the facts a step is chosen from. What
+    # to do about a hop that wants a ticket is judgement, and it lives in
+    # `prompts/flow.md` and `prompts/journey.md`; a ladder in Python used to
+    # decide it here, and it was wrong for every trip that was not a
+    # there-and-back.
+    hops = model.journey(normalized)
+    if hops:
+        lines.append("- The route, as recorded:")
+        for hop in hops:
+            where = f"{hop.get('from') or '?'} → {hop['to']}"
+            when = hop.get("startDate") or "no dates"
+            who = f"{hop['travelers']}×" if hop.get("travelers") is not None else ""
+            how = hop.get("mode") or "air"
+            wants = f" — wants {', '.join(hop['wants'])}" if hop["wants"] else " — settled"
+            detail = " ".join(part for part in (when, who, how) if part)
+            lines.append(f"  {hop['hop'] + 1}. {where} ({detail}){wants}")
+
+        # Where the route ends, and where they live. Both facts; what they mean
+        # together is `prompts/journey.md`'s to say.
+        #
+        # Stating them is the difference between a rule that works and one that
+        # does not. Measured: with the route listed hop by hop and the rule in
+        # the skill, the agent read "Madrid, settled", called the journey done
+        # and offered hotels — leaving the traveller in Madrid — because
+        # noticing that a list of hops does not come back requires walking it,
+        # and it had no reason to. Told plainly that the route ends in Madrid
+        # and home is JFK, it records the hop and prices it.
+        home = normalized.get("origin")
+        landing = hops[-1]["to"]
+        if home:
+            lines.append(
+                f"- The route as recorded ends at {landing}"
+                + (
+                    ", which is home. Nobody is stranded."
+                    if landing == home
+                    else f", and home is {home}. No hop from {landing} to {home} is "
+                    "recorded, so as things stand the journey does not come back."
+                )
+            )
+    else:
+        lines.append("- No route recorded yet.")
 
     # "Lead the trip" and "the panel is read-only" are in direct conflict on a
     # panel turn, and the model resolves it the way it was always going to: it
     # advances the plan, in the panel, with the controls the next step needs —
     # which the host then ignores. So the instruction is scoped: on this turn
     # advancing the trip is somebody else's job.
-    still_open = model.outstanding(normalized)
-    if surface == "inline":
-        lines.append(f"- **Still open.** {still_open}")
-    else:
-        scoped = (
-            "You are drawing the record, not advancing the plan. Ask for nothing here. "
-            "What is open is asked in the conversation, on the next inline turn."
-            if surface == "sidebar"
-            else "You are drawing a standing summary, not advancing the plan. Ask for nothing "
-            "here; what is open is asked in the conversation."
+    if surface != "inline":
+        lines.append(
+            "- **Not this turn.** "
+            + (
+                "You are drawing the record, not advancing the plan. Ask for nothing here. "
+                "The next step is taken in the conversation, on the next inline turn."
+                if surface == "sidebar"
+                else "You are drawing a standing summary, not advancing the plan. Ask for "
+                "nothing here; the next step is taken in the conversation."
+            )
         )
-        lines.append(f"- **Not this turn.** {scoped} For context, still open: {still_open}")
 
     return "\n".join(lines)
 
@@ -327,7 +391,14 @@ def build_prompt_parts(
     surface to draw into would draw into the wrong one.
     """
     stable = "\n\n---\n\n".join(
-        [ROLE, _inventory(), _controls(), *(_body(source) for source in _SKILL_SOURCES[variant])]
+        [
+            ROLE,
+            FLOW,
+            JOURNEY,
+            _inventory(),
+            _controls(),
+            *(_body(source) for source in _SKILL_SOURCES[variant]),
+        ]
     )
 
     parts = [

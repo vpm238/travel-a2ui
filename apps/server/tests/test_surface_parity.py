@@ -362,21 +362,32 @@ class TestWhatThePassesAreFor:
         assert seeded["startDate"] == "2027-06-01"
         assert seeded["origin"] == "JFK", "and everything unproposed still arrives"
 
-    def test_the_plan_is_seeded_even_when_nothing_is_decided(self) -> None:
+    def test_the_panel_is_seeded_even_when_nothing_is_decided(self) -> None:
         """A panel drawn before anything is decided must not render blank."""
         messages = seed_surface_trip(_surface("sidebar", []), {})
         data_model = messages[0]["createSurface"]["dataModel"]
         assert data_model["trip"] == {}
-        assert data_model["plan"]["total"] > 0
-        assert data_model["plan"]["steps"], "the sequence it is about to walk through"
+        assert data_model["plan"] == {
+            "decisions": [],
+            "route": [],
+            "caption": "0 decided",
+            "complete": False,
+            "multiStop": False,
+        }, "empty, but every key the panel binds to is there"
 
 
 class TestPlanRowsReadCorrectly:
-    def test_a_skipped_stage_says_so(self) -> None:
-        rows = plan_rows(TRIPS["skipping"])
-        stay = next(step for step in rows["steps"] if step["stage"] == "stay")
-        assert stay["mark"] == "–"
-        assert stay["line"] == "– Somewhere to stay — not needed"
+    def test_every_decision_is_a_row_the_traveler_can_change(self) -> None:
+        """The panel is the record of what they said, one line each."""
+        rows = plan_rows(TRIPS["ready"])
+        keys = [row["key"] for row in rows["decisions"]]
+        assert "destination" in keys and "startDate" in keys
+        assert all(row["value"] and row["line"] for row in rows["decisions"])
+
+    def test_a_hop_says_what_it_is_still_waiting_on(self) -> None:
+        rows = plan_rows(TRIPS["ready"])
+        assert rows["route"], "a trip with a destination has a route"
+        assert any("stay" in row["detail"] or "ticket" in row["detail"] for row in rows["route"])
 
     def test_a_multi_stop_route_names_each_stop(self) -> None:
         rows = plan_rows(TRIPS["multiCity"])

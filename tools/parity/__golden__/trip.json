@@ -162,15 +162,6 @@
         "note": "Additional stops beyond the first, each with its own dates. The flat fields describe the first leg; this is how a two-city trip stops being two half-described trips."
       }
     ],
-    "stages": [
-      "route",
-      "dates",
-      "party",
-      "flight",
-      "stay",
-      "budget",
-      "plan"
-    ],
     "tripKeys": [
       "destination",
       "origin",
@@ -399,125 +390,10 @@
         "problems": []
       },
       "basisOf": "",
-      "plan": {
-        "steps": [
-          {
-            "stage": "route",
-            "label": "settle where they are going and flying from",
-            "needs": [
-              "destination",
-              "origin"
-            ],
-            "missing": [
-              "destination",
-              "origin"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "dates",
-            "label": "settle the dates",
-            "needs": [
-              "startDate",
-              "endDate"
-            ],
-            "missing": [
-              "startDate",
-              "endDate"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "party",
-            "label": "settle how many are travelling",
-            "needs": [
-              "travelers"
-            ],
-            "missing": [
-              "travelers"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "flight",
-            "label": "choose a flight for each hop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [],
-              "want": "a destination first"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "stay",
-            "label": "sort out where you are sleeping, stop by stop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [],
-              "want": "a destination first"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "budget",
-            "label": "agree what the trip should cost",
-            "needs": [
-              "budget"
-            ],
-            "missing": [
-              "budget"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "plan",
-            "label": "plan the days",
-            "needs": [
-              "planned"
-            ],
-            "missing": [
-              "planned"
-            ],
-            "done": false,
-            "skipped": false
-          }
-        ],
-        "next": {
-          "stage": "route",
-          "label": "settle where they are going and flying from",
-          "needs": [
-            "destination",
-            "origin"
-          ],
-          "missing": [
-            "destination",
-            "origin"
-          ],
-          "done": false,
-          "skipped": false
-        },
-        "done": 0,
-        "total": 7,
-        "complete": false
-      },
       "stops": [],
-      "stayStatus": {
-        "unasked": [],
-        "needed": [],
-        "booked": [],
-        "notNeeded": []
-      },
       "partyVaries": false,
       "decisionShape": "||||",
-      "outstanding": "**settle where they are going and flying from** — needs where you are going and which airport you are flying from, bound to $/trip/destination, $/trip/origin · **settle the dates** — needs when you are leaving and when you are coming back, bound to $/trip/startDate, $/trip/endDate · **settle how many are travelling** — needs how many of you are going, bound to $/trip/travelers · **choose a flight for each hop** — needs a destination first · **sort out where you are sleeping, stop by stop** — needs a destination first · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
+      "journey": []
     },
     "destination only": {
       "normalize": {
@@ -567,139 +443,25 @@
         "problems": []
       },
       "basisOf": "Madrid",
-      "plan": {
-        "steps": [
-          {
-            "stage": "route",
-            "label": "settle where they are going and flying from",
-            "needs": [
-              "destination",
-              "origin"
-            ],
-            "missing": [
-              "origin"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "dates",
-            "label": "settle the dates",
-            "needs": [
-              "startDate",
-              "endDate"
-            ],
-            "missing": [
-              "startDate",
-              "endDate"
-            ],
-            "pending": {
-              "stops": [
-                "Madrid"
-              ],
-              "want": "dates"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "party",
-            "label": "settle how many are travelling",
-            "needs": [
-              "travelers"
-            ],
-            "missing": [
-              "travelers"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "flight",
-            "label": "choose a flight for each hop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid"
-              ],
-              "want": "a flight"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "stay",
-            "label": "sort out where you are sleeping, stop by stop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid"
-              ],
-              "want": "to know whether a stay is needed"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "budget",
-            "label": "agree what the trip should cost",
-            "needs": [
-              "budget"
-            ],
-            "missing": [
-              "budget"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "plan",
-            "label": "plan the days",
-            "needs": [
-              "planned"
-            ],
-            "missing": [
-              "planned"
-            ],
-            "done": false,
-            "skipped": false
-          }
-        ],
-        "next": {
-          "stage": "route",
-          "label": "settle where they are going and flying from",
-          "needs": [
-            "destination",
-            "origin"
-          ],
-          "missing": [
-            "origin"
-          ],
-          "done": false,
-          "skipped": false
-        },
-        "done": 0,
-        "total": 7,
-        "complete": false
-      },
       "stops": [
         {
           "destination": "Madrid"
         }
       ],
-      "stayStatus": {
-        "unasked": [
-          "Madrid"
-        ],
-        "needed": [],
-        "booked": [],
-        "notNeeded": []
-      },
       "partyVaries": false,
-      "decisionShape": "|Madrid|||",
-      "outstanding": "**settle where they are going and flying from** — needs which airport you are flying from, bound to $/trip/origin · **settle the dates** — needs when you are leaving and when you are coming back, bound to $/trip/startDate, $/trip/endDate; Madrid still want dates · **settle how many are travelling** — needs how many of you are going, bound to $/trip/travelers · **choose a flight for each hop** — Madrid still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
+      "decisionShape": "destination|Madrid|||",
+      "journey": [
+        {
+          "hop": 0,
+          "from": null,
+          "to": "Madrid",
+          "wants": [
+            "dates",
+            "a ticket",
+            "to know whether a stay is needed"
+          ]
+        }
+      ]
     },
     "ready to price flights": {
       "normalize": {
@@ -756,113 +518,6 @@
         "problems": []
       },
       "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
-      "plan": {
-        "steps": [
-          {
-            "stage": "route",
-            "label": "settle where they are going and flying from",
-            "needs": [
-              "destination",
-              "origin"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "dates",
-            "label": "settle the dates",
-            "needs": [
-              "startDate",
-              "endDate"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "party",
-            "label": "settle how many are travelling",
-            "needs": [
-              "travelers"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "flight",
-            "label": "choose a flight for each hop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid",
-                "home (JFK)"
-              ],
-              "want": "a flight"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "stay",
-            "label": "sort out where you are sleeping, stop by stop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid"
-              ],
-              "want": "to know whether a stay is needed"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "budget",
-            "label": "agree what the trip should cost",
-            "needs": [
-              "budget"
-            ],
-            "missing": [
-              "budget"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "plan",
-            "label": "plan the days",
-            "needs": [
-              "planned"
-            ],
-            "missing": [
-              "planned"
-            ],
-            "done": false,
-            "skipped": false
-          }
-        ],
-        "next": {
-          "stage": "flight",
-          "label": "choose a flight for each hop",
-          "needs": [],
-          "missing": [],
-          "pending": {
-            "stops": [
-              "Madrid",
-              "home (JFK)"
-            ],
-            "want": "a flight"
-          },
-          "done": false,
-          "skipped": false
-        },
-        "done": 3,
-        "total": 7,
-        "complete": false
-      },
       "stops": [
         {
           "destination": "Madrid",
@@ -872,17 +527,22 @@
           "travelers": 2
         }
       ],
-      "stayStatus": {
-        "unasked": [
-          "Madrid"
-        ],
-        "needed": [],
-        "booked": [],
-        "notNeeded": []
-      },
       "partyVaries": false,
-      "decisionShape": "route,dates,party|Madrid|||",
-      "outstanding": "**choose a flight for each hop** — Madrid, home (JFK) still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
+      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid|||",
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "a ticket",
+            "to know whether a stay is needed"
+          ],
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2
+        }
+      ]
     },
     "dates backwards": {
       "normalize": {
@@ -948,113 +608,6 @@
         ]
       },
       "basisOf": "JFK → Madrid · 19–12 Apr · 2 travellers",
-      "plan": {
-        "steps": [
-          {
-            "stage": "route",
-            "label": "settle where they are going and flying from",
-            "needs": [
-              "destination",
-              "origin"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "dates",
-            "label": "settle the dates",
-            "needs": [
-              "startDate",
-              "endDate"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "party",
-            "label": "settle how many are travelling",
-            "needs": [
-              "travelers"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "flight",
-            "label": "choose a flight for each hop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid",
-                "home (JFK)"
-              ],
-              "want": "a flight"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "stay",
-            "label": "sort out where you are sleeping, stop by stop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid"
-              ],
-              "want": "to know whether a stay is needed"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "budget",
-            "label": "agree what the trip should cost",
-            "needs": [
-              "budget"
-            ],
-            "missing": [
-              "budget"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "plan",
-            "label": "plan the days",
-            "needs": [
-              "planned"
-            ],
-            "missing": [
-              "planned"
-            ],
-            "done": false,
-            "skipped": false
-          }
-        ],
-        "next": {
-          "stage": "flight",
-          "label": "choose a flight for each hop",
-          "needs": [],
-          "missing": [],
-          "pending": {
-            "stops": [
-              "Madrid",
-              "home (JFK)"
-            ],
-            "want": "a flight"
-          },
-          "done": false,
-          "skipped": false
-        },
-        "done": 3,
-        "total": 7,
-        "complete": false
-      },
       "stops": [
         {
           "destination": "Madrid",
@@ -1064,17 +617,22 @@
           "travelers": 2
         }
       ],
-      "stayStatus": {
-        "unasked": [
-          "Madrid"
-        ],
-        "needed": [],
-        "booked": [],
-        "notNeeded": []
-      },
       "partyVaries": false,
-      "decisionShape": "route,dates,party|Madrid|||",
-      "outstanding": "**choose a flight for each hop** — Madrid, home (JFK) still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
+      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid|||",
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "a ticket",
+            "to know whether a stay is needed"
+          ],
+          "startDate": "2027-04-19",
+          "endDate": "2027-04-12",
+          "travelers": 2
+        }
+      ]
     },
     "in the past": {
       "normalize": {
@@ -1141,113 +699,6 @@
         ]
       },
       "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
-      "plan": {
-        "steps": [
-          {
-            "stage": "route",
-            "label": "settle where they are going and flying from",
-            "needs": [
-              "destination",
-              "origin"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "dates",
-            "label": "settle the dates",
-            "needs": [
-              "startDate",
-              "endDate"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "party",
-            "label": "settle how many are travelling",
-            "needs": [
-              "travelers"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "flight",
-            "label": "choose a flight for each hop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid",
-                "home (JFK)"
-              ],
-              "want": "a flight"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "stay",
-            "label": "sort out where you are sleeping, stop by stop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid"
-              ],
-              "want": "to know whether a stay is needed"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "budget",
-            "label": "agree what the trip should cost",
-            "needs": [
-              "budget"
-            ],
-            "missing": [
-              "budget"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "plan",
-            "label": "plan the days",
-            "needs": [
-              "planned"
-            ],
-            "missing": [
-              "planned"
-            ],
-            "done": false,
-            "skipped": false
-          }
-        ],
-        "next": {
-          "stage": "flight",
-          "label": "choose a flight for each hop",
-          "needs": [],
-          "missing": [],
-          "pending": {
-            "stops": [
-              "Madrid",
-              "home (JFK)"
-            ],
-            "want": "a flight"
-          },
-          "done": false,
-          "skipped": false
-        },
-        "done": 3,
-        "total": 7,
-        "complete": false
-      },
       "stops": [
         {
           "destination": "Madrid",
@@ -1257,17 +708,22 @@
           "travelers": 2
         }
       ],
-      "stayStatus": {
-        "unasked": [
-          "Madrid"
-        ],
-        "needed": [],
-        "booked": [],
-        "notNeeded": []
-      },
       "partyVaries": false,
-      "decisionShape": "route,dates,party|Madrid|||",
-      "outstanding": "**choose a flight for each hop** — Madrid, home (JFK) still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
+      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid|||",
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "a ticket",
+            "to know whether a stay is needed"
+          ],
+          "startDate": "2020-04-12",
+          "endDate": "2020-04-19",
+          "travelers": 2
+        }
+      ]
     },
     "assumed": {
       "normalize": {
@@ -1335,129 +791,6 @@
         "problems": []
       },
       "basisOf": "JFK → Madrid · 2 travellers",
-      "plan": {
-        "steps": [
-          {
-            "stage": "route",
-            "label": "settle where they are going and flying from",
-            "needs": [
-              "destination",
-              "origin"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "dates",
-            "label": "settle the dates",
-            "needs": [
-              "startDate",
-              "endDate"
-            ],
-            "missing": [
-              "startDate",
-              "endDate"
-            ],
-            "pending": {
-              "stops": [
-                "Madrid"
-              ],
-              "want": "dates"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "party",
-            "label": "settle how many are travelling",
-            "needs": [
-              "travelers"
-            ],
-            "missing": [
-              "travelers"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "flight",
-            "label": "choose a flight for each hop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid",
-                "home (JFK)"
-              ],
-              "want": "a flight"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "stay",
-            "label": "sort out where you are sleeping, stop by stop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid"
-              ],
-              "want": "to know whether a stay is needed"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "budget",
-            "label": "agree what the trip should cost",
-            "needs": [
-              "budget"
-            ],
-            "missing": [
-              "budget"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "plan",
-            "label": "plan the days",
-            "needs": [
-              "planned"
-            ],
-            "missing": [
-              "planned"
-            ],
-            "done": false,
-            "skipped": false
-          }
-        ],
-        "next": {
-          "stage": "dates",
-          "label": "settle the dates",
-          "needs": [
-            "startDate",
-            "endDate"
-          ],
-          "missing": [
-            "startDate",
-            "endDate"
-          ],
-          "pending": {
-            "stops": [
-              "Madrid"
-            ],
-            "want": "dates"
-          },
-          "done": false,
-          "skipped": false
-        },
-        "done": 1,
-        "total": 7,
-        "complete": false
-      },
       "stops": [
         {
           "destination": "Madrid",
@@ -1465,17 +798,21 @@
           "travelers": 2
         }
       ],
-      "stayStatus": {
-        "unasked": [
-          "Madrid"
-        ],
-        "needed": [],
-        "booked": [],
-        "notNeeded": []
-      },
       "partyVaries": false,
-      "decisionShape": "route|Madrid|||",
-      "outstanding": "**settle the dates** — needs when you are leaving and when you are coming back, bound to $/trip/startDate, $/trip/endDate; Madrid still want dates · **settle how many are travelling** — needs how many of you are going, bound to $/trip/travelers · **choose a flight for each hop** — Madrid, home (JFK) still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
+      "decisionShape": "destination,origin,travelers|Madrid|||",
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "dates",
+            "a ticket",
+            "to know whether a stay is needed"
+          ],
+          "travelers": 2
+        }
+      ]
     },
     "chosen": {
       "normalize": {
@@ -1556,105 +893,6 @@
         "problems": []
       },
       "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
-      "plan": {
-        "steps": [
-          {
-            "stage": "route",
-            "label": "settle where they are going and flying from",
-            "needs": [
-              "destination",
-              "origin"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "dates",
-            "label": "settle the dates",
-            "needs": [
-              "startDate",
-              "endDate"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "party",
-            "label": "settle how many are travelling",
-            "needs": [
-              "travelers"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "flight",
-            "label": "choose a flight for each hop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "home (JFK)"
-              ],
-              "want": "a flight"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "stay",
-            "label": "sort out where you are sleeping, stop by stop",
-            "needs": [],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "budget",
-            "label": "agree what the trip should cost",
-            "needs": [
-              "budget"
-            ],
-            "missing": [
-              "budget"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "plan",
-            "label": "plan the days",
-            "needs": [
-              "planned"
-            ],
-            "missing": [
-              "planned"
-            ],
-            "done": false,
-            "skipped": false
-          }
-        ],
-        "next": {
-          "stage": "flight",
-          "label": "choose a flight for each hop",
-          "needs": [],
-          "missing": [],
-          "pending": {
-            "stops": [
-              "home (JFK)"
-            ],
-            "want": "a flight"
-          },
-          "done": false,
-          "skipped": false
-        },
-        "done": 4,
-        "total": 7,
-        "complete": false
-      },
       "stops": [
         {
           "destination": "Madrid",
@@ -1668,17 +906,25 @@
           "nightlyPrice": 140
         }
       ],
-      "stayStatus": {
-        "unasked": [],
-        "needed": [],
-        "booked": [
-          "Madrid"
-        ],
-        "notNeeded": []
-      },
       "partyVaries": false,
-      "decisionShape": "route,dates,party,stay|Madrid|IB426|h_MAD_1|",
-      "outstanding": "**choose a flight for each hop** — home (JFK) still want a flight · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
+      "decisionShape": "destination,origin,startDate,endDate,travelers,selectedFlight,selectedHotel|Madrid|IB426|h_MAD_1|",
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "to know whether a stay is needed"
+          ],
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2,
+          "selectedFlight": "IB426",
+          "flightPrice": 352,
+          "selectedHotel": "h_MAD_1",
+          "nightlyPrice": 140
+        }
+      ]
     },
     "multi-leg, party varies": {
       "normalize": {
@@ -1763,123 +1009,6 @@
         "problems": []
       },
       "basisOf": "SFO → Chicago · 10–12 Apr · 1–2 travellers",
-      "plan": {
-        "steps": [
-          {
-            "stage": "route",
-            "label": "settle where they are going and flying from",
-            "needs": [
-              "destination",
-              "origin"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "dates",
-            "label": "settle the dates",
-            "needs": [
-              "startDate",
-              "endDate"
-            ],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "SFO"
-              ],
-              "want": "dates"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "party",
-            "label": "settle how many are travelling",
-            "needs": [
-              "travelers"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "flight",
-            "label": "choose a flight for each hop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Chicago",
-                "New York",
-                "SFO"
-              ],
-              "want": "a flight"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "stay",
-            "label": "sort out where you are sleeping, stop by stop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Chicago",
-                "New York"
-              ],
-              "want": "to know whether a stay is needed"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "budget",
-            "label": "agree what the trip should cost",
-            "needs": [
-              "budget"
-            ],
-            "missing": [
-              "budget"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "plan",
-            "label": "plan the days",
-            "needs": [
-              "planned"
-            ],
-            "missing": [
-              "planned"
-            ],
-            "done": false,
-            "skipped": false
-          }
-        ],
-        "next": {
-          "stage": "dates",
-          "label": "settle the dates",
-          "needs": [
-            "startDate",
-            "endDate"
-          ],
-          "missing": [],
-          "pending": {
-            "stops": [
-              "SFO"
-            ],
-            "want": "dates"
-          },
-          "done": false,
-          "skipped": false
-        },
-        "done": 2,
-        "total": 7,
-        "complete": false
-      },
       "stops": [
         {
           "destination": "Chicago",
@@ -1902,20 +1031,46 @@
           "origin": "New York"
         }
       ],
-      "stayStatus": {
-        "unasked": [
-          "Chicago",
-          "New York"
-        ],
-        "needed": [],
-        "booked": [],
-        "notNeeded": [
-          "SFO"
-        ]
-      },
       "partyVaries": true,
-      "decisionShape": "route,party|Chicago|||New York>SFO",
-      "outstanding": "**settle the dates** — SFO still want dates · **choose a flight for each hop** — Chicago, New York, SFO still want a flight · **sort out where you are sleeping, stop by stop** — Chicago, New York still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
+      "decisionShape": "destination,origin,startDate,endDate,travelers,legs|Chicago|||New York>SFO",
+      "journey": [
+        {
+          "hop": 0,
+          "from": "SFO",
+          "to": "Chicago",
+          "wants": [
+            "a ticket",
+            "to know whether a stay is needed"
+          ],
+          "startDate": "2027-04-10",
+          "endDate": "2027-04-12",
+          "travelers": 1
+        },
+        {
+          "hop": 1,
+          "from": "Chicago",
+          "to": "New York",
+          "wants": [
+            "a ticket",
+            "to know whether a stay is needed"
+          ],
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-16",
+          "travelers": 1
+        },
+        {
+          "hop": 2,
+          "from": "New York",
+          "to": "SFO",
+          "wants": [
+            "dates",
+            "a ticket",
+            "to know whether a stay is needed"
+          ],
+          "startDate": "2027-04-16",
+          "travelers": 2
+        }
+      ]
     },
     "skipped a stage": {
       "normalize": {
@@ -1972,113 +1127,6 @@
         "problems": []
       },
       "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
-      "plan": {
-        "steps": [
-          {
-            "stage": "route",
-            "label": "settle where they are going and flying from",
-            "needs": [
-              "destination",
-              "origin"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "dates",
-            "label": "settle the dates",
-            "needs": [
-              "startDate",
-              "endDate"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "party",
-            "label": "settle how many are travelling",
-            "needs": [
-              "travelers"
-            ],
-            "missing": [],
-            "done": true,
-            "skipped": false
-          },
-          {
-            "stage": "flight",
-            "label": "choose a flight for each hop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid",
-                "home (JFK)"
-              ],
-              "want": "a flight"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "stay",
-            "label": "sort out where you are sleeping, stop by stop",
-            "needs": [],
-            "missing": [],
-            "pending": {
-              "stops": [
-                "Madrid"
-              ],
-              "want": "to know whether a stay is needed"
-            },
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "budget",
-            "label": "agree what the trip should cost",
-            "needs": [
-              "budget"
-            ],
-            "missing": [
-              "budget"
-            ],
-            "done": false,
-            "skipped": false
-          },
-          {
-            "stage": "plan",
-            "label": "plan the days",
-            "needs": [
-              "planned"
-            ],
-            "missing": [
-              "planned"
-            ],
-            "done": false,
-            "skipped": false
-          }
-        ],
-        "next": {
-          "stage": "flight",
-          "label": "choose a flight for each hop",
-          "needs": [],
-          "missing": [],
-          "pending": {
-            "stops": [
-              "Madrid",
-              "home (JFK)"
-            ],
-            "want": "a flight"
-          },
-          "done": false,
-          "skipped": false
-        },
-        "done": 3,
-        "total": 7,
-        "complete": false
-      },
       "stops": [
         {
           "destination": "Madrid",
@@ -2088,17 +1136,22 @@
           "travelers": 2
         }
       ],
-      "stayStatus": {
-        "unasked": [
-          "Madrid"
-        ],
-        "needed": [],
-        "booked": [],
-        "notNeeded": []
-      },
       "partyVaries": false,
-      "decisionShape": "route,dates,party|Madrid|||",
-      "outstanding": "**choose a flight for each hop** — Madrid, home (JFK) still want a flight · **sort out where you are sleeping, stop by stop** — Madrid still want to know whether a stay is needed · **agree what the trip should cost** — needs what the whole trip should come to, bound to $/trip/budget · **plan the days** — needs a day-by-day plan, bound to $/trip/planned"
+      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid|||",
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "a ticket",
+            "to know whether a stay is needed"
+          ],
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2
+        }
+      ]
     }
   },
   "askFor": [

@@ -197,7 +197,8 @@
         "travelers": 2,
         "cabin": "economy",
         "indicative": false
-      }
+      },
+      "routeNote": "These are the fares for one hop. The recorded route ends at Madrid and home is JFK; the trip ends 2027-04-19 and no hop from Madrid back to JFK is recorded, so as it stands the journey does not come back. Price that hop too and offer both in the same surface, or ask whether they are coming back — do not move on to stays with it unsettled."
     },
     "isError": false,
     "trip": {
@@ -584,7 +585,8 @@
         "travelers": 3,
         "cabin": "economy",
         "indicative": false
-      }
+      },
+      "routeNote": "These are the fares for one hop. The recorded route ends at Lisbon and home is JFK; the trip ends 2027-04-19 and no hop from Lisbon back to JFK is recorded, so as it stands the journey does not come back. Price that hop too and offer both in the same surface, or ask whether they are coming back — do not move on to stays with it unsettled."
     },
     "isError": false,
     "trip": {

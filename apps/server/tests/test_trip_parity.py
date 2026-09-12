@@ -43,9 +43,6 @@ class TestTheTable:
     def test_fields_match(self):
         same(model.FIELDS, GOLDEN["model"]["fields"], "fields")
 
-    def test_stages_match(self):
-        same(model.STAGES, GOLDEN["model"]["stages"], "stages")
-
     def test_requirements_match(self):
         same(model.REQUIREMENTS, GOLDEN["model"]["requirements"], "requirements")
 
@@ -98,28 +95,13 @@ class TestPerTrip:
         trip = want["normalize"]
 
         same(model.stops(trip), want["stops"], f"{name}: stops")
-        same(model.stay_status(trip), want["stayStatus"], f"{name}: stayStatus")
+        same(model.journey(trip), want["journey"], f"{name}: journey")
         same(model.party_varies(trip), want["partyVaries"], f"{name}: partyVaries")
 
     @pytest.mark.parametrize("name", TRIP_NAMES)
-    def test_plan(self, name):
+    def test_decision_shape(self, name):
         want = GOLDEN["trips"][name]
-        trip = want["normalize"]
-
-        same(model.plan(trip), want["plan"], f"{name}: plan")
-        same(model.decision_shape(trip), want["decisionShape"], f"{name}: decisionShape")
-
-    @pytest.mark.parametrize("name", TRIP_NAMES)
-    def test_outstanding(self, name):
-        """The facts that go straight into the prompt.
-
-        Worth comparing exactly rather than loosely: this is the agent's whole
-        view of what the trip has not settled, and a rewrite that quietly drops
-        a stop or a field changes what it does without changing a test.
-        """
-        want = GOLDEN["trips"][name]
-        same(model.outstanding(want["normalize"]), want["outstanding"], f"{name}: outstanding")
-
+        same(model.decision_shape(want["normalize"]), want["decisionShape"], f"{name}: shape")
 
 class TestSentences:
     def test_ask_for(self):
@@ -230,15 +212,18 @@ class TestAPartyThatChangesAlongTheWay:
 
 
 class TestAFlightPerHop:
-    """A return is a separate ticket, and the trip had nowhere to put it.
+    """Every hop is its own ticket, and the trip had nowhere to put the second.
 
-    `selectedFlight` was one trip-level field and the flight stage needed only
-    that, so choosing the outbound marked the whole stage done. The agent then
-    moved on to hotels and never offered a way home — and a leg could not have
-    recorded one anyway, because `normalize` dropped `selectedFlight` off a leg
-    on the way in.
+    `selectedFlight` was one trip-level field, so choosing the outbound looked
+    like choosing "the flight" — and a leg could not have recorded its own
+    anyway, because `normalize` dropped `selectedFlight` off a leg on the way
+    in. What the route says about each hop is now `journey`, and it says it hop
+    by hop.
 
-    `stay` was already per-stop and is the shape this now follows.
+    What is deliberately *not* here any more: inventing the hop home. A route
+    that ends somewhere other than home is a route with a hop nobody has
+    recorded, and noticing that is the agent's job — `prompts/journey.md` — not
+    a guess made in Python, which was wrong for every one-way ever typed.
     """
 
     OUT_AND_BACK = {
@@ -249,8 +234,6 @@ class TestAFlightPerHop:
         "travelers": 1,
         "selectedFlight": "UA830",
         "flightPrice": 274,
-        # Dated, or the *dates* stage is legitimately the one still pending
-        # and this would be testing the wrong stage.
         "legs": [
             {
                 "destination": "NYC",
@@ -272,21 +255,19 @@ class TestAFlightPerHop:
         assert trip["legs"][0]["selectedFlight"] == "B6123"
         assert trip["legs"][0]["flightPrice"] == 310
 
-    def test_the_outbound_alone_does_not_finish_the_stage(self):
-        stage = next(s for s in model.plan(self.OUT_AND_BACK)["steps"] if s["stage"] == "flight")
-        assert stage["done"] is False
+    def test_a_hop_with_no_ticket_says_so_and_the_one_with_a_ticket_does_not(self):
+        hops = model.journey(self.OUT_AND_BACK)
+        assert [hop["to"] for hop in hops] == ["SFO", "NYC"]
+        assert "a ticket" not in hops[0]["wants"], "the outbound is chosen"
+        assert "a ticket" in hops[1]["wants"], "SFO → NYC is not"
 
-    def test_and_the_agent_is_told_which_hop_is_missing_one(self):
-        said = model.outstanding(self.OUT_AND_BACK)
-        assert "NYC" in said
-        assert "flight" in said.lower()
+    def test_each_hop_carries_its_own_party(self):
+        """Two out, and someone joins for the second hop."""
+        hops = model.journey(self.OUT_AND_BACK)
+        assert hops[0]["travelers"] == 1
+        assert hops[1]["travelers"] == 2
 
-    def test_a_flight_on_every_hop_finishes_it(self):
-        """Every hop, including the one that ends at home.
-
-        The last leg here lands back at `origin`, which is what makes this a
-        finished journey rather than someone left in New York.
-        """
+    def test_a_ticket_on_every_hop_leaves_nothing_wanting_one(self):
         trip = {
             **self.OUT_AND_BACK,
             "legs": [
@@ -300,41 +281,23 @@ class TestAFlightPerHop:
                 },
             ],
         }
-        stage = next(s for s in model.plan(trip)["steps"] if s["stage"] == "flight")
-        assert stage["done"] is True
+        assert not any("a ticket" in hop["wants"] for hop in model.journey(trip))
 
-    def test_a_one_way_is_one_that_says_so(self):
-        """Nobody flying home should not be asked to choose a flight home.
-
-        But *not flying home* has to be something they said. A trip from JFK to
-        SFO with one ticket and nothing else recorded is not a one-way; it is
-        the overwhelmingly common case of a return nobody has booked yet, and
-        treating it as finished is what left travellers in San Francisco with
-        the agent moving on to hotels.
-        """
-        trip = {k: v for k, v in self.OUT_AND_BACK.items() if k != "legs"}
-
-        stage = next(s for s in model.plan(trip)["steps"] if s["stage"] == "flight")
-        assert stage["done"] is False
-        assert stage["pending"]["stops"] == ["home (JFK)"], "the way home"
-
-        said = {**trip, "skip": ["return"]}
-        stage = next(s for s in model.plan(said)["steps"] if s["stage"] == "flight")
-        assert stage["done"] is True
-
-    def test_nobody_books_a_hotel_at_home(self):
-        """The last hop of a round trip lands where they live."""
+    def test_a_hop_they_drive_wants_no_ticket(self):
+        """"We'll drive down to Lisbon" is a hop, not a flight."""
         trip = {
             **self.OUT_AND_BACK,
-            "legs": [
-                {**self.OUT_AND_BACK["legs"][0], "selectedFlight": "B6123"},
-                {
-                    "destination": "JFK",
-                    "origin": "NYC",
-                    "startDate": "2027-04-20",
-                    "endDate": "2027-04-20",
-                    "selectedFlight": "B6200",
-                },
-            ],
+            "legs": [{**self.OUT_AND_BACK["legs"][0], "mode": "car"}],
         }
-        assert "JFK" in model.stay_status(trip)["notNeeded"]
+        hops = model.journey(trip)
+        assert hops[1]["mode"] == "car"
+        assert "a ticket" not in hops[1]["wants"]
+
+    def test_a_stay_answered_no_stops_being_wanted(self):
+        """"Not there, I'm at my sister's" has to be recordable."""
+        trip = {
+            **self.OUT_AND_BACK,
+            "legs": [{**self.OUT_AND_BACK["legs"][0], "needsStay": False}],
+        }
+        hops = model.journey(trip)
+        assert not any("stay" in want for want in hops[1]["wants"])

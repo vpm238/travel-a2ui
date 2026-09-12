@@ -73,11 +73,15 @@ FLUTTER_DIST = _ROOT / "apps" / "flutter_client" / "build" / "web"
 #: and the job is to pick three components and bind them.
 MODELS = [
     {
+        "id": "gemini-3.8-flash",
+        "label": "Flash 3.8",
+        "note": "Default. Follows the whole journey; a few seconds slower",
+    },
+    {
         "id": "gemini-3.5-flash-lite",
         "label": "Flash Lite",
-        "note": "Default. Fastest to first surface; thinks least",
+        "note": "Fastest to first surface; misses the return leg",
     },
-    {"id": "gemini-3.8-flash", "label": "Flash 3.8", "note": "Richer surfaces, several seconds slower"},
     {"id": "gemini-3.7-flash", "label": "Flash 3.7", "note": "The previous Flash"},
 ]
 

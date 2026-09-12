@@ -251,6 +251,47 @@ def _effective_trip(args: dict[str, Any], context: ToolContext) -> dict[str, Any
     )
 
 
+def _route_note(saved: dict[str, Any], searched: dict[str, Any]) -> dict[str, Any]:
+    """What the route still does not cover, said where it will be read.
+
+    Two facts and their conjunction: where the recorded route ends, and whether
+    a hop back to `origin` exists. No opinion about what to do — search it, ask
+    whether they are coming back, or record a one-way — which stays with the
+    agent, in `prompts/journey.md`.
+
+    It lives on the tool result rather than only in the prompt because that is
+    where it works. Measured, three times: the prompt said the route ends in
+    Madrid and home is JFK, and the agent read it, answered "here are the
+    *outbound* flights" — so it knew — and moved on to hotels, with the
+    traveller still in Madrid. A line arriving with the fares, at the moment it
+    is deciding what to draw, is a different thing from a line in a system
+    instruction thirteen thousand tokens earlier.
+    """
+    home = saved.get("origin")
+    if not home or not saved.get("endDate") or "return" in set(saved.get("skip") or []):
+        return {}
+
+    hops = model.journey(saved)
+    landing = hops[-1]["to"] if hops else saved.get("destination")
+    if not landing or landing == home:
+        return {}
+
+    # The hop just priced may itself be the way home, in which case there is
+    # nothing to point out — they are pricing it right now.
+    if (searched.get("destination") or "").upper() == home.upper():
+        return {}
+
+    return {
+        "routeNote": (
+            f"These are the fares for one hop. The recorded route ends at {landing} and "
+            f"home is {home}; the trip ends {saved['endDate']} and no hop from {landing} "
+            f"back to {home} is recorded, so as it stands the journey does not come back. "
+            f"Price that hop too and offer both in the same surface, or ask whether they "
+            f"are coming back — do not move on to stays with it unsettled."
+        )
+    }
+
+
 def _nights_between(start: Any, end: Any) -> int:
     """Nights between two ISO dates, or 0 when either is missing or wrong-way."""
     if not isinstance(start, str) or not isinstance(end, str):
@@ -581,6 +622,7 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
                     "cabin": trip.get("cabin") or "economy",
                     "indicative": bool(missing),
                 },
+                **_route_note(context.trip, trip),
             },
             False,
         )
