@@ -1772,3 +1772,30 @@ a {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/*
+ * Where a turn's time went.
+ *
+ * Two columns, digits aligned, so a slow step is found by scanning rather than
+ * by reading. Deliberately plain: this is a diagnostic, and dressing it up
+ * would put it in competition with the answer it is reporting on.
+ */
+.turn__timing {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.78rem;
+  color: var(--tv-ink-soft);
+}
+
+.turn__timing li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 0;
+}
+
+.turn__timing li span:last-child {
+  font-variant-numeric: tabular-nums;
+  color: var(--tv-ink);
+}

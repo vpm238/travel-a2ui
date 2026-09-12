@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import os
 import pathlib
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -67,7 +68,12 @@ class ToolContext:
 
 
 def gemini_tools() -> list[dict[str, Any]]:
-    """The tools in the shape the Interactions API wants them."""
+    """The tools in the shape the Interactions API wants them.
+
+    Function declarations only. `voice_tools` reads `name`, `description` and
+    `parameters` off every entry here, so a built-in tool — which has none of
+    them — belongs in `grounding_tools` instead, not in this list.
+    """
     return [
         {
             "type": "function",
@@ -77,6 +83,39 @@ def gemini_tools() -> list[dict[str, Any]]:
         }
         for tool in TOOLS
     ]
+
+
+#: Whether the model may look things up on the open web.
+#:
+#: On by default, off with `GROUNDING=off` — worth a switch because it is the
+#: one thing here that reaches outside the process. A deployment that must be
+#: reproducible, or one behind a network policy that forbids it, should be able
+#: to say so without editing code.
+GROUNDING = os.environ.get("GROUNDING", "on").strip().lower() not in {"off", "0", "false"}
+
+
+def grounding_tools() -> list[dict[str, Any]]:
+    """Google's own tools, for the parts of a trip that are facts about the world.
+
+    The eight functions above answer with fixtures: a fare, a nightly rate, a
+    list of neighbourhoods, all generated and all labelled as generated. That is
+    honest for prices — nobody should trust a fare from a demo — but it is a
+    poor answer for the half of planning that is not a price. Whether a place is
+    worth three days or one, what is closed in April, whether the festival is
+    the week they arrive: those are facts, they change, and no fixture will ever
+    have them.
+
+    So the model gets Search and URL context alongside its own tools, and the
+    two do different jobs. Gemini 3 supports the combination; on a model that
+    does not, this is the list to leave empty.
+
+    These are *not* given to the voice session. The Live API takes a different
+    tool shape, and the failure mode for getting it wrong is a setup frame
+    rejected whole, with nothing naming the tool that caused it.
+    """
+    if not GROUNDING:
+        return []
+    return [{"type": "google_search"}, {"type": "url_context"}]
 
 
 def _str(value: Any) -> str:

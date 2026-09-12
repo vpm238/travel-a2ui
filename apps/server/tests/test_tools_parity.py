@@ -24,6 +24,7 @@ import pathlib
 import pytest
 
 from travel_a2ui.providers.fixture import FixtureProvider
+from travel_a2ui import tools
 from travel_a2ui.tools import ToolContext, run_tool
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -79,3 +80,42 @@ def test_the_golden_covers_every_tool() -> None:
 
     covered = {case["tool"] for case in GOLDEN.values()}
     assert {tool["name"] for tool in TOOLS} <= covered
+
+
+class TestGrounding:
+    """Search sits beside the tools, and must not leak into the voice setup.
+
+    The eight functions answer with fixtures, which is right for a price nobody
+    should trust and poor for the half of planning that is not a price: how many
+    days a place deserves, what is shut in April, whether the festival lands in
+    their week. Those are facts about the world, and no fixture will ever have
+    them.
+    """
+
+    def test_the_built_ins_are_declared_in_the_shape_the_api_wants(self) -> None:
+        assert tools.grounding_tools() == [
+            {"type": "google_search"},
+            {"type": "url_context"},
+        ]
+
+    def test_a_deployment_can_turn_it_off(self, monkeypatch) -> None:
+        """Reaching the open web is the one thing here that leaves the process."""
+        monkeypatch.setattr(tools, "GROUNDING", False)
+        assert tools.grounding_tools() == []
+
+    def test_the_function_list_stays_functions_only(self) -> None:
+        """`voice_tools` reads `name` and `parameters` off every entry.
+
+        A built-in has neither. Putting one in `gemini_tools` would not fail
+        here — it would fail when a Live session opened, as a setup frame
+        rejected whole with nothing naming the tool that caused it.
+        """
+        for tool in tools.gemini_tools():
+            assert tool["type"] == "function"
+            assert tool["name"] and tool["parameters"] is not None
+
+    def test_voice_never_sees_a_built_in(self) -> None:
+        from travel_a2ui.voice import voice_tools
+
+        for tool in voice_tools():
+            assert "name" in tool and "parameters" in tool

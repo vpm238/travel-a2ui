@@ -36,8 +36,18 @@ A2UI_MIME: str = _MCP["a2uiMimeType"]
 #: only touch each other inside functions — right up until an unrelated edit
 #: moves one of those calls to import time.
 VOICE_MODEL = os.environ.get(
-    "VOICE_MODEL", "gemini-2.5-flash-native-audio-preview-09-2025"
+    "VOICE_MODEL", "gemini-2.5-flash-native-audio-preview-12-2025"
 )
+#: The 09-2025 build this used to name is gone — withdrawn, and no longer listed
+#: among the models that serve `bidiGenerateContent`. That is the whole of why
+#: voice stopped working: the connect was answered with NOT_FOUND, which reads
+#: like a bug in this app rather than like a model that no longer exists.
+#:
+#: 12-2025 is its direct successor in the same family, so the setup config, the
+#: tool schemas and the audio format all carry over unchanged. The other current
+#: option is `gemini-3.1-flash-live-preview`, which is newer and lower-latency;
+#: it is not the default only because this one is the smaller change from what
+#: was here, and voice needs to be working before it is worth tuning.
 #: Overridable because the default is a *preview* model, and previews are
 #: withdrawn. When that happens the Live API answers a connect with NOT_FOUND
 #: and voice stops working for a reason that has nothing to do with this code —

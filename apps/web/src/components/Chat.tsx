@@ -49,6 +49,18 @@ const TOOL_LABELS: Record<string, string> = {
  */
 const SILENT_TOOLS = new Set(['save_trip', 'release_decision', 'get_trip']);
 
+/** The one-line version: how long until there was an interface to look at. */
+function formatTiming(ms: Record<string, number>): string {
+  const say = (value: number) =>
+    value < 1000 ? `${Math.round(value)} ms` : `${(value / 1000).toFixed(1)} s`;
+  const surface = ms.firstSurface;
+  const done = ms.done;
+  if (surface === undefined) {
+    return done === undefined ? 'Timing' : `No surface · ${say(done)} in total`;
+  }
+  return `Interface in ${say(surface)}${done === undefined ? '' : ` · ${say(done)} in total`}`;
+}
+
 const OPENERS = [
   'Six days in Madrid in April, two of us, around $2,500 all in',
   'Find me a nonstop to Lisbon and somewhere to stay in Alfama',
@@ -214,6 +226,28 @@ export function Chat({ agent }: { agent: Agent }) {
               {turn.error ? (
                 <Disclosure tone="warn" summary={<span>Something went wrong on this turn</span>}>
                   <p>{turn.error}</p>
+                </Disclosure>
+              ) : null}
+
+              {/*
+                Where the turn's time went.
+
+                Folded away, because it is not what the traveler came for — but
+                present, because "the interface takes too long to appear" was
+                not a claim anyone could check before this. `firstSurface` is
+                the number that decides how the app feels: until then the reply
+                is a blank space.
+              */}
+              {turn.timing ? (
+                <Disclosure summary={<span>{formatTiming(turn.timing)}</span>}>
+                  <ul className="turn__timing">
+                    {Object.entries(turn.timing).map(([name, ms]) => (
+                      <li key={name}>
+                        <span>{name.startsWith('tool:') ? name.slice(5) : name}</span>
+                        <span>{ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </Disclosure>
               ) : null}
             </div>

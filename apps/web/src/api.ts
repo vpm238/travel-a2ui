@@ -37,6 +37,14 @@ export type AgentEvent =
       thoughtTokens: number;
     }
   | { type: 'error'; message: string; retryable: boolean }
+  /**
+   * Where the turn's time went, in milliseconds from the request arriving.
+   *
+   * `firstSurface` is the one that matters: everything before it is a blank
+   * space where an interface should be. `firstWord` is when prose started, and
+   * `tool:<name>` is how long each lookup took.
+   */
+  | { type: 'timing'; ms: Record<string, number> }
   | { type: 'done'; stopReason: string | null };
 
 export interface ModelOption {

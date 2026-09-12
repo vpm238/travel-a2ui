@@ -107,6 +107,13 @@ export interface Turn {
   streaming: boolean;
   /** True when this user turn came from tapping the interface, not typing. */
   fromSurface?: boolean;
+  /**
+   * Where this turn's time went, in milliseconds. Arrives once, at the end.
+   *
+   * Kept per turn rather than as one running total because the question it
+   * answers — "why did that take so long" — is always about a particular turn.
+   */
+  timing?: Record<string, number>;
 }
 
 /**
@@ -564,6 +571,9 @@ export function useAgent() {
             break;
           case 'trip':
             setTrip(event.trip);
+            break;
+          case 'timing':
+            if (!options.silent) patchTurn(assistantId, { timing: event.ms });
             break;
           case 'usage':
             setUsage((current) => ({

@@ -26,6 +26,7 @@ import asyncio
 import datetime as _dt
 import json
 import pathlib
+import time
 import warnings
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Callable, Sequence
@@ -43,7 +44,7 @@ from .providers.types import TravelProvider  # noqa: E402
 from .skeleton import pending_surface_for  # noqa: E402
 from .skills import build_system_prompt  # noqa: E402
 from .surface import STANDING_SURFACES, finish, trip_updates  # noqa: E402
-from .tools import ToolContext, gemini_tools, run_tool  # noqa: E402
+from .tools import ToolContext, gemini_tools, grounding_tools, run_tool  # noqa: E402
 
 _ROOT = pathlib.Path(__file__).resolve().parents[4]
 CATALOG_PATH = _ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
@@ -307,6 +308,26 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         "surfaceId": request.surface_id,
     }
 
+    # What the turn spent its time on.
+    #
+    # "The interface does not appear quickly enough" was not answerable before
+    # this: there was no number anywhere for how long anything took, so the only
+    # way to discuss it was to describe the feeling. The marks below are the
+    # three that decide that feeling — when the first word arrives, when the
+    # first *pixel* of interface arrives, and how long each lookup took — and
+    # they go out on the wire so a slow turn can be read off rather than
+    # reproduced.
+    #
+    # `perf_counter` rather than wall-clock: this measures a duration, and a
+    # clock that can be stepped by NTP mid-turn produces negative ones.
+    began = time.perf_counter()
+    marks: dict[str, float] = {}
+
+    def mark(name: str) -> None:
+        """Records the first time something happened, in milliseconds."""
+        if name not in marks:
+            marks[name] = round((time.perf_counter() - began) * 1000, 1)
+
     system = build_system_prompt(
         variant=request.skill,
         surface=request.surface,
@@ -339,8 +360,12 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             out: list[dict[str, Any]] = []
             for event in events:
                 if isinstance(event, Text):
+                    mark("firstWord")
                     out.append({"type": "text", "delta": event.delta, "round": round_index})
                 elif isinstance(event, Ui):
+                    # The number that matters. Everything before this is a blank
+                    # space where an interface should be.
+                    mark("firstSurface")
                     out.append(
                         {
                             "type": "ui",
@@ -373,7 +398,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 api_key=request.api_key,
                 model=request.model,
                 input=turn_input,
-                tools=gemini_tools(),
+                tools=[*gemini_tools(), *grounding_tools()],
                 system_instruction=system,
                 thinking_level=request.effort,
                 previous_interaction_id=previous_interaction_id,
@@ -466,7 +491,9 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                     "done": False,
                 }
 
+            tool_began = time.perf_counter()
             output, is_error = await run_tool(call.name, call.args, tool_context)
+            marks[f"tool:{call.name}"] = round((time.perf_counter() - tool_began) * 1000, 1)
             yield {
                 "type": "tool_result",
                 "name": call.name,
@@ -522,6 +549,12 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 shape = event["shape"]
             else:
                 yield event
+
+    mark("done")
+    # Sent before `done` so a client can attach it to the turn it describes
+    # rather than to whatever comes next.
+    yield {"type": "timing", "ms": dict(marks)}
+    print(f"turn timing {json.dumps(marks)}", flush=True)
 
     yield {"type": "done", "stopReason": stop_reason}
     yield {
