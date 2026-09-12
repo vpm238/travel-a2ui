@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 
-from travel_a2ui.agent import (
+from travel_a2ui.doors.interactions import (
     FALLBACK_MODEL,
     SurfaceAction,
     TurnRequest,
@@ -26,7 +26,7 @@ from travel_a2ui.agent import (
     run_turn_collected,
 )
 from travel_a2ui.gemini import GeminiError, InteractionResult, ToolCall, Usage
-from travel_a2ui.providers.fixture import FixtureProvider
+from travel_a2ui.brain.providers.fixture import FixtureProvider
 
 A2UI_OPEN = "<a2ui>"
 A2UI_CLOSE = "</a2ui>"
@@ -399,7 +399,7 @@ class TestThePanel:
     def test_an_unchanged_shape_does_not_cost_a_redraw(self) -> None:
         """One extra model turn, and only when the decisions moved."""
         import asyncio
-        from travel_a2ui import trip as trip_model
+        from travel_a2ui.brain import trip as trip_model
 
         trip = {"destination": "Madrid", "origin": "JFK"}
         model = FakeModel([([], [])])
@@ -612,7 +612,7 @@ class TestWhatDayItIs:
     def test_the_browser_s_date_wins(self) -> None:
         import datetime as dt
 
-        from travel_a2ui.agent import _today
+        from travel_a2ui.doors.interactions import _today
 
         theirs = (dt.date.today() + dt.timedelta(days=1)).isoformat()
         assert _today({"today": theirs}) == theirs
@@ -621,7 +621,7 @@ class TestWhatDayItIs:
         """Untrusted input. A day either side covers every real zone."""
         import datetime as dt
 
-        from travel_a2ui.agent import _today
+        from travel_a2ui.doors.interactions import _today
 
         here = dt.date.today().isoformat()
         assert _today({"today": "2019-01-01"}) == here
@@ -708,8 +708,8 @@ class TestTheSetupIsSentOnce:
     def test_the_same_setup_continues(self) -> None:
         import asyncio
 
-        from travel_a2ui.agent import CATALOG_ID
-        from travel_a2ui.skills import build_prompt_parts
+        from travel_a2ui.doors.interactions import CATALOG_ID
+        from travel_a2ui.brain.skills import build_prompt_parts
         import hashlib
 
         stable, _ = build_prompt_parts(

@@ -19,6 +19,8 @@ with it; a deployment may carry its own, and then the UI stops asking.
 
 from __future__ import annotations
 
+from .. import ROOT
+
 import json
 import os
 import pathlib
@@ -28,7 +30,7 @@ from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocke
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from .agent import (
+from .interactions import (
     CATALOG_ID,
     CATALOG_JSON,
     DEFAULT_EFFORT as AGENT_DEFAULT_EFFORT,
@@ -37,17 +39,17 @@ from .agent import (
     TurnRequest,
     run_turn,
 )
-from .contract import INSTANTIATION_MAX_AGE_MS, contract_stamp
-from .providers.fixture import FixtureProvider
-from . import mcp
-from .sessions import SessionStore
-from . import host_actions
-from . import trip as model
-from .surface import STANDING_SURFACES, panel_events, trip_updates
-from .voice import VoiceSession, relay
-from .skills import SKILL_VARIANTS, describe_all_skills, is_skill_variant
+from ..brain.contract import INSTANTIATION_MAX_AGE_MS, contract_stamp
+from ..brain.providers.fixture import FixtureProvider
+from . import plugin
+from ..sessions import SessionStore
+from ..brain import host_actions
+from ..brain import trip as model
+from ..brain.surface import STANDING_SURFACES, panel_events, trip_updates
+from .live import VoiceSession, relay
+from ..brain.skills import SKILL_VARIANTS, describe_all_skills, is_skill_variant
 
-_ROOT = pathlib.Path(__file__).resolve().parents[4]
+_ROOT = ROOT
 
 #: Where the built clients are, when they have been built.
 #:
@@ -418,10 +420,10 @@ async def mcp_post(request: Request) -> Response:
         payload = await request.json()
     except Exception:  # noqa: BLE001 - a parse error has its own JSON-RPC code
         return JSONResponse(
-            mcp.err(None, -32700, "Parse error: body is not JSON"), status_code=400
+            plugin.err(None, -32700, "Parse error: body is not JSON"), status_code=400
         )
 
-    context = mcp.RenderContext(
+    context = plugin.RenderContext(
         # Chosen once, at install time, by whoever knows what their host renders.
         view=request.query_params.get("view") or "",
         origin=_renderer_origin(request),
@@ -431,9 +433,9 @@ async def mcp_post(request: Request) -> Response:
         # from the same tool called through the web app.
         provider=provider,
     )
-    context.view = mcp._view_of(context.view or None)
+    context.view = plugin._view_of(context.view or None)
 
-    body, status = await mcp.handle(payload, context)
+    body, status = await plugin.handle(payload, context)
     if body is None:
         return Response(status_code=status)
     return JSONResponse(body, status_code=status, headers={"cache-control": "no-store"})

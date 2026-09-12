@@ -6,7 +6,7 @@ been done by remembering, and remembering does not work. In a single afternoon
 the same class of bug was fixed three separate times:
 
   * Inline surfaces collided, so a new card overwrote the last. Fixed for typed
-    turns; found again weeks later in voice, where surfaces were keyed by *what*
+    turns; found again weeks later in live, where surfaces were keyed by *what*
     they showed rather than *when*, so a second flight search replaced the first
     mid-call.
   * The departure-airport hint was computed for typed turns and simply never
@@ -39,13 +39,13 @@ class TestOneVocabulary:
     """All three compose from the same catalog and the same skills."""
 
     def test_the_same_catalog_id_everywhere(self) -> None:
-        from travel_a2ui.agent import CATALOG_ID, CATALOG_JSON
+        from travel_a2ui.doors.interactions import CATALOG_ID, CATALOG_JSON
 
         assert CATALOG_ID == CATALOG_JSON["$id"]
 
     def test_every_door_offers_the_same_surface_tools(self) -> None:
         """A tool Claude can call and a call cannot is a different agent."""
-        from travel_a2ui.voice import MCP_TOOLS, voice_tools
+        from travel_a2ui.doors.live import MCP_TOOLS, voice_tools
 
         plugin = {tool["name"] for tool in MCP_TOOLS if tool["name"].startswith("show_")}
         spoken = {tool["name"] for tool in voice_tools() if tool["name"].startswith("show_")}
@@ -61,7 +61,7 @@ class TestOneVocabulary:
         so Claude was the one caller for whom that paragraph was untrue — it
         could pick from six layouts or write Express blind.
         """
-        from travel_a2ui.tools import gemini_tools, mcp_data_tools
+        from travel_a2ui.brain.tools import gemini_tools, mcp_data_tools
 
         typed = {tool["name"] for tool in gemini_tools()}
         plugin = {tool["name"] for tool in mcp_data_tools()}
@@ -74,8 +74,8 @@ class TestOneVocabulary:
         assert plugin - typed == {"get_trip"}
 
     def test_the_typed_path_and_a_call_share_the_data_tools(self) -> None:
-        from travel_a2ui.tools import gemini_tools
-        from travel_a2ui.voice import voice_tools
+        from travel_a2ui.brain.tools import gemini_tools
+        from travel_a2ui.doors.live import voice_tools
 
         typed = {tool["name"] for tool in gemini_tools()}
         spoken = {tool["name"] for tool in voice_tools()}
@@ -87,8 +87,8 @@ class TestOneSetOfRules:
 
     def test_a_call_is_given_the_same_inventory(self) -> None:
         """Voice used to be handed a prompt with no idea what data existed."""
-        from travel_a2ui.providers.fixture import _DESTINATIONS
-        from travel_a2ui.skills import build_system_prompt
+        from travel_a2ui.brain.providers.fixture import _DESTINATIONS
+        from travel_a2ui.brain.skills import build_system_prompt
 
         said = build_system_prompt(
             variant="express-modular",
@@ -109,7 +109,7 @@ class TestOneSetOfRules:
         thing to hold is that the rule is in the shared half rather than in one
         surface's brief.
         """
-        from travel_a2ui.skills import build_system_prompt
+        from travel_a2ui.brain.skills import build_system_prompt
 
         for surface in ("inline", "sidebar", "home"):
             said = build_system_prompt(
@@ -127,7 +127,7 @@ class TestOneSurfacePerDrawing:
     """A card is a thing that was asked, on every door that has a feed."""
 
     def test_a_call_gives_each_drawing_its_own_id(self) -> None:
-        from travel_a2ui.surfaces import _surface_id_for
+        from travel_a2ui.brain.surfaces import _surface_id_for
 
         first = _surface_id_for("inline", "mcp-flights", {"surfaceId": "voice-1"})
         second = _surface_id_for("inline", "mcp-flights", {"surfaceId": "voice-2"})
@@ -135,7 +135,7 @@ class TestOneSurfacePerDrawing:
 
     def test_a_panel_is_still_singular(self) -> None:
         """The opposite case, and the reason this is not a blanket rule."""
-        from travel_a2ui.surfaces import _surface_id_for
+        from travel_a2ui.brain.surfaces import _surface_id_for
 
         assert _surface_id_for("sidebar", "mcp-flights", {"surfaceId": "voice-9"}) == "mcp-sidebar"
 
@@ -146,10 +146,10 @@ class TestOneIdeaOfBroken:
     def test_the_tool_rejects_what_the_stream_rejects(self) -> None:
         import asyncio
 
-        from travel_a2ui.agent import COMPONENT_NAMES
-        from travel_a2ui.express import unknown_components
-        from travel_a2ui.providers.fixture import FixtureProvider
-        from travel_a2ui.surfaces import build_surface
+        from travel_a2ui.doors.interactions import COMPONENT_NAMES
+        from travel_a2ui.brain.express import unknown_components
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
+        from travel_a2ui.brain.surfaces import build_surface
 
         source = 'root = Colunm([Txt("hi")])'
         assert unknown_components(source, COMPONENT_NAMES), "the stream would reject this"
@@ -176,7 +176,7 @@ class TestBehaviourLivesInMarkdown:
     string three imports deep in a relay.
 
     The voice brief was the one exception, a `VOICE_BRIEF = \"\"\"...\"\"\"` in
-    `voice.py`, and the exception is exactly where behaviour drifted: it is the
+    `live.py`, and the exception is exactly where behaviour drifted: it is the
     door that was missing the inventory, missing the origin hint, and keyed its
     surfaces differently. Prose living somewhere nobody edits is prose nobody
     keeps in step.
@@ -187,11 +187,11 @@ class TestBehaviourLivesInMarkdown:
         assert briefs == [
             "flow.md",
             "journey.md",
+            "live.md",
             "role.md",
             "surface-home.md",
             "surface-inline.md",
             "surface-sidebar.md",
-            "voice.md",
         ]
 
     def test_no_module_still_holds_a_brief_of_its_own(self) -> None:
@@ -207,9 +207,9 @@ class TestBehaviourLivesInMarkdown:
         assert not offenders, f"move these into prompts/: {offenders}"
 
     def test_the_call_brief_is_read_from_that_file(self) -> None:
-        from travel_a2ui.voice import VOICE_BRIEF
+        from travel_a2ui.doors.live import VOICE_BRIEF
 
-        assert VOICE_BRIEF == (ROOT / "prompts" / "voice.md").read_text("utf-8").strip()
+        assert VOICE_BRIEF == (ROOT / "prompts" / "live.md").read_text("utf-8").strip()
 
 
 class TestOneImplementationNotThree:
@@ -219,7 +219,7 @@ class TestOneImplementationNotThree:
     above catches drift *after* someone writes it. These are the places where
     drift is no longer possible because there is only one implementation left.
 
-    Not a rewrite. `agent.py`, `voice.py` and `mcp.py` are still three loops —
+    Not a rewrite. `interactions.py`, `live.py` and `plugin.py` are still three loops —
     an SSE generator, a websocket pump and a JSON-RPC handler, which is what
     their transports actually are. What they no longer each own is the work
     that has nothing to do with transport.
@@ -228,9 +228,9 @@ class TestOneImplementationNotThree:
     def test_the_panels_are_refreshed_by_one_function(self) -> None:
         import inspect
 
-        from travel_a2ui import agent, voice
+        from travel_a2ui.doors import interactions, live
 
-        for module in (agent, voice):
+        for module in (interactions, live):
             source = inspect.getsource(module)
             assert "panel_events(" in source, f"{module.__name__} does not use it"
             # The loop it replaced. Two copies is how the typed path grew a
@@ -240,9 +240,9 @@ class TestOneImplementationNotThree:
     def test_a_surface_is_compiled_by_one_function(self) -> None:
         import inspect
 
-        from travel_a2ui import mcp, voice
+        from travel_a2ui.doors import plugin, live
 
-        for module in (mcp, voice):
+        for module in (plugin, live):
             source = inspect.getsource(module)
             assert "compile_surface(" in source, f"{module.__name__} compiles its own"
             assert ".compile(surface.express" not in source
@@ -257,7 +257,7 @@ class TestOneImplementationNotThree:
         """
         import inspect
 
-        from travel_a2ui import surfaces
+        from travel_a2ui.brain import surfaces
 
         source = inspect.getsource(surfaces)
         assert "def compile_surface(" in source
@@ -351,8 +351,8 @@ class TestThePluginTeachesToolsThatExist:
     def test_every_tool_the_skill_names_is_one_the_server_lists(self) -> None:
         import re
 
-        from travel_a2ui.mcp import TOOLS
-        from travel_a2ui.tools import mcp_data_tools
+        from travel_a2ui.doors.plugin import TOOLS
+        from travel_a2ui.brain.tools import mcp_data_tools
 
         listed = {t["name"] for t in TOOLS if not t["name"].startswith("show_")}
         listed |= {t["name"] for t in mcp_data_tools()}
@@ -370,7 +370,7 @@ class TestThePluginTeachesToolsThatExist:
 
     def test_the_data_tools_are_all_taught(self) -> None:
         """The other direction: a tool nobody is told about is a tool nobody calls."""
-        from travel_a2ui.tools import mcp_data_tools
+        from travel_a2ui.brain.tools import mcp_data_tools
 
         skill = self._skill()
         missing = [t["name"] for t in mcp_data_tools() if t["name"] not in skill]

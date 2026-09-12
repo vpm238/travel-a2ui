@@ -25,6 +25,8 @@ model's judgement belongs and where it is good.
 
 from __future__ import annotations
 
+from .. import ROOT
+
 import json
 import pathlib
 from typing import Any, Iterable
@@ -37,7 +39,7 @@ from typing import Any, Iterable
 #: that says one thing and a hand-kept list in Python that says another is two
 #: rules, and they drift the first time somebody edits one.
 _ROWS: list[dict[str, Any]] = json.loads(
-    (pathlib.Path(__file__).resolve().parents[4] / "data" / "controls.json").read_text("utf-8")
+    (ROOT / "data" / "controls.json").read_text("utf-8")
 )["controls"]
 
 #: Which controls may be bound to which trip fields. Keyed by the tail of the
@@ -79,7 +81,7 @@ def as_rules() -> str:
 #: out of nine: a check calling correct surfaces wrong, on the one scenario it
 #: was written to help with.
 _CATALOG = json.loads(
-    (pathlib.Path(__file__).resolve().parents[4] / "catalogs" / "a2ui-travel" / "catalog.json")
+    (ROOT / "catalogs" / "a2ui-travel" / "catalog.json")
     .read_text("utf-8")
 )
 

@@ -32,19 +32,21 @@ answer *differently* from the same tool called through the web app.
 
 from __future__ import annotations
 
+from .. import ROOT
+
 import datetime as _dt
 import json
 import pathlib
 from dataclasses import dataclass
 from typing import Any
 
-from .agent import CATALOG_ID, CATALOG_JSON, _parser
-from .providers.types import TravelProvider
-from .skills import skill_text
-from .surfaces import Surface, build_surface, compile_surface
-from .tools import ToolContext, is_data_tool, mcp_data_tools, run_tool
+from .interactions import CATALOG_ID, CATALOG_JSON, _parser
+from ..brain.providers.types import TravelProvider
+from ..brain.skills import skill_text
+from ..brain.surfaces import Surface, build_surface, compile_surface
+from ..brain.tools import ToolContext, is_data_tool, mcp_data_tools, run_tool
 
-_ROOT = pathlib.Path(__file__).resolve().parents[4]
+_ROOT = ROOT
 _MCP = json.loads((_ROOT / "data" / "mcp-tools.json").read_text("utf-8"))
 
 TOOLS: list[dict[str, Any]] = _MCP["tools"]
@@ -338,7 +340,7 @@ async def handle_rpc(request: dict[str, Any], context: RenderContext) -> dict[st
 
 def _skill_express() -> str:
     """The Express skill, body only — what the model is taught."""
-    from .skills import _body
+    from ..brain.skills import _body
 
     return _body(skill_text("express-modular"))
 

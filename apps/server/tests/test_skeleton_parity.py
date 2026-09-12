@@ -28,7 +28,7 @@ warnings.filterwarnings("ignore")
 from a2ui.inference_formats.experimental.express.parser import ExpressParser  # noqa: E402
 from a2ui.schema.catalog import A2uiCatalog, CatalogConfig  # noqa: E402
 
-from travel_a2ui.skeleton import PENDING_ROWS, pending_surface_for  # noqa: E402
+from travel_a2ui.brain.skeleton import PENDING_ROWS, pending_surface_for  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = json.loads(

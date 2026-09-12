@@ -22,6 +22,8 @@ translated.** Each is commented where it lives:
 
 from __future__ import annotations
 
+from ... import ROOT
+
 import csv
 import json
 import math
@@ -32,7 +34,7 @@ from typing import Any, Callable, Iterable, Sequence
 
 from .types import Found, Outcome, Provenance, found, not_found
 
-_ROOT = pathlib.Path(__file__).resolve().parents[5]
+_ROOT = ROOT
 _DATA = _ROOT / "data"
 
 FIXTURE_PROVENANCE = Provenance(

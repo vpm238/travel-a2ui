@@ -35,7 +35,7 @@ GOLDEN = ROOT / "tools" / "parity" / "__golden__" / "prompt.json"
 
 # Imported after the path is set up, and named here rather than at module scope
 # so the docstring above is readable without the import noise.
-from travel_a2ui import skills  # noqa: E402
+from travel_a2ui.brain import skills# noqa: E402
 
 TODAY = "2027-03-01"
 

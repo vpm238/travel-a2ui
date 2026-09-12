@@ -16,7 +16,7 @@ import pathlib
 
 import pytest
 
-from travel_a2ui import trip as model
+from travel_a2ui.brain import trip as model
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = json.loads((ROOT / "tools" / "parity" / "__golden__" / "trip.json").read_text("utf-8"))

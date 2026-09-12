@@ -43,9 +43,9 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
 
-from travel_a2ui.agent import TurnRequest, run_turn  # noqa: E402
-from travel_a2ui.controls import wrong_controls  # noqa: E402
-from travel_a2ui.skills import SKILL_VARIANTS  # noqa: E402
+from travel_a2ui.doors.interactions import TurnRequest, run_turn  # noqa: E402
+from travel_a2ui.brain.controls import wrong_controls  # noqa: E402
+from travel_a2ui.brain.skills import SKILL_VARIANTS  # noqa: E402
 
 #: The asks, and what a right answer to each one contains.
 #:

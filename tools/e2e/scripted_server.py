@@ -22,7 +22,8 @@ from typing import Any, AsyncIterator
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "apps" / "server" / "src"))
 
-from travel_a2ui import agent, gemini  # noqa: E402
+from travel_a2ui.doors import interactions
+from travel_a2ui import gemini# noqa: E402
 from travel_a2ui.gemini import InteractionResult, ToolCall, Usage  # noqa: E402
 
 A2UI_OPEN = "<a2ui>"
@@ -94,10 +95,10 @@ def _reset() -> None:
 
 # Patched on the module the agent imported it from, because that is the
 # reference the loop actually calls.
-agent.stream_interaction = scripted
+interactions.stream_interaction = scripted
 gemini.stream_interaction = scripted
 
-from travel_a2ui.main import app  # noqa: E402
+from travel_a2ui.doors.http import app  # noqa: E402
 
 
 @app.post("/__test__/reset")

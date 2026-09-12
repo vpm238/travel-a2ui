@@ -21,7 +21,7 @@ import sys
 
 import pytest
 
-from travel_a2ui import skills
+from travel_a2ui.brain import skills
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = json.loads((ROOT / "tools" / "parity" / "__golden__" / "prompt.json").read_text("utf-8"))

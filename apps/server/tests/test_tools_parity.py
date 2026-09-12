@@ -23,9 +23,9 @@ import pathlib
 
 import pytest
 
-from travel_a2ui.providers.fixture import FixtureProvider
-from travel_a2ui import tools
-from travel_a2ui.tools import ToolContext, run_tool
+from travel_a2ui.brain.providers.fixture import FixtureProvider
+from travel_a2ui.brain import tools
+from travel_a2ui.brain.tools import ToolContext, run_tool
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = json.loads((ROOT / "tools" / "parity" / "__golden__" / "tools.json").read_text("utf-8"))
@@ -76,7 +76,7 @@ def test_the_golden_covers_every_tool() -> None:
     before this file existed, and two tools in it answered in a shape the
     TypeScript never used.
     """
-    from travel_a2ui.tools import TOOLS
+    from travel_a2ui.brain.tools import TOOLS
 
     covered = {case["tool"] for case in GOLDEN.values()}
     assert {tool["name"] for tool in TOOLS} <= covered
@@ -115,7 +115,7 @@ class TestGrounding:
             assert tool["name"] and tool["parameters"] is not None
 
     def test_voice_never_sees_a_built_in(self) -> None:
-        from travel_a2ui.voice import voice_tools
+        from travel_a2ui.doors.live import voice_tools
 
         for tool in voice_tools():
             assert "name" in tool and "parameters" in tool
@@ -165,9 +165,9 @@ class TestATripWithStopsIsCostedStopByStop:
     def _lines(self):
         import asyncio
 
-        from travel_a2ui import trip as model
-        from travel_a2ui.providers.fixture import FixtureProvider
-        from travel_a2ui.tools import ToolContext, run_tool
+        from travel_a2ui.brain import trip as model
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
+        from travel_a2ui.brain.tools import ToolContext, run_tool
 
         trip = model.normalize(self.TRIP)
         context = ToolContext(
@@ -216,9 +216,9 @@ class TestATripWithStopsIsCostedStopByStop:
         """Which is what keeps the goldens above meaningful."""
         import asyncio
 
-        from travel_a2ui import trip as model
-        from travel_a2ui.providers.fixture import FixtureProvider
-        from travel_a2ui.tools import ToolContext, run_tool
+        from travel_a2ui.brain import trip as model
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
+        from travel_a2ui.brain.tools import ToolContext, run_tool
 
         trip = model.normalize(
             {
@@ -260,8 +260,8 @@ class TestAPriceIsForTheWholeParty:
     def result(self, tool: str, trip: dict | None = None) -> dict:
         import asyncio
 
-        from travel_a2ui import tools as tool_module
-        from travel_a2ui.providers.fixture import FixtureProvider
+        from travel_a2ui.brain import tools as tool_module
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
 
         context = tool_module.ToolContext(
             trip=dict(trip or self.TRIP), provider=FixtureProvider(), today=TODAY

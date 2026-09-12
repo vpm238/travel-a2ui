@@ -22,6 +22,8 @@ second renderer that did not send it simply never got a panel.
 
 from __future__ import annotations
 
+from .. import ROOT
+
 import asyncio
 import datetime as _dt
 import hashlib
@@ -37,17 +39,17 @@ warnings.filterwarnings("ignore")
 from a2ui.inference_formats.experimental.express.parser import ExpressParser  # noqa: E402
 from a2ui.schema.catalog import A2uiCatalog, CatalogConfig  # noqa: E402
 
-from . import trip as model  # noqa: E402
-from .express import ExpressStream, Failed, Text, Ui  # noqa: E402
-from .gemini import describe_api_error, stream_interaction, supported_level  # noqa: E402
-from .providers.fixture import FixtureProvider  # noqa: E402
-from .providers.types import TravelProvider  # noqa: E402
-from .skeleton import pending_surface_for  # noqa: E402
-from .skills import build_prompt_parts, build_system_prompt  # noqa: E402
-from .surface import STANDING_SURFACES, finish, panel_events, trip_updates  # noqa: E402
-from .tools import ToolContext, gemini_tools, grounding_tools, run_tool  # noqa: E402
+from ..brain import trip as model  # noqa: E402
+from ..brain.express import ExpressStream, Failed, Text, Ui  # noqa: E402
+from ..gemini import describe_api_error, stream_interaction, supported_level  # noqa: E402
+from ..brain.providers.fixture import FixtureProvider  # noqa: E402
+from ..brain.providers.types import TravelProvider  # noqa: E402
+from ..brain.skeleton import pending_surface_for  # noqa: E402
+from ..brain.skills import build_prompt_parts, build_system_prompt  # noqa: E402
+from ..brain.surface import STANDING_SURFACES, finish, panel_events, trip_updates  # noqa: E402
+from ..brain.tools import ToolContext, gemini_tools, grounding_tools, run_tool  # noqa: E402
 
-_ROOT = pathlib.Path(__file__).resolve().parents[4]
+_ROOT = ROOT
 CATALOG_PATH = _ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
 CATALOG_JSON: dict[str, Any] = json.loads(CATALOG_PATH.read_text("utf-8"))
 

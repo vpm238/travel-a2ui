@@ -22,6 +22,8 @@ miss on a few hundred tokens rather than on all of it.
 
 from __future__ import annotations
 
+from .. import ROOT
+
 import json
 import pathlib
 import re
@@ -29,7 +31,7 @@ from typing import Any, Literal
 
 from . import trip as model
 
-_ROOT = pathlib.Path(__file__).resolve().parents[4]
+_ROOT = ROOT
 
 SkillVariant = Literal["express-modular"]
 SurfaceKind = Literal["inline", "sidebar", "home"]

@@ -26,6 +26,8 @@ The golden catches all three, which is why it was written before this file.
 
 from __future__ import annotations
 
+from .. import ROOT
+
 import json
 import math
 import pathlib
@@ -37,7 +39,7 @@ Trip = dict[str, Any]
 Leg = dict[str, Any]
 
 # src/travel_a2ui/trip.py → travel_a2ui → src → server → apps → the project.
-_ROOT = pathlib.Path(__file__).resolve().parents[4]
+_ROOT = ROOT
 _DATA = _ROOT / "data" / "trip-model.json"
 _MODEL = json.loads(_DATA.read_text("utf-8"))
 

@@ -23,7 +23,7 @@ import pathlib
 
 import pytest
 
-from travel_a2ui.providers.fixture import FixtureProvider
+from travel_a2ui.brain.providers.fixture import FixtureProvider
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = json.loads(
@@ -123,7 +123,7 @@ class TestTheArithmeticThatHadToBeEmulated:
     """Asserted directly, because each fails silently with plausible output."""
 
     def test_the_seeded_sequence_is_javascripts(self):
-        from travel_a2ui.providers.fixture import _rng, _seed
+        from travel_a2ui.brain.providers.fixture import _rng, _seed
 
         # Values taken from the golden's own first flight rather than invented:
         # if the mask were wrong these would still be numbers, just different
@@ -133,7 +133,7 @@ class TestTheArithmeticThatHadToBeEmulated:
         assert 0.0 <= first <= 1.0
 
     def test_to_fixed_rounds_halves_away_from_zero(self):
-        from travel_a2ui.providers.fixture import _to_fixed
+        from travel_a2ui.brain.providers.fixture import _to_fixed
 
         # Python's format() gives "4.2" for 4.25 — banker's rounding — and a
         # tenth of a star is enough to fail the golden.
@@ -141,7 +141,7 @@ class TestTheArithmeticThatHadToBeEmulated:
         assert _to_fixed(3.95, 1) == "4.0"
 
     def test_money_is_grouped_the_way_en_us_groups_it(self):
-        from travel_a2ui.providers.fixture import _money
+        from travel_a2ui.brain.providers.fixture import _money
 
         assert _money(1240.4, "USD") == "$1,240"
         assert _money(1240.5, "USD") == "$1,241"
@@ -201,8 +201,8 @@ class TestTheContract:
         assert outcome.relaxed == ["the $1 cap"]
 
     def test_success_with_nothing_in_it_cannot_be_built(self):
-        from travel_a2ui.providers.fixture import FIXTURE_PROVENANCE
-        from travel_a2ui.providers.types import found
+        from travel_a2ui.brain.providers.fixture import FIXTURE_PROVENANCE
+        from travel_a2ui.brain.providers.types import found
 
         # Python has no `[T, ...T[]]`, so the guarantee the compiler gave on the
         # other side is a runtime check here — but it is the same guarantee.
@@ -227,7 +227,7 @@ class TestTheDataIsNotEmpty:
     """
 
     def test_every_seed_list_has_rows(self) -> None:
-        from travel_a2ui.providers import fixture
+        from travel_a2ui.brain.providers import fixture
 
         lists = {
             "destinations.json": fixture._DESTINATIONS,
@@ -249,7 +249,7 @@ class TestTheDataIsNotEmpty:
         a place you could only arrive at. It was exactly that, and it is the
         first thing anybody types into this demo.
         """
-        from travel_a2ui.providers import fixture
+        from travel_a2ui.brain.providers import fixture
 
         departures = {entry["code"] for entry in fixture._ORIGINS}
         for entry in fixture._DESTINATIONS:
@@ -267,7 +267,7 @@ class TestTheDataIsNotEmpty:
         """
         import asyncio
 
-        from travel_a2ui.providers.fixture import FixtureProvider
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
 
         provider = FixtureProvider()
 
@@ -287,8 +287,8 @@ class TestTheDataIsNotEmpty:
 
     def test_the_prompt_names_exactly_what_the_tools_serve(self) -> None:
         """Two lists that must not drift: what the agent is told, and what exists."""
-        from travel_a2ui.providers.fixture import _DESTINATIONS
-        from travel_a2ui.skills import _inventory
+        from travel_a2ui.brain.providers.fixture import _DESTINATIONS
+        from travel_a2ui.brain.skills import _inventory
 
         said = _inventory()
         for entry in _DESTINATIONS:

@@ -1,17 +1,18 @@
 # Deploying
 
-Two servers, two targets. Both serve the API, the MCP endpoint and the built web
+One server, one target. It serves the API, the MCP endpoint and the built web
 client from a single origin — one deploy, one URL, nothing to configure for
 cross-origin requests.
 
-| | Server | Target | State |
-| --- | --- | --- | --- |
-| **Cloudflare** | `apps/worker` (TypeScript) | Workers + Durable Objects | The public deployment today |
-| **Cloud Run** | `apps/server` (Python) | One Cloud Run service | The one being built out |
+| | Server | Target |
+| --- | --- | --- |
+| **Cloud Run** | `apps/server` (Python) | One Cloud Run service, deployed from `main` |
 
-The plan is to cut over to Cloud Run once it has been used in anger, then delete
-the Worker. Until then both exist and are kept in step by the goldens in
-`tools/parity/`, which is what makes deleting one of them a non-event.
+There used to be two: a TypeScript Worker on Cloudflare and this one. The
+cutover is done and the Worker is deleted. What made removing it a non-event was
+the goldens in `tools/parity/` — they pinned every layer where two
+implementations could silently disagree, so the second one could go without
+anybody having to trust that it was safe.
 
 ---
 

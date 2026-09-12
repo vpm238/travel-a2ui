@@ -19,8 +19,8 @@ import pathlib
 
 import pytest
 
-from travel_a2ui.providers.fixture import FixtureProvider
-from travel_a2ui.surfaces import build_surface
+from travel_a2ui.brain.providers.fixture import FixtureProvider
+from travel_a2ui.brain.surfaces import build_surface
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = json.loads(
@@ -182,7 +182,7 @@ class TestWhatTheSurfacesPromise:
 
     def test_a_quote_in_the_data_does_not_break_the_express(self) -> None:
         """Escaping, which fails as a syntax error the model did not make."""
-        from travel_a2ui.surfaces import _q
+        from travel_a2ui.brain.surfaces import _q
 
         assert _q("O'Neill's") == '"O\'Neill\'s"'
         assert _q('a "quoted" name') == '"a \\"quoted\\" name"'

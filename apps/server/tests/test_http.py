@@ -19,12 +19,12 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from travel_a2ui import main
+from travel_a2ui.doors import http
 
 
 @pytest.fixture()
 def client() -> TestClient:
-    return TestClient(main.app)
+    return TestClient(http.app)
 
 
 class TestWhatTheClientsConfigureThemselvesFrom:
@@ -68,7 +68,7 @@ class TestWhatTheClientsConfigureThemselvesFrom:
         string today; reading the one the compiler uses is what keeps them
         matching if that ever stops being true.
         """
-        from travel_a2ui.agent import CATALOG_JSON
+        from travel_a2ui.doors.interactions import CATALOG_JSON
 
         assert client.get("/api/meta").json()["catalogId"] == CATALOG_JSON["$id"]
 
@@ -115,13 +115,13 @@ class TestRefusals:
 
 class TestTheSession:
     def test_a_conversation_comes_back(self, client: TestClient) -> None:
-        main.sessions.save("t1", trip={"destination": "Madrid"})
+        http.sessions.save("t1", trip={"destination": "Madrid"})
         body = client.get("/api/session", params={"sessionId": "t1"}).json()
         assert body["trip"] == {"destination": "Madrid"}
         assert body["turns"] == 1
 
     def test_a_reset_forgets_it(self, client: TestClient) -> None:
-        main.sessions.save("t2", trip={"destination": "Madrid"})
+        http.sessions.save("t2", trip={"destination": "Madrid"})
         client.post("/api/session/reset", json={"sessionId": "t2"})
         assert client.get("/api/session", params={"sessionId": "t2"}).json()["trip"] == {}
 
@@ -143,7 +143,7 @@ class TestTheStream:
         async def fake_turn(request):  # noqa: ANN001, ANN202
             yield {"type": "done", "stopReason": "completed"}
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
+        monkeypatch.setattr(http, "run_turn", fake_turn)
         response = client.post(
             "/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"}
         )
@@ -157,7 +157,7 @@ class TestTheStream:
             yield {"type": "ui", "surfaceId": "inline-1", "messages": [], "done": True}
             yield {"type": "done", "stopReason": "completed"}
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
+        monkeypatch.setattr(http, "run_turn", fake_turn)
         response = client.post(
             "/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"}
         )
@@ -168,7 +168,7 @@ class TestTheStream:
         self, client: TestClient, monkeypatch
     ) -> None:
         """It carries the trip object the server keeps, not a wire message."""
-        from travel_a2ui.agent import TurnResult
+        from travel_a2ui.doors.interactions import TurnResult
 
         async def fake_turn(request):  # noqa: ANN001, ANN202
             yield {"type": "done", "stopReason": "completed"}
@@ -182,7 +182,7 @@ class TestTheStream:
                 ),
             }
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
+        monkeypatch.setattr(http, "run_turn", fake_turn)
         response = client.post(
             "/api/chat",
             json={"message": "hi", "sessionId": "streamed"},
@@ -192,7 +192,7 @@ class TestTheStream:
         assert "__result__" not in kinds
 
         # And it was used: the turn is what updates the session.
-        session = main.sessions.get("streamed")
+        session = http.sessions.get("streamed")
         assert session.interaction_id == "int_7"
         assert session.trip == {"destination": "Lisbon"}
         assert session.shape == "shape-1"
@@ -201,7 +201,7 @@ class TestTheStream:
         self, client: TestClient, monkeypatch
     ) -> None:
         """The receipt: where the conversation is, and what has been decided."""
-        from travel_a2ui.agent import TurnResult
+        from travel_a2ui.doors.interactions import TurnResult
 
         async def fake_turn(request):  # noqa: ANN001, ANN202
             yield {"type": "done", "stopReason": "completed"}
@@ -215,7 +215,7 @@ class TestTheStream:
                 ),
             }
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
+        monkeypatch.setattr(http, "run_turn", fake_turn)
         response = client.post(
             "/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"}
         )
@@ -248,7 +248,7 @@ class TestTheStream:
             seen["shape"] = request.shape
             yield {"type": "done", "stopReason": "completed"}
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
+        monkeypatch.setattr(http, "run_turn", fake_turn)
         client.post(
             "/api/chat",
             json={
@@ -278,8 +278,8 @@ class TestTheStream:
             seen["trip"] = request.trip
             yield {"type": "done", "stopReason": "completed"}
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
-        main.sessions.save("garbled", interaction_id="int_mine", trip={"destination": "Oslo"})
+        monkeypatch.setattr(http, "run_turn", fake_turn)
+        http.sessions.save("garbled", interaction_id="int_mine", trip={"destination": "Oslo"})
         client.post(
             "/api/chat",
             json={
@@ -305,7 +305,7 @@ class TestTheStream:
         async def fake_turn(request):  # noqa: ANN001, ANN202
             yield {"type": "done", "stopReason": "completed"}
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
+        monkeypatch.setattr(http, "run_turn", fake_turn)
         response = client.post(
             "/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"}
         )
@@ -322,14 +322,14 @@ class TestTheStream:
             seen["key"] = request.api_key
             yield {"type": "done", "stopReason": "completed"}
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
+        monkeypatch.setattr(http, "run_turn", fake_turn)
         client.post("/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "the-key"})
         assert seen["key"] == "the-key"
 
         # It arrived with the request and left with it: nothing about the
         # session mentions it.
         assert "the-key" not in json.dumps(
-            [session.as_dict() for session in main.sessions._sessions.values()]
+            [session.as_dict() for session in http.sessions._sessions.values()]
         )
 
     def test_an_action_is_read_as_an_action(self, client: TestClient, monkeypatch) -> None:
@@ -339,7 +339,7 @@ class TestTheStream:
             seen["action"] = request.action
             yield {"type": "done", "stopReason": "completed"}
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
+        monkeypatch.setattr(http, "run_turn", fake_turn)
         client.post(
             "/api/chat",
             json={
@@ -367,13 +367,13 @@ class TestTheStream:
             seen["skill"] = request.skill
             yield {"type": "done", "stopReason": "completed"}
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
+        monkeypatch.setattr(http, "run_turn", fake_turn)
         client.post(
             "/api/chat",
             json={"message": "hi", "skill": "not-a-skill"},
             headers={"x-goog-api-key": "k"},
         )
-        from travel_a2ui.skills import SKILL_VARIANTS
+        from travel_a2ui.brain.skills import SKILL_VARIANTS
 
         assert seen["skill"] in SKILL_VARIANTS
 
@@ -410,8 +410,8 @@ class TestTheVoiceSocket:
             await send({"type": "ready", "model": "m", "contract": session.contract})
             session.on_trip({"travelers": 3})
 
-        monkeypatch.setattr(main, "relay", fake_relay)
-        main.sessions.save("voice-1", trip={"destination": "Madrid", "travelers": 2})
+        monkeypatch.setattr(http, "relay", fake_relay)
+        http.sessions.save("voice-1", trip={"destination": "Madrid", "travelers": 2})
 
         with client.websocket_connect("/api/voice") as socket:
             socket.send_json({"type": "start", "apiKey": "k", "sessionId": "voice-1"})
@@ -420,7 +420,7 @@ class TestTheVoiceSocket:
         assert seen["trip"]["destination"] == "Madrid"
         assert seen["contract"], "a call is bound to a contract it can be checked against"
         # And what the call changed is what the typed side reads back.
-        assert main.sessions.get("voice-1").trip["travelers"] == 3
+        assert http.sessions.get("voice-1").trip["travelers"] == 3
 
     def test_the_key_arrives_in_the_opening_frame_and_is_not_stored(
         self, client: TestClient, monkeypatch
@@ -431,13 +431,13 @@ class TestTheVoiceSocket:
             seen["key"] = session.api_key
             await send({"type": "ready", "model": "m", "contract": "c"})
 
-        monkeypatch.setattr(main, "relay", fake_relay)
+        monkeypatch.setattr(http, "relay", fake_relay)
         with client.websocket_connect("/api/voice") as socket:
             socket.send_json({"type": "start", "apiKey": "the-voice-key", "sessionId": "voice-2"})
             socket.receive_json()
 
         assert seen["key"] == "the-voice-key"
-        assert "the-voice-key" not in json.dumps(main.sessions.get("voice-2").as_dict())
+        assert "the-voice-key" not in json.dumps(http.sessions.get("voice-2").as_dict())
 
 
 class TestTheMcpEndpoint:
@@ -557,7 +557,7 @@ class TestEachInlineCardIsItsOwnSurface:
             seen["surfaceId"] = request.surface_id
             yield {"type": "done", "stopReason": "completed"}
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
+        monkeypatch.setattr(http, "run_turn", fake_turn)
         payload = {"message": "flights to Madrid", **body}
         if session_id:
             payload["sessionId"] = session_id
@@ -608,15 +608,15 @@ class TestWhereTheyAreFlyingFrom:
 
     def test_nothing_reads_the_browser_location(self) -> None:
         """No coordinates in, no coordinates anywhere."""
-        import travel_a2ui.main as main_module
-        import travel_a2ui.providers.fixture as fixture_module
+        import travel_a2ui.doors.http as main_module
+        import travel_a2ui.brain.providers.fixture as fixture_module
 
         assert not hasattr(main_module, "_origin_hint")
         assert not hasattr(fixture_module, "origins_near")
         assert not hasattr(fixture_module, "origin_for_time_zone")
 
     def test_the_contract_says_to_ask(self) -> None:
-        from travel_a2ui.skills import build_system_prompt
+        from travel_a2ui.brain.skills import build_system_prompt
 
         said = build_system_prompt(
             variant="express-modular",
@@ -667,8 +667,8 @@ class TestPressesTheHostAnswersItself:
             called["model"] = True
             yield {"type": "done", "stopReason": "completed"}
 
-        monkeypatch.setattr(main, "run_turn", fake_turn)
-        main.sessions.save("plan-1", trip=dict(self.TRIP))
+        monkeypatch.setattr(http, "run_turn", fake_turn)
+        http.sessions.save("plan-1", trip=dict(self.TRIP))
         response = client.post(
             "/api/chat",
             json={
@@ -699,7 +699,7 @@ class TestPressesTheHostAnswersItself:
         assert [a["title"] for a in trip["days"][0]["activities"]] == ["Lunch at Sobrino"]
         assert [a["title"] for a in trip["days"][1]["activities"]] == ["Toledo"]
         # And it is what the next turn will read.
-        assert main.sessions.get("plan-1").trip["days"][0]["activities"][0]["title"] == (
+        assert http.sessions.get("plan-1").trip["days"][0]["activities"][0]["title"] == (
             "Lunch at Sobrino"
         )
 

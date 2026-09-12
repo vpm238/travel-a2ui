@@ -18,7 +18,7 @@ import pathlib
 
 import pytest
 
-from travel_a2ui.surface import (
+from travel_a2ui.brain.surface import (
     STANDING_SURFACES,
     bind_commit_context,
     bind_derived_labels,

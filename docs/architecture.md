@@ -94,22 +94,26 @@ around them.
  ══════════╪═════════════════════════╪═════════════════════════╪════════
            │      consumed, never reimplemented, by            │
  ┌─────────▼───────────────┬─────────▼──────────┬──────────────▼────────┐
- │ apps/server  (Python)   │ apps/web           │ apps/mcp-view         │
- │ the agent, the tools,   │ the React client   │ the same renderer,    │
- │ the trip, MCP, voice    │ (3 flows)          │ for an MCP host       │
- └─────────────────────────┴────────────────────┴───────────────────────┘
- ┌─────────────────────────┬────────────────────┬───────────────────────┐
- │ apps/worker  (retiring) │ apps/flutter_client│ apps/gallery          │
- │ the original TypeScript │ the second client  │ static showcase       │
+ │ apps/server/…/brain     │ apps/web           │ apps/mcp-view         │
+ │ skills, tools, the trip │ the React client   │ the same renderer,    │
+ │ record, surface passes  │ (3 flows)          │ for an MCP host       │
+ ├─────────────────────────┼────────────────────┼───────────────────────┤
+ │ apps/server/…/doors     │ apps/flutter_client│ apps/gallery          │
+ │ interactions · live ·   │ the second client  │ static showcase       │
+ │ plugin · http           │                    │                       │
  └─────────────────────────┴────────────────────┴───────────────────────┘
 ```
 
-**Two servers, for now.** `apps/server` is Python and is the one that ships;
-`apps/worker` is the original TypeScript implementation, still deployed, being
-retired once the cutover is verified. They implement the same agent, which makes
-the interesting risk *silent disagreement* rather than breakage — so every layer
-where they could disagree is pinned by a golden file. See
-[§9](#9--testing-and-what-is-simulated).
+**One brain, four doors, two renderers.** The server is two packages and the
+split is load-bearing. `brain/` holds every decision worth making — the skills
+the model is given, the tools it may call, the record a trip is kept in, the
+passes every surface goes through — and imports no transport. `doors/` holds
+transport and nothing else: the Interactions API, the Live API, MCP, and the
+HTTP app that mounts them. The same conversation can be had through any of
+them, which is only true because none of them knows anything the others do not.
+
+The rule that keeps it that way: when a door starts wanting to know what a trip
+is, that knowledge belongs in the brain and the door should be asking for it.
 
 **Python, because the SDK is Python.** The A2UI agent SDK — the Express parser,
 the catalog loader, the skill generator — exists in exactly one language, and it
@@ -691,12 +695,17 @@ agent. None of them needs an API key.
 
 ### The goldens
 
-Two servers implementing one agent makes the dangerous failure *silent
-disagreement* rather than breakage: both answer, both draw, and only the details
-differ. So each layer where that could happen is pinned to a file the TypeScript
-writes and the Python must reproduce exactly — the fixtures' output, the trip
-model, the tools' wording, the whole system prompt, the compiled skeleton, and
-the four passes over a surface.
+They come from the period when two servers implemented one agent, where the
+dangerous failure is *silent disagreement* rather than breakage: both answer,
+both draw, and only the details differ. Each layer where that could happen was
+pinned to a file the TypeScript wrote and the Python had to reproduce exactly —
+the fixtures' output, the trip model, the tools' wording, the whole system
+prompt, the compiled skeleton, and the passes over a surface.
+
+One server remains, and the goldens are a large part of why removing the other
+was safe. They still earn their place: over code, a golden is an alarm for a
+change nobody intended. The prompt golden is the exception that is *meant* to
+move, being assembled from markdown people edit on purpose.
 
 The rule that makes them worth having: **write the golden from the incumbent
 before porting, then check the golden fails when you break the port.** A golden

@@ -61,7 +61,6 @@ for source in "$PARENT"/.github/workflows/travel-a2ui-*.yml; do
     -e '/^defaults:$/,/^$/d' \
     -e 's#@travel-a2ui/#\x01#g' \
     -e 's#travel-a2ui/package-lock.json#package-lock.json#' \
-    -e 's#workingDirectory: travel-a2ui/apps/worker#workingDirectory: apps/worker#' \
     -e "s#paths: \['travel-a2ui/\*\*', '.github/workflows/travel-a2ui-\(.*\)'\]#paths: ['**']#" \
     -e "s#travel-a2ui/##g" \
     -e 's#\x01#@travel-a2ui/#g' \

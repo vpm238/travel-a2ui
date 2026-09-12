@@ -286,10 +286,8 @@ Start wherever matches what you want:
 ---
 ## Run it
 
-Two servers live in this repository. The **Python server** is the one being
-built out and the one that will ship; the **Cloudflare Worker** is the original
-TypeScript implementation, still deployed, and is being retired once the cutover
-is verified. Both speak the same protocol to the same clients.
+One server. It is Python, it is two packages — `brain/` and `doors/` — and it
+serves the API, the MCP endpoint and the built clients from one origin.
 
 ### The Python server
 
@@ -299,7 +297,7 @@ npm run setup                        # installs, regenerates, builds, tests
 pip install -e ./apps/server         # the server and its dependencies
 
 # terminal 1 — the API
-uvicorn travel_a2ui.main:app --port 8080 --app-dir apps/server/src --reload
+uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src --reload
 
 # terminal 2 — the React client, with hot reload
 npm run dev:web                      # http://127.0.0.1:5173
@@ -415,10 +413,11 @@ so trimming it costs a client nothing and saves tokens on every single turn.
 the component documentation the model reads — the catalog is the source, and a
 component you add documents itself.
 
-**Change the tools.** `apps/worker/src/tools.ts` is one array of
-`{name, description, input_schema}` and one `switch`. It is provider-neutral on
-purpose: `geminiTools()` is the six-line adapter, and a second provider is
-another six lines rather than a second copy of the schemas.
+**Change the tools.** `data/tools.json` is one array of
+`{name, description, input_schema}`, and `brain/tools.py` is one `switch` over
+it. The contracts are provider-neutral on purpose: `gemini_tools()` is a
+six-line adapter and `mcp_data_tools()` is another, so a second protocol costs
+six lines rather than a second copy of the schemas.
 
 **Then the parts you should not need to touch**: the compiler, the renderer, the
 streaming split, the commit binding, the panel plumbing. Those are the A2UI
@@ -561,22 +560,57 @@ and every frame vanishes without an error; and the Live API rejects an entire
 
 ## How it fits together
 
+**One brain, four doors, two renderers.** That sentence is the architecture, and
+the directories are named after it.
+
 ```
-data/                                  the facts: destinations, airlines, tool contracts
-catalogs/a2ui-travel/catalog.json      the vocabulary: A2UI basic + 12 travel components
-prompts/*.md                           the agent's role and what each surface is for
-        │
-        ├─► a2ui.skill.SkillGenerator ─► skills/**/SKILL.md     what the model is told
-        │                                       │
-        │                                       ▼
-        │                            apps/server  (the agent loop, in Python)
-        │                                       │  the model writes A2UI Express
-        │                                       ▼
-        └─► a2ui ExpressParser ────────► A2UI JSON messages
-                                                │
-                                                ▼
-                              packages/renderer → React      apps/flutter_client → Flutter
+                         ┌──────────────────────────────────────┐
+data/          ─────────►│  brain/                              │
+catalogs/      ─────────►│    skills   what the agent is told    │
+prompts/*.md   ─────────►│    tools    what it can call          │
+                         │    trip     what it remembers         │
+                         │    surface  what every surface goes   │
+                         │             through before it ships   │
+                         └──────────────────────────────────────┘
+                                          │
+              ┌───────────────┬───────────┴───────────┬──────────────┐
+              ▼               ▼                       ▼              ▼
+      doors/interactions  doors/live            doors/plugin    doors/http
+      Gemini              Gemini Live           MCP, for        mounts the
+      Interactions API    API, spoken           Claude and      other three
+      typed, over SSE     over a socket         other hosts     and serves
+              │               │                       │         the clients
+              └───────────────┴───────────┬───────────┘
+                                          ▼
+                                 A2UI JSON messages
+                                          │
+                          ┌───────────────┴───────────────┐
+                          ▼                               ▼
+                  packages/renderer                apps/flutter_client
+                  React                            Flutter
 ```
+
+The **brain** holds every decision worth making: the skills, the tools, the trip
+record, the passes a surface goes through. It has no idea which door a request
+came through, and nothing in it imports a transport.
+
+The **doors** hold transport and nothing else. `interactions` is the reference
+one; `live` is the same brain over a bidirectional audio socket; `plugin` is the
+same brain answering MCP, where every call is self-contained; `http` mounts the
+other three. When a door starts wanting to know what a trip is, that knowledge
+belongs in the brain and the door should be asking for it.
+
+The **renderers** draw A2UI, send actions back, and wait for the next A2UI.
+Neither holds travel logic, catalog knowledge, or any opinion about what a trip
+is — which is the whole test of whether this is really A2UI. The React renderer
+core (`binding`, `store`, `checks`, `functions`) mentions a trip only in its
+comments, and the Flutter client is a second implementation of the same
+protocol rather than a port of the first.
+
+That constraint is the one to defend when changing anything here: **maximise
+server-side agency, minimise client-side logic, so one agent drives thin,
+generic clients on Web, iOS, Android and Flutter.** A feature that needs new
+client code to work is a feature that has left the protocol.
 
 Everything the model is given is a file on disk rather than a string in code,
 and that is deliberate. The tool descriptions live in `data/tools.json`, the
@@ -591,7 +625,7 @@ shipping quietly:
 | Generated | From | Regenerate |
 |---|---|---|
 | `catalogs/a2ui-travel/catalog.json` | the vendored upstream basic catalog + travel components | `python3 scripts/build_catalog.py` |
-| `apps/worker/src/providers/fixtures.generated.ts` | `data/` | `python3 scripts/build_fixtures.py` |
+| `apps/server/src/travel_a2ui/brain/providers/fixtures.generated.py` | `data/` | `python3 scripts/build_fixtures.py` |
 | `catalogs/a2ui-travel/examples/compiled/*.json` | the `.express` examples | `python3 scripts/build_examples.py` |
 | `skills/**/SKILL.md` | the catalog, via the SDK's `SkillGenerator` | `python3 scripts/build_skills.py` |
 
@@ -814,7 +848,9 @@ travel-a2ui/
 └── skills/                     generated SKILL.md files, checked in
 ```
 
-The Python server is the whole backend. `apps/worker` and `packages/trip` are
+The Python server is the whole backend, and it is two packages: `brain/` — the
+skills, the tools, the trip record, the surface passes — and `doors/`, which is
+that brain reachable four ways. The TypeScript worker and `packages/trip` are
 gone: the cutover is done, and the goldens in `tools/parity/` are what made
 retiring them a non-event — they still pin the behaviour, now over one
 implementation rather than two.
@@ -841,11 +877,18 @@ None of it needs an API key.
 
 ### The goldens, and why there are six
 
-Two servers implement the same agent. The dangerous thing about that is not that
-one of them breaks — a break is visible — but that they *quietly disagree*. Both
-answer, both draw something, and only the details differ. So every layer where
-that could happen has a golden file: the TypeScript writes it, and the Python
-has to reproduce it exactly.
+They were written when two servers implemented the same agent, and the
+dangerous failure there is not a break — a break is visible — but *silent
+disagreement*: both answer, both draw something, and only the details differ. So
+every layer where that could happen got a golden file the TypeScript wrote and
+the Python had to reproduce exactly.
+
+There is one server now, and the goldens are why deleting the other one was a
+non-event. They kept their value in the process: a golden over code is an alarm
+for a change nobody meant to make, which is the same job on one implementation
+as on two. Only the prompt golden is *meant* to move, because it is assembled
+from markdown people edit on purpose — so that one is re-recorded deliberately
+and CI fails if you forget.
 
 | Golden | Pins |
 | --- | --- |
@@ -923,7 +966,7 @@ something untrue:
 
 All four are one bug: a function that could not say *"I don't know"* said
 something else instead. So the seam is real now, in
-`apps/server/src/travel_a2ui/providers/`, and not-knowing is the only
+`apps/server/src/travel_a2ui/brain/providers/`, and not-knowing is the only
 alternative to knowing:
 
 - A provider **cannot** return an empty success. The constructor refuses to

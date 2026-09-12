@@ -22,6 +22,8 @@ schema, and a retyped description is a different agent.
 
 from __future__ import annotations
 
+from .. import ROOT
+
 import datetime as _dt
 import json
 import os
@@ -32,7 +34,7 @@ from typing import Any, Callable
 from . import trip as model
 from .providers.types import Found, NotFound, TravelProvider
 
-_ROOT = pathlib.Path(__file__).resolve().parents[4]
+_ROOT = ROOT
 TOOLS: list[dict[str, Any]] = json.loads(
     (_ROOT / "data" / "tools.json").read_text("utf-8")
 )["tools"]

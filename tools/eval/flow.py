@@ -38,8 +38,8 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
 
-from travel_a2ui import trip as model  # noqa: E402
-from travel_a2ui.agent import (  # noqa: E402
+from travel_a2ui.brain import trip as model# noqa: E402
+from travel_a2ui.doors.interactions import (  # noqa: E402
     DEFAULT_EFFORT,
     DEFAULT_MODEL,
     SurfaceAction,
@@ -180,7 +180,7 @@ async def play(name: str, model_id: str, effort: str, verbose: bool) -> dict[str
             elif kind == "trip":
                 trip = event["trip"]
             elif kind == "__result__":
-                # The turn's receipt, as `main.py` takes it: the thread back to
+                # The turn's receipt, as `http.py` takes it: the thread back to
                 # Google's copy of the conversation, plus the fingerprint of the
                 # prompt half it was started against.
                 resume = event["result"].interaction_id or resume

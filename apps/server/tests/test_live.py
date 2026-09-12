@@ -23,8 +23,8 @@ from typing import Any
 
 import pytest
 
-from travel_a2ui.providers.fixture import FixtureProvider
-from travel_a2ui.voice import VoiceSession, relay, setup_config, voice_tools
+from travel_a2ui.brain.providers.fixture import FixtureProvider
+from travel_a2ui.doors.live import VoiceSession, relay, setup_config, voice_tools
 
 
 class FakeLive:

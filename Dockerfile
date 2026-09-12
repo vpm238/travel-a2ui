@@ -144,7 +144,7 @@ COPY --from=flutter /build/build/web/ apps/flutter_client/build/web/
 # This is the same import uvicorn does, so if it passes here the process will
 # start there. It costs a second and it is the difference between a build
 # failure that names the problem and a deploy failure that does not.
-RUN python -c "import travel_a2ui.main"
+RUN python -c "import travel_a2ui.doors.http"
 
 # Cloud Run sends traffic to $PORT and does not ask.
 ENV PORT=8080
@@ -155,4 +155,4 @@ EXPOSE 8080
 # next request landed on the wrong one would find their trip gone. Concurrency
 # comes from asyncio, which is what an agent that spends its time waiting on a
 # model actually needs.
-CMD exec uvicorn travel_a2ui.main:app --host 0.0.0.0 --port ${PORT} --workers 1
+CMD exec uvicorn travel_a2ui.doors.http:app --host 0.0.0.0 --port ${PORT} --workers 1

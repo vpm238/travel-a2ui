@@ -27,7 +27,7 @@ from a2ui.inference_formats.experimental.express.parser import (  # noqa: E402
 )
 from a2ui.schema.catalog import A2uiCatalog, CatalogConfig  # noqa: E402
 
-from travel_a2ui.express import (  # noqa: E402
+from travel_a2ui.brain.express import (  # noqa: E402
     ExpressStream,
     Failed,
     Text,
@@ -242,7 +242,7 @@ class TestTheGapTheSdkLeaves:
         so — which is the difference between the model finding out, in the same
         turn, and the traveller finding out.
         """
-        from travel_a2ui.agent import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _parser
 
         stream = ExpressStream(
             parser=_parser("inline-1"),
@@ -257,7 +257,7 @@ class TestTheGapTheSdkLeaves:
 
     def test_a_whole_surface_still_passes(self, components):
         """The check has to let real work through, or it is just an outage."""
-        from travel_a2ui.agent import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _parser
 
         stream = ExpressStream(
             parser=_parser("inline-1"),
@@ -286,7 +286,7 @@ class TestTheQuestionIsAskable:
     """
 
     def test_a_date_in_a_text_box_is_refused(self, components):
-        from travel_a2ui.agent import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _parser
 
         stream = ExpressStream(
             parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
@@ -301,7 +301,7 @@ class TestTheQuestionIsAskable:
         assert "DateRangePicker" in failures[0].message
 
     def test_an_airport_in_a_text_box_is_refused(self, components):
-        from travel_a2ui.agent import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _parser
 
         stream = ExpressStream(
             parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
@@ -316,7 +316,7 @@ class TestTheQuestionIsAskable:
         assert "ChoicePicker" in failures[0].message
 
     def test_the_right_controls_pass(self, components):
-        from travel_a2ui.agent import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _parser
 
         stream = ExpressStream(
             parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
@@ -333,7 +333,7 @@ class TestTheQuestionIsAskable:
 
     def test_a_text_field_is_still_right_for_prose(self, components):
         """The check is about decisions, not about text boxes."""
-        from travel_a2ui.agent import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _parser
 
         stream = ExpressStream(
             parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
@@ -344,7 +344,7 @@ class TestTheQuestionIsAskable:
 
     def test_reading_a_decision_back_is_not_asking_for_one(self, components):
         """A panel that says "12-19 April" as text is correct."""
-        from travel_a2ui.agent import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _parser
 
         stream = ExpressStream(
             parser=_parser("sidebar"), components=components, validator=_CATALOG.validator

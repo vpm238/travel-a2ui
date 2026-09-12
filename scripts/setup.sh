@@ -64,7 +64,7 @@ step "Testing"
 npm test --silent
 
 if [[ -n "$python_bin" ]] && "$python_bin" -c 'import pytest' 2>/dev/null; then
-  "$python_bin" -m pytest tools/tests backends/antigravity-agent/tests -q
+  "$python_bin" -m pytest tools/tests -q
 else
   warn "pytest not installed — skipping the Python tests (pip install pytest)"
 fi

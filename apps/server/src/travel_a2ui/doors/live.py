@@ -14,16 +14,18 @@ this function exists at all.
 
 from __future__ import annotations
 
+from .. import ROOT
+
 import json
 import os
 import pathlib
 from dataclasses import dataclass
 from typing import Any
 
-from .skills import _read
-from .tools import gemini_tools
+from ..brain.skills import _read
+from ..brain.tools import gemini_tools
 
-_ROOT = pathlib.Path(__file__).resolve().parents[4]
+_ROOT = ROOT
 _MCP = json.loads((_ROOT / "data" / "mcp-tools.json").read_text("utf-8"))
 
 MCP_TOOLS: list[dict[str, Any]] = _MCP["tools"]
@@ -62,7 +64,7 @@ VOICE_MODEL = os.environ.get(
 #: Appended to the ordinary system prompt rather than replacing it: the agent is
 #: the same agent, with the same catalog and the same refusals, talking instead
 #: of typing. Everything specific to *speaking* is here.
-VOICE_BRIEF = _read("prompts", "voice.md").strip()
+VOICE_BRIEF = _read("prompts", "live.md").strip()
 
 
 def voice_tools() -> list[dict[str, Any]]:
@@ -166,8 +168,8 @@ async def run_voice_tool(
     surface back to the model would put a flight list in its context and invite
     it to read the list out, which is the one thing this mode is for not doing.
     """
-    from .surfaces import build_surface, compile_surface
-    from .tools import run_tool
+    from ..brain.surfaces import build_surface, compile_surface
+    from ..brain.tools import run_tool
 
     if name.startswith("show_") or name == "render_a2ui_express":
         try:
@@ -231,11 +233,11 @@ async def relay(
 
     from google.genai import Client
 
-    from . import trip as model
-    from .agent import CATALOG_ID, _parser, _today
-    from .skills import build_system_prompt
-    from .surface import STANDING_SURFACES, finish, panel_events, trip_updates
-    from .tools import ToolContext
+    from ..brain import trip as model
+    from .interactions import CATALOG_ID, _parser, _today
+    from ..brain.skills import build_system_prompt
+    from ..brain.surface import STANDING_SURFACES, finish, panel_events, trip_updates
+    from ..brain.tools import ToolContext
 
     today = _today(session.client_hints)
     trip = dict(session.trip)
@@ -475,11 +477,11 @@ async def _redraw_panels(
     answer already arrived. A panel one turn stale is a much smaller problem
     than an error over a call that is going fine.
     """
-    from .agent import CATALOG_ID, DEFAULT_MODEL, PANEL_REQUEST, COMPONENT_NAMES, _parser
-    from .express import ExpressStream, Ui
-    from .gemini import stream_interaction
-    from .skills import build_system_prompt
-    from .surface import STANDING_SURFACES, finish
+    from .interactions import CATALOG_ID, DEFAULT_MODEL, PANEL_REQUEST, COMPONENT_NAMES, _parser
+    from ..brain.express import ExpressStream, Ui
+    from ..gemini import stream_interaction
+    from ..brain.skills import build_system_prompt
+    from ..brain.surface import STANDING_SURFACES, finish
 
     for surface_id in STANDING_SURFACES:
         system = build_system_prompt(
@@ -490,7 +492,7 @@ async def _redraw_panels(
             trip=trip,
             today=today,
         )
-        from .agent import _CATALOG
+        from .interactions import _CATALOG
 
         stream = ExpressStream(
             parser=_parser(surface_id), components=COMPONENT_NAMES, validator=_CATALOG.validator

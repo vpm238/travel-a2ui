@@ -22,7 +22,7 @@ from typing import Any
 
 import pytest
 
-from travel_a2ui.mcp import (
+from travel_a2ui.doors.plugin import (
     A2UI_MIME,
     APP_MIME,
     APP_URI,
@@ -34,7 +34,7 @@ from travel_a2ui.mcp import (
     handle,
     tool_examples,
 )
-from travel_a2ui.providers.fixture import FixtureProvider
+from travel_a2ui.brain.providers.fixture import FixtureProvider
 
 TODAY = "2027-03-01"
 
@@ -173,7 +173,7 @@ class TestTools:
         assert entry["_meta"]["ui"]["resourceUri"] == APP_URI
 
     def test_the_data_tools_are_listed_and_draw_nothing(self) -> None:
-        from travel_a2ui.tools import mcp_data_tools
+        from travel_a2ui.brain.tools import mcp_data_tools
 
         listed = {tool["name"]: tool for tool in call("tools/list")["result"]["tools"]}
         for tool in mcp_data_tools():
@@ -379,7 +379,7 @@ def test_the_script_escaping_is_the_whole_safety_story() -> None:
     literal: inside `<script type="application/json">` there is exactly one
     thing to escape.
     """
-    from travel_a2ui.mcp import _escape_script
+    from travel_a2ui.doors.plugin import _escape_script
 
     assert _escape_script('</script><img onerror=alert(1)>') == (
         "<\\/script><img onerror=alert(1)>"
