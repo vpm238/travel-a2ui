@@ -19,9 +19,13 @@ name: travel-a2ui deploy
 # be put up for testing without merging it first.
 
 on:
-  push:
-    branches: [main]
-    paths: ['**']
+  # On demand only. Cloud Run is the deployment now, and this one is kept
+  # against the Worker being needed again before it is deleted outright.
+  #
+  # It ran on every push to `main` until both deploys existed, at which point
+  # leaving it there meant a red build on every push as soon as the Cloudflare
+  # credentials were removed — a failure that says nothing except that a
+  # retired deploy is still wired up.
   workflow_dispatch:
 
 permissions:

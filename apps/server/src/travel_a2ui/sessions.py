@@ -77,8 +77,20 @@ class Session:
     #: be the thing watching for one to change.
     shape: str | None = None
     turns: int = 0
+    #: How many inline surfaces this conversation has handed out.
+    #:
+    #: Separate from `turns`, which counts turns that *finished*. A turn that
+    #: fails still drew a card, and reusing its id would mean the next question
+    #: replaces the one that went wrong — leaving the traveller looking at a
+    #: card whose error message was overwritten by an unrelated question.
+    inline_surfaces: int = 0
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
+
+    def next_inline_surface_id(self) -> str:
+        """A surface id no card in this conversation is already using."""
+        self.inline_surfaces += 1
+        return f"inline-{self.inline_surfaces}"
 
     def as_dict(self) -> dict[str, Any]:
         return {

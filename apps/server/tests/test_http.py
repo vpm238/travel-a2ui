@@ -459,3 +459,67 @@ class TestTheMcpEndpoint:
         """A plugin reads this to find the server; a wrong path is a dead install."""
         endpoint = client.get("/api/meta").json()["mcpEndpoint"]
         assert client.get(endpoint).status_code == 405, "reachable, and declines GET"
+
+
+class TestEachInlineCardIsItsOwnSurface:
+    """The conversation is a list of things asked, not one thing rewritten.
+
+    Every inline card used to be `inline-1`. The renderer stores surfaces by id,
+    so each card in the transcript was a second view onto the same surface:
+    answering a question rewrote that question, and every earlier card with it.
+    From the outside it looked like the interface refreshing itself at random.
+
+    It also silently disabled the finished-card treatment. A card is greyed and
+    made inert once the turn that drew it ends — that code was correct and was
+    running, over content that had already been replaced by the newest surface.
+    So "answered" never looked answered.
+
+    A standing surface is the opposite case and keeps its one id: there is one
+    panel, and redrawing it in place is the whole point.
+    """
+
+    @staticmethod
+    def _drawn(client: TestClient, monkeypatch, session_id=None, **body):
+        """The surface id this turn would draw into.
+
+        The model is stubbed: `surface_id` is settled before it is called, and
+        it is the only thing under test here.
+        """
+        seen = {}
+
+        async def fake_turn(request):  # noqa: ANN001, ANN202
+            seen["surfaceId"] = request.surface_id
+            yield {"type": "done", "stopReason": "completed"}
+
+        monkeypatch.setattr(main, "run_turn", fake_turn)
+        payload = {"message": "flights to Madrid", **body}
+        if session_id:
+            payload["sessionId"] = session_id
+        response = client.post(
+            "/api/chat", json=payload, headers={"x-goog-api-key": "k"}
+        )
+        events = [
+            json.loads(line[6:])
+            for line in response.text.splitlines()
+            if line.startswith("data: ")
+        ]
+        session = next(e["sessionId"] for e in events if e.get("type") == "session")
+        return session, seen.get("surfaceId")
+
+    def test_a_second_turn_draws_somewhere_new(self, client, monkeypatch) -> None:
+        session, first = self._drawn(client, monkeypatch)
+        _, second = self._drawn(client, monkeypatch, session)
+        assert first and second
+        assert first != second, "a new question must not overwrite the last one"
+
+    def test_a_standing_surface_keeps_its_name(self, client, monkeypatch) -> None:
+        """The panel is one surface for the life of the conversation."""
+        session, first = self._drawn(client, monkeypatch, surface="sidebar")
+        _, second = self._drawn(client, monkeypatch, session, surface="sidebar")
+        assert first == "sidebar"
+        assert second == "sidebar"
+
+    def test_a_client_may_still_name_a_surface(self, client, monkeypatch) -> None:
+        """Re-attaching to a card it already has is asking for that one."""
+        _, drawn = self._drawn(client, monkeypatch, surfaceId="inline-7")
+        assert drawn == "inline-7"

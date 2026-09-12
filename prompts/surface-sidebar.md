@@ -7,8 +7,27 @@ A persistent panel beside the conversation showing the trip as it stands. It is
   checkbox. The host ignores them anyway, so one in this panel is a control that
   visibly does nothing — worse than not drawing it.
 - Show what is *decided*: the route stop by stop, the flight and stay chosen,
-  the dates, the party, the budget against what it is estimated to cost. Text,
-  StatTile, PriceSummary, ProgressMeter, ItineraryDay — components that display.
+  the dates, the party, the budget against what it is estimated to cost.
+- **Show it with the component built for it, not with a line of text.** Read-only
+  does not mean plain. Every display component in the catalog is available here,
+  and a settled decision drawn as the card it deserves is the difference between
+  a panel and a receipt:
+
+  - the stay → `HotelCard`, carrying what the search returned: `neighborhood`,
+    `rating`, `amenities`, `imageUrl` when there is one, and `selected` set so
+    it reads as the chosen one
+  - the flight → `FlightOption`, with its times, duration, stops and number
+  - the days → `ItineraryDay` with `ActivityItem` children, not a list of
+    sentences about the days
+  - where the stops are → `MapPreview`
+  - what it will be like → `WeatherStrip`
+  - the money → `PriceSummary`, and `StatTile` for the figures worth a glance
+  - `Card`, `Row`, `Column`, `Divider`, `Icon` and `Image` to arrange it
+
+  These carry **no `action`** in the panel. A card without one is a record: the
+  host draws it fully and it does not respond to a press, which is exactly what
+  a panel entry should be. The way to re-open a decision is the Change button
+  below, and that is the only thing here that a traveler can press.
 - **The only button you may draw here is Change**, and its only event is
   `change`. Nothing else. Not a question, not a confirmation, not "add a
   hotel" — if something still needs deciding, that belongs in the conversation

@@ -6,8 +6,10 @@
  * the reply, in the place the reply appears, so choosing a flight is the same
  * gesture as answering a question.
  *
- * A turn's surface is addressed by id (`inline-3`), so an earlier card stays
- * live and interactive after the conversation has moved past it.
+ * A turn's surface is addressed by id (`inline-3`), one per turn, so the
+ * transcript is a list of things that were asked rather than one card being
+ * rewritten. Once the turn that drew it ends, a card is greyed and made inert:
+ * it is a record of what was answered, not a control that still works.
  */
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -15,6 +17,37 @@ import { A2uiSurface } from '@travel-a2ui/renderer';
 
 import type { Agent } from '../useAgent.js';
 import { Disclosure, Empty, Spinner } from './bits.js';
+
+/**
+ * What a running tool is called, where the traveler can see it.
+ *
+ * A tool name is an internal identifier and reads like one. `save_trip` was
+ * appearing under nearly every reply as "save trip", which is not a thing
+ * anyone asked for and not a thing they can act on — it is the agent writing
+ * down what was just decided. Being asked "what is save trip?" is the whole
+ * argument: a progress line that prompts a question has spent the traveler's
+ * attention and given nothing back.
+ *
+ * So the ones that mean waiting say what is being waited for, and the ones that
+ * are bookkeeping say nothing at all.
+ */
+const TOOL_LABELS: Record<string, string> = {
+  search_flights: 'Finding flights',
+  search_hotels: 'Finding places to stay',
+  get_destination: 'Reading up on the place',
+  get_weather: 'Checking the weather',
+  estimate_cost: 'Working out the cost',
+};
+
+/**
+ * Tools with nothing to report.
+ *
+ * These are state, not work: recording a decision, letting one go, reading back
+ * what is already on screen. They finish instantly and change nothing the
+ * traveler cannot already see in the panel, so a chip for them is noise that
+ * looks like activity.
+ */
+const SILENT_TOOLS = new Set(['save_trip', 'release_decision', 'get_trip']);
 
 const OPENERS = [
   'Six days in Madrid in April, two of us, around $2,500 all in',
@@ -114,16 +147,34 @@ export function Chat({ agent }: { agent: Agent }) {
             </div>
           ) : (
             <div key={turn.id} className="turn">
-              {turn.tools.length > 0 ? (
-                <ul className="turn__tools">
-                  {turn.tools.map((tool, index) => (
-                    <li key={`${tool.name}-${index}`} className={tool.isError ? 'is-error' : undefined}>
-                      <span className="turn__toolName">{tool.name.replace(/_/g, ' ')}</span>
-                      {tool.result === undefined ? <Spinner /> : <span className="turn__tick">done</span>}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+              {(() => {
+                // A failed bookkeeping call is still worth showing: it is the
+                // one case where "recorded what you chose" did not happen, and
+                // the traveler is about to be asked something they answered.
+                const shown = turn.tools.filter(
+                  (tool) => tool.isError || !SILENT_TOOLS.has(tool.name),
+                );
+                if (shown.length === 0) return null;
+                return (
+                  <ul className="turn__tools">
+                    {shown.map((tool, index) => (
+                      <li
+                        key={`${tool.name}-${index}`}
+                        className={tool.isError ? 'is-error' : undefined}
+                      >
+                        <span className="turn__toolName">
+                          {TOOL_LABELS[tool.name] ?? tool.name.replace(/_/g, ' ')}
+                        </span>
+                        {tool.result === undefined ? (
+                          <Spinner />
+                        ) : (
+                          <span className="turn__tick">done</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()}
 
               {turn.parts.map((part, index) =>
                 part.kind === 'text' ? (

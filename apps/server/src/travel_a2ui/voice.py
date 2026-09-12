@@ -15,6 +15,7 @@ this function exists at all.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 from dataclasses import dataclass
 from typing import Any
@@ -34,7 +35,15 @@ A2UI_MIME: str = _MCP["a2uiMimeType"]
 #: import the module that fingerprints it. The cycle would work — both sides
 #: only touch each other inside functions — right up until an unrelated edit
 #: moves one of those calls to import time.
-VOICE_MODEL = "gemini-2.5-flash-native-audio-preview-09-2025"
+VOICE_MODEL = os.environ.get(
+    "VOICE_MODEL", "gemini-2.5-flash-native-audio-preview-09-2025"
+)
+#: Overridable because the default is a *preview* model, and previews are
+#: withdrawn. When that happens the Live API answers a connect with NOT_FOUND
+#: and voice stops working for a reason that has nothing to do with this code —
+#: so the name is a setting, and a deployment can be corrected without one.
+#: Every other model this app uses is on a stable channel; this one has no
+#: stable equivalent to point at, which is why it is the one that can rot.
 
 
 #: How to behave on a call rather than in a chat window.
@@ -509,4 +518,19 @@ def _describe_live_error(error: Exception) -> str:
         return "That API key was rejected for the Live API."
     if "quota" in lowered or "429" in text:
         return "That key has hit its Live API quota. Try again shortly."
+    # A withdrawn preview is the failure this is most likely to be, and the one
+    # the raw message explains worst: the SDK says NOT_FOUND, which reads as a
+    # bug in this app rather than as a model that no longer exists. Naming the
+    # model and where to change it turns an outage into a setting.
+    if "not_found" in lowered or "404" in text or "was not found" in lowered:
+        return (
+            f"The Live model “{VOICE_MODEL}” is not available to that key. It is a "
+            "preview model, and previews get withdrawn — set VOICE_MODEL on the "
+            "server to a current one."
+        )
+    if "not supported" in lowered or "unsupported" in lowered:
+        return (
+            f"The Live API refused “{VOICE_MODEL}”: {text}. Set VOICE_MODEL on the "
+            "server to a model that supports the Live API."
+        )
     return text or "The Live session failed to open."

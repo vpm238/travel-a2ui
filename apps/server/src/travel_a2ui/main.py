@@ -33,6 +33,7 @@ from .contract import INSTANTIATION_MAX_AGE_MS, contract_stamp
 from .providers.fixture import FixtureProvider
 from . import mcp
 from .sessions import SessionStore
+from .surface import STANDING_SURFACES
 from .voice import VoiceSession, relay
 from .skills import SKILL_VARIANTS, describe_all_skills, is_skill_variant
 
@@ -202,6 +203,29 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
             source_component_id=action_body.get("sourceComponentId"),
         )
 
+    # Where this turn draws.
+    #
+    # A standing surface has one id for the life of the conversation — there is
+    # one panel, and redrawing it is the point. An inline card is the opposite:
+    # it is a thing that was asked once, and the conversation is the list of
+    # them. So each one gets its own id.
+    #
+    # They used to share `inline-1`, and the renderer stores surfaces by id, so
+    # every card in the transcript was a view onto the *same* surface. Answering
+    # a question rewrote the question — and every earlier card with it — which
+    # looked like the interface refreshing itself at random. It also quietly
+    # disabled the finished-card treatment: a card is greyed and made inert once
+    # the turn that drew it is over, and that was working exactly as written
+    # against a card whose content had already been replaced.
+    #
+    # `surfaceId` in the body is still honoured, because a client re-attaching
+    # to a surface it already has is asking for that one by name.
+    requested_surface = str(body.get("surface") or "inline")
+    if requested_surface in STANDING_SURFACES:
+        drawn_surface_id = requested_surface
+    else:
+        drawn_surface_id = str(body.get("surfaceId") or session.next_inline_surface_id())
+
     turn = TurnRequest(
         api_key=api_key,
         model=str(body.get("model") or os.environ.get("DEFAULT_MODEL", "gemini-3.8-flash")),
@@ -209,8 +233,8 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
         action=action,
         interaction_id=session.interaction_id,
         trip=dict(session.trip),
-        surface=str(body.get("surface") or "inline"),
-        surface_id=str(body.get("surfaceId") or "inline-1"),
+        surface=requested_surface,
+        surface_id=drawn_surface_id,
         skill=str(skill),
         effort=str(body.get("effort") or "medium"),
         shape=session.shape,
