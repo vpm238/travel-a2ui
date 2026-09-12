@@ -789,7 +789,20 @@ export function basisOf(trip: Trip): string {
   }
 
   if (trip.travelers !== undefined) {
-    parts.push(`${trip.travelers} traveller${trip.travelers === 1 ? '' : 's'}`);
+    // A party that changes along the way cannot be stated as one number, and
+    // stating it as one is worse than leaving it out: "1 traveller" over a trip
+    // that flies home with two prices the whole thing for the wrong party,
+    // which is exactly the untrustworthy answer this line exists to prevent.
+    const counts = new Set<number>([trip.travelers]);
+    for (const leg of Array.isArray(trip.legs) ? trip.legs : []) {
+      if (leg && typeof leg.travelers === 'number') counts.add(leg.travelers);
+    }
+    if (counts.size > 1) {
+      const sorted = [...counts].sort((a, b) => a - b);
+      parts.push(`${sorted[0]}–${sorted[sorted.length - 1]} travellers`);
+    } else {
+      parts.push(`${trip.travelers} traveller${trip.travelers === 1 ? '' : 's'}`);
+    }
   }
 
   return parts.join(' · ');

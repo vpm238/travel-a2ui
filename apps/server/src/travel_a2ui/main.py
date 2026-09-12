@@ -403,9 +403,22 @@ async def voice(socket: WebSocket) -> None:
             pass
 
 
+@app.get("/api/healthz")
 @app.get("/healthz")
 async def healthz() -> JSONResponse:
-    """For Cloud Run, which wants to know before it sends traffic."""
+    """Whether this process is up, and how much it is holding.
+
+    Answered at two paths because one of them does not always arrive. On Cloud
+    Run, a request for exactly `/healthz` is answered by Google's own frontend
+    with its 404 page — the container never sees it, and from outside that is
+    indistinguishable from an app that failed to register the route. `/healthz/`
+    with the trailing slash reaches the app, which is how that was pinned down.
+    `/api/healthz` is under a prefix nothing intercepts, so it is the one to
+    check from a script.
+
+    This is not Cloud Run's own health check: that one is a TCP connect to the
+    port, and it passes as soon as uvicorn binds.
+    """
     return JSONResponse({"ok": True, "sessions": len(sessions)})
 
 

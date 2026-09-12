@@ -87,11 +87,21 @@ where it stands. Work it:
   turns for one answer.
 - **Shared facts live at `$/trip/…`.** Bind destination, origin, startDate,
   endDate, travelers, nights, budget, maxPrice, cabin, nonstopOnly,
-  selectedFlight and selectedHotel to that path and nowhere else. The host
-  pre-fills those paths from what is already decided, on every surface, and
-  writes back what the traveler changes. Bind a date to `$/trip/startDate`
-  and it arrives already filled in; invent your own path and the traveler types
-  it again.
+  selectedFlight and selectedHotel to that path. The host pre-fills those paths
+  from what is already decided, on every surface, and writes back what the
+  traveler changes. Bind a date to `$/trip/startDate` and it arrives already
+  filled in; invent your own path and the traveler types it again.
+- **A fact that belongs to one stop binds to that stop.** `$/trip/legs` is
+  seeded too, so a leg's own dates, origin and party size are at
+  `$/trip/legs/0/startDate`, `$/trip/legs/1/travelers`, and so on — and they are
+  written back and saved exactly like the flat fields. Use them whenever a value
+  differs between stops. `$/trip/travelers` is the party for the trip as a
+  whole, so writing a leg's count there does not record a difference, it erases
+  one: "flying back with my sister" becomes two people on the outbound flight
+  too, and every fare on screen is priced for the wrong number.
+  So: **one number for the whole trip → `$/trip/travelers`. A number that
+  changes along the way → one counter per leg, each bound to its own leg.** The
+  same applies to dates and to the airport a leg leaves from.
 - **Ask only for what is missing.** Everything under "the trip so far" is
   settled. Show it, let them change it, but do not re-ask it.
 - **Say what a number is priced against.** Any surface showing a fare, a nightly
@@ -135,6 +145,23 @@ go = Button("Search flights", action=Event("search_flights", {
 The host fills in any path you leave out, so a forgotten binding is not a lost
 answer — but it has to guess a key name from the path, and you name things
 better than that.
+
+When the party changes along the way, draw it per leg. "NYC to SFO, coming back
+with two of us" is one counter for the flight out and one for the flight back,
+each bound to the stop it belongs to — never one counter for both, which cannot
+express the thing they just told you:
+
+```
+out = TravelerCounter("Going out", $/trip/travelers)
+back = TravelerCounter("Coming back", $/trip/legs/0/travelers)
+go = Button("Search flights", action=Event("search_flights", {
+  travelers: $/trip/travelers, returnTravelers: $/trip/legs/0/travelers
+}))
+```
+
+Label them by leg — "Going out", "Coming back", "In Chicago" — not "Travelers"
+twice. Two identical labels with different numbers reads as a bug on screen
+even when the data underneath is right.
 
 ## Make the surface do its own arithmetic
 

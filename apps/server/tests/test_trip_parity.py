@@ -178,3 +178,52 @@ class TestJavaScriptSemanticsThatDoNotPortForFree:
         # `origin` key at all — not `"origin": null`.
         legs = model.stops({"destination": "Madrid"})
         assert "origin" not in legs[0]
+
+
+class TestAPartyThatChangesAlongTheWay:
+    """One number cannot describe a trip that flies home with a different one.
+
+    The case this is about — "NYC to SFO, coming back with two of us" — was
+    already in the goldens as "multi-leg, party varies", and the answer captured
+    there was `1 traveller`: the outbound count, standing for the whole trip.
+    The test passed, because it was asserting that the port reproduced the
+    incumbent, and the incumbent was wrong.
+
+    It matters because `basis_of` is what every priced surface puts beside its
+    fares. A total for two people under a heading that says one traveller is not
+    a cosmetic problem; it is the surface disagreeing with itself about what it
+    just quoted.
+    """
+
+    OUT_AND_BACK = {
+        "origin": "JFK",
+        "destination": "SFO",
+        "travelers": 1,
+        "legs": [{"destination": "JFK", "origin": "SFO", "travelers": 2}],
+    }
+
+    def test_a_leg_with_its_own_party_widens_the_basis(self):
+        assert model.basis_of(self.OUT_AND_BACK) == "JFK → SFO · 1–2 travellers"
+
+    def test_a_leg_that_agrees_does_not(self):
+        """Only a real difference is worth the extra words."""
+        trip = {**self.OUT_AND_BACK, "travelers": 2}
+        assert model.basis_of(trip) == "JFK → SFO · 2 travellers"
+
+    def test_a_leg_that_says_nothing_does_not(self):
+        """An unset leg party means "the same as the trip", not zero."""
+        trip = {**self.OUT_AND_BACK, "legs": [{"destination": "JFK"}]}
+        assert model.basis_of(trip) == "JFK → SFO · 1 traveller"
+
+    def test_the_per_leg_count_survives_the_round_trip(self):
+        """What a surface sends back has to still be there after normalising.
+
+        The counter is bound to `$/trip/legs/0/travelers`, and the whole `/trip`
+        subtree is merged back on commit — so if `normalize` dropped a leg's
+        party size, the surface would show two people and the trip would go on
+        holding one, with nothing on screen to say so.
+        """
+        normalized = model.normalize(self.OUT_AND_BACK)
+        assert normalized["legs"][0]["travelers"] == 2
+        assert normalized["travelers"] == 1
+        assert model.problems(normalized, TODAY) == []

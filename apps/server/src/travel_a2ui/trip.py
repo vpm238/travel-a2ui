@@ -544,9 +544,24 @@ def basis_of(trip: Trip) -> str:
 
     if trip.get("travelers") is not None:
         count = trip["travelers"]
-        parts.append(f"{count} traveller{'' if count == 1 else 's'}")
+        # A party that changes along the way cannot be stated as one number, and
+        # stating it as one is worse than leaving it out: "1 traveller" over a
+        # trip that flies home with two prices the whole thing for the wrong
+        # party, which is exactly the untrustworthy answer this line exists to
+        # prevent.
+        counts = {count, *(leg["travelers"] for leg in _legs_of(trip) if leg.get("travelers"))}
+        if len(counts) > 1:
+            parts.append(f"{min(counts)}–{max(counts)} travellers")
+        else:
+            parts.append(f"{count} traveller{'' if count == 1 else 's'}")
 
     return " · ".join(parts)
+
+
+def _legs_of(trip: Trip) -> list[dict[str, Any]]:
+    """The legs, as a list of dicts, whatever the trip actually holds."""
+    legs = trip.get("legs")
+    return [leg for leg in legs if isinstance(leg, dict)] if isinstance(legs, list) else []
 
 
 STEPS: list[dict[str, Any]] = [

@@ -138,6 +138,20 @@ jobs:
             --project "${{ vars.GCP_PROJECT_ID }}" \
             --format 'value(status.url)')
           echo "Deployed to ${url}" | tee -a "$GITHUB_STEP_SUMMARY"
+
           # A deploy that returns 200 on the health check is a deploy; one that
           # merely finished is a hope.
-          curl -fsS "${url}/healthz" | tee -a "$GITHUB_STEP_SUMMARY"
+          #
+          # Checked into a variable rather than piped. `curl -f … | tee` reports
+          # the *pipeline's* status, which is tee's, so the first run of this
+          # printed "curl: (22) 404" and passed the step anyway — the one check
+          # meant to catch a broken deploy was the one that could not fail.
+          #
+          # `/api/healthz`, not `/healthz`: Google's frontend answers the bare
+          # path with its own 404 and the container never sees the request.
+          if body=$(curl -fsS --max-time 30 "${url}/api/healthz"); then
+            echo "$body" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Health check failed against ${url}/api/healthz" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
