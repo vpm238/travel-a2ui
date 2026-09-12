@@ -173,10 +173,18 @@ def compile_surface(surface: Surface) -> list[dict[str, Any]]:
     `is_final=True` because a built surface is complete by construction. The
     streaming path is the one that compiles partial sources, and it has its own
     machinery for exactly that reason.
-    """
-    from .agent import _parser
 
-    return _parser(surface.surface_id).compile(surface.express, is_final=True)
+    Validated as well as compiled, and the two are different questions.
+    Compiling asks "is this Express?"; the catalog's validator asks "is this a
+    surface?" — a `Column([header, footer])` whose `footer` was never defined
+    compiles without complaint and renders as a box with a hole in it. The
+    streaming path runs the same check on every finished block.
+    """
+    from .agent import _CATALOG, _parser
+
+    messages = _parser(surface.surface_id).compile(surface.express, is_final=True)
+    _CATALOG.validator.validate(messages)
+    return messages
 
 
 async def build_surface(

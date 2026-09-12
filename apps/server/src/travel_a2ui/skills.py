@@ -263,7 +263,7 @@ def _inventory() -> str:
     )
 
 
-def build_system_prompt(
+def build_prompt_parts(
     *,
     variant: str,
     surface: str,
@@ -271,16 +271,31 @@ def build_system_prompt(
     catalog_id: str,
     trip: dict[str, Any],
     today: str,
-) -> str:
-    """Builds the system prompt, with the stable half first.
+) -> tuple[str, str]:
+    """The prompt in its two halves: what never changes, and what always does.
 
-    The skill is thousands of tokens and identical on every turn of a
-    conversation; the trip state is a few dozen and changes constantly. Stable
-    first and volatile second is the whole optimisation: Gemini caches a
-    repeated prefix implicitly, so the catalog, the rules and the component
-    signatures are paid for once and read back thereafter. Putting the trip's
-    current state above them would move the boundary to the top of the prompt
-    and cache nothing.
+    The stable half is the role, the inventory and the skill — about thirteen
+    thousand tokens, byte-identical on every turn of a conversation. The
+    volatile half is a few dozen tokens: today's date, which surface to draw
+    into, and what has been decided so far.
+
+    They are returned separately because the Interactions API is stateful and
+    the difference is not small. Measured, on a 5,411-token system instruction:
+
+        turn 1, system_instruction sent              5,411 input tokens
+        turn 2, previous_interaction_id, no system      44 input tokens
+        turn 3, previous_interaction_id, no system      83 input tokens
+
+    `total_cached_tokens` was 0 throughout, so this is not implicit caching
+    quietly working — the context genuinely lives on Google's side, and sending
+    it again is paying twice for the same thing. Every round inside a turn was
+    doing exactly that.
+
+    So the stable half is the system instruction, sent once when a conversation
+    starts, and the volatile half rides in with each message. What makes that
+    safe is that the volatile half has to arrive *anyway*: the surface id and
+    the trip change every turn, and a model told once, ten turns ago, which
+    surface to draw into would draw into the wrong one.
     """
     stable = "\n\n---\n\n".join(
         [ROLE, _inventory(), *(_body(source) for source in _SKILL_SOURCES[variant])]
@@ -296,5 +311,15 @@ def build_system_prompt(
         describe_trip(trip, today, surface),
     ]
     # Empty entries drop out rather than becoming blank lines.
-    volatile = "\n".join(part for part in parts if part)
+    return stable, "\n".join(part for part in parts if part)
+
+
+def build_system_prompt(**kwargs: Any) -> str:
+    """Both halves, joined — the whole prompt as one string.
+
+    What a door with no conversation to continue sends: MCP, where every call is
+    self-contained, and the voice relay's panel redraws. The goldens are over
+    this, because it is the only place the two halves are both visible.
+    """
+    stable, volatile = build_prompt_parts(**kwargs)
     return f"{stable}\n\n---\n\n{volatile}"

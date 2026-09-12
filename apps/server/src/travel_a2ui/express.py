@@ -47,6 +47,28 @@ _CONSTRUCTOR = re.compile(r"\b([A-Z][A-Za-z0-9]*)\s*\(")
 # Express's own constructs, which are not catalog components.
 _NOT_COMPONENTS = frozenset({"Event"})
 
+# A quoted string, single or double, with backslash escapes honoured.
+_STRING = re.compile(r"\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'", re.S)
+
+
+def _without_strings(source: str) -> str:
+    """The source with every string literal blanked out.
+
+    Because a component name is found by pattern, and the pattern — a capital
+    letter followed by a bracket — occurs in ordinary English. A picker offering
+
+        {label: "San Francisco (SFO)", value: "SFO"}
+
+    was read as a call to a component named `Francisco`, and "New York (JFK)" as
+    one named `York`. The block was correct; this check rejected it, the model
+    was told to write it again, and the traveller paid a whole extra round for a
+    label with an airport code in it — which is every label this app draws.
+
+    Newlines are preserved so a line number computed later still means what it
+    says.
+    """
+    return _STRING.sub(lambda match: '"' + " " * max(0, len(match.group(0)) - 2) + '"', source)
+
 
 class UnknownComponent(Exception):
     """The source names a component the catalog does not have.
@@ -71,7 +93,7 @@ def unknown_components(source: str, component_names: Iterable[str]) -> list[str]
     """Component names in `source` that the catalog does not define."""
     known = set(component_names) | _NOT_COMPONENTS
     seen: list[str] = []
-    for name in _CONSTRUCTOR.findall(source):
+    for name in _CONSTRUCTOR.findall(_without_strings(source)):
         if name not in known and name not in seen:
             seen.append(name)
     return seen
@@ -134,6 +156,15 @@ class ExpressStream:
     parser: ExpressParser
     #: Component names the catalog defines, for the check the SDK does not do.
     components: frozenset[str] = frozenset()
+    #: The catalog's own validator, for the checks the *compiler* does not do.
+    #:
+    #: Compiling answers "is this Express?". It does not answer "is this a
+    #: surface?" — a `Column([header, footer])` whose `footer` was never defined
+    #: compiles happily and renders as a box with a hole in it. The SDK ships a
+    #: validator that walks the compiled messages and says so, and running it is
+    #: the difference between the model finding out and the traveller finding
+    #: out.
+    validator: Any = None
     _buffer: str = ""
     _inside: bool = False
     _block_source: str = ""
@@ -231,6 +262,11 @@ class ExpressStream:
                         f"use one of them or compose from Row, Column and Text."
                     )
             messages = self.parser.compile(source, is_final=done)
+            # Only on a finished block. A tree still being written legitimately
+            # refers to components a few tokens away from existing, and calling
+            # that an error would reject every surface mid-stream.
+            if done and self.validator is not None:
+                self.validator.validate(messages)
         except Exception as error:  # noqa: BLE001 - any parse failure, same handling
             # Mid-stream failures are the normal case: half a constructor is not
             # valid Express. Only a failure on a finished block is news.

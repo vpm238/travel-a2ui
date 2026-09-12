@@ -350,7 +350,10 @@ class TestWhatTheTravellerSet:
             )
         )
         sent = model.bodies[0]["input"][0]["content"][0]["text"]
-        assert sent.startswith("actually, make it Lisbon")
+        # The turn's own text comes last, under the volatile half of the prompt
+        # — today, the surface, the trip so far — which now rides with the
+        # message rather than being re-sent as a system instruction.
+        assert sent.endswith("actually, make it Lisbon")
 
 
 class TestThePanel:
@@ -537,6 +540,46 @@ class TestFailures:
         assert len(model.bodies) == 2
         assert "did not compile" in model.bodies[1]["input"][0]["content"][0]["text"]
 
+    def test_a_broken_block_in_a_round_that_called_tools_is_reported_too(self) -> None:
+        """The hole: the repair branch only ran when the model had stopped.
+
+        A first turn usually draws *and* looks something up in the same round.
+        The compile failure was recorded, the tool results went back on their
+        own, and the model was never told — so the traveller got a turn with a
+        gap in it and nothing ever tried again.
+
+        The complaint goes back as another function result, which is the list
+        the model is already reading to decide what to do next.
+        """
+        import asyncio
+        import json
+
+        broken = f'{A2UI_OPEN}\nroot = NoSuchComponent("x")\n{A2UI_CLOSE}'
+        model = FakeModel(
+            [
+                ([broken], [ToolCall(id="c1", name="get_destination", args={"destination": "Madrid"})]),
+                ([SURFACE], []),
+            ]
+        )
+        events = asyncio.run(collect(base(message="hi", client=model)))
+
+        assert any(event["type"] == "retry" for event in events)
+        assert len(model.bodies) == 2
+        sent = model.bodies[1]["input"]
+        complaint = next(
+            (
+                entry
+                for entry in sent
+                if entry.get("name") == "render_a2ui_express"
+            ),
+            None,
+        )
+        assert complaint, "the model was told what the lookup found and nothing else"
+        said = json.loads(complaint["result"][0]["text"])
+        assert said["ok"] is False
+        assert "NoSuchComponent" in said["error"]
+        assert "NoSuchComponent" in said["block"]
+
 
 def test_run_turn_collected_gathers_the_same_turn() -> None:
     """What MCP uses, which has no stream to write into."""
@@ -580,3 +623,102 @@ class TestWhatDayItIs:
         assert _today({"today": 7}) == here
         assert _today({}) == here
         assert _today(None) == here
+
+
+class TestTheSetupIsSentOnce:
+    """The Interactions API is stateful, and this app was paying as if it were not.
+
+    Measured against the real API on a 5,411-token system instruction: a
+    follow-up carrying `previous_interaction_id` and no `system_instruction`
+    cost 44 input tokens instead of 5,411, with `total_cached_tokens` at 0
+    throughout — so nothing was quietly caching it either. This app's stable
+    half is about thirteen thousand tokens, and it was going out on every round
+    of every turn.
+    """
+
+    def test_a_fresh_conversation_sends_the_setup(self) -> None:
+        import asyncio
+
+        model = FakeModel([([], [])])
+        asyncio.run(collect(base(message="hi", client=model)))
+        assert model.bodies[0]["system_instruction"].startswith("You are a travel agent")
+
+    def test_a_continued_conversation_does_not(self) -> None:
+        import asyncio
+
+        model = FakeModel([([], [])])
+        asyncio.run(collect(base(message="hi", interaction_id="int_1", client=model)))
+        assert "system_instruction" not in model.bodies[0]
+        assert model.bodies[0]["previous_interaction_id"] == "int_1"
+
+    def test_what_changes_every_turn_still_arrives_every_turn(self) -> None:
+        """The half that is not sent is the half that never changes.
+
+        Today's date, which surface to draw into and what has been decided move
+        with each turn, so they ride in with the message. A model told ten turns
+        ago to draw into `inline-1` would still be drawing into `inline-1`.
+        """
+        import asyncio
+
+        model = FakeModel([([], [])])
+        asyncio.run(
+            collect(
+                base(
+                    message="hi",
+                    interaction_id="int_1",
+                    surface_id="inline-9",
+                    trip={"destination": "Madrid"},
+                    client=model,
+                )
+            )
+        )
+        said = model.bodies[0]["input"][0]["content"][0]["text"]
+        assert "inline-9" in said
+        assert "Madrid" in said
+
+    def test_a_different_setup_starts_a_new_conversation(self) -> None:
+        """Change the skill and the rules are different; the chain is dropped.
+
+        Continuing would mean answering against a contract nobody is reading any
+        more — the model's history holds the old skill and nothing would ever
+        say otherwise.
+        """
+        import asyncio
+
+        model = FakeModel([([], [])])
+        asyncio.run(
+            collect(
+                base(
+                    message="hi",
+                    interaction_id="int_1",
+                    setup="a-setup-from-another-skill",
+                    client=model,
+                )
+            )
+        )
+        assert "previous_interaction_id" not in model.bodies[0]
+        assert model.bodies[0]["system_instruction"]
+
+    def test_the_same_setup_continues(self) -> None:
+        import asyncio
+
+        from travel_a2ui.agent import CATALOG_ID
+        from travel_a2ui.skills import build_prompt_parts
+        import hashlib
+
+        stable, _ = build_prompt_parts(
+            variant="express-monolithic",
+            surface="inline",
+            surface_id="inline-1",
+            catalog_id=CATALOG_ID,
+            trip={},
+            today="2027-03-01",
+        )
+        setup = hashlib.sha256(stable.encode("utf-8")).hexdigest()[:16]
+
+        model = FakeModel([([], [])])
+        asyncio.run(
+            collect(base(message="hi", interaction_id="int_1", setup=setup, client=model))
+        )
+        assert model.bodies[0]["previous_interaction_id"] == "int_1"
+        assert "system_instruction" not in model.bodies[0]

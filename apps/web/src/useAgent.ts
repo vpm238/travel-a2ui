@@ -48,7 +48,11 @@ import {
 } from './api.js';
 
 const API_KEY = 'travel-a2ui:key';
-const PREFS_KEY = 'travel-a2ui:prefs';
+// Bumped when a default changes in a way a stored preference would hide. The
+// effort default moved from `low` to `minimal` — worth about thirteen seconds a
+// turn — and anyone who had already loaded the app once would have kept `low`
+// forever without ever having chosen it.
+const PREFS_KEY = 'travel-a2ui:prefs2';
 const BACKEND_KEY = 'travel-a2ui:backend';
 const LIVE_KEY = 'travel-a2ui:live';
 
@@ -185,7 +189,7 @@ export interface Usage {
 export interface Prefs {
   model: string;
   skill: SkillVariant;
-  effort: 'low' | 'medium' | 'high';
+  effort: 'minimal' | 'low' | 'medium' | 'high';
 }
 
 const EMPTY_USAGE: Usage = {
@@ -336,7 +340,7 @@ export function useAgent() {
     } catch {
       /* fall through to defaults */
     }
-    return { model: 'gemini-3.8-flash', skill: 'express-monolithic', effort: 'low' };
+    return { model: 'gemini-3.5-flash-lite', skill: 'express-monolithic', effort: 'minimal' };
   });
 
   /**

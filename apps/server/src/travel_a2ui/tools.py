@@ -73,6 +73,14 @@ def gemini_tools() -> list[dict[str, Any]]:
     Function declarations only. `voice_tools` reads `name`, `description` and
     `parameters` off every entry here, so a built-in tool — which has none of
     them — belongs in `grounding_tools` instead, not in this list.
+
+    `get_trip` is not offered. This model is handed the whole trip in its system
+    prompt, under "The trip so far", so calling it buys nothing — and it costs a
+    round: the loop stops, sends the results back, and waits for the model to
+    start again. A traced turn spent one of its three rounds, about eight
+    seconds, reading back something it was already looking at.
+
+    It still exists for MCP, where it is the only way a host can see the trip.
     """
     return [
         {
@@ -82,6 +90,7 @@ def gemini_tools() -> list[dict[str, Any]]:
             "parameters": tool["input_schema"],
         }
         for tool in TOOLS
+        if tool["name"] != "get_trip"
     ]
 
 

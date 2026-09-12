@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as _dt
+import hashlib
 import json
 import pathlib
 import time
@@ -42,7 +43,7 @@ from .gemini import describe_api_error, stream_interaction  # noqa: E402
 from .providers.fixture import FixtureProvider  # noqa: E402
 from .providers.types import TravelProvider  # noqa: E402
 from .skeleton import pending_surface_for  # noqa: E402
-from .skills import build_system_prompt  # noqa: E402
+from .skills import build_prompt_parts, build_system_prompt  # noqa: E402
 from .surface import STANDING_SURFACES, finish, panel_events, trip_updates  # noqa: E402
 from .tools import ToolContext, gemini_tools, grounding_tools, run_tool  # noqa: E402
 
@@ -84,6 +85,18 @@ COMPONENT_NAMES = frozenset(_CATALOG.catalog_schema["components"])
 
 def _parser(surface_id: str) -> ExpressParser:
     return ExpressParser(catalog=_CATALOG, surface_id=surface_id, version=PROTOCOL_VERSION)
+
+
+#: The model that answers when nobody picks one, and the panel's own model.
+#:
+#: Flash Lite, measured rather than assumed — see `MODELS` in `main.py` for the
+#: trace. Lives here rather than there because the voice relay redraws the
+#: standing panel with its own model call, and a second opinion about the
+#: default is how two doors quietly end up on two models.
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
+
+#: How hard that model thinks when nobody says. See `supported_level`.
+DEFAULT_EFFORT = "minimal"
 
 
 def _today(client: Any = None) -> str:
@@ -148,9 +161,16 @@ class TurnRequest:
     surface: str = "inline"
     surface_id: str = "inline-1"
     skill: str = "express-monolithic"
-    effort: str = "medium"
+    effort: str = DEFAULT_EFFORT
     #: What the browser knows about when the traveller is. See `_today`.
     client_hints: dict[str, Any] | None = None
+    #: Which setup the conversation was started against, if it was started.
+    #:
+    #: A fingerprint of the stable half of the prompt. When it no longer matches
+    #: — the traveller changed the skill variant, or the deployment shipped a new
+    #: catalog — the conversation is not continued against rules nobody is
+    #: reading any more: the chain is dropped and the new setup is sent.
+    setup: str | None = None
     #: The decision shape the standing surfaces were last drawn for.
     shape: str | None = None
     provider: TravelProvider | None = None
@@ -164,6 +184,8 @@ class TurnResult:
     trip: dict[str, Any]
     stop_reason: str | None
     shape: str | None = None
+    #: The setup this conversation is bound to. See `TurnRequest.setup`.
+    setup: str | None = None
 
 
 def _commit(saved: dict[str, Any], proposed: dict[str, Any], today: str) -> tuple[dict, list[str]]:
@@ -318,9 +340,6 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         )
     opening = "\n\n".join(line for line in lines if line)
 
-    turn_input: list[dict[str, Any]] = [
-        {"type": "user_input", "content": [{"type": "text", "text": opening}]}
-    ]
     previous_interaction_id = request.interaction_id
 
     yield {
@@ -350,7 +369,21 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         if name not in marks:
             marks[name] = round((time.perf_counter() - began) * 1000, 1)
 
-    system = build_system_prompt(
+    # The prompt in two halves, and only one of them goes on the wire.
+    #
+    # The Interactions API is stateful: `previous_interaction_id` carries the
+    # whole prior context on Google's side. Measured on a 5,411-token system
+    # instruction, a follow-up that omitted it cost 44 input tokens instead of
+    # 5,411 — and `total_cached_tokens` was 0 throughout, so nothing was quietly
+    # caching this for us. Re-sending the catalog, the rules and the component
+    # signatures on every round of every turn was paying full price, repeatedly,
+    # for thirteen thousand tokens the model was already looking at.
+    #
+    # So the stable half is the setup, sent once when a conversation starts, and
+    # the volatile half — today, the surface to draw into, the trip so far —
+    # rides in with the message, which it has to anyway: a model told ten turns
+    # ago to draw into `inline-1` would still be drawing into `inline-1`.
+    stable, volatile = build_prompt_parts(
         variant=request.skill,
         surface=request.surface,
         surface_id=request.surface_id,
@@ -358,6 +391,23 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         trip=trip,
         today=today,
     )
+
+    # A conversation is bound to the setup it started with. Change the skill
+    # variant mid-conversation and the stable half is different — so the chain
+    # is broken deliberately and the new setup is sent, rather than continuing
+    # against rules nobody is reading any more. Same idea as the contract stamp
+    # a Live session binds to.
+    setup = hashlib.sha256(stable.encode("utf-8")).hexdigest()[:16]
+    if request.setup and request.setup != setup:
+        previous_interaction_id = None
+    system: str | None = stable if not previous_interaction_id else None
+
+    turn_input: list[dict[str, Any]] = [
+        {
+            "type": "user_input",
+            "content": [{"type": "text", "text": f"{volatile}\n\n---\n\n{opening}"}],
+        }
+    ]
 
     stop_reason: str | None = None
     # A compile failure the model has not been told about yet. Until this
@@ -372,7 +422,9 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # Express, and a block left open at the end of one is not continued by
         # the next.
         stream = ExpressStream(
-            parser=_parser(request.surface_id), components=COMPONENT_NAMES
+            parser=_parser(request.surface_id),
+            components=COMPONENT_NAMES,
+            validator=_CATALOG.validator,
         )
 
         def rendered(events: Sequence[Any], source: str) -> list[dict[str, Any]]:
@@ -549,6 +601,47 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 }
             )
 
+        # A block that did not compile, in a round that also called tools.
+        #
+        # The repair branch above only runs when the model has stopped calling
+        # tools, so a round that drew something broken *and* looked something up
+        # — the common shape of a first turn — went back to the model with the
+        # tool results and not a word about the surface. The traveller got a
+        # turn with a gap in it and the model never found out.
+        #
+        # The compiler's own message goes back as another result, which is the
+        # same channel the lookups came home on: the model is already reading
+        # this list to decide what to do next.
+        if unreported and not retried_compile:
+            retried_compile = True
+            yield {"type": "retry", "reason": unreported["message"]}
+            results.append(
+                {
+                    "type": "function_result",
+                    "name": "render_a2ui_express",
+                    "call_id": f"compile-{round_index}",
+                    "result": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {
+                                    "ok": False,
+                                    "error": unreported["message"],
+                                    "block": unreported["express"][:4000],
+                                    "next": (
+                                        "Nothing was drawn. Write the whole A2UI block "
+                                        "again, corrected, in your next reply. Do not "
+                                        "repeat the prose."
+                                    ),
+                                },
+                                ensure_ascii=False,
+                            ),
+                        }
+                    ],
+                }
+            )
+            unreported = None
+
         turn_input = results
         yield {"type": "trip", "trip": dict(trip)}
 
@@ -590,6 +683,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             trip=trip,
             stop_reason=stop_reason,
             shape=shape,
+            setup=setup,
         ),
     }
 
@@ -627,7 +721,9 @@ async def _rebuild_panels(
             trip=trip,
             today=today,
         )
-        stream = ExpressStream(parser=_parser(surface_id), components=COMPONENT_NAMES)
+        stream = ExpressStream(
+            parser=_parser(surface_id), components=COMPONENT_NAMES, validator=_CATALOG.validator
+        )
 
         def drawn(events: Sequence[Any]) -> list[dict[str, Any]]:
             return [
@@ -697,5 +793,6 @@ async def run_turn_collected(request: TurnRequest) -> dict[str, Any]:
         "trip": result.trip if result else dict(request.trip),
         "interactionId": result.interaction_id if result else request.interaction_id,
         "shape": result.shape if result else request.shape,
+        "setup": result.setup if result else request.setup,
         "errors": errors,
     }

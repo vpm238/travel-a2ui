@@ -136,7 +136,7 @@ export interface ChatRequest {
   surfaceId?: string;
   skill: SkillVariant;
   model: string;
-  effort?: 'low' | 'medium' | 'high';
+  effort?: 'minimal' | 'low' | 'medium' | 'high';
   /**
    * What came back on the last turn, handed straight back.
    *

@@ -76,6 +76,14 @@ class Session:
     #: panel is owed a redraw: a client that does not know what a trip is cannot
     #: be the thing watching for one to change.
     shape: str | None = None
+    #: The setup — the stable half of the prompt — this conversation is bound to.
+    #:
+    #: Sent once, when the conversation starts. Held so that a later turn can
+    #: tell whether it is still the same setup: change the skill variant and the
+    #: rules the model is working from are different, so the chain is dropped
+    #: and a new conversation starts rather than continuing against a contract
+    #: nobody is reading any more.
+    setup: str | None = None
     turns: int = 0
     #: How many inline surfaces this conversation has handed out.
     #:
@@ -98,6 +106,7 @@ class Session:
             "interactionId": self.interaction_id,
             "trip": self.trip,
             "shape": self.shape,
+            "setup": self.setup,
             "turns": self.turns,
             "createdAt": int(self.created_at * 1000),
             "updatedAt": int(self.updated_at * 1000),
@@ -155,6 +164,7 @@ class SessionStore:
         interaction_id: str | None | _Unchanged = UNCHANGED,
         trip: dict[str, Any] | None = None,
         shape: str | None = None,
+        setup: str | None = None,
     ) -> Session:
         """Records a turn.
 
@@ -173,6 +183,8 @@ class SessionStore:
                 session.trip = trip
             if shape is not None:
                 session.shape = shape
+            if setup is not None:
+                session.setup = setup
             session.turns += 1
             session.updated_at = now
             self._sessions[session_id] = session

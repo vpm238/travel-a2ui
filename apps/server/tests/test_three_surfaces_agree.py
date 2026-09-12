@@ -65,7 +65,13 @@ class TestOneVocabulary:
 
         typed = {tool["name"] for tool in gemini_tools()}
         plugin = {tool["name"] for tool in mcp_data_tools()}
-        assert typed == plugin, f"Claude cannot {sorted(typed - plugin)}"
+        assert not typed - plugin, f"Claude cannot {sorted(typed - plugin)}"
+
+        # One asymmetry, and it is a saving rather than a gap: this app writes
+        # the whole trip into Gemini's system prompt under "The trip so far", so
+        # `get_trip` would cost it a round to read back something already on the
+        # screen in front of it. Claude has no such prompt and needs the tool.
+        assert plugin - typed == {"get_trip"}
 
     def test_the_typed_path_and_a_call_share_the_data_tools(self) -> None:
         from travel_a2ui.tools import gemini_tools

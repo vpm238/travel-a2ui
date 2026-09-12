@@ -441,7 +441,7 @@ async def _redraw_panels(
     answer already arrived. A panel one turn stale is a much smaller problem
     than an error over a call that is going fine.
     """
-    from .agent import CATALOG_ID, PANEL_REQUEST, COMPONENT_NAMES, _parser
+    from .agent import CATALOG_ID, DEFAULT_MODEL, PANEL_REQUEST, COMPONENT_NAMES, _parser
     from .express import ExpressStream, Ui
     from .gemini import stream_interaction
     from .skills import build_system_prompt
@@ -456,12 +456,16 @@ async def _redraw_panels(
             trip=trip,
             today=today,
         )
-        stream = ExpressStream(parser=_parser(surface_id), components=COMPONENT_NAMES)
+        from .agent import _CATALOG
+
+        stream = ExpressStream(
+            parser=_parser(surface_id), components=COMPONENT_NAMES, validator=_CATALOG.validator
+        )
         drawn: list[dict[str, Any]] = []
         try:
             async for event in stream_interaction(
                 api_key=session.api_key,
-                model="gemini-3.8-flash",
+                model=DEFAULT_MODEL,
                 input=[
                     {"type": "user_input", "content": [{"type": "text", "text": PANEL_REQUEST}]}
                 ],

@@ -28,7 +28,15 @@ from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocke
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from .agent import CATALOG_ID, CATALOG_JSON, SurfaceAction, TurnRequest, run_turn
+from .agent import (
+    CATALOG_ID,
+    CATALOG_JSON,
+    DEFAULT_EFFORT as AGENT_DEFAULT_EFFORT,
+    DEFAULT_MODEL as AGENT_DEFAULT_MODEL,
+    SurfaceAction,
+    TurnRequest,
+    run_turn,
+)
 from .contract import INSTANTIATION_MAX_AGE_MS, contract_stamp
 from .providers.fixture import FixtureProvider
 from . import mcp
@@ -48,16 +56,46 @@ _ROOT = pathlib.Path(__file__).resolve().parents[4]
 WEB_DIST = _ROOT / "apps" / "web" / "dist"
 FLUTTER_DIST = _ROOT / "apps" / "flutter_client" / "build" / "web"
 
+#: What the picker offers, and what answers when nobody picks.
+#:
+#: Flash Lite is the default because it was measured, not because it is cheap.
+#: The same turn — "trip from sfo to nyc" — traced end to end:
+#:
+#:   gemini-3.5-flash-lite   first word 1.7s, first surface 1.7s, done  2.9s
+#:   gemini-3.8-flash        first word 2.5s, first surface 4.7s, done 10.8s
+#:
+#: and Flash was additionally failing mid-stream with "gemini-3.8-flash is
+#: currently experiencing high demand". Lite is also the only one of the three
+#: that accepts `thinking_level: minimal`, which is most of the difference: this
+#: turn is recall, not reasoning — the catalog and the rules are in the prompt
+#: and the job is to pick three components and bind them.
 MODELS = [
-    {"id": "gemini-3.8-flash", "label": "Flash 3.8", "note": "Default. Fastest to first surface"},
+    {
+        "id": "gemini-3.5-flash-lite",
+        "label": "Flash Lite",
+        "note": "Default. Fastest to first surface; thinks least",
+    },
+    {"id": "gemini-3.8-flash", "label": "Flash 3.8", "note": "Richer surfaces, several seconds slower"},
     {"id": "gemini-3.7-flash", "label": "Flash 3.7", "note": "The previous Flash"},
-    {"id": "gemini-3.5-flash-lite", "label": "Flash Lite", "note": "Cheapest; simpler surfaces"},
 ]
 
 SURFACES = ["inline", "sidebar", "home"]
 
 sessions = SessionStore()
 provider = FixtureProvider()
+
+#: Overridable per deployment; the defaults themselves live in `agent.py`, next
+#: to the loop that uses them, so the voice relay and the typed path cannot
+#: drift onto two different models.
+#:
+#: `minimal` thinking because this turn is mostly recall: the catalog, the
+#: component signatures and the rules are all in the prompt, and the job is to
+#: pick three components and bind them. A traced turn at `low` spent 3,316
+#: thought tokens — about thirteen seconds of a forty-three second turn —
+#: deciding how to draw a form it draws every time. The picker still offers the
+#: rest.
+DEFAULT_EFFORT = os.environ.get("DEFAULT_EFFORT", AGENT_DEFAULT_EFFORT)
+
 
 app = FastAPI(title="Travel A2UI", docs_url=None, redoc_url=None)
 
@@ -75,7 +113,7 @@ async def meta() -> JSONResponse:
             "name": os.environ.get("PUBLIC_NAME", "Travel A2UI"),
             "catalogId": CATALOG_ID,
             "protocolVersion": "v0.9.1",
-            "defaultModel": os.environ.get("DEFAULT_MODEL", "gemini-3.8-flash"),
+            "defaultModel": os.environ.get("DEFAULT_MODEL", AGENT_DEFAULT_MODEL),
             "defaultSkill": os.environ.get("DEFAULT_SKILL", "express-monolithic"),
             "models": MODELS,
             "surfaces": SURFACES,
@@ -228,7 +266,7 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
 
     turn = TurnRequest(
         api_key=api_key,
-        model=str(body.get("model") or os.environ.get("DEFAULT_MODEL", "gemini-3.8-flash")),
+        model=str(body.get("model") or os.environ.get("DEFAULT_MODEL", AGENT_DEFAULT_MODEL)),
         message=str(body.get("message") or ""),
         action=action,
         # What the client carried beats what this instance remembers, because
@@ -241,8 +279,9 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
         surface=requested_surface,
         surface_id=drawn_surface_id,
         skill=str(skill),
-        effort=str(body.get("effort") or "medium"),
+        effort=str(body.get("effort") or DEFAULT_EFFORT),
         shape=_resumed(body, "shape") or session.shape,
+        setup=_resumed(body, "setup") or session.setup,
         # What day it is where they are. The container is in UTC, and a trip is
         # planned in the calendar the traveller is holding.
         client_hints=body.get("client") if isinstance(body.get("client"), dict) else None,
@@ -271,6 +310,7 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
                         "interactionId": result.interaction_id,
                         "trip": result.trip,
                         "shape": result.shape,
+                        "setup": result.setup,
                     }
                 )
                 sessions.save(
@@ -278,6 +318,7 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
                     interaction_id=result.interaction_id,
                     trip=result.trip,
                     shape=result.shape,
+                    setup=result.setup,
                 )
                 continue
             yield _sse(event)

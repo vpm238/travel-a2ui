@@ -212,3 +212,64 @@ class TestTheGapTheSdkLeaves:
 
     def test_does_not_mistake_express_own_constructs_for_components(self, components):
         assert unknown_components('b = Button("Go", Event("go", {}))', components) == []
+
+    def test_does_not_read_english_inside_a_string_as_a_component(self, components):
+        """The bug this check was costing a round to every turn.
+
+        A component name is found by pattern — a capital letter followed by a
+        bracket — and that pattern occurs in ordinary English. Every picker this
+        app draws labels an airport the way a person writes it:
+
+            {label: "San Francisco (SFO)", value: "SFO"}
+
+        which was read as a call to a component named `Francisco`, and "New York
+        (JFK)" as one named `York`. The block was correct. The model was told it
+        was wrong, wrote it again, and the traveller waited through an extra
+        model round for a label with an airport code in it.
+        """
+        source = (
+            't = Text("Plan your trip from San Francisco to New York")\n'
+            'p = ChoicePicker("From", [{label: "San Francisco (SFO)", value: "SFO"}])'
+        )
+        assert unknown_components(source, components) == []
+
+    def test_a_child_that_was_never_defined_is_caught(self, components):
+        """Compiling is not validating, and the difference is visible.
+
+        `Column([header, footer])` where `footer` was never defined is valid
+        Express: it compiles, it emits, and it renders as a box with a hole in
+        it. The SDK ships a validator that walks the compiled messages and says
+        so — which is the difference between the model finding out, in the same
+        turn, and the traveller finding out.
+        """
+        from travel_a2ui.agent import _CATALOG, _parser
+
+        stream = ExpressStream(
+            parser=_parser("inline-1"),
+            components=components,
+            validator=_CATALOG.validator,
+        )
+        source = 'head = Text("Madrid")\nroot = Column([head, footer])'
+        events = stream.feed([OPEN + source + CLOSE])
+        failures = [event for event in events if isinstance(event, Failed)]
+        assert failures, "this compiles; only the validator objects"
+        assert "footer" in failures[0].message
+
+    def test_a_whole_surface_still_passes(self, components):
+        """The check has to let real work through, or it is just an outage."""
+        from travel_a2ui.agent import _CATALOG, _parser
+
+        stream = ExpressStream(
+            parser=_parser("inline-1"),
+            components=components,
+            validator=_CATALOG.validator,
+        )
+        source = 'head = Text("Madrid", variant="h3")\nroot = Column([head])'
+        events = stream.feed([OPEN + source + CLOSE])
+        assert not [event for event in events if isinstance(event, Failed)]
+        assert [event for event in events if isinstance(event, Ui)]
+
+    def test_still_finds_an_invented_component_beside_one(self, components):
+        """Blanking the strings must not blank the check."""
+        source = 'p = ChoicePicker("New York (JFK)")\nx = Nonesuch("San Jose (SJC)")'
+        assert unknown_components(source, components) == ["Nonesuch"]

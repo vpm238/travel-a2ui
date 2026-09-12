@@ -102,7 +102,18 @@ def _describe(status: int, detail: str) -> GeminiError:
             "That model is not available to this key. Try another model.", status, False
         )
     if status >= 500:
-        return GeminiError("Gemini had a problem. Worth trying again.", status, True)
+        # Google's own words, kept. "Gemini had a problem" was all this said,
+        # and a turn that dies with a sentence carrying no information is a bug
+        # report nobody can write — it took a tracing harness to find out that
+        # one model was failing mid-stream and another was not.
+        said = detail.strip()
+        return GeminiError(
+            f"Gemini had a problem. Worth trying again. ({said[:300]})"
+            if said
+            else "Gemini had a problem. Worth trying again.",
+            status,
+            True,
+        )
     return GeminiError(detail or f"Gemini returned {status}.", status, False)
 
 
@@ -144,6 +155,36 @@ def _parse_args(raw: str) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
+#: What `generation_config.thinking_level` accepts, cheapest first.
+#:
+#: `minimal` was missing here and it is the one that matters: a turn asked for
+#: `low` still spent 3,316 thought tokens — about thirteen seconds — deciding
+#: how to draw a form it draws every time.
+THINKING_LEVELS = ("minimal", "low", "medium", "high")
+
+
+def supported_level(model: str, level: str | None) -> str | None:
+    """The requested thinking level, or the cheapest one this model has.
+
+    Measured, because the API's answer and the model's answer are different
+    questions. `generation_config.thinking_level` accepts four values; ask
+    `gemini-3.8-flash` for the cheapest of them and the whole turn dies with
+
+        400 'minimal' is not a supported thinking level for this model.
+        Allowed values are: medium, low, high.
+
+    while every Flash Lite takes it. So a level this model does not have is
+    raised to the cheapest one it does rather than sent and refused — a default
+    that gets faster where it can is worth having, and a default that 400s
+    somebody's turn is not.
+    """
+    if level not in THINKING_LEVELS:
+        return None
+    if level == "minimal" and "lite" not in model.lower():
+        return "low"
+    return level
+
+
 def build_body(
     *,
     model: str,
@@ -166,7 +207,13 @@ def build_body(
     if tools:
         body["tools"] = list(tools)
     if thinking_level:
-        body["generation_config"] = {"thinking_level": thinking_level}
+        # Rejected outright by the API if it is not one of these — a 400 that
+        # kills the whole turn for a typo in a query string. The four are what
+        # `generation_config.thinking_level` accepts; anything else is dropped
+        # and the model's own default applies.
+        level = supported_level(model, thinking_level)
+        if level:
+            body["generation_config"] = {"thinking_level": level}
     if previous_interaction_id:
         body["previous_interaction_id"] = previous_interaction_id
     return body
@@ -288,9 +335,20 @@ async def stream_interaction(
 
         elif kind == "error":
             error = _as_dict(raw.get("error"))
+            # `code` is not always a number. A mid-stream failure carries
+            # `"code": "api_error"`, and `int()` on that raised a ValueError
+            # *inside the raise* — so the exception that surfaced was
+            # "invalid literal for int() with base 10: 'api_error'" and Google's
+            # actual message was thrown away. Every mid-stream failure this app
+            # has ever had was reported as a bug in this line.
+            code = error.get("code")
+            try:
+                status = int(code)
+            except (TypeError, ValueError):
+                status = 500
             raise GeminiError(
                 str(error.get("message") or "The model reported an error mid-stream."),
-                int(error.get("code") or 500),
+                status,
                 True,
             )
 
