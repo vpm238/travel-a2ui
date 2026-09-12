@@ -79,7 +79,7 @@ async function settledOn(label) {
 
 console.log('The framework a traveller chose decides whether there is a microphone.\n');
 
-check('opens on the Interactions runtime', await chosen(), 'RUNTIME Cloudflare Worker ▾');
+check('opens on the Interactions runtime', await chosen(), 'RUNTIME Python server ▾');
 check('which has no microphone', await mics(), 0);
 
 await page.locator('button:has-text("RUNTIME")').first().click();
@@ -144,11 +144,11 @@ check(
 
 // Back again: the microphone has to leave with the framework that owns it.
 await page.locator('button:has-text("RUNTIME")').first().click();
-await page.waitForSelector('text=Cloudflare Worker', { timeout: 10000 });
-await page.locator('button', { hasText: 'Cloudflare Worker' }).first().click();
-await settledOn('Cloudflare Worker');
+await page.waitForSelector('text=Python server', { timeout: 10000 });
+await page.locator('button', { hasText: 'Python server' }).first().click();
+await settledOn('Python server');
 
-check('switches back', await chosen(), 'RUNTIME Cloudflare Worker ▾');
+check('switches back', await chosen(), 'RUNTIME Python server ▾');
 check('and the microphone goes with it', await mics(), 0);
 
 await browser.close();

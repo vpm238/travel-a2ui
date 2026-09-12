@@ -356,14 +356,20 @@ export function useAgent() {
     try {
       const stored = readStored(BACKEND_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as { id: BackendId; origin: string };
+        const parsed = JSON.parse(stored) as { id: BackendId | 'worker'; origin: string };
         setApiOrigin(parsed.origin ?? '');
-        return parsed;
+        // `worker` is what this runtime was called before the agent loop moved
+        // off Cloudflare. Somebody who used the app then still has it in local
+        // storage, and an id the server no longer advertises matches nothing —
+        // which showed up as a runtime chip reading "worker" rather than a
+        // label. Read the old spelling, keep the new one.
+        const id: BackendId = parsed.id === 'worker' ? 'python' : parsed.id;
+        return { ...parsed, id };
       }
     } catch {
-      /* fall through to the Worker, which is always there */
+      /* fall through to the server this page came from, which is always there */
     }
-    return { id: 'worker', origin: getApiOrigin() };
+    return { id: 'python', origin: getApiOrigin() };
   });
   const [backendError, setBackendError] = useState<string | null>(null);
 

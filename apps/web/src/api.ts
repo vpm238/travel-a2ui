@@ -194,9 +194,15 @@ export function clientHints(): ChatRequest['client'] {
  * components, the catalog, the skills and this front end are one build, and the
  * thing running the agent loop underneath is the traveller's choice.
  *
- *   worker  Gemini Interactions API, driven from the Cloudflare Worker this app
- *           is served from. A request/response loop at the edge, on the
- *           traveller's own key, calling the travel tools directly. Typed.
+ *   python  Gemini Interactions API, driven from the Python server this app is
+ *           served from. A request/response loop on the traveller's own key,
+ *           calling the travel tools directly. Typed.
+ *
+ *           Named `worker` until the agent loop moved off Cloudflare, and the
+ *           rename was overdue: the id is what the client asks the server for,
+ *           the server had already been advertising `python`, and nothing
+ *           matched — so the runtime chip fell through to printing the raw id
+ *           and read "worker" to anybody looking at it.
  *
  *   live    Gemini Live API, relayed through the same session Durable Object.
  *           A bidirectional audio session Google drives; the traveller can
@@ -223,7 +229,7 @@ export function clientHints(): ChatRequest['client'] {
  * single round, so a flights-and-hotels turn was two rounds either way — 5.2s
  * against 4.4s, for the sandbox start. Kept in the history, not in the product.
  */
-export type BackendId = 'worker' | 'live';
+export type BackendId = 'python' | 'live';
 
 export interface BackendOption {
   id: BackendId;
