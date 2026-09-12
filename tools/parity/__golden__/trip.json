@@ -1654,7 +1654,10 @@
           "startDate": "2027-04-12",
           "endDate": "2027-04-19",
           "travelers": 2,
-          "selectedHotel": "h_MAD_1"
+          "selectedHotel": "h_MAD_1",
+          "selectedFlight": "IB426",
+          "flightPrice": 352,
+          "nightlyPrice": 140
         }
       ],
       "stayStatus": {

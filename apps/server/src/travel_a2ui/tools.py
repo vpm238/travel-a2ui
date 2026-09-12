@@ -251,17 +251,41 @@ def _effective_trip(args: dict[str, Any], context: ToolContext) -> dict[str, Any
     )
 
 
+def _nights_between(start: Any, end: Any) -> int:
+    """Nights between two ISO dates, or 0 when either is missing or wrong-way."""
+    if not isinstance(start, str) or not isinstance(end, str):
+        return 0
+    try:
+        first = _dt.date.fromisoformat(start[:10])
+        last = _dt.date.fromisoformat(end[:10])
+    except ValueError:
+        return 0
+    return max(0, (last - first).days)
+
+
 def _estimate(
     destination: str,
     travelers: int | None,
     nights: int | None,
     flight_price: float | None,
     nightly_price: float | None,
+    legs: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """What a trip comes to, line by line.
 
     Arithmetic over numbers the caller already has, so it queries nothing and
     stays here rather than behind the provider interface.
+
+    **A trip with stops is costed stop by stop.** This used to take one fare,
+    one party size and one destination and multiply: a San Francisco → Chicago →
+    New York → home trip where a second person joins in Chicago came out as one
+    hop for one person, and the total was confidently, invisibly wrong. Every
+    hop has its own ticket and its own number of people on it; every stop that
+    needs a bed has its own nights. So each is a line, and the total is their
+    sum.
+
+    A single-stop trip produces exactly what it did before, which is what keeps
+    the goldens meaningful.
     """
     from .providers.fixture import _js_round, _money, _rng, _seed, code_for_seed
 
@@ -274,8 +298,78 @@ def _estimate(
     code = code_for_seed(destination)
     random = _rng(_seed(f"estimate-{code}-{people}-{stay_nights}"))
 
-    flight = (flight_price if flight_price is not None else 380 + random() * 180) * people
-    stay = (nightly_price if nightly_price is not None else 140 + random() * 90) * stay_nights
+    fallback_fare = 380 + random() * 180
+    fallback_nightly = 140 + random() * 90
+
+    hops = list(legs or [])
+    if len(hops) > 1:
+        # Stop by stop. Each hop's own fare and its own party; each stop's own
+        # nights, and only where somebody is actually sleeping.
+        flight = 0.0
+        stay = 0.0
+        food = 0.0
+        lines = []
+        for index, leg in enumerate(hops):
+            party = max(1, int(leg.get("travelers") or people))
+            fare = leg.get("flightPrice")
+            fare = float(fare) if fare is not None else (
+                float(flight_price) if index == 0 and flight_price is not None else fallback_fare
+            )
+            leg_flight = fare * party
+            flight += leg_flight
+            lines.append(
+                {
+                    "label": (
+                        f"{leg.get('origin') or '?'} → {leg.get('destination') or '?'} "
+                        f"({party} traveler{'' if party == 1 else 's'})"
+                    ),
+                    "amount": _money(leg_flight, currency),
+                    "note": "fare" if leg.get("flightPrice") is not None else "estimated",
+                }
+            )
+
+            leg_nights = _nights_between(leg.get("startDate"), leg.get("endDate"))
+            if leg.get("needsStay") is False or not leg_nights:
+                continue
+            rate = leg.get("nightlyPrice")
+            rate = float(rate) if rate is not None else (
+                float(nightly_price) if index == 0 and nightly_price is not None else fallback_nightly
+            )
+            leg_stay = rate * leg_nights
+            stay += leg_stay
+            food += 55 * party * leg_nights
+            lines.append(
+                {
+                    "label": (
+                        f"{leg.get('destination')}, {leg_nights} "
+                        f"night{'' if leg_nights == 1 else 's'}"
+                    ),
+                    "amount": _money(leg_stay, currency),
+                    "note": "nightly rate" if leg.get("nightlyPrice") is not None else "estimated",
+                }
+            )
+
+        nights_total = sum(
+            _nights_between(leg.get("startDate"), leg.get("endDate"))
+            for leg in hops
+            if leg.get("needsStay") is not False
+        )
+        food = food or 55 * people * (nights_total + 1)
+        local = 24 * (nights_total + len(hops))
+        lines.append({"label": "Food and drink", "amount": _money(food, currency), "note": "estimated"})
+        lines.append(
+            {"label": "Local transport", "amount": _money(local, currency), "note": "metro and taxis"}
+        )
+        total = flight + stay + food + local
+        return {
+            "lines": lines,
+            "total": _money(total, currency),
+            "totalValue": _js_round(total),
+            "currency": currency,
+        }
+
+    flight = (flight_price if flight_price is not None else fallback_fare) * people
+    stay = (nightly_price if nightly_price is not None else fallback_nightly) * stay_nights
     food = 55 * people * (stay_nights + 1)
     local = 24 * (stay_nights + 1)
 
@@ -436,6 +530,7 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
             stay_nights,
             _num(args.get("flightPrice")) or trip.get("flightPrice"),
             _num(args.get("nightlyPrice")) or trip.get("nightlyPrice"),
+            model.stops(trip),
         )
         return (
             {

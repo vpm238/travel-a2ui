@@ -119,3 +119,122 @@ class TestGrounding:
 
         for tool in voice_tools():
             assert "name" in tool and "parameters" in tool
+
+
+class TestATripWithStopsIsCostedStopByStop:
+    """One fare times one party size is the wrong total for a real trip.
+
+    `estimate_cost` took the trip's single `flightPrice`, its single
+    `travelers` and its single destination and multiplied. A San Francisco →
+    Chicago → New York → home trip where a second person joins in Chicago came
+    out as one hop for one person: three tickets missing, one of them for two
+    people, and the number looked exactly as authoritative as a right one.
+    """
+
+    TRIP = {
+        "origin": "SFO",
+        "destination": "Chicago",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-14",
+        "travelers": 1,
+        "selectedFlight": "UA1",
+        "flightPrice": 210,
+        "nightlyPrice": 180,
+        "legs": [
+            {
+                "destination": "New York",
+                "startDate": "2027-04-14",
+                "endDate": "2027-04-18",
+                "selectedFlight": "B62",
+                "flightPrice": 160,
+                "nightlyPrice": 260,
+                "travelers": 2,
+            },
+            {
+                "destination": "SFO",
+                "startDate": "2027-04-18",
+                "endDate": "2027-04-18",
+                "selectedFlight": "UA9",
+                "flightPrice": 320,
+                "travelers": 2,
+                "needsStay": False,
+            },
+        ],
+    }
+
+    def _lines(self):
+        import asyncio
+
+        from travel_a2ui import trip as model
+        from travel_a2ui.providers.fixture import FixtureProvider
+        from travel_a2ui.tools import ToolContext, run_tool
+
+        trip = model.normalize(self.TRIP)
+        context = ToolContext(
+            trip=trip, provider=FixtureProvider(), save=lambda patch: None, today="2027-03-01"
+        )
+        out, is_error = asyncio.run(run_tool("estimate_cost", {}, context))
+        assert not is_error
+        return out
+
+    def test_every_hop_is_its_own_line(self):
+        out = self._lines()
+        labels = [line["label"] for line in out["lines"]]
+        assert any("SFO → Chicago" in label for label in labels)
+        assert any("Chicago → New York" in label for label in labels)
+        assert any("New York → SFO" in label for label in labels)
+
+    def test_a_hop_carries_the_party_that_is_on_it(self):
+        out = self._lines()
+        first = next(line for line in out["lines"] if "SFO → Chicago" in line["label"])
+        later = next(line for line in out["lines"] if "Chicago → New York" in line["label"])
+        assert "1 traveler" in first["label"]
+        assert "2 travelers" in later["label"]
+        # 160 x 2, not 160 x 1 and not 210 x 2.
+        assert later["amount"] == "$320"
+
+    def test_the_first_hop_uses_the_trip_s_own_fare(self):
+        """The flat fields *are* the first leg; they are flat because most
+        trips have one."""
+        out = self._lines()
+        first = next(line for line in out["lines"] if "SFO → Chicago" in line["label"])
+        assert first["amount"] == "$210"
+        assert first["note"] == "fare", "priced, not guessed at"
+
+    def test_a_stop_nobody_sleeps_at_has_no_bed_in_it(self):
+        out = self._lines()
+        assert not any(line["label"].startswith("SFO,") for line in out["lines"])
+
+    def test_each_stay_is_its_own_nights_at_its_own_rate(self):
+        out = self._lines()
+        chicago = next(line for line in out["lines"] if line["label"].startswith("Chicago,"))
+        york = next(line for line in out["lines"] if line["label"].startswith("New York,"))
+        assert chicago["amount"] == "$360", "2 nights at 180"
+        assert york["amount"] == "$1,040", "4 nights at 260"
+
+    def test_a_one_stop_trip_is_unchanged(self):
+        """Which is what keeps the goldens above meaningful."""
+        import asyncio
+
+        from travel_a2ui import trip as model
+        from travel_a2ui.providers.fixture import FixtureProvider
+        from travel_a2ui.tools import ToolContext, run_tool
+
+        trip = model.normalize(
+            {
+                "origin": "JFK",
+                "destination": "Madrid",
+                "startDate": "2027-04-12",
+                "endDate": "2027-04-19",
+                "travelers": 2,
+                "flightPrice": 400,
+                "nightlyPrice": 150,
+            }
+        )
+        context = ToolContext(
+            trip=trip, provider=FixtureProvider(), save=lambda patch: None, today="2027-03-01"
+        )
+        out, _ = asyncio.run(run_tool("estimate_cost", {}, context))
+        labels = [line["label"] for line in out["lines"]]
+        assert labels[0].startswith("Flights ("), "still the simple shape"
+        assert labels[1].startswith("Stay (")

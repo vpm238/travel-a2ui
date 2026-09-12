@@ -632,10 +632,18 @@ def stops(trip: Trip) -> list[Leg]:
         travelers = leg.get("travelers") if leg.get("travelers") is not None else trip.get("travelers")
         if travelers is not None:
             out["travelers"] = travelers
-        # The trip's own hotel choice belongs to the first stop, which is what
-        # the flat fields describe.
-        if index == 0 and leg.get("selectedHotel") is None and trip.get("selectedHotel"):
-            out["selectedHotel"] = trip["selectedHotel"]
+        # The trip's own choices belong to the first stop, which is what the
+        # flat fields describe.
+        #
+        # `selectedHotel` was carried and the other three were not, so the first
+        # hop of a multi-stop trip looked like the one leg nobody had priced:
+        # every other leg reported its own fare and Chicago reported none, and
+        # anything totalling the trip either guessed at it or dropped it. The
+        # flat fields *are* the first leg; they are flat because most trips have
+        # only one.
+        for field in ("selectedHotel", "selectedFlight", "flightPrice", "nightlyPrice"):
+            if index == 0 and leg.get(field) is None and trip.get(field) is not None:
+                out[field] = trip[field]
         resolved.append(out)
 
     return resolved
