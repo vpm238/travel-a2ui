@@ -23,7 +23,7 @@ import { consumeKeyFromUrl } from './apiKey.js';
  *
  * Deliberately opaque. The client used to import the real field list and the
  * planner from the trip package and decide for itself when a panel was stale;
- * that logic moved to the server so a Flutter or Swift client would get a
+ * that logic moved to the server so the Flutter client would get a
  * panel too, and the imports outlived it — `TRIP_KEYS` and `plan` were still
  * being pulled in and never called. Naming the shape here is the honest
  * version: this is a renderer, and it does not know what a trip is.
@@ -234,7 +234,7 @@ function newSessionId(): string {
  *
  * The server does it now, in A2UI's own words: `dataModel` on the surface it
  * creates, `updateDataModel` for the panels already on screen. Both are messages
- * every renderer applies, so an iOS client gets pre-filled controls and a live
+ * every renderer applies, so the Flutter client gets pre-filled controls and a live
  * panel with no travel-specific code at all — and this app forgets what a trip
  * is, which is the point.
  */
@@ -255,7 +255,7 @@ function newSessionId(): string {
  * This used to be a sentence — `[interface] search_flights (origin: "JFK")` —
  * assembled here and parsed by nobody. It looked harmless and was not: a
  * synthetic prose format is an application protocol layered on top of A2UI, and
- * a Swift or Kotlin renderer has no idea it exists. What every A2UI renderer
+ * a second renderer has no idea it exists. What every A2UI renderer
  * *does* already do is resolve an action's bound context and hand it over,
  * which is this, with no host in the middle inventing anything.
  *

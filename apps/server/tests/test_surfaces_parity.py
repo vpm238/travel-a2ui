@@ -204,14 +204,20 @@ class TestTheRefusals:
         assert "Indicative" in surface.express
         assert "Indicative" in surface.summary
 
-    def test_an_unknown_destination_offers_alternatives(self) -> None:
-        with pytest.raises(Exception) as raised:
-            run("show_flight_options",
-                {"destination": "Atlantis", "origin": "JFK", "date": "2027-04-12"})
-        message = str(raised.value)
-        assert "Offer these as choices" in message
-        assert "invent an airport code" in message
-        assert "ATL" not in message, "and does not invent one itself"
+    def test_a_place_nobody_wrote_down_is_drawn_like_any_other(self) -> None:
+        """A demo that refuses Atlantis shows a visitor nothing.
+
+        Nine cities have hand-written detail; everywhere else is generated from
+        the name, deterministically, and labelled sample data like every other
+        figure here. The refusals that remain are for a query naming no place at
+        all, and for a trip nobody has described yet — see the case below.
+        """
+        surface = run(
+            "show_flight_options",
+            {"destination": "Atlantis", "origin": "JFK", "date": "2027-04-12"},
+        )
+        assert surface.express
+        assert "Atlantis" in surface.summary or "ATL" in surface.express
 
 
 class TestCatalogFunctionsAreClientSide:

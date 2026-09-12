@@ -80,14 +80,16 @@
       "surfaceId": "mcp-flights",
       "summary": "4 flight option(s), JFK → Madrid, cheapest $244. Sample data. Indicative — no date was given."
     },
-    "flights: a destination nobody knows": {
+    "flights: a destination nobody wrote down": {
       "tool": "show_flight_options",
       "args": {
         "destination": "Atlantis",
         "origin": "JFK",
         "date": "2027-04-12"
       },
-      "error": "This demo does not have data for “Atlantis”. It covers 9 cities. Offer these as choices: Madrid, Spain, Lisbon, Portugal, Paris, France, Tokyo, Japan, Mexico City, Mexico, New York, United States, Chicago, United States, San Francisco, United States, Athens, Greece. Do not substitute a different city, invent an airport code, or draw an empty list."
+      "express": "surface(\"mcp-flights\")\nhead = Text(\"JFK → Atlantis · from 12 Apr\", variant=\"h3\")\nf0 = FlightOption(\"Lufthansa\", \"20:50\", \"09:01 +1\", \"JFK\", \"ATL\", \"$435\", Event(\"select_flight\", {id: \"LH1617\", price: \"$435\"}), duration=\"12h 11m\", stops=\"1 stop · FRA\", flightNumber=\"LH234\", cabin=\"economy\", badge=\"Cheapest\")\nf1 = FlightOption(\"Iberia\", \"11:24\", \"19:12\", \"JFK\", \"ATL\", \"$449\", Event(\"select_flight\", {id: \"IB5830\", price: \"$449\"}), duration=\"7h 48m\", stops=\"Nonstop\", flightNumber=\"IB200\", cabin=\"economy\", badge=\"Fastest\")\nf2 = FlightOption(\"TAP Air Portugal\", \"16:53\", \"05:04 +1\", \"JFK\", \"ATL\", \"$471\", Event(\"select_flight\", {id: \"TP8344\", price: \"$471\"}), duration=\"12h 11m\", stops=\"1 stop · FRA\", flightNumber=\"TP731\", cabin=\"economy\")\nf3 = FlightOption(\"Delta\", \"14:35\", \"23:33\", \"JFK\", \"ATL\", \"$486\", Event(\"select_flight\", {id: \"DL6373\", price: \"$486\"}), duration=\"8h 58m\", stops=\"Nonstop\", flightNumber=\"DL446\", cabin=\"economy\")\nfoot = Text(\"4 option(s) for JFK → ATL on 2027-04-12. · Sample data\", variant=\"caption\")\nroot = Column([head, f0, f1, f2, f3, foot])",
+      "surfaceId": "mcp-flights",
+      "summary": "4 flight option(s), JFK → Atlantis · from 12 Apr, cheapest $435. Sample data."
     },
     "hotels: inline": {
       "tool": "show_hotel_options",
@@ -121,13 +123,15 @@
       "surfaceId": "mcp-hotels",
       "summary": "4 stay(s) in Paris from €181 / night. Sample data."
     },
-    "hotels: a destination nobody knows": {
+    "hotels: a destination nobody wrote down": {
       "tool": "show_hotel_options",
       "args": {
         "destination": "Atlantis",
         "nights": 3
       },
-      "error": "This demo does not have data for “Atlantis”. It covers 9 cities. Offer these as choices: Madrid, Spain, Lisbon, Portugal, Paris, France, Tokyo, Japan, Mexico City, Mexico, New York, United States, Chicago, United States, San Francisco, United States, Athens, Greece. Do not substitute a different city, invent an airport code, or draw an empty list."
+      "express": "surface(\"mcp-hotels\")\nhead = Text(\"Stays in Atlantis\", variant=\"h3\")\nh0 = HotelCard(\"The Alta\", \"$97 / night\", Event(\"select_hotel\", {id: \"h_ATL_4\", name: \"The Alta\"}), neighborhood=\"Riverside\", rating=\"4.5 (222)\", amenities=[\"Rooftop\", \"Bikes\", \"Late check-out\", \"Laundry\"], badge=\"Best value\")\nh1 = HotelCard(\"Casa Miradouro\", \"$116 / night\", Event(\"select_hotel\", {id: \"h_ATL_0\", name: \"Casa Miradouro\"}), neighborhood=\"Old Town\", rating=\"4.7 (1488)\", amenities=[\"Late check-out\", \"Breakfast\", \"Rooftop\", \"Air-con\"])\nh2 = HotelCard(\"Villa Aurora\", \"$126 / night\", Event(\"select_hotel\", {id: \"h_ATL_3\", name: \"Villa Aurora\"}), neighborhood=\"The Market Quarter\", rating=\"4.5 (1466)\", amenities=[\"Late check-out\", \"Laundry\"])\nh3 = HotelCard(\"Residencia Barrio\", \"$152 / night\", Event(\"select_hotel\", {id: \"h_ATL_2\", name: \"Residencia Barrio\"}), neighborhood=\"The Market Quarter\", rating=\"4.0 (357)\", amenities=[\"Kitchenette\", \"Late check-out\"])\nfoot = Text(\"4 stay(s) in Atlantis for 3 night(s). · Sample data\", variant=\"caption\")\nroot = Column([head, h0, h1, h2, h3, foot])",
+      "surfaceId": "mcp-hotels",
+      "summary": "4 stay(s) in Atlantis from $97 / night. Sample data."
     },
     "controls: with a destination and dates": {
       "tool": "show_trip_controls",
@@ -194,12 +198,14 @@
       "surfaceId": "mcp-itinerary",
       "summary": "A 2-day plan for Madrid: Dense, walkable and late-running. The art is world class and the eating starts at 21:00."
     },
-    "itinerary: a destination nobody knows": {
+    "itinerary: a destination nobody wrote down": {
       "tool": "show_itinerary",
       "args": {
         "destination": "Atlantis"
       },
-      "error": "No itinerary data for 'Atlantis'."
+      "express": "surface(\"mcp-itinerary\")\nhead = Text(\"Atlantis\", variant=\"h2\")\na0_0 = ActivityItem(\"The city museum\", \"10:00\", category=\"sight\", note=\"Free on the first Sunday\")\na0_1 = ActivityItem(\"The covered market\", \"16:00\", category=\"food\", note=\"Lunch counters at the back, not the front\")\nday0 = ItineraryDay(\"Day 1\", [a0_0, a0_1], date=\"Mon, 01 Mar\", summary=\"Arrive and settle in\")\na1_0 = ActivityItem(\"The old quarter on foot\", \"10:00\", category=\"sight\", note=\"An hour, unhurried, before the tour groups\")\na1_1 = ActivityItem(\"The park above the town\", \"16:00\", category=\"outdoors\", note=\"Best light in the last hour of daylight\")\nday1 = ItineraryDay(\"Day 2\", [a1_0, a1_1], date=\"Tue, 02 Mar\", summary=\"A full day out\")\na2_0 = ActivityItem(\"An evening at the waterfront\", \"10:00\", category=\"free\", note=\"Where everyone else goes, and rightly\")\na2_1 = ActivityItem(\"Dinner, late\", \"16:00\", category=\"food\", note=\"Book somewhere near the hotel\")\nday2 = ItineraryDay(\"Day 3\", [a2_0, a2_1], date=\"Wed, 03 Mar\", summary=\"A full day out\")\nroot = Column([head, day0, day1, day2])",
+      "surfaceId": "mcp-itinerary",
+      "summary": "A 3-day plan for Atlantis: Water on one side, hills on the other, and the food better than the guidebooks say."
     },
     "dashboard: a trip in progress": {
       "tool": "show_trip_dashboard",
@@ -298,14 +304,16 @@
       "summary": "A custom interface.",
       "surfaceId": "mcp"
     },
-    "flights: an airport this deployment does not serve": {
+    "flights: a departure airport nobody wrote down": {
       "tool": "show_flight_options",
       "args": {
         "destination": "Lisbon",
         "origin": "BOS",
         "date": "2027-04-12"
       },
-      "error": "There are no flights out of BOS here. Offer these as choices: New York (JFK), Chicago (ORD), San Francisco (SFO), Denver (DEN), Los Angeles (LAX), Miami (MIA), Mexico City (MEX), São Paulo (GRU), London (LHR), Paris (CDG), Madrid (MAD), Lisbon (LIS), Athens (ATH), Frankfurt (FRA), Dubai (DXB), Delhi (DEL), Singapore (SIN), Hong Kong (HKG), Tokyo (NRT), Sydney (SYD), Johannesburg (JNB). Do not substitute a different city, invent an airport code, or draw an empty list."
+      "express": "surface(\"mcp-flights\")\nhead = Text(\"BOS → Lisbon · from 12 Apr\", variant=\"h3\")\nf0 = FlightOption(\"American\", \"19:05\", \"07:11 +1\", \"BOS\", \"LIS\", \"$360\", Event(\"select_flight\", {id: \"AA7289\", price: \"$360\"}), duration=\"12h 6m\", stops=\"1 stop · CDG\", flightNumber=\"AA572\", cabin=\"economy\", badge=\"Cheapest\")\nf1 = FlightOption(\"Lufthansa\", \"13:44\", \"21:54\", \"BOS\", \"LIS\", \"$374\", Event(\"select_flight\", {id: \"LH4439\", price: \"$374\"}), duration=\"8h 10m\", stops=\"Nonstop\", flightNumber=\"LH739\", cabin=\"economy\")\nf2 = FlightOption(\"Delta\", \"19:02\", \"03:50 +1\", \"BOS\", \"LIS\", \"$396\", Event(\"select_flight\", {id: \"DL8301\", price: \"$396\"}), duration=\"8h 48m\", stops=\"Nonstop\", flightNumber=\"DL399\", cabin=\"economy\")\nf3 = FlightOption(\"TAP Air Portugal\", \"06:22\", \"14:45\", \"BOS\", \"LIS\", \"$444\", Event(\"select_flight\", {id: \"TP5497\", price: \"$444\"}), duration=\"8h 23m\", stops=\"Nonstop\", flightNumber=\"TP859\", cabin=\"economy\")\nfoot = Text(\"4 option(s) for BOS → LIS on 2027-04-12. · Sample data\", variant=\"caption\")\nroot = Column([head, f0, f1, f2, f3, foot])",
+      "surfaceId": "mcp-flights",
+      "summary": "4 flight option(s), BOS → Lisbon · from 12 Apr, cheapest $360. Sample data."
     }
   },
   "examples": {

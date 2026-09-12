@@ -273,28 +273,6 @@
     ],
     "currency": "USD"
   },
-  "flights: destination nobody knows": {
-    "ok": false,
-    "reason": "unknown-destination",
-    "provenance": {
-      "source": "fixture",
-      "live": false,
-      "label": "Sample data",
-      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
-    },
-    "message": "This demo does not have data for “Reykjavik”. It covers 9 cities.",
-    "recover": [
-      "Madrid, Spain",
-      "Lisbon, Portugal",
-      "Paris, France",
-      "Tokyo, Japan",
-      "Mexico City, Mexico",
-      "New York, United States",
-      "Chicago, United States",
-      "San Francisco, United States",
-      "Athens, Greece"
-    ]
-  },
   "flights: no departure city, and not asked to guess": {
     "ok": false,
     "reason": "unknown-origin",
@@ -525,28 +503,6 @@
     ],
     "currency": "EUR"
   },
-  "hotels: destination nobody knows": {
-    "ok": false,
-    "reason": "unknown-destination",
-    "provenance": {
-      "source": "fixture",
-      "live": false,
-      "label": "Sample data",
-      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
-    },
-    "message": "This demo does not have data for “Reykjavik”. It covers 9 cities.",
-    "recover": [
-      "Madrid, Spain",
-      "Lisbon, Portugal",
-      "Paris, France",
-      "Tokyo, Japan",
-      "Mexico City, Mexico",
-      "New York, United States",
-      "Chicago, United States",
-      "San Francisco, United States",
-      "Athens, Greece"
-    ]
-  },
   "weather: madrid in april": {
     "ok": true,
     "items": [
@@ -621,38 +577,216 @@
     "totalValue": 3500,
     "currency": "USD"
   },
-  "flights: an airport this deployment does not serve": {
-    "ok": false,
-    "reason": "unknown-origin",
+  "flights: a departure airport nobody wrote down": {
+    "ok": true,
+    "items": [
+      {
+        "id": "LH2234",
+        "airline": "Lufthansa",
+        "flightNumber": "LH850",
+        "origin": "BOS",
+        "destination": "LIS",
+        "departTime": "20:12",
+        "arriveTime": "08:01 +1",
+        "duration": "11h 49m",
+        "stops": "1 stop · FRA",
+        "price": "$370",
+        "priceValue": 370,
+        "cabin": "economy",
+        "badge": "Cheapest"
+      },
+      {
+        "id": "AF2868",
+        "airline": "Air France",
+        "flightNumber": "AF402",
+        "origin": "BOS",
+        "destination": "LIS",
+        "departTime": "10:21",
+        "arriveTime": "22:05",
+        "duration": "11h 44m",
+        "stops": "1 stop · LIS",
+        "price": "$414",
+        "priceValue": 414,
+        "cabin": "economy"
+      },
+      {
+        "id": "IB3174",
+        "airline": "Iberia",
+        "flightNumber": "IB655",
+        "origin": "BOS",
+        "destination": "LIS",
+        "departTime": "09:58",
+        "arriveTime": "18:17",
+        "duration": "8h 19m",
+        "stops": "Nonstop",
+        "price": "$431",
+        "priceValue": 431,
+        "cabin": "economy"
+      },
+      {
+        "id": "UA7819",
+        "airline": "United",
+        "flightNumber": "UA886",
+        "origin": "BOS",
+        "destination": "LIS",
+        "departTime": "07:58",
+        "arriveTime": "15:32",
+        "duration": "7h 34m",
+        "stops": "Nonstop",
+        "price": "$488",
+        "priceValue": 488,
+        "cabin": "economy",
+        "badge": "Fastest"
+      }
+    ],
     "provenance": {
       "source": "fixture",
       "live": false,
       "label": "Sample data",
       "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
     },
-    "message": "There are no flights out of BOS here.",
-    "recover": [
-      "New York (JFK)",
-      "Chicago (ORD)",
-      "San Francisco (SFO)",
-      "Denver (DEN)",
-      "Los Angeles (LAX)",
-      "Miami (MIA)",
-      "Mexico City (MEX)",
-      "São Paulo (GRU)",
-      "London (LHR)",
-      "Paris (CDG)",
-      "Madrid (MAD)",
-      "Lisbon (LIS)",
-      "Athens (ATH)",
-      "Frankfurt (FRA)",
-      "Dubai (DXB)",
-      "Delhi (DEL)",
-      "Singapore (SIN)",
-      "Hong Kong (HKG)",
-      "Tokyo (NRT)",
-      "Sydney (SYD)",
-      "Johannesburg (JNB)"
-    ]
+    "note": "4 option(s) for BOS → LIS.",
+    "relaxed": [],
+    "currency": "USD"
+  },
+  "flights: a destination nobody wrote down": {
+    "ok": true,
+    "items": [
+      {
+        "id": "TP5170",
+        "airline": "TAP Air Portugal",
+        "flightNumber": "TP576",
+        "origin": "JFK",
+        "destination": "REY",
+        "departTime": "17:53",
+        "arriveTime": "05:39 +1",
+        "duration": "11h 46m",
+        "stops": "1 stop · CDG",
+        "price": "$234",
+        "priceValue": 234,
+        "cabin": "economy",
+        "badge": "Cheapest"
+      },
+      {
+        "id": "AA7397",
+        "airline": "American",
+        "flightNumber": "AA344",
+        "origin": "JFK",
+        "destination": "REY",
+        "departTime": "06:36",
+        "arriveTime": "18:37",
+        "duration": "12h 1m",
+        "stops": "1 stop · LIS",
+        "price": "$280",
+        "priceValue": 280,
+        "cabin": "economy"
+      },
+      {
+        "id": "DL6190",
+        "airline": "Delta",
+        "flightNumber": "DL473",
+        "origin": "JFK",
+        "destination": "REY",
+        "departTime": "17:46",
+        "arriveTime": "01:50 +1",
+        "duration": "8h 4m",
+        "stops": "Nonstop",
+        "price": "$311",
+        "priceValue": 311,
+        "cabin": "economy"
+      },
+      {
+        "id": "AF3102",
+        "airline": "Air France",
+        "flightNumber": "AF772",
+        "origin": "JFK",
+        "destination": "REY",
+        "departTime": "18:21",
+        "arriveTime": "01:52 +1",
+        "duration": "7h 31m",
+        "stops": "Nonstop",
+        "price": "$347",
+        "priceValue": 347,
+        "cabin": "economy",
+        "badge": "Fastest"
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+    },
+    "note": "4 option(s) for JFK → REY.",
+    "relaxed": [],
+    "currency": "USD"
+  },
+  "hotels: a destination nobody wrote down": {
+    "ok": true,
+    "items": [
+      {
+        "id": "h_REY_1",
+        "name": "The Aurora",
+        "neighborhood": "The Lanes",
+        "rating": "4.0 (1489)",
+        "price": "$139 / night",
+        "priceValue": 139,
+        "amenities": [
+          "Air-con",
+          "Breakfast",
+          "Laundry",
+          "Kitchenette"
+        ],
+        "badge": "Best value"
+      },
+      {
+        "id": "h_REY_4",
+        "name": "Pensão Alta",
+        "neighborhood": "The Lanes",
+        "rating": "4.2 (1926)",
+        "price": "$244 / night",
+        "priceValue": 244,
+        "amenities": [
+          "Air-con",
+          "Breakfast",
+          "Bikes",
+          "Late check-out"
+        ]
+      },
+      {
+        "id": "h_REY_0",
+        "name": "Pensão Bruma",
+        "neighborhood": "Harbour",
+        "rating": "4.9 (200)",
+        "price": "$258 / night",
+        "priceValue": 258,
+        "amenities": [
+          "Bikes",
+          "Rooftop"
+        ]
+      },
+      {
+        "id": "h_REY_2",
+        "name": "Casa Nueve",
+        "neighborhood": "Harbour",
+        "rating": "4.3 (1381)",
+        "price": "$258 / night",
+        "priceValue": 258,
+        "amenities": [
+          "Breakfast",
+          "Kitchenette",
+          "Air-con"
+        ]
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+    },
+    "note": "4 stay(s) in Reykjavik for 4 night(s).",
+    "relaxed": [],
+    "currency": "USD"
   }
 }

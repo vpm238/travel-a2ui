@@ -3,7 +3,7 @@
  *
  * A2UI already has the canonical mechanism for submitting a form: a button
  * whose action declares a *context* of bound paths, which every renderer —
- * Web, Swift, Kotlin, Flutter — resolves against the data model and posts back.
+ * React and Flutter both — resolves against the data model and posts back.
  * Nothing client-side is needed to make that work, which is exactly why it is
  * the right mechanism: a host that diffs its own data model to work out what
  * changed has invented a second protocol that only it speaks.
@@ -161,7 +161,7 @@ export function bindCommitContext(messages: A2uiMessage[]): A2uiMessage[] {
   //
   // Adding one here rather than in the browser is what keeps the guarantee
   // portable. The old fix was a bar the React app drew for itself, which meant
-  // an iOS client shipped the dead end.
+  // the Flutter client shipped the dead end.
   for (const [surfaceId, paths] of editable) {
     if (paths.size === 0 || (buttons.get(surfaceId)?.length ?? 0) > 0) continue;
 

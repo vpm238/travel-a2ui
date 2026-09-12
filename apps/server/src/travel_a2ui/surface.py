@@ -10,7 +10,7 @@ because something that was *asked* of the model was sometimes not done:
 
 Doing them here rather than in the browser is the point. The old versions of
 the first and third lived in the React app, which meant the web client knew
-what a trip was and a Swift or Flutter client would have had to be taught the
+what a trip was and the Flutter client would have had to be taught the
 same things to behave the same way — and taught again every time the trip grew
 a field. The server already holds the trip and can say all of this in the
 protocol's own words, so a thin client gets a surface that is already right.
@@ -368,7 +368,7 @@ def bind_commit_context(messages: list[A2uiMessage]) -> list[A2uiMessage]:
     #
     # Adding one here rather than in the browser is what keeps the guarantee
     # portable. The old fix was a bar the React app drew for itself, which meant
-    # an iOS client shipped the dead end.
+    # the Flutter client shipped the dead end.
     for surface_id, paths in editable.items():
         if not paths or buttons.get(surface_id):
             continue

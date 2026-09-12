@@ -12,8 +12,8 @@ check-rule validators for a `checks=` argument this agent has never once written
 — was three times that.
 
 Pruning is a *server-side* operation on the catalog the model reads. Every
-renderer keeps its full component registry, so nothing about a Web, Swift or
-Kotlin client changes when the agent decides it will never draw a `Video`.
+renderer keeps its full component registry, so nothing about the React or the
+Flutter client changes when the agent decides it will never draw a `Video`.
 """
 
 from __future__ import annotations

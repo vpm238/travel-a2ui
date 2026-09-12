@@ -384,7 +384,7 @@
     },
     "saved": []
   },
-  "flights somewhere the agent does not know": {
+  "flights somewhere nobody wrote down": {
     "tool": "search_flights",
     "input": {
       "destination": "Atlantis"
@@ -396,27 +396,83 @@
       "travelers": 1
     },
     "result": {
-      "found": false,
-      "reason": "unknown-destination",
-      "message": "This demo does not have data for “Atlantis”. It covers 9 cities.",
-      "options": [
-        "Madrid, Spain",
-        "Lisbon, Portugal",
-        "Paris, France",
-        "Tokyo, Japan",
-        "Mexico City, Mexico",
-        "New York, United States",
-        "Chicago, United States",
-        "San Francisco, United States",
-        "Athens, Greece"
+      "flights": [
+        {
+          "id": "LH1617",
+          "airline": "Lufthansa",
+          "flightNumber": "LH234",
+          "origin": "JFK",
+          "destination": "ATL",
+          "departTime": "20:50",
+          "arriveTime": "09:01 +1",
+          "duration": "12h 11m",
+          "stops": "1 stop · FRA",
+          "price": "$435",
+          "priceValue": 435,
+          "cabin": "economy",
+          "badge": "Cheapest"
+        },
+        {
+          "id": "IB5830",
+          "airline": "Iberia",
+          "flightNumber": "IB200",
+          "origin": "JFK",
+          "destination": "ATL",
+          "departTime": "11:24",
+          "arriveTime": "19:12",
+          "duration": "7h 48m",
+          "stops": "Nonstop",
+          "price": "$449",
+          "priceValue": 449,
+          "cabin": "economy",
+          "badge": "Fastest"
+        },
+        {
+          "id": "TP8344",
+          "airline": "TAP Air Portugal",
+          "flightNumber": "TP731",
+          "origin": "JFK",
+          "destination": "ATL",
+          "departTime": "16:53",
+          "arriveTime": "05:04 +1",
+          "duration": "12h 11m",
+          "stops": "1 stop · FRA",
+          "price": "$471",
+          "priceValue": 471,
+          "cabin": "economy"
+        },
+        {
+          "id": "DL6373",
+          "airline": "Delta",
+          "flightNumber": "DL446",
+          "origin": "JFK",
+          "destination": "ATL",
+          "departTime": "14:35",
+          "arriveTime": "23:33",
+          "duration": "8h 58m",
+          "stops": "Nonstop",
+          "price": "$486",
+          "priceValue": 486,
+          "cabin": "economy"
+        }
       ],
+      "currency": "USD",
+      "note": "4 option(s) for JFK → ATL on 2027-04-12.",
       "provenance": {
         "source": "fixture",
         "live": false,
         "label": "Sample data",
         "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
       },
-      "instruction": "Say this in one short line and draw the options as choices the traveler can press. Do not substitute a different city, invent an airport code, or show an empty list."
+      "relaxed": [],
+      "searchedFor": {
+        "basis": "JFK → Atlantis · 12–19 Apr · 1 traveller",
+        "date": "2027-04-12",
+        "origin": "JFK",
+        "travelers": 1,
+        "cabin": "economy",
+        "indicative": false
+      }
     },
     "isError": false,
     "trip": {
@@ -848,7 +904,7 @@
     },
     "saved": []
   },
-  "hotels somewhere the agent does not know": {
+  "hotels somewhere nobody wrote down": {
     "tool": "search_hotels",
     "input": {
       "destination": "Atlantis",
@@ -856,27 +912,77 @@
     },
     "tripBefore": {},
     "result": {
-      "found": false,
-      "reason": "unknown-destination",
-      "message": "This demo does not have data for “Atlantis”. It covers 9 cities.",
-      "options": [
-        "Madrid, Spain",
-        "Lisbon, Portugal",
-        "Paris, France",
-        "Tokyo, Japan",
-        "Mexico City, Mexico",
-        "New York, United States",
-        "Chicago, United States",
-        "San Francisco, United States",
-        "Athens, Greece"
+      "hotels": [
+        {
+          "id": "h_ATL_4",
+          "name": "The Alta",
+          "neighborhood": "Riverside",
+          "rating": "4.5 (222)",
+          "price": "$97 / night",
+          "priceValue": 97,
+          "amenities": [
+            "Rooftop",
+            "Bikes",
+            "Late check-out",
+            "Laundry"
+          ],
+          "badge": "Best value"
+        },
+        {
+          "id": "h_ATL_0",
+          "name": "Casa Miradouro",
+          "neighborhood": "Old Town",
+          "rating": "4.7 (1488)",
+          "price": "$116 / night",
+          "priceValue": 116,
+          "amenities": [
+            "Late check-out",
+            "Breakfast",
+            "Rooftop",
+            "Air-con"
+          ]
+        },
+        {
+          "id": "h_ATL_3",
+          "name": "Villa Aurora",
+          "neighborhood": "The Market Quarter",
+          "rating": "4.5 (1466)",
+          "price": "$126 / night",
+          "priceValue": 126,
+          "amenities": [
+            "Late check-out",
+            "Laundry"
+          ]
+        },
+        {
+          "id": "h_ATL_2",
+          "name": "Residencia Barrio",
+          "neighborhood": "The Market Quarter",
+          "rating": "4.0 (357)",
+          "price": "$152 / night",
+          "priceValue": 152,
+          "amenities": [
+            "Kitchenette",
+            "Late check-out"
+          ]
+        }
       ],
+      "currency": "USD",
+      "note": "4 stay(s) in Atlantis for 3 night(s).",
       "provenance": {
         "source": "fixture",
         "live": false,
         "label": "Sample data",
         "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
       },
-      "instruction": "Say this in one short line and draw the options as choices the traveler can press. Do not substitute a different city, invent an airport code, or show an empty list."
+      "relaxed": [],
+      "searchedFor": {
+        "basis": "Atlantis",
+        "nights": 3,
+        "travelers": null,
+        "checkIn": null,
+        "indicative": false
+      }
     },
     "isError": false,
     "trip": {},
@@ -1289,26 +1395,58 @@
     "trip": {},
     "saved": []
   },
-  "a destination nobody knows": {
+  "a destination nobody wrote down": {
     "tool": "get_destination",
     "input": {
       "destination": "Atlantis"
     },
     "tripBefore": {},
     "result": {
-      "found": false,
-      "message": "No detailed guide for 'Atlantis'.",
-      "available": [
-        "Madrid",
-        "Lisbon",
-        "Paris",
-        "Tokyo",
-        "Mexico City",
-        "New York",
-        "Chicago",
-        "San Francisco",
-        "Athens"
-      ]
+      "found": true,
+      "airport": "ATL",
+      "city": "Atlantis",
+      "country": "",
+      "currency": "USD",
+      "bestMonths": "March–May, October",
+      "summary": "Water on one side, hills on the other, and the food better than the guidebooks say.",
+      "aliases": [
+        "atlantis"
+      ],
+      "neighbourhoods": [
+        "Old Town",
+        "Riverside",
+        "The Market Quarter",
+        "Hillside",
+        "The Docks"
+      ],
+      "highlights": [
+        {
+          "name": "The city museum",
+          "category": "sight",
+          "note": "Free on the first Sunday"
+        },
+        {
+          "name": "The covered market",
+          "category": "food",
+          "note": "Lunch counters at the back, not the front"
+        },
+        {
+          "name": "The old quarter on foot",
+          "category": "sight",
+          "note": "An hour, unhurried, before the tour groups"
+        },
+        {
+          "name": "The park above the town",
+          "category": "outdoors",
+          "note": "Best light in the last hour of daylight"
+        },
+        {
+          "name": "An evening at the waterfront",
+          "category": "free",
+          "note": "Where everyone else goes, and rightly"
+        }
+      ],
+      "invented": true
     },
     "isError": false,
     "trip": {},
@@ -1368,34 +1506,53 @@
     "trip": {},
     "saved": []
   },
-  "weather somewhere the agent does not know": {
+  "weather somewhere nobody wrote down": {
     "tool": "get_weather",
     "input": {
       "destination": "Atlantis"
     },
     "tripBefore": {},
     "result": {
-      "found": false,
-      "reason": "unknown-destination",
-      "message": "This demo does not have data for “Atlantis”. It covers 9 cities.",
-      "options": [
-        "Madrid, Spain",
-        "Lisbon, Portugal",
-        "Paris, France",
-        "Tokyo, Japan",
-        "Mexico City, Mexico",
-        "New York, United States",
-        "Chicago, United States",
-        "San Francisco, United States",
-        "Athens, Greece"
+      "place": "Atlantis",
+      "days": [
+        {
+          "day": "Sat",
+          "high": "23°",
+          "low": "16°",
+          "condition": "sun"
+        },
+        {
+          "day": "Sun",
+          "high": "24°",
+          "low": "15°",
+          "condition": "fog"
+        },
+        {
+          "day": "Mon",
+          "high": "24°",
+          "low": "16°",
+          "condition": "sun"
+        },
+        {
+          "day": "Tue",
+          "high": "23°",
+          "low": "15°",
+          "condition": "fog"
+        },
+        {
+          "day": "Wed",
+          "high": "22°",
+          "low": "17°",
+          "condition": "cloud"
+        }
       ],
+      "note": "Mostly dry; a light jacket is enough.",
       "provenance": {
         "source": "fixture",
         "live": false,
         "label": "Sample data",
         "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
-      },
-      "instruction": "Say this in one short line and draw the options as choices the traveler can press. Do not substitute a different city, invent an airport code, or show an empty list."
+      }
     },
     "isError": false,
     "trip": {},

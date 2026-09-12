@@ -209,7 +209,7 @@ is a guarantee.
 | Trip values pre-fill every surface | **the server** (`createSurface.dataModel`) | Prompting a model to remember state it cannot see is how it forgets — and doing it in the browser is how only one client gets it right. |
 | A panel stays current as the trip moves | **the server** (`updateDataModel`) | Same reason. It is a message every renderer already applies, so it costs a mobile client nothing. |
 | Everything on a surface is sent together | **the server** (`bindCommitContext`) | Every path the editors write to is bound into the commit button before the surface leaves the Worker. |
-| A card of editors is never a dead end | **the server** (`bindCommitContext`) | A surface with editors and no button gets one. This used to be a bar the React app drew, which meant an iOS client shipped the dead end. |
+| A card of editors is never a dead end | **the server** (`bindCommitContext`) | A surface with editors and no button gets one. This used to be a bar the React app drew, which meant the Flutter client shipped the dead end. |
 | No prices without dates and a route | the tools | A model in a hurry prices a plausible week and calls it a sample. |
 | A date range that ends before it starts | the tools | Silent corruption of everything downstream. |
 | One surface, one button, ask for everything | the skill | A judgement call about layout, which is the model's job — and now one it cannot get *wrong* in a way that loses an answer. |
@@ -223,7 +223,7 @@ is a guarantee.
 
 Four of those moved from the browser to the server, and the reason is the same
 in every case: a rule enforced in the web app is a rule only the web app obeys.
-The same session opened in a Swift or Kotlin renderer now gets pre-filled
+The same session opened in the Flutter renderer now gets pre-filled
 controls, a live panel, and a surface it can always submit — with no
 travel-specific client code, because there is none left to write.
 

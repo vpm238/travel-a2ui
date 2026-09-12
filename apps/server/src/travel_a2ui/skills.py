@@ -273,16 +273,22 @@ def _inventory() -> str:
     cities = ", ".join(f"{entry['city']} ({entry['airport']})" for entry in _DESTINATIONS)
     airports = ", ".join(f"{entry['city']} ({entry['code']})" for entry in _ORIGINS)
     return (
-        "## What this deployment has data for\n\n"
-        "The travel tools answer for these and refuse politely for anything else. "
-        "Knowing the list up front is the difference between offering somewhere you "
-        "can actually plan and apologising after a failed lookup.\n\n"
-        f"- **Destinations**: {cities}\n"
-        f"- **Departure airports**: {airports}\n\n"
-        "If they ask for somewhere not on the list, say so in one line before you "
-        "start planning, and offer the nearest of these that fits what they wanted — "
-        "a beach, a city, a short flight — rather than a bare list. Never begin "
-        "searching a destination you can see is not here."
+        "## What this deployment has written down\n\n"
+        "These places have real detail behind them — actual neighbourhoods, actual "
+        "things worth doing, the months the weather turns. Lead with them when the "
+        "traveller has not named somewhere, because they are the ones you can be "
+        "specific about.\n\n"
+        f"- **Written down**: {cities}\n"
+        f"- **Departure airports with detail**: {airports}\n\n"
+        "Anywhere else works too. Ask for Boston or Reykjavík and the tools answer "
+        "with generated fares, stays and a plausible city — the same made-up place "
+        "every time, so a trip you plan today is the trip you find tomorrow. Say "
+        "yes and plan it; do not apologise for a list and do not offer a "
+        "substitute city nobody asked for.\n\n"
+        "What you must never do is present any of it as real. Every figure here "
+        "carries a provenance label and the surface shows it. The fares are "
+        "invented, nothing is bookable, and a traveller who might act on a price "
+        "is owed that in the same breath."
     )
 
 

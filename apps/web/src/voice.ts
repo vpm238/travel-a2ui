@@ -4,7 +4,7 @@
  * Everything that makes this a *travel* agent — the catalog, the compiler, the
  * tools, the trip — is on the other end of the socket. This file knows how to
  * turn a microphone into 16 kHz PCM, how to play 24 kHz PCM back without gaps,
- * and how to forward JSON. A Swift or Kotlin client would need exactly these
+ * and how to forward JSON. The Flutter client needs exactly these
  * three things and nothing more, which is the test this design is trying to
  * pass.
  *

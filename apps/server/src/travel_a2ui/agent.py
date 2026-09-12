@@ -17,7 +17,7 @@ The shape of a turn, in order:
 Everything the browser used to decide for itself is in here now. It used to
 hold a list of trip field names, watch them, and send a prose prompt asking for
 a new panel — a private protocol composed in a client, which meant a Flutter or
-Swift client that did not send it simply never got a panel.
+second renderer that did not send it simply never got a panel.
 """
 
 from __future__ import annotations

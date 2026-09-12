@@ -283,8 +283,8 @@ surface as it arrived, diffed it against the live data model on every change,
 and turned the result into a sentence: `[interface] search_flights (origin:
 "JFK")`. A hundred lines of recursive tree comparison, a synthetic prose format
 nothing parsed, and a bar counting "3 unsent changes" — all of it invented here,
-none of it in the protocol, and therefore none of it present in a Swift or
-Kotlin client, which would have shipped the dead end instead.
+none of it in the protocol, and therefore none of it present in the Flutter
+client, which shipped the dead end instead.
 
 What survives is the guarantee, moved to where it holds for everyone.
 `bindCommitContext` runs on the server after a surface compiles:
@@ -344,7 +344,7 @@ which the server publishes and keeps current — so the agent decides the shape
 once and the rows move as the trip moves, without a model turn. Each row arrives
 with its line already composed (`✓ Dates`, `→ Flight`, `– Somewhere to stay —
 not needed`), because a template row is a single component and cannot declare
-children inline. Opening the same session in a Swift renderer draws the same
+children inline. Opening the same session in the Flutter renderer draws the same
 panel, and there is no travel-specific client code left to port.
 
 ### The server owns the data model
@@ -604,7 +604,7 @@ A tap produces `{ name, surfaceId, context, dataModel }` — which is what *any*
 A2UI renderer produces when someone presses something, with nothing taught to
 it. It used to be a sentence the browser composed (`[interface] search_flights
 (origin: "JFK")`), which was a private protocol wearing the costume of a user
-message: a Flutter or Swift client that did not compose the same sentence simply
+message: the Flutter client, which does not compose that sentence, simply
 did not work. The server turns the action into a sentence for the model, because
 how *this agent* interprets a tap on a read-only panel is a fact about this
 agent, not about the tap.

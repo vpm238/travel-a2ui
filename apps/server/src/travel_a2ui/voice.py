@@ -223,7 +223,7 @@ async def relay(
     """Runs one call until either side hangs up.
 
     The browser sends microphone bytes and receives audio plus A2UI — exactly
-    what a Swift or Flutter client would send and receive. It could open the
+    what the Flutter client sends and receives. It could open the
     socket to Google itself; then every client would need the catalog, the
     compiler, the tools and the trip, and "thin client" would stop being true.
     """

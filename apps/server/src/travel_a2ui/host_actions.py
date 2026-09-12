@@ -13,8 +13,8 @@ data-model update the renderer already knows how to apply.
 **Why the server rather than the browser.** A2UI v0.9.1 has two kinds of action:
 an event the host handles, and a client-side function call that computes a value
 — it has no "mutate the data model" action. A row could be dropped in the
-renderer, but then it would be dropped only in *this* renderer: the Flutter
-client, an iOS client and the trip the agent reads next would all still have it.
+renderer, but then it would be dropped only in *that* renderer: the other
+client and the trip the agent reads next would both still have it.
 The trip lives on the server, so the edit happens on the server, and every
 client learns about it the same way it learns about everything else.
 

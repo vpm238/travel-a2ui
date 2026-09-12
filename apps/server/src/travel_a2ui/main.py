@@ -465,7 +465,7 @@ async def voice(socket: WebSocket) -> None:
     need the catalog, the compiler, the tools and the trip — and the claim that
     a client only knows how to draw components would stop being true. What goes
     over this socket is microphone bytes up, audio and A2UI down, which is
-    exactly what a Swift or Flutter client would send and receive.
+    exactly what the Flutter client sends and receives.
 
     The key arrives in the opening frame and is never stored.
     """

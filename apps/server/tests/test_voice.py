@@ -315,10 +315,13 @@ class TestDrawing:
         # A count and at most one fare — not four airlines and four times.
         assert "FlightOption" not in str(response)
 
-    def test_a_refusal_reaches_the_model_as_words_it_can_act_on(self) -> None:
-        # Origin and date given, so it gets as far as the destination. Without
-        # them it refuses for missing inputs first — which is the right order:
-        # there is no point resolving a city for a trip with no date.
+    def test_a_place_nobody_wrote_down_is_drawn_on_a_call_too(self) -> None:
+        """The voice agent refused what the typed agent planned.
+
+        It was obeying the prompt's list while the fixture invented fares for
+        anything, and "I can't book trips from San Francisco" was the result of
+        the two disagreeing. Now both generate, and both label it.
+        """
         seen, client, _ = run_call(
             [
                 tool_frame(
@@ -328,10 +331,8 @@ class TestDrawing:
             ]
         )
         response = client.live_session.tool_responses[0]["function_responses"][0]["response"]
-        assert response["shown"] is False
-        assert "Atlantis" in response["error"] or "airport code" in response["error"]
-        # And nothing was drawn, rather than an empty list being drawn.
-        assert not [e for e in seen if e["type"] == "ui" and e["surfaceId"] == "mcp-flights"]
+        assert response["shown"] is True
+        assert [e for e in seen if e["type"] == "ui"], "and it is on screen"
 
     def test_missing_inputs_are_refused_before_anything_is_looked_up(self) -> None:
         """The order matters: there is no point resolving a city with no date."""

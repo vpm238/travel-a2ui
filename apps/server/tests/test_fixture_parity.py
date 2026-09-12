@@ -67,14 +67,13 @@ CASES = {
         "flights",
         {"destination": "Madrid", "origin": "JFK", "date": "2027-04-12", "cabin": "business"},
     ),
-    # Boston used to be this case's departure city, back when the fixture would
-    # invent a fare out of any three letters. It is not one of the airports this
-    # deployment serves, so it is now its own case below — refused, by name.
+    # Boston is not one of the airports with written-down detail, which is the
+    # case below: it answers, deterministically, like anywhere else.
     "flights: nonstop only": (
         "flights",
         {"destination": "Lisbon", "origin": "LHR", "nonstopOnly": True},
     ),
-    "flights: an airport this deployment does not serve": (
+    "flights: a departure airport nobody wrote down": (
         "flights",
         {"destination": "Lisbon", "origin": "BOS"},
     ),
@@ -82,7 +81,7 @@ CASES = {
         "flights",
         {"destination": "Tokyo", "origin": "LAX", "maxPrice": 1},
     ),
-    "flights: destination nobody knows": (
+    "flights: a destination nobody wrote down": (
         "flights",
         {"destination": "Reykjavik", "origin": "JFK"},
     ),
@@ -96,7 +95,10 @@ CASES = {
         "hotels",
         {"destination": "Paris", "nights": 3, "maxNightly": 1},
     ),
-    "hotels: destination nobody knows": ("hotels", {"destination": "Reykjavik", "nights": 4}),
+    "hotels: a destination nobody wrote down": (
+        "hotels",
+        {"destination": "Reykjavik", "nights": 4},
+    ),
     "weather: madrid in april": ("weather", ("Madrid", "2027-04-12", 5)),
 }
 
@@ -151,13 +153,42 @@ class TestTheArithmeticThatHadToBeEmulated:
 class TestTheContract:
     """The four lies, in the implementation that replaced them."""
 
-    def test_an_unknown_destination_is_a_refusal_not_an_invented_airport(self):
+    def test_a_place_nobody_wrote_down_still_answers(self):
+        """A demo that refuses Boston teaches a visitor nothing.
+
+        Nine cities have hand-written detail. Everywhere else is generated from
+        the name — deterministically, so the same city comes back every time —
+        and labelled sample data like every other figure here. The honesty is in
+        the provenance label, not in a short list of places.
+        """
         import asyncio
 
         outcome = asyncio.run(provider.search_flights({"destination": "Atlantis", "origin": "JFK"}))
+        assert outcome.ok is True
+        assert outcome.items
+        assert outcome.provenance.live is False
+
+    def test_an_invented_place_is_the_same_place_every_time(self):
+        """The property that makes generated data usable at all.
+
+        A demo that invents a different Boston on every turn is worse than one
+        that refuses: a screenshot stops being true and a trip planned today is
+        not the trip found tomorrow.
+        """
+        import asyncio
+
+        first = asyncio.run(provider.search_flights({"destination": "Boston", "origin": "JFK"}))
+        again = asyncio.run(provider.search_flights({"destination": "Boston", "origin": "JFK"}))
+        assert as_json(first) == as_json(again)
+
+    def test_a_query_that_names_no_place_is_still_refused(self):
+        """Inventing a city for an empty string is answering a question nobody
+        asked."""
+        import asyncio
+
+        outcome = asyncio.run(provider.search_flights({"destination": "   ", "origin": "JFK"}))
         assert outcome.ok is False
         assert outcome.reason == "unknown-destination"
-        assert "REY" not in json.dumps(as_json(outcome))
 
     def test_a_filter_matching_nothing_widens_and_says_so(self):
         import asyncio

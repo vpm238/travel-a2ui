@@ -1,6 +1,6 @@
 """The four passes the server makes over a surface, held to the TypeScript.
 
-These are the passes that keep a thin client thin: a Flutter or Swift client
+These are the passes that keep a thin client thin: the Flutter client
 gets a surface that is already correct and gains no logic to make it so. Which
 is exactly why both servers have to make them identically — and why the
 failures here are all quiet ones. A port that seeds `/trip` but forgets `/plan`

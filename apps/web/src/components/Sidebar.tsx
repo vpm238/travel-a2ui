@@ -15,7 +15,7 @@
  *
  * There is no React in it any more — not a checklist, not a key/value list of
  * what has been decided. All of it is A2UI the agent composed, which is what
- * makes the panel portable: an iOS or Android renderer draws this exact panel
+ * makes the panel portable: the Flutter renderer draws this exact panel
  * with no travel-specific code, because there is none left to port.
  *
  * Values reach it as `updateDataModel` from the server, so changing the route on

@@ -522,7 +522,7 @@ composer. The session is relayed through the server rather than opened straight
 from the browser, and that choice is the whole architecture in miniature: the
 browser *could* open the socket itself, and then every client would need the
 catalog, the compiler, the tools and the trip. Instead it sends microphone bytes
-and receives audio plus A2UI — exactly what a Swift or Flutter client would send
+and receives audio plus A2UI — exactly what the Flutter client sends
 and receive.
 
 Voice is a property of the *backend*, not of the client. Every client can speak
