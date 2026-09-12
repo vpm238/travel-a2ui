@@ -14,3 +14,10 @@ backends/*/.agent.json
 
 # Staged by the mcp-view build so the web app ships the renderer.
 apps/web/public/mcp-view/
+
+# Flutter build output and local tool state. The web bundle is built in the
+# image, not committed — a `build/` in git is a second copy of the app that is
+# right until somebody forgets.
+apps/flutter_client/build/
+apps/flutter_client/.dart_tool/
+apps/flutter_client/.flutter-plugins*

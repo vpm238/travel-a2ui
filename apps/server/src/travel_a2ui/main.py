@@ -24,14 +24,16 @@ import os
 import pathlib
 from typing import Any, AsyncIterator
 
-from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .agent import CATALOG_ID, CATALOG_JSON, SurfaceAction, TurnRequest, run_turn
 from .contract import INSTANTIATION_MAX_AGE_MS, contract_stamp
 from .providers.fixture import FixtureProvider
+from . import mcp
 from .sessions import SessionStore
+from .voice import VoiceSession, relay
 from .skills import SKILL_VARIANTS, describe_all_skills, is_skill_variant
 
 _ROOT = pathlib.Path(__file__).resolve().parents[4]
@@ -263,6 +265,142 @@ def _origin_hint(client: Any) -> dict[str, str] | None:
     if not suggested:
         return None
     return {"code": suggested["code"], "city": suggested["city"], "timeZone": zone}
+
+
+@app.get("/mcp")
+async def mcp_get() -> JSONResponse:
+    """Streamable HTTP lets a server decline the SSE channel.
+
+    This one is stateless — every POST is self-contained — so there is nothing
+    to push and nothing to keep open.
+    """
+    return JSONResponse(
+        {"error": "This MCP server is stateless: POST JSON-RPC to this endpoint."},
+        status_code=405,
+        headers={"allow": "POST"},
+    )
+
+
+@app.post("/mcp")
+async def mcp_post(request: Request) -> Response:
+    """The MCP endpoint: these surfaces, inside somebody else's agent."""
+    try:
+        payload = await request.json()
+    except Exception:  # noqa: BLE001 - a parse error has its own JSON-RPC code
+        return JSONResponse(
+            mcp.err(None, -32700, "Parse error: body is not JSON"), status_code=400
+        )
+
+    context = mcp.RenderContext(
+        # Chosen once, at install time, by whoever knows what their host renders.
+        view=request.query_params.get("view") or "",
+        origin=_renderer_origin(request),
+        # The provider travels with the request because the endpoint is
+        # stateless: without it an MCP call would answer from fixtures on a
+        # deployment configured for live inventory, and answer *differently*
+        # from the same tool called through the web app.
+        provider=provider,
+    )
+    context.view = mcp._view_of(context.view or None)
+
+    body, status = await mcp.handle(payload, context)
+    if body is None:
+        return Response(status_code=status)
+    return JSONResponse(body, status_code=status, headers={"cache-control": "no-store"})
+
+
+def _renderer_origin(request: Request) -> str:
+    """Where the view should load the renderer from.
+
+    Normally the origin the host just called. `?origin=` covers the case where
+    it is not — a tunnel, a proxy, a preview URL that differs from the public
+    one — and only over http(s), because anything else is a script source
+    somebody put in a URL.
+    """
+    from urllib.parse import urlparse
+
+    override = request.query_params.get("origin")
+    if override:
+        parsed = urlparse(override)
+        if parsed.scheme in ("http", "https") and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+    return str(request.base_url).rstrip("/")
+
+
+@app.websocket("/api/voice")
+async def voice(socket: WebSocket) -> None:
+    """One voice call, relayed.
+
+    A WebSocket here and server-sent events for the typed turn, and the
+    asymmetry is the honest one: a call is bidirectional for its whole length
+    and a turn is not.
+
+    The browser could open a socket straight to Google. Then every client would
+    need the catalog, the compiler, the tools and the trip — and the claim that
+    a client only knows how to draw components would stop being true. What goes
+    over this socket is microphone bytes up, audio and A2UI down, which is
+    exactly what a Swift or Flutter client would send and receive.
+
+    The key arrives in the opening frame and is never stored.
+    """
+    await socket.accept()
+
+    try:
+        opening = await socket.receive_json()
+    except Exception:  # noqa: BLE001 - a client that hung up before speaking
+        await socket.close()
+        return
+
+    if opening.get("type") != "start":
+        await socket.send_json(
+            {"type": "error", "message": "The first frame must be a start."}
+        )
+        await socket.close()
+        return
+
+    api_key = str(opening.get("apiKey") or os.environ.get("GEMINI_API_KEY", "")).strip()
+    if not api_key:
+        await socket.send_json({"type": "error", "message": "A Gemini API key is required."})
+        await socket.close()
+        return
+
+    session_id = str(opening.get("sessionId") or sessions.new_id())
+    stored = sessions.get(session_id)
+
+    async def send(message: dict[str, Any]) -> None:
+        await socket.send_json(message)
+
+    async def incoming():
+        while True:
+            try:
+                yield await socket.receive_json()
+            except (WebSocketDisconnect, RuntimeError):
+                return
+            except Exception:  # noqa: BLE001 - a frame we could not read
+                continue
+
+    call = VoiceSession(
+        api_key=api_key,
+        trip=dict(stored.trip),
+        provider=provider,
+        contract=contract_stamp(),
+        model=str(opening.get("model") or ""),
+        voice=opening.get("voice"),
+        # The trip a call changes is the trip the typed conversation reads.
+        # Same session, one store — say "make it three of us" out loud and the
+        # panel beside the conversation moves.
+        on_trip=lambda value: sessions.patch_trip(session_id, value),
+    )
+
+    try:
+        await relay(call, send, incoming())
+    except WebSocketDisconnect:
+        pass
+    finally:
+        try:
+            await socket.close()
+        except Exception:  # noqa: BLE001 - already closed
+            pass
 
 
 @app.get("/healthz")

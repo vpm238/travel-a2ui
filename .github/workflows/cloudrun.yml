@@ -37,7 +37,6 @@ jobs:
   deploy:
     name: Build and deploy
     runs-on: ubuntu-latest
-    environment: cloud-run
     steps:
       - uses: actions/checkout@v5
 

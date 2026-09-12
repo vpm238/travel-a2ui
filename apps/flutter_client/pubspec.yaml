@@ -1,0 +1,31 @@
+name: travel_a2ui_flutter
+description: >-
+  The same agent, drawn by Flutter. A second renderer against one server, which
+  is the claim the whole project exists to test.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The official A2UI packages. The point of this client is that it renders the
+  # protocol rather than this app's idea of it, so the core types and the
+  # widget host both come from upstream.
+  a2ui_core: ^0.1.1
+  a2ui_flutter: 0.0.1-wip002
+
+  http: ^1.2.0
+  intl: any
+  json_schema_builder: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

@@ -100,6 +100,27 @@ for _index, _entry in enumerate(_DESTINATIONS):
     for _alias in _entry["aliases"]:
         _BY_ALIAS[_alias] = _DESTINATION_LIST[_index]
 
+def code_for_seed(query: str) -> str:
+    """A destination as the airport code the seed is built from.
+
+    Seeding an estimate on the *text* rather than the resolved code means
+    "Madrid", "madrid" and "MAD" each produce a different set of prices for the
+    same trip — plausible numbers every time, so nothing looks wrong, and the
+    figure moves when a traveller happens to type the code instead of the name.
+
+    Falls back to the trimmed text, so somewhere the provider has never heard
+    of still seeds deterministically rather than raising.
+    """
+    trimmed = (query or "").strip()
+    upper, lowered = trimmed.upper(), trimmed.lower()
+    for entry in _DESTINATIONS:
+        if entry["airport"] == upper:
+            return entry["airport"]
+        if lowered in entry["aliases"]:
+            return entry["airport"]
+    return trimmed
+
+
 _MASK = 0xFFFFFFFF
 
 

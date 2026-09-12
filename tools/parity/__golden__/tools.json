@@ -1522,6 +1522,138 @@
     "trip": {},
     "saved": []
   },
+  "a total with no prices at all, so they are generated": {
+    "tool": "estimate_cost",
+    "input": {
+      "destination": "Madrid",
+      "flexible": true
+    },
+    "tripBefore": {},
+    "result": {
+      "lines": [
+        {
+          "label": "Flights (2 travelers)",
+          "amount": "$1,051"
+        },
+        {
+          "label": "Stay (5 nights)",
+          "amount": "$837"
+        },
+        {
+          "label": "Food and drink",
+          "amount": "$660",
+          "note": "estimated"
+        },
+        {
+          "label": "Local transport",
+          "amount": "$144",
+          "note": "metro and taxis"
+        }
+      ],
+      "total": "$2,692",
+      "totalValue": 2692,
+      "currency": "USD",
+      "basis": {
+        "summary": "Madrid",
+        "nights": null,
+        "travelers": null,
+        "startDate": null,
+        "endDate": null,
+        "indicative": true
+      }
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "a total whose destination was typed as an airport code": {
+    "tool": "estimate_cost",
+    "input": {
+      "destination": "MAD",
+      "flexible": true
+    },
+    "tripBefore": {},
+    "result": {
+      "lines": [
+        {
+          "label": "Flights (2 travelers)",
+          "amount": "$1,051"
+        },
+        {
+          "label": "Stay (5 nights)",
+          "amount": "$837"
+        },
+        {
+          "label": "Food and drink",
+          "amount": "$660",
+          "note": "estimated"
+        },
+        {
+          "label": "Local transport",
+          "amount": "$144",
+          "note": "metro and taxis"
+        }
+      ],
+      "total": "$2,692",
+      "totalValue": 2692,
+      "currency": "USD",
+      "basis": {
+        "summary": "MAD",
+        "nights": null,
+        "travelers": null,
+        "startDate": null,
+        "endDate": null,
+        "indicative": true
+      }
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
+  "a total for somewhere the agent has never heard of": {
+    "tool": "estimate_cost",
+    "input": {
+      "destination": "Atlantis",
+      "flexible": true
+    },
+    "tripBefore": {},
+    "result": {
+      "lines": [
+        {
+          "label": "Flights (2 travelers)",
+          "amount": "$1,058"
+        },
+        {
+          "label": "Stay (5 nights)",
+          "amount": "$1,055"
+        },
+        {
+          "label": "Food and drink",
+          "amount": "$660",
+          "note": "estimated"
+        },
+        {
+          "label": "Local transport",
+          "amount": "$144",
+          "note": "metro and taxis"
+        }
+      ],
+      "total": "$2,918",
+      "totalValue": 2918,
+      "currency": "USD",
+      "basis": {
+        "summary": "Atlantis",
+        "nights": null,
+        "travelers": null,
+        "startDate": null,
+        "endDate": null,
+        "indicative": true
+      }
+    },
+    "isError": false,
+    "trip": {},
+    "saved": []
+  },
   "saving a trip": {
     "tool": "save_trip",
     "input": {

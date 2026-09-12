@@ -51,9 +51,10 @@ CATALOG_JSON: dict[str, Any] = json.loads(CATALOG_PATH.read_text("utf-8"))
 
 #: What the wire calls this catalog.
 #:
-#: The SDK emits the catalog's canonical `$id` on `createSurface`, so that is
-#: what the model is told the host's catalog id is. The two agreeing matters
-#: more than matching the Worker, which uses the short name.
+#: `$id` rather than `catalogId` because that is what the SDK puts on
+#: `createSurface`, and the model has to be told the same string the wire
+#: carries. They happen to be identical in this catalog; reading the one the
+#: compiler uses means they stay that way if that ever stops being true.
 CATALOG_ID = CATALOG_JSON["$id"]
 
 PROTOCOL_VERSION = "v0.9.1"

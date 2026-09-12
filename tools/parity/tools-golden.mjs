@@ -174,6 +174,30 @@ const cases = [
     {},
   ],
 
+  [
+    // The prices are generated rather than given, which is the path the golden
+    // did not reach for a while: every other `estimate_cost` case passed a fare
+    // and a nightly rate, so the seeded RNG underneath was never compared. It
+    // was wrong — seeded on "Madrid" rather than on MAD — and the totals were
+    // plausible in both languages and different.
+    'a total with no prices at all, so they are generated',
+    'estimate_cost',
+    { destination: 'Madrid', flexible: true },
+    {},
+  ],
+  [
+    'a total whose destination was typed as an airport code',
+    'estimate_cost',
+    { destination: 'MAD', flexible: true },
+    {},
+  ],
+  [
+    'a total for somewhere the agent has never heard of',
+    'estimate_cost',
+    { destination: 'Atlantis', flexible: true },
+    {},
+  ],
+
   // ---- Writes --------------------------------------------------------------
   ['saving a trip', 'save_trip', { destination: 'Madrid', origin: 'JFK', travelers: 2 }, {}],
   [

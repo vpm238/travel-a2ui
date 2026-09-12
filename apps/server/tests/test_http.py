@@ -63,10 +63,10 @@ class TestWhatTheClientsConfigureThemselvesFrom:
     ) -> None:
         """The model is told this, and `createSurface` carries it. They must match.
 
-        The two implementations disagree here — the Worker emits the catalog's
-        short name and the SDK emits its canonical `$id` — so asserting it keeps
-        this server internally consistent rather than merely consistent with the
-        one it replaces.
+        Read from `$id` because that is what the SDK's compiler puts on the
+        wire. The catalog's other name for itself, `catalogId`, is the same
+        string today; reading the one the compiler uses is what keeps them
+        matching if that ever stops being true.
         """
         from travel_a2ui.agent import CATALOG_JSON
 
@@ -313,3 +313,149 @@ class TestTheStream:
 
 def test_health_answers_before_traffic_arrives(client: TestClient) -> None:
     assert client.get("/healthz").json()["ok"] is True
+
+
+class TestTheVoiceSocket:
+    """The handshake, which is where a call fails before anyone speaks."""
+
+    def test_it_refuses_a_frame_that_is_not_a_start(self, client: TestClient) -> None:
+        with client.websocket_connect("/api/voice") as socket:
+            socket.send_json({"type": "audio", "data": "QUJD"})
+            reply = socket.receive_json()
+            assert reply["type"] == "error"
+            assert "start" in reply["message"]
+
+    def test_it_refuses_a_call_with_no_key(self, client: TestClient) -> None:
+        with client.websocket_connect("/api/voice") as socket:
+            socket.send_json({"type": "start"})
+            reply = socket.receive_json()
+            assert reply["type"] == "error"
+            assert "API key" in reply["message"]
+
+    def test_a_call_reads_the_trip_the_typed_conversation_holds(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        """One store. Saying something out loud moves the panel beside it."""
+        seen: dict[str, Any] = {}
+
+        async def fake_relay(session, send, incoming):  # noqa: ANN001, ANN202
+            seen["trip"] = dict(session.trip)
+            seen["contract"] = session.contract
+            await send({"type": "ready", "model": "m", "contract": session.contract})
+            session.on_trip({"travelers": 3})
+
+        monkeypatch.setattr(main, "relay", fake_relay)
+        main.sessions.save("voice-1", trip={"destination": "Madrid", "travelers": 2})
+
+        with client.websocket_connect("/api/voice") as socket:
+            socket.send_json({"type": "start", "apiKey": "k", "sessionId": "voice-1"})
+            assert socket.receive_json()["type"] == "ready"
+
+        assert seen["trip"]["destination"] == "Madrid"
+        assert seen["contract"], "a call is bound to a contract it can be checked against"
+        # And what the call changed is what the typed side reads back.
+        assert main.sessions.get("voice-1").trip["travelers"] == 3
+
+    def test_the_key_arrives_in_the_opening_frame_and_is_not_stored(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        seen: dict[str, Any] = {}
+
+        async def fake_relay(session, send, incoming):  # noqa: ANN001, ANN202
+            seen["key"] = session.api_key
+            await send({"type": "ready", "model": "m", "contract": "c"})
+
+        monkeypatch.setattr(main, "relay", fake_relay)
+        with client.websocket_connect("/api/voice") as socket:
+            socket.send_json({"type": "start", "apiKey": "the-voice-key", "sessionId": "voice-2"})
+            socket.receive_json()
+
+        assert seen["key"] == "the-voice-key"
+        assert "the-voice-key" not in json.dumps(main.sessions.get("voice-2").as_dict())
+
+
+class TestTheMcpEndpoint:
+    """Over HTTP, which is how a host actually reaches it."""
+
+    def test_a_get_declines_the_sse_channel(self, client: TestClient) -> None:
+        response = client.get("/mcp")
+        assert response.status_code == 405
+        assert response.headers["allow"] == "POST"
+
+    def test_a_handshake_over_http(self, client: TestClient) -> None:
+        response = client.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+        )
+        assert response.status_code == 200
+        assert response.json()["result"]["serverInfo"]["name"] == "travel-a2ui"
+
+    def test_a_notification_gets_202_and_an_empty_body(self, client: TestClient) -> None:
+        response = client.post("/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"})
+        assert response.status_code == 202
+        assert response.content == b""
+
+    def test_a_body_that_is_not_json_is_a_parse_error(self, client: TestClient) -> None:
+        response = client.post(
+            "/mcp", content=b"{not json", headers={"content-type": "application/json"}
+        )
+        assert response.status_code == 400
+        assert response.json()["error"]["code"] == -32700
+
+    def test_the_view_is_chosen_at_install_time(self, client: TestClient) -> None:
+        call = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "show_flight_options",
+                "arguments": {"destination": "Madrid", "origin": "JFK", "date": "2099-04-12"},
+            },
+        }
+        app_view = client.post("/mcp", json=call).json()["result"]
+        legacy = client.post("/mcp?view=legacy", json=call).json()["result"]
+
+        def mimes(result: dict) -> set[str]:
+            return {
+                part["resource"]["mimeType"]
+                for part in result["content"]
+                if part["type"] == "resource"
+            }
+
+        assert "application/vnd.a2ui+json" in mimes(app_view)
+        assert "text/html" in mimes(legacy)
+
+    def test_an_old_view_spelling_still_works(self, client: TestClient) -> None:
+        """Rather than breaking an install that is already out there."""
+        response = client.post(
+            "/mcp?view=html",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "show_price_summary", "arguments": {"destination": "Madrid"}},
+            },
+        )
+        mimes = {
+            part["resource"]["mimeType"]
+            for part in response.json()["result"]["content"]
+            if part["type"] == "resource"
+        }
+        assert "text/html" in mimes
+
+    def test_an_origin_override_is_honoured_only_over_http(self, client: TestClient) -> None:
+        """Anything else is a script source somebody put in a URL."""
+        read = {"jsonrpc": "2.0", "id": 1, "method": "resources/list"}
+
+        allowed = client.post("/mcp?origin=https://tunnel.example", json=read).json()
+        csp = allowed["result"]["resources"][0]["_meta"]["ui"]["csp"]
+        assert csp["connectDomains"] == ["https://tunnel.example"]
+
+        refused = client.post("/mcp?origin=javascript:alert(1)", json=read).json()
+        domains = refused["result"]["resources"][0]["_meta"]["ui"]["csp"]["connectDomains"]
+        assert all(domain.startswith("http") for domain in domains)
+
+    def test_meta_points_at_the_endpoint_that_exists(self, client: TestClient) -> None:
+        """A plugin reads this to find the server; a wrong path is a dead install."""
+        endpoint = client.get("/api/meta").json()["mcpEndpoint"]
+        assert client.get(endpoint).status_code == 405, "reachable, and declines GET"

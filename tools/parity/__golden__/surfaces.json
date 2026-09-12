@@ -1,0 +1,1506 @@
+{
+  "surfaces": {
+    "flights: inline, fully specified": {
+      "tool": "show_flight_options",
+      "args": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "date": "2027-04-12",
+        "travelers": 2,
+        "cabin": "business"
+      },
+      "express": "surface(\"mcp-flights\")\nhead = Text(\"JFK → Madrid · from 12 Apr · 2 travellers\", variant=\"h3\")\nf0 = FlightOption(\"TAP Air Portugal\", \"19:35\", \"07:08 +1\", \"JFK\", \"MAD\", \"$1,091\", Event(\"select_flight\", {id: \"TP3148\", price: \"$1,091\"}), duration=\"11h 33m\", stops=\"1 stop · LHR\", flightNumber=\"TP730\", cabin=\"business\", badge=\"Cheapest\")\nf1 = FlightOption(\"Air France\", \"07:50\", \"20:14\", \"JFK\", \"MAD\", \"$1,112\", Event(\"select_flight\", {id: \"AF1872\", price: \"$1,112\"}), duration=\"12h 24m\", stops=\"1 stop · FRA\", flightNumber=\"AF466\", cabin=\"business\")\nf2 = FlightOption(\"Delta\", \"15:39\", \"00:49 +1\", \"JFK\", \"MAD\", \"$1,369\", Event(\"select_flight\", {id: \"DL7008\", price: \"$1,369\"}), duration=\"9h 10m\", stops=\"Nonstop\", flightNumber=\"DL622\", cabin=\"business\")\nf3 = FlightOption(\"American\", \"10:22\", \"21:46\", \"JFK\", \"MAD\", \"$1,374\", Event(\"select_flight\", {id: \"AA7015\", price: \"$1,374\"}), duration=\"11h 24m\", stops=\"1 stop · LHR\", flightNumber=\"AA562\", cabin=\"business\")\nfoot = Text(\"4 option(s) for JFK → MAD on 2027-04-12. · Sample data\", variant=\"caption\")\nroot = Column([head, f0, f1, f2, f3, foot])",
+      "surfaceId": "mcp-flights",
+      "summary": "4 flight option(s), JFK → Madrid · from 12 Apr · 2 travellers, cheapest $1,091. Sample data."
+    },
+    "flights: sidebar, three fit": {
+      "tool": "show_flight_options",
+      "args": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "date": "2027-04-12",
+        "surface": "sidebar"
+      },
+      "express": "surface(\"mcp-sidebar\")\nhead = Text(\"JFK → Madrid · from 12 Apr\", variant=\"h3\")\nf0 = FlightOption(\"Delta\", \"15:06\", \"01:49 +1\", \"JFK\", \"MAD\", \"$352\", Event(\"select_flight\", {id: \"DL3056\", price: \"$352\"}), duration=\"10h 43m\", stops=\"1 stop · LIS\", flightNumber=\"DL275\", cabin=\"economy\", badge=\"Cheapest\")\nf1 = FlightOption(\"American\", \"06:09\", \"18:05\", \"JFK\", \"MAD\", \"$353\", Event(\"select_flight\", {id: \"AA1023\", price: \"$353\"}), duration=\"11h 56m\", stops=\"1 stop · AMS\", flightNumber=\"AA350\", cabin=\"economy\")\nf2 = FlightOption(\"TAP Air Portugal\", \"11:27\", \"18:54\", \"JFK\", \"MAD\", \"$362\", Event(\"select_flight\", {id: \"TP6924\", price: \"$362\"}), duration=\"7h 27m\", stops=\"Nonstop\", flightNumber=\"TP257\", cabin=\"economy\", badge=\"Fastest\")\nfoot = Text(\"4 option(s) for JFK → MAD on 2027-04-12. · Sample data\", variant=\"caption\")\nroot = Column([head, f0, f1, f2, foot])",
+      "surfaceId": "mcp-sidebar",
+      "summary": "3 flight option(s), JFK → Madrid · from 12 Apr, cheapest $352. Sample data."
+    },
+    "flights: home, two fit": {
+      "tool": "show_flight_options",
+      "args": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "date": "2027-04-12",
+        "surface": "home"
+      },
+      "express": "surface(\"mcp-home\")\nhead = Text(\"JFK → Madrid · from 12 Apr\", variant=\"h4\")\nf0 = FlightOption(\"Delta\", \"15:06\", \"01:49 +1\", \"JFK\", \"MAD\", \"$352\", Event(\"select_flight\", {id: \"DL3056\", price: \"$352\"}), duration=\"10h 43m\", stops=\"1 stop · LIS\", flightNumber=\"DL275\", cabin=\"economy\", badge=\"Cheapest\")\nf1 = FlightOption(\"American\", \"06:09\", \"18:05\", \"JFK\", \"MAD\", \"$353\", Event(\"select_flight\", {id: \"AA1023\", price: \"$353\"}), duration=\"11h 56m\", stops=\"1 stop · AMS\", flightNumber=\"AA350\", cabin=\"economy\")\nfoot = Text(\"4 option(s) for JFK → MAD on 2027-04-12. · Sample data\", variant=\"caption\")\nroot = Column([head, f0, f1, foot])",
+      "surfaceId": "mcp-home",
+      "summary": "2 flight option(s), JFK → Madrid · from 12 Apr, cheapest $352. Sample data."
+    },
+    "flights: nonstop only": {
+      "tool": "show_flight_options",
+      "args": {
+        "destination": "Lisbon",
+        "origin": "BOS",
+        "date": "2027-04-12",
+        "nonstopOnly": true
+      },
+      "express": "surface(\"mcp-flights\")\nhead = Text(\"BOS → Lisbon · from 12 Apr\", variant=\"h3\")\nf0 = FlightOption(\"Lufthansa\", \"13:44\", \"21:54\", \"BOS\", \"LIS\", \"$374\", Event(\"select_flight\", {id: \"LH4439\", price: \"$374\"}), duration=\"8h 10m\", stops=\"Nonstop\", flightNumber=\"LH739\", cabin=\"economy\", badge=\"Cheapest\")\nf1 = FlightOption(\"Delta\", \"19:02\", \"03:50 +1\", \"BOS\", \"LIS\", \"$396\", Event(\"select_flight\", {id: \"DL8301\", price: \"$396\"}), duration=\"8h 48m\", stops=\"Nonstop\", flightNumber=\"DL399\", cabin=\"economy\")\nf2 = FlightOption(\"TAP Air Portugal\", \"06:22\", \"14:45\", \"BOS\", \"LIS\", \"$444\", Event(\"select_flight\", {id: \"TP5497\", price: \"$444\"}), duration=\"8h 23m\", stops=\"Nonstop\", flightNumber=\"TP859\", cabin=\"economy\")\nf3 = FlightOption(\"Air France\", \"07:56\", \"15:22\", \"BOS\", \"LIS\", \"$475\", Event(\"select_flight\", {id: \"AF2203\", price: \"$475\"}), duration=\"7h 26m\", stops=\"Nonstop\", flightNumber=\"AF390\", cabin=\"economy\", badge=\"Fastest\")\nfoot = Text(\"4 option(s) for BOS → LIS on 2027-04-12. · Sample data\", variant=\"caption\")\nroot = Column([head, f0, f1, f2, f3, foot])",
+      "surfaceId": "mcp-flights",
+      "summary": "4 flight option(s), BOS → Lisbon · from 12 Apr, cheapest $374. Sample data."
+    },
+    "flights: a cap nothing meets, so it widens and says so": {
+      "tool": "show_flight_options",
+      "args": {
+        "destination": "Tokyo",
+        "origin": "LAX",
+        "date": "2027-04-12",
+        "maxPrice": 1
+      },
+      "express": "surface(\"mcp-flights\")\nhead = Text(\"LAX → Tokyo · from 12 Apr\", variant=\"h3\")\nf0 = FlightOption(\"TAP Air Portugal\", \"09:30\", \"21:07\", \"LAX\", \"NRT\", \"$370\", Event(\"select_flight\", {id: \"TP4510\", price: \"$370\"}), duration=\"11h 37m\", stops=\"1 stop · FRA\", flightNumber=\"TP172\", cabin=\"economy\", badge=\"Cheapest\")\nf1 = FlightOption(\"Delta\", \"10:12\", \"22:02\", \"LAX\", \"NRT\", \"$376\", Event(\"select_flight\", {id: \"DL2170\", price: \"$376\"}), duration=\"11h 50m\", stops=\"1 stop · LHR\", flightNumber=\"DL494\", cabin=\"economy\")\nf2 = FlightOption(\"United\", \"08:19\", \"16:04\", \"LAX\", \"NRT\", \"$383\", Event(\"select_flight\", {id: \"UA1948\", price: \"$383\"}), duration=\"7h 45m\", stops=\"Nonstop\", flightNumber=\"UA783\", cabin=\"economy\", badge=\"Fastest\")\nf3 = FlightOption(\"American\", \"14:54\", \"00:23 +1\", \"LAX\", \"NRT\", \"$404\", Event(\"select_flight\", {id: \"AA8568\", price: \"$404\"}), duration=\"9h 29m\", stops=\"Nonstop\", flightNumber=\"AA238\", cabin=\"economy\")\nfoot = Text(\"Nothing matched the $1 cap — closest 4 for LAX → NRT on 2027-04-12. · Widened: the $1 cap. · Sample data\", variant=\"caption\")\nroot = Column([head, f0, f1, f2, f3, foot])",
+      "surfaceId": "mcp-flights",
+      "summary": "4 flight option(s), LAX → Tokyo · from 12 Apr, cheapest $370. Sample data."
+    },
+    "flights: no date, and not asked to guess": {
+      "tool": "show_flight_options",
+      "args": {
+        "destination": "Madrid",
+        "origin": "JFK"
+      },
+      "error": "Cannot price flights without when you are leaving. Ask the traveler — draw the controls for all of it in one surface with render_a2ui_express, bound to $/trip/startDate with a single commit button — or pass the values as arguments. For a deliberately rough figure, call again with flexible: true and say on screen that it is indicative."
+    },
+    "flights: no date, explicitly rough": {
+      "tool": "show_flight_options",
+      "args": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "flexible": true
+      },
+      "express": "surface(\"mcp-flights\")\nhead = Text(\"JFK → Madrid\", variant=\"h3\")\nf0 = FlightOption(\"Lufthansa\", \"09:38\", \"21:15\", \"JFK\", \"MAD\", \"$244\", Event(\"select_flight\", {id: \"LH7733\", price: \"$244\"}), duration=\"11h 37m\", stops=\"1 stop · LHR\", flightNumber=\"LH610\", cabin=\"economy\", badge=\"Cheapest\")\nf1 = FlightOption(\"Iberia\", \"13:18\", \"23:57\", \"JFK\", \"MAD\", \"$257\", Event(\"select_flight\", {id: \"IB8694\", price: \"$257\"}), duration=\"10h 39m\", stops=\"1 stop · AMS\", flightNumber=\"IB614\", cabin=\"economy\")\nf2 = FlightOption(\"Air France\", \"14:19\", \"23:04\", \"JFK\", \"MAD\", \"$305\", Event(\"select_flight\", {id: \"AF1917\", price: \"$305\"}), duration=\"8h 45m\", stops=\"Nonstop\", flightNumber=\"AF985\", cabin=\"economy\")\nf3 = FlightOption(\"TAP Air Portugal\", \"12:01\", \"20:29\", \"JFK\", \"MAD\", \"$344\", Event(\"select_flight\", {id: \"TP2754\", price: \"$344\"}), duration=\"8h 28m\", stops=\"Nonstop\", flightNumber=\"TP558\", cabin=\"economy\", badge=\"Fastest\")\nfoot = Text(\"4 option(s) for JFK → MAD. · Indicative dates — not priced for a specific trip. · Sample data\", variant=\"caption\")\nroot = Column([head, f0, f1, f2, f3, foot])",
+      "surfaceId": "mcp-flights",
+      "summary": "4 flight option(s), JFK → Madrid, cheapest $244. Sample data. Indicative — no date was given."
+    },
+    "flights: a destination nobody knows": {
+      "tool": "show_flight_options",
+      "args": {
+        "destination": "Atlantis",
+        "origin": "JFK",
+        "date": "2027-04-12"
+      },
+      "error": "This demo does not have data for “Atlantis”. It covers 9 cities. Offer these as choices: Madrid, Spain, Lisbon, Portugal, Paris, France, Tokyo, Japan, Mexico City, Mexico, New York, United States, Chicago, United States, San Francisco, United States, Athens, Greece. Do not substitute a different city, invent an airport code, or draw an empty list."
+    },
+    "hotels: inline": {
+      "tool": "show_hotel_options",
+      "args": {
+        "destination": "Madrid",
+        "nights": 5
+      },
+      "express": "surface(\"mcp-hotels\")\nhead = Text(\"Stays in Madrid\", variant=\"h3\")\nh0 = HotelCard(\"Pensão Alta\", \"€102 / night\", Event(\"select_hotel\", {id: \"h_MAD_0\", name: \"Pensão Alta\"}), neighborhood=\"Lavapiés\", rating=\"4.3 (594)\", amenities=[\"Late check-out\", \"Bikes\", \"Breakfast\"], badge=\"Best value\")\nh1 = HotelCard(\"Pensão Nueve\", \"€168 / night\", Event(\"select_hotel\", {id: \"h_MAD_1\", name: \"Pensão Nueve\"}), neighborhood=\"Chueca\", rating=\"4.1 (1137)\", amenities=[\"Breakfast\", \"Kitchenette\"])\nh2 = HotelCard(\"Pensão Nueve\", \"€194 / night\", Event(\"select_hotel\", {id: \"h_MAD_3\", name: \"Pensão Nueve\"}), neighborhood=\"La Latina\", rating=\"4.9 (655)\", amenities=[\"Air-con\", \"Bikes\", \"Rooftop\", \"Kitchenette\"])\nh3 = HotelCard(\"Casa Alta\", \"€214 / night\", Event(\"select_hotel\", {id: \"h_MAD_4\", name: \"Casa Alta\"}), neighborhood=\"Chueca\", rating=\"4.8 (1992)\", amenities=[\"Rooftop\", \"Laundry\", \"Late check-out\", \"Breakfast\"])\nfoot = Text(\"4 stay(s) in Madrid for 5 night(s). · Sample data\", variant=\"caption\")\nroot = Column([head, h0, h1, h2, h3, foot])",
+      "surfaceId": "mcp-hotels",
+      "summary": "4 stay(s) in Madrid from €102 / night. Sample data."
+    },
+    "hotels: home, two fit": {
+      "tool": "show_hotel_options",
+      "args": {
+        "destination": "Madrid",
+        "nights": 5,
+        "surface": "home"
+      },
+      "express": "surface(\"mcp-home\")\nhead = Text(\"Stays in Madrid\", variant=\"h4\")\nh0 = HotelCard(\"Pensão Alta\", \"€102 / night\", Event(\"select_hotel\", {id: \"h_MAD_0\", name: \"Pensão Alta\"}), neighborhood=\"Lavapiés\", rating=\"4.3 (594)\", amenities=[\"Late check-out\", \"Bikes\", \"Breakfast\"], badge=\"Best value\")\nh1 = HotelCard(\"Pensão Nueve\", \"€168 / night\", Event(\"select_hotel\", {id: \"h_MAD_1\", name: \"Pensão Nueve\"}), neighborhood=\"Chueca\", rating=\"4.1 (1137)\", amenities=[\"Breakfast\", \"Kitchenette\"])\nfoot = Text(\"4 stay(s) in Madrid for 5 night(s). · Sample data\", variant=\"caption\")\nroot = Column([head, h0, h1, foot])",
+      "surfaceId": "mcp-home",
+      "summary": "2 stay(s) in Madrid from €102 / night. Sample data."
+    },
+    "hotels: a nightly cap nothing meets": {
+      "tool": "show_hotel_options",
+      "args": {
+        "destination": "Paris",
+        "nights": 3,
+        "maxNightly": 1
+      },
+      "express": "surface(\"mcp-hotels\")\nhead = Text(\"Stays in Paris\", variant=\"h3\")\nh0 = HotelCard(\"Villa Lumière\", \"€181 / night\", Event(\"select_hotel\", {id: \"h_CDG_3\", name: \"Villa Lumière\"}), neighborhood=\"Belleville\", rating=\"4.4 (1601)\", amenities=[\"Kitchenette\", \"Bikes\"], badge=\"Best value\")\nh1 = HotelCard(\"Pensão Verano\", \"€236 / night\", Event(\"select_hotel\", {id: \"h_CDG_4\", name: \"Pensão Verano\"}), neighborhood=\"Le Marais\", rating=\"4.3 (211)\", amenities=[\"Rooftop\", \"Air-con\", \"Breakfast\", \"Laundry\"])\nh2 = HotelCard(\"Residencia Verano\", \"€249 / night\", Event(\"select_hotel\", {id: \"h_CDG_2\", name: \"Residencia Verano\"}), neighborhood=\"Canal Saint-Martin\", rating=\"4.0 (1486)\", amenities=[\"Rooftop\", \"Breakfast\"])\nh3 = HotelCard(\"Pensão Nueve\", \"€283 / night\", Event(\"select_hotel\", {id: \"h_CDG_0\", name: \"Pensão Nueve\"}), neighborhood=\"Saint-Germain\", rating=\"4.5 (1996)\", amenities=[\"Kitchenette\", \"Laundry\", \"Breakfast\", \"Air-con\"])\nfoot = Text(\"Nothing under the €1 a night cap. Closest 4 in Paris. · Widened: the €1 a night cap. · Sample data\", variant=\"caption\")\nroot = Column([head, h0, h1, h2, h3, foot])",
+      "surfaceId": "mcp-hotels",
+      "summary": "4 stay(s) in Paris from €181 / night. Sample data."
+    },
+    "hotels: a destination nobody knows": {
+      "tool": "show_hotel_options",
+      "args": {
+        "destination": "Atlantis",
+        "nights": 3
+      },
+      "error": "This demo does not have data for “Atlantis”. It covers 9 cities. Offer these as choices: Madrid, Spain, Lisbon, Portugal, Paris, France, Tokyo, Japan, Mexico City, Mexico, New York, United States, Chicago, United States, San Francisco, United States, Athens, Greece. Do not substitute a different city, invent an airport code, or draw an empty list."
+    },
+    "controls: with a destination and dates": {
+      "tool": "show_trip_controls",
+      "args": {
+        "destination": "Madrid",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 3,
+        "maxPrice": 900,
+        "nonstopOnly": true
+      },
+      "express": "surface(\"mcp-sidebar\")\n$/filters/destination = \"Madrid\"\n$/filters/start = \"2027-04-12T00:00:00Z\"\n$/filters/end = \"2027-04-19T00:00:00Z\"\n$/filters/travelers = 3\n$/filters/maxPrice = 900\n$/filters/stops = \"nonstop\"\ntitle = Text(\"Refine Madrid\", variant=\"h3\")\ndates = DateRangePicker(\"Travel dates\", $/filters/start, $/filters/end, action=Event(\"dates_changed\"), nightsLabel=\"7 nights\")\nwho = TravelerCounter(\"Travellers\", $/filters/travelers, min=1, max=8)\nbudget = Slider(\"Max fare\", 150, 2000, $/filters/maxPrice)\nstops = ChoicePicker(\"Stops\", \"mutuallyExclusive\", [{label: \"Any\", value: \"any\"}, {label: \"Nonstop only\", value: \"nonstop\"}], $/filters/stops)\napply = Button(Text(\"Apply\"), \"primary\", Event(\"apply_filters\", {destination: $/filters/destination, start: $/filters/start, end: $/filters/end, travelers: $/filters/travelers, maxPrice: $/filters/maxPrice, stops: $/filters/stops}))\nroot = Column([title, dates, who, budget, stops, apply], align=\"stretch\")",
+      "surfaceId": "mcp-sidebar",
+      "summary": "Controls for Madrid: dates, party size, fare cap and stops."
+    },
+    "controls: with nothing at all": {
+      "tool": "show_trip_controls",
+      "args": {},
+      "express": "surface(\"mcp-sidebar\")\n$/filters/start = \"\"\n$/filters/end = \"\"\n$/filters/travelers = 2\n$/filters/maxPrice = 700\n$/filters/stops = \"any\"\ntitle = Text(\"Refine the trip\", variant=\"h3\")\ndates = DateRangePicker(\"Travel dates\", $/filters/start, $/filters/end, action=Event(\"dates_changed\"))\nwho = TravelerCounter(\"Travellers\", $/filters/travelers, min=1, max=8)\nbudget = Slider(\"Max fare\", 150, 2000, $/filters/maxPrice)\nstops = ChoicePicker(\"Stops\", \"mutuallyExclusive\", [{label: \"Any\", value: \"any\"}, {label: \"Nonstop only\", value: \"nonstop\"}], $/filters/stops)\napply = Button(Text(\"Apply\"), \"primary\", Event(\"apply_filters\", {destination: $/filters/destination, start: $/filters/start, end: $/filters/end, travelers: $/filters/travelers, maxPrice: $/filters/maxPrice, stops: $/filters/stops}))\nroot = Column([title, dates, who, budget, stops, apply], align=\"stretch\")",
+      "surfaceId": "mcp-sidebar",
+      "summary": "Trip controls: dates, party size, fare cap and stops."
+    },
+    "itinerary: three days": {
+      "tool": "show_itinerary",
+      "args": {
+        "destination": "Madrid",
+        "days": 3,
+        "startDate": "2027-04-12"
+      },
+      "express": "surface(\"mcp-itinerary\")\nhead = Text(\"Madrid\", variant=\"h2\")\na0_0 = ActivityItem(\"Museo del Prado\", \"10:00\", category=\"sight\", note=\"Go at opening or in the last free hours\")\na0_1 = ActivityItem(\"Mercado de San Fernando\", \"16:00\", category=\"food\", note=\"Cheaper and less touristed than San Miguel\")\nday0 = ItineraryDay(\"Day 1\", [a0_0, a0_1], date=\"Mon, 12 Apr\", summary=\"Arrive and settle in\")\na1_0 = ActivityItem(\"Retiro Park\", \"10:00\", category=\"outdoors\", note=\"Rowboats on the lake until 19:00\")\na1_1 = ActivityItem(\"Toledo day trip\", \"16:00\", category=\"sight\", note=\"33 minutes by AVE from Atocha\")\nday1 = ItineraryDay(\"Day 2\", [a1_0, a1_1], date=\"Tue, 13 Apr\", summary=\"A full day out\")\na2_0 = ActivityItem(\"Wander Madrid\", \"10:00\", category=\"outdoors\", note=\"Pick a direction and walk\")\na2_1 = ActivityItem(\"Dinner, late\", \"16:00\", category=\"food\", note=\"Book somewhere near the hotel\")\nday2 = ItineraryDay(\"Day 3\", [a2_0, a2_1], date=\"Wed, 14 Apr\", summary=\"A full day out\")\nroot = Column([head, day0, day1, day2])",
+      "surfaceId": "mcp-itinerary",
+      "summary": "A 3-day plan for Madrid: Dense, walkable and late-running. The art is world class and the eating starts at 21:00."
+    },
+    "itinerary: home, one day": {
+      "tool": "show_itinerary",
+      "args": {
+        "destination": "Madrid",
+        "days": 3,
+        "startDate": "2027-04-12",
+        "surface": "home"
+      },
+      "express": "surface(\"mcp-home\")\nhead = Text(\"Madrid\", variant=\"h4\")\na0_0 = ActivityItem(\"Museo del Prado\", \"10:00\", category=\"sight\", note=\"Go at opening or in the last free hours\")\na0_1 = ActivityItem(\"Mercado de San Fernando\", \"16:00\", category=\"food\", note=\"Cheaper and less touristed than San Miguel\")\nday0 = ItineraryDay(\"Day 1\", [a0_0, a0_1], date=\"Mon, 12 Apr\", summary=\"Arrive and settle in\")\nroot = Column([head, day0])",
+      "surfaceId": "mcp-home",
+      "summary": "A 1-day plan for Madrid: Dense, walkable and late-running. The art is world class and the eating starts at 21:00."
+    },
+    "itinerary: more days than there are highlights": {
+      "tool": "show_itinerary",
+      "args": {
+        "destination": "Madrid",
+        "days": 7,
+        "startDate": "2027-04-12"
+      },
+      "express": "surface(\"mcp-itinerary\")\nhead = Text(\"Madrid\", variant=\"h2\")\na0_0 = ActivityItem(\"Museo del Prado\", \"10:00\", category=\"sight\", note=\"Go at opening or in the last free hours\")\na0_1 = ActivityItem(\"Mercado de San Fernando\", \"16:00\", category=\"food\", note=\"Cheaper and less touristed than San Miguel\")\nday0 = ItineraryDay(\"Day 1\", [a0_0, a0_1], date=\"Mon, 12 Apr\", summary=\"Arrive and settle in\")\na1_0 = ActivityItem(\"Retiro Park\", \"10:00\", category=\"outdoors\", note=\"Rowboats on the lake until 19:00\")\na1_1 = ActivityItem(\"Toledo day trip\", \"16:00\", category=\"sight\", note=\"33 minutes by AVE from Atocha\")\nday1 = ItineraryDay(\"Day 2\", [a1_0, a1_1], date=\"Tue, 13 Apr\", summary=\"A full day out\")\na2_0 = ActivityItem(\"Wander Madrid\", \"10:00\", category=\"outdoors\", note=\"Pick a direction and walk\")\na2_1 = ActivityItem(\"Dinner, late\", \"16:00\", category=\"food\", note=\"Book somewhere near the hotel\")\nday2 = ItineraryDay(\"Day 3\", [a2_0, a2_1], date=\"Wed, 14 Apr\", summary=\"A full day out\")\na3_0 = ActivityItem(\"A slow morning\", \"10:00\", category=\"free\", note=\"Coffee, a market, no plan\")\na3_1 = ActivityItem(\"Wander Madrid\", \"16:00\", category=\"outdoors\", note=\"Pick a direction and walk\")\nday3 = ItineraryDay(\"Day 4\", [a3_0, a3_1], date=\"Thu, 15 Apr\", summary=\"A full day out\")\na4_0 = ActivityItem(\"Dinner, late\", \"10:00\", category=\"food\", note=\"Book somewhere near the hotel\")\na4_1 = ActivityItem(\"A slow morning\", \"16:00\", category=\"free\", note=\"Coffee, a market, no plan\")\nday4 = ItineraryDay(\"Day 5\", [a4_0, a4_1], date=\"Fri, 16 Apr\", summary=\"A full day out\")\na5_0 = ActivityItem(\"Wander Madrid\", \"10:00\", category=\"outdoors\", note=\"Pick a direction and walk\")\na5_1 = ActivityItem(\"Dinner, late\", \"16:00\", category=\"food\", note=\"Book somewhere near the hotel\")\nday5 = ItineraryDay(\"Day 6\", [a5_0, a5_1], date=\"Sat, 17 Apr\", summary=\"A full day out\")\na6_0 = ActivityItem(\"A slow morning\", \"10:00\", category=\"free\", note=\"Coffee, a market, no plan\")\na6_1 = ActivityItem(\"Wander Madrid\", \"16:00\", category=\"outdoors\", note=\"Pick a direction and walk\")\nday6 = ItineraryDay(\"Day 7\", [a6_0, a6_1], date=\"Sun, 18 Apr\", summary=\"A full day out\")\nroot = Column([head, day0, day1, day2, day3, day4, day5, day6])",
+      "surfaceId": "mcp-itinerary",
+      "summary": "A 7-day plan for Madrid: Dense, walkable and late-running. The art is world class and the eating starts at 21:00."
+    },
+    "itinerary: no start date, so it starts today": {
+      "tool": "show_itinerary",
+      "args": {
+        "destination": "Madrid",
+        "days": 2
+      },
+      "express": "surface(\"mcp-itinerary\")\nhead = Text(\"Madrid\", variant=\"h2\")\na0_0 = ActivityItem(\"Museo del Prado\", \"10:00\", category=\"sight\", note=\"Go at opening or in the last free hours\")\na0_1 = ActivityItem(\"Mercado de San Fernando\", \"16:00\", category=\"food\", note=\"Cheaper and less touristed than San Miguel\")\nday0 = ItineraryDay(\"Day 1\", [a0_0, a0_1], date=\"Mon, 01 Mar\", summary=\"Arrive and settle in\")\na1_0 = ActivityItem(\"Retiro Park\", \"10:00\", category=\"outdoors\", note=\"Rowboats on the lake until 19:00\")\na1_1 = ActivityItem(\"Toledo day trip\", \"16:00\", category=\"sight\", note=\"33 minutes by AVE from Atocha\")\nday1 = ItineraryDay(\"Day 2\", [a1_0, a1_1], date=\"Tue, 02 Mar\", summary=\"A full day out\")\nroot = Column([head, day0, day1])",
+      "surfaceId": "mcp-itinerary",
+      "summary": "A 2-day plan for Madrid: Dense, walkable and late-running. The art is world class and the eating starts at 21:00."
+    },
+    "itinerary: a destination nobody knows": {
+      "tool": "show_itinerary",
+      "args": {
+        "destination": "Atlantis"
+      },
+      "error": "No itinerary data for 'Atlantis'."
+    },
+    "dashboard: a trip in progress": {
+      "tool": "show_trip_dashboard",
+      "args": {
+        "destination": "Madrid",
+        "startDate": "2027-04-12",
+        "nights": 7,
+        "travelers": 2,
+        "budget": 4000,
+        "spent": 1200
+      },
+      "express": "surface(\"mcp-home\")\nhead = Text(\"42 days to Madrid\", variant=\"h1\")\nt1 = StatTile(\"Travellers\", \"2\", caption=\"7 nights\", tone=\"neutral\")\nt2 = StatTile(\"Estimated\", \"$3,500\", caption=\"all in\", tone=\"accent\")\nt3 = StatTile(\"Spent\", \"$1,200\", caption=\"of $4,000\", tone=\"positive\")\ntiles = Row([t1, t2, t3])\nmeter = ProgressMeter(\"Budget used\", 1200, 4000, caption=\"$1,200 of $4,000\", tone=\"caution\")\nweather = WeatherStrip([{day: \"Mon\", high: \"21°\", low: \"14°\", condition: \"rain\"}, {day: \"Tue\", high: \"20°\", low: \"15°\", condition: \"sun\"}, {day: \"Wed\", high: \"19°\", low: \"13°\", condition: \"rain\"}, {day: \"Thu\", high: \"21°\", low: \"14°\", condition: \"fog\"}, {day: \"Fri\", high: \"23°\", low: \"17°\", condition: \"fog\"}], place=\"Madrid\", caption=\"Rain on more than one day — pack a shell.\")\nmap = MapPreview([{label: \"Museo del Prado\", kind: \"sight\"}, {label: \"Mercado de San Fernando\", kind: \"food\"}, {label: \"Retiro Park\", kind: \"outdoors\"}, {label: \"Toledo day trip\", kind: \"sight\"}], caption=\"Dense, walkable and late-running. The art is world class and the eating starts at 21:00.\")\nroot = Column([head, tiles, meter, weather, map])",
+      "surfaceId": "mcp-home",
+      "summary": "Madrid: 2 traveller(s), 7 nights, estimated $3,500."
+    },
+    "dashboard: over budget": {
+      "tool": "show_trip_dashboard",
+      "args": {
+        "destination": "Madrid",
+        "startDate": "2027-04-12",
+        "nights": 7,
+        "travelers": 2,
+        "budget": 1000,
+        "spent": 3200
+      },
+      "express": "surface(\"mcp-home\")\nhead = Text(\"42 days to Madrid\", variant=\"h1\")\nt1 = StatTile(\"Travellers\", \"2\", caption=\"7 nights\", tone=\"neutral\")\nt2 = StatTile(\"Estimated\", \"$3,500\", caption=\"all in\", tone=\"accent\")\nt3 = StatTile(\"Spent\", \"$3,200\", caption=\"of $1,000\", tone=\"critical\")\ntiles = Row([t1, t2, t3])\nmeter = ProgressMeter(\"Budget used\", 3200, 1000, caption=\"$3,200 of $1,000\", tone=\"critical\")\nweather = WeatherStrip([{day: \"Mon\", high: \"21°\", low: \"14°\", condition: \"rain\"}, {day: \"Tue\", high: \"20°\", low: \"15°\", condition: \"sun\"}, {day: \"Wed\", high: \"19°\", low: \"13°\", condition: \"rain\"}, {day: \"Thu\", high: \"21°\", low: \"14°\", condition: \"fog\"}, {day: \"Fri\", high: \"23°\", low: \"17°\", condition: \"fog\"}], place=\"Madrid\", caption=\"Rain on more than one day — pack a shell.\")\nmap = MapPreview([{label: \"Museo del Prado\", kind: \"sight\"}, {label: \"Mercado de San Fernando\", kind: \"food\"}, {label: \"Retiro Park\", kind: \"outdoors\"}, {label: \"Toledo day trip\", kind: \"sight\"}], caption=\"Dense, walkable and late-running. The art is world class and the eating starts at 21:00.\")\nroot = Column([head, tiles, meter, weather, map])",
+      "surfaceId": "mcp-home",
+      "summary": "Madrid: 2 traveller(s), 7 nights, estimated $3,500."
+    },
+    "dashboard: no budget given, so the estimate is the budget": {
+      "tool": "show_trip_dashboard",
+      "args": {
+        "destination": "Madrid",
+        "startDate": "2027-04-12",
+        "nights": 5,
+        "travelers": 2
+      },
+      "express": "surface(\"mcp-home\")\nhead = Text(\"42 days to Madrid\", variant=\"h1\")\nt1 = StatTile(\"Travellers\", \"2\", caption=\"5 nights\", tone=\"neutral\")\nt2 = StatTile(\"Estimated\", \"$2,692\", caption=\"all in\", tone=\"accent\")\nt3 = StatTile(\"Spent\", \"$0\", caption=\"of $2,692\", tone=\"positive\")\ntiles = Row([t1, t2, t3])\nmeter = ProgressMeter(\"Budget used\", 0, 2692, caption=\"$0 of $2,692\", tone=\"caution\")\nweather = WeatherStrip([{day: \"Mon\", high: \"21°\", low: \"14°\", condition: \"rain\"}, {day: \"Tue\", high: \"20°\", low: \"15°\", condition: \"sun\"}, {day: \"Wed\", high: \"19°\", low: \"13°\", condition: \"rain\"}, {day: \"Thu\", high: \"21°\", low: \"14°\", condition: \"fog\"}, {day: \"Fri\", high: \"23°\", low: \"17°\", condition: \"fog\"}], place=\"Madrid\", caption=\"Rain on more than one day — pack a shell.\")\nmap = MapPreview([{label: \"Museo del Prado\", kind: \"sight\"}, {label: \"Mercado de San Fernando\", kind: \"food\"}, {label: \"Retiro Park\", kind: \"outdoors\"}, {label: \"Toledo day trip\", kind: \"sight\"}], caption=\"Dense, walkable and late-running. The art is world class and the eating starts at 21:00.\")\nroot = Column([head, tiles, meter, weather, map])",
+      "surfaceId": "mcp-home",
+      "summary": "Madrid: 2 traveller(s), 5 nights, estimated $2,692."
+    },
+    "dashboard: no date, so no countdown": {
+      "tool": "show_trip_dashboard",
+      "args": {
+        "destination": "Madrid",
+        "nights": 5,
+        "travelers": 2
+      },
+      "express": "surface(\"mcp-home\")\nhead = Text(\"Madrid\", variant=\"h1\")\nt1 = StatTile(\"Travellers\", \"2\", caption=\"5 nights\", tone=\"neutral\")\nt2 = StatTile(\"Estimated\", \"$2,692\", caption=\"all in\", tone=\"accent\")\nt3 = StatTile(\"Spent\", \"$0\", caption=\"of $2,692\", tone=\"positive\")\ntiles = Row([t1, t2, t3])\nmeter = ProgressMeter(\"Budget used\", 0, 2692, caption=\"$0 of $2,692\", tone=\"caution\")\nweather = WeatherStrip([{day: \"Sat\", high: \"24°\", low: \"18°\", condition: \"fog\"}, {day: \"Sun\", high: \"23°\", low: \"17°\", condition: \"cloud\"}, {day: \"Mon\", high: \"24°\", low: \"18°\", condition: \"rain\"}, {day: \"Tue\", high: \"26°\", low: \"20°\", condition: \"fog\"}, {day: \"Wed\", high: \"24°\", low: \"17°\", condition: \"sun\"}], place=\"Madrid\", caption=\"Mostly dry; a light jacket is enough.\")\nmap = MapPreview([{label: \"Museo del Prado\", kind: \"sight\"}, {label: \"Mercado de San Fernando\", kind: \"food\"}, {label: \"Retiro Park\", kind: \"outdoors\"}, {label: \"Toledo day trip\", kind: \"sight\"}], caption=\"Dense, walkable and late-running. The art is world class and the eating starts at 21:00.\")\nroot = Column([head, tiles, meter, weather, map])",
+      "surfaceId": "mcp-home",
+      "summary": "Madrid: 2 traveller(s), 5 nights, estimated $2,692."
+    },
+    "price: inline": {
+      "tool": "show_price_summary",
+      "args": {
+        "destination": "Madrid",
+        "travelers": 2,
+        "nights": 5
+      },
+      "express": "surface(\"mcp-price\")\nhead = Text(\"What Madrid costs\", variant=\"h3\")\np = PriceSummary([{label: \"Flights (2 travelers)\", amount: \"$1,051\"}, {label: \"Stay (5 nights)\", amount: \"$837\"}, {label: \"Food and drink\", amount: \"$660\", note: \"estimated\"}, {label: \"Local transport\", amount: \"$144\", note: \"metro and taxis\"}], \"$2,692\", totalLabel=\"Trip total\", caption=\"Estimated, taxes included\")\nroot = Column([head, p])",
+      "surfaceId": "mcp-price",
+      "summary": "Estimated $2,692 for Madrid."
+    },
+    "price: with prices passed in": {
+      "tool": "show_price_summary",
+      "args": {
+        "destination": "Madrid",
+        "travelers": 2,
+        "nights": 5,
+        "flightPrice": 780,
+        "nightlyPrice": 190
+      },
+      "express": "surface(\"mcp-price\")\nhead = Text(\"What Madrid costs\", variant=\"h3\")\np = PriceSummary([{label: \"Flights (2 travelers)\", amount: \"$1,560\"}, {label: \"Stay (5 nights)\", amount: \"$950\"}, {label: \"Food and drink\", amount: \"$660\", note: \"estimated\"}, {label: \"Local transport\", amount: \"$144\", note: \"metro and taxis\"}], \"$3,314\", totalLabel=\"Trip total\", caption=\"Estimated, taxes included\")\nroot = Column([head, p])",
+      "surfaceId": "mcp-price",
+      "summary": "Estimated $3,314 for Madrid."
+    },
+    "price: home": {
+      "tool": "show_price_summary",
+      "args": {
+        "destination": "Madrid",
+        "travelers": 2,
+        "nights": 5,
+        "surface": "home"
+      },
+      "express": "surface(\"mcp-home\")\nhead = Text(\"What Madrid costs\", variant=\"h4\")\np = PriceSummary([{label: \"Flights (2 travelers)\", amount: \"$1,051\"}, {label: \"Stay (5 nights)\", amount: \"$837\"}, {label: \"Food and drink\", amount: \"$660\", note: \"estimated\"}, {label: \"Local transport\", amount: \"$144\", note: \"metro and taxis\"}], \"$2,692\", totalLabel=\"Trip total\", caption=\"Estimated, taxes included\")\nroot = Column([head, p])",
+      "surfaceId": "mcp-home",
+      "summary": "Estimated $2,692 for Madrid."
+    },
+    "express: whatever the model composed": {
+      "tool": "render_a2ui_express",
+      "args": {
+        "source": "surface(\"mcp\")\nhead = Text(\"Anything\", variant=\"h3\")\nroot = Column([head])",
+        "surfaceId": "mcp"
+      },
+      "express": "surface(\"mcp\")\nhead = Text(\"Anything\", variant=\"h3\")\nroot = Column([head])",
+      "summary": "A custom interface.",
+      "surfaceId": "mcp"
+    }
+  },
+  "examples": {
+    "show_flight_options": {
+      "destination": "Madrid",
+      "origin": "JFK",
+      "date": "2026-10-27",
+      "endDate": "2026-11-03",
+      "travelers": 2,
+      "cabin": "economy"
+    },
+    "show_hotel_options": {
+      "destination": "Madrid",
+      "nights": 6,
+      "maxNightly": 260
+    },
+    "show_trip_controls": {
+      "destination": "Madrid",
+      "travelers": 2
+    },
+    "show_itinerary": {
+      "destination": "Lisbon",
+      "days": 3
+    },
+    "show_trip_dashboard": {
+      "destination": "Madrid",
+      "nights": 6,
+      "travelers": 2,
+      "budget": 2600,
+      "spent": 1320
+    },
+    "show_price_summary": {
+      "destination": "Tokyo",
+      "travelers": 2,
+      "nights": 7
+    },
+    "render_a2ui_express": {
+      "surfaceId": "mcp-custom",
+      "source": "head = Text(\"Weekend in Lisbon\", variant=\"h2\")\na1 = ActivityItem(\"Alfama at dawn\", \"07:30\", category=\"sight\", note=\"Before the tour groups\")\na2 = ActivityItem(\"Time Out Market\", \"11:30\", category=\"food\", duration=\"1h\")\nday = ItineraryDay(\"Saturday\", [a1, a2], date=\"Sat 18 Apr\", summary=\"Slow start, long lunch\")\nroot = Column([head, day])"
+    },
+    "get_a2ui_component_reference": {}
+  },
+  "voice": {
+    "tools": [
+      {
+        "name": "show_flight_options",
+        "description": "Searches flights and returns them as an interactive A2UI surface the user can pick from, instead of a list of text. Use whenever the user is choosing a flight.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string",
+              "description": "City name or airport code."
+            },
+            "origin": {
+              "type": "string",
+              "description": "Departure airport code. Required — the trip is not priced without one."
+            },
+            "date": {
+              "type": "string",
+              "description": "Outbound date, YYYY-MM-DD."
+            },
+            "travelers": {
+              "type": "integer"
+            },
+            "cabin": {
+              "type": "string",
+              "enum": [
+                "economy",
+                "premium",
+                "business",
+                "first"
+              ]
+            },
+            "maxPrice": {
+              "type": "number"
+            },
+            "nonstopOnly": {
+              "type": "boolean"
+            },
+            "surface": {
+              "type": "string",
+              "enum": [
+                "inline",
+                "sidebar",
+                "home"
+              ],
+              "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+            }
+          },
+          "required": [
+            "destination"
+          ]
+        }
+      },
+      {
+        "name": "show_hotel_options",
+        "description": "Searches stays and returns them as A2UI hotel cards with rating, neighbourhood and nightly rate.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string"
+            },
+            "nights": {
+              "type": "integer"
+            },
+            "travelers": {
+              "type": "integer"
+            },
+            "maxNightly": {
+              "type": "number"
+            },
+            "neighborhood": {
+              "type": "string"
+            },
+            "surface": {
+              "type": "string",
+              "enum": [
+                "inline",
+                "sidebar",
+                "home"
+              ],
+              "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+            }
+          },
+          "required": [
+            "destination"
+          ]
+        }
+      },
+      {
+        "name": "show_trip_controls",
+        "description": "Returns the sidebar flow: a panel of controls for the trip as a whole — dates, party size, budget, stop preference — with one commit action. Use it when the user wants to *adjust* the trip rather than discuss it. The panel replaces itself each time; it is not a feed.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string"
+            },
+            "startDate": {
+              "type": "string",
+              "description": "Current start date, YYYY-MM-DD."
+            },
+            "endDate": {
+              "type": "string",
+              "description": "Current end date, YYYY-MM-DD."
+            },
+            "travelers": {
+              "type": "integer"
+            },
+            "maxPrice": {
+              "type": "number",
+              "description": "Current fare cap."
+            },
+            "nonstopOnly": {
+              "type": "boolean"
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "show_itinerary",
+        "description": "Builds a day-by-day plan for a destination from its real highlights and returns it as an A2UI itinerary the user can tap through.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string"
+            },
+            "days": {
+              "type": "integer",
+              "description": "How many days to plan, 1–7."
+            },
+            "startDate": {
+              "type": "string",
+              "description": "First day, YYYY-MM-DD."
+            },
+            "surface": {
+              "type": "string",
+              "enum": [
+                "inline",
+                "sidebar",
+                "home"
+              ],
+              "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+            }
+          },
+          "required": [
+            "destination"
+          ]
+        }
+      },
+      {
+        "name": "show_trip_dashboard",
+        "description": "Returns a generated dashboard for a trip: days remaining, budget used, forecast and a map of what is planned. Use for \"how is my trip looking\" questions.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string"
+            },
+            "startDate": {
+              "type": "string",
+              "description": "Departure date, YYYY-MM-DD."
+            },
+            "travelers": {
+              "type": "integer"
+            },
+            "nights": {
+              "type": "integer"
+            },
+            "budget": {
+              "type": "number"
+            },
+            "spent": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "destination"
+          ]
+        }
+      },
+      {
+        "name": "show_price_summary",
+        "description": "Returns an itemised cost breakdown and total as an A2UI price summary.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string"
+            },
+            "travelers": {
+              "type": "integer"
+            },
+            "nights": {
+              "type": "integer"
+            },
+            "flightPrice": {
+              "type": "number"
+            },
+            "nightlyPrice": {
+              "type": "number"
+            },
+            "surface": {
+              "type": "string",
+              "enum": [
+                "inline",
+                "sidebar",
+                "home"
+              ],
+              "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+            }
+          },
+          "required": [
+            "destination"
+          ]
+        }
+      },
+      {
+        "name": "search_flights",
+        "description": "Finds flights to a destination. Returns fare, timing and stop data — not UI. Call it before showing flight options so the numbers on screen are real. Needs a date: with none given and none saved on the trip, it returns a request to ask the traveler rather than pricing a week nobody chose. Set flexible only when they explicitly asked for a rough or seasonal figure.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string",
+              "description": "Where the traveler is going: a city name or airport code, e.g. 'Madrid' or 'MAD'."
+            },
+            "origin": {
+              "type": "string",
+              "description": "Departure airport code. Required — the trip is not priced without one."
+            },
+            "date": {
+              "type": "string",
+              "description": "Outbound date as YYYY-MM-DD."
+            },
+            "travelers": {
+              "type": "integer",
+              "description": "Number of travelers."
+            },
+            "cabin": {
+              "type": "string",
+              "enum": [
+                "economy",
+                "premium",
+                "business",
+                "first"
+              ]
+            },
+            "maxPrice": {
+              "type": "number",
+              "description": "Highest acceptable per-traveler fare."
+            },
+            "nonstopOnly": {
+              "type": "boolean",
+              "description": "Exclude itineraries with a stop."
+            },
+            "flexible": {
+              "type": "boolean",
+              "description": "Only when the traveler asked for a rough or seasonal figure rather than their trip. Prices an indicative date, which you must then label as indicative on screen."
+            }
+          },
+          "required": [
+            "destination"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "search_hotels",
+        "description": "Finds places to stay. Returns nightly rates, neighbourhoods, ratings and amenities — not UI.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string",
+              "description": "City name or airport code."
+            },
+            "nights": {
+              "type": "integer",
+              "description": "Length of stay in nights."
+            },
+            "travelers": {
+              "type": "integer"
+            },
+            "maxNightly": {
+              "type": "number",
+              "description": "Highest acceptable nightly rate."
+            },
+            "neighborhood": {
+              "type": "string",
+              "description": "Preferred area, if the traveler named one."
+            },
+            "flexible": {
+              "type": "boolean",
+              "description": "Only for an explicitly rough figure. See search_flights."
+            }
+          },
+          "required": [
+            "destination"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get_destination",
+        "description": "Returns what is worth doing in a destination, when to go, and the local currency. Call it before writing an itinerary so the day plan names real places. With no argument, lists every destination this agent knows.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string",
+              "description": "City name or airport code. Omit to list all."
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get_weather",
+        "description": "Returns a short forecast for a destination — highs, lows and conditions by day.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string"
+            },
+            "startDate": {
+              "type": "string",
+              "description": "First day of the forecast, YYYY-MM-DD."
+            },
+            "days": {
+              "type": "integer",
+              "description": "How many days, up to 7."
+            }
+          },
+          "required": [
+            "destination"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "estimate_cost",
+        "description": "Breaks a trip into itemised costs and a total. Pass the chosen fare and nightly rate when the traveler has picked them, so the estimate reflects their actual trip rather than an average. Needs dates and party size, from the arguments or the saved trip; without them it returns a request to ask instead of a total that means nothing.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string"
+            },
+            "travelers": {
+              "type": "integer"
+            },
+            "nights": {
+              "type": "integer"
+            },
+            "flightPrice": {
+              "type": "number",
+              "description": "Chosen per-traveler fare, if any."
+            },
+            "nightlyPrice": {
+              "type": "number",
+              "description": "Chosen nightly rate, if any."
+            },
+            "flexible": {
+              "type": "boolean",
+              "description": "Only for an explicitly rough figure. See search_flights."
+            }
+          },
+          "required": [
+            "destination"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "save_trip",
+        "description": "Records what the traveler has decided. Anything not saved here is forgotten when the turn ends. Returns what is still needed.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string"
+            },
+            "startDate": {
+              "type": "string",
+              "description": "YYYY-MM-DD."
+            },
+            "endDate": {
+              "type": "string",
+              "description": "YYYY-MM-DD."
+            },
+            "travelers": {
+              "type": "integer"
+            },
+            "budget": {
+              "type": "number"
+            },
+            "selectedFlight": {
+              "type": "string",
+              "description": "Flight id the traveler chose."
+            },
+            "flightPrice": {
+              "type": "number",
+              "description": "Per-traveler fare of that flight."
+            },
+            "selectedHotel": {
+              "type": "string",
+              "description": "Hotel id the traveler chose."
+            },
+            "nightlyPrice": {
+              "type": "number",
+              "description": "Nightly rate of that stay."
+            },
+            "cabin": {
+              "type": "string",
+              "enum": [
+                "economy",
+                "premium",
+                "business",
+                "first"
+              ]
+            },
+            "nonstopOnly": {
+              "type": "boolean"
+            },
+            "neighborhood": {
+              "type": "string"
+            },
+            "spent": {
+              "type": "number",
+              "description": "What is actually committed, not estimated."
+            },
+            "planned": {
+              "type": "boolean",
+              "description": "True once the day-by-day plan is drawn and the traveler is happy with it."
+            },
+            "skip": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "route",
+                  "dates",
+                  "party",
+                  "flight",
+                  "stay",
+                  "budget",
+                  "plan"
+                ]
+              },
+              "description": "Stages this trip does not need. A skipped stage counts as settled."
+            },
+            "assumed": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Fields in this call the traveler did not actually state — your best guess rather than their answer. They pre-fill the control and the question stays open, so you still ask."
+            },
+            "legs": {
+              "type": "array",
+              "description": "Stops after the first, in order. The top-level fields are the first leg.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "destination": {
+                    "type": "string"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "description": "YYYY-MM-DD."
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "description": "YYYY-MM-DD."
+                  },
+                  "origin": {
+                    "type": "string",
+                    "description": "Departure airport. Omit and it departs from the previous stop."
+                  },
+                  "travelers": {
+                    "type": "integer",
+                    "description": "Only when this leg differs. Omit and it inherits the trip's."
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "description": "Why this stop exists — 'the wedding'."
+                  },
+                  "needsStay": {
+                    "type": "boolean",
+                    "description": "Whether this stop needs somewhere to stay."
+                  },
+                  "selectedHotel": {
+                    "type": "string",
+                    "description": "The stay chosen for this stop."
+                  },
+                  "nightlyPrice": {
+                    "type": "number"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "destination"
+                ]
+              }
+            },
+            "notes": {
+              "type": "string",
+              "description": "Anything else worth remembering, in one line."
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "release_decision",
+        "description": "Lets go of something already decided. Clears the named fields *and* what depended on them, and returns what it cleared.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Trip fields to release, e.g. ['startDate'] or ['selectedFlight']."
+            },
+            "stages": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "route",
+                  "dates",
+                  "party",
+                  "flight",
+                  "stay",
+                  "budget",
+                  "plan"
+                ]
+              },
+              "description": "Stages to un-rule-out."
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get_trip",
+        "description": "Reads back everything recorded about this trip so far.",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "setup": {
+      "setup": {
+        "model": "models/gemini-2.5-flash-native-audio-preview-09-2025",
+        "generationConfig": {
+          "responseModalities": [
+            "AUDIO"
+          ],
+          "speechConfig": {
+            "voiceConfig": {
+              "prebuiltVoiceConfig": {
+                "voiceName": "Charon"
+              }
+            }
+          }
+        },
+        "systemInstruction": {
+          "parts": [
+            {
+              "text": "SYSTEM\n\n---\n\nYou are on a phone call, not in a chat window. The traveler hears you and sees a\nscreen beside you.\n\n- **Say one or two sentences, then draw.** Never read options aloud. Call a\n  show_* tool and say what it is — \"four fares up, the Iberia one is cheapest and\n  gets in before lunch\" — rather than reciting airlines and times.\n- **Ask one thing at a time.** On a screen you can ask for dates, airport and\n  party size at once. Out loud that is three questions in a row and nobody\n  remembers the first.\n- **Be brief.** Two sentences is usually one too many. No preamble, no\n  \"certainly\", no repeating what they just said back to them.\n- **Numbers out loud are rounded.** \"About four hundred and twenty\" — the screen\n  has the exact figure.\n- Never say the words A2UI, surface, component or tool."
+            }
+          ]
+        },
+        "tools": [
+          {
+            "functionDeclarations": [
+              {
+                "name": "show_flight_options",
+                "description": "Searches flights and returns them as an interactive A2UI surface the user can pick from, instead of a list of text. Use whenever the user is choosing a flight.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string",
+                      "description": "City name or airport code."
+                    },
+                    "origin": {
+                      "type": "string",
+                      "description": "Departure airport code. Required — the trip is not priced without one."
+                    },
+                    "date": {
+                      "type": "string",
+                      "description": "Outbound date, YYYY-MM-DD."
+                    },
+                    "travelers": {
+                      "type": "integer"
+                    },
+                    "cabin": {
+                      "type": "string",
+                      "enum": [
+                        "economy",
+                        "premium",
+                        "business",
+                        "first"
+                      ]
+                    },
+                    "maxPrice": {
+                      "type": "number"
+                    },
+                    "nonstopOnly": {
+                      "type": "boolean"
+                    },
+                    "surface": {
+                      "type": "string",
+                      "enum": [
+                        "inline",
+                        "sidebar",
+                        "home"
+                      ],
+                      "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+                    }
+                  },
+                  "required": [
+                    "destination"
+                  ]
+                }
+              },
+              {
+                "name": "show_hotel_options",
+                "description": "Searches stays and returns them as A2UI hotel cards with rating, neighbourhood and nightly rate.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string"
+                    },
+                    "nights": {
+                      "type": "integer"
+                    },
+                    "travelers": {
+                      "type": "integer"
+                    },
+                    "maxNightly": {
+                      "type": "number"
+                    },
+                    "neighborhood": {
+                      "type": "string"
+                    },
+                    "surface": {
+                      "type": "string",
+                      "enum": [
+                        "inline",
+                        "sidebar",
+                        "home"
+                      ],
+                      "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+                    }
+                  },
+                  "required": [
+                    "destination"
+                  ]
+                }
+              },
+              {
+                "name": "show_trip_controls",
+                "description": "Returns the sidebar flow: a panel of controls for the trip as a whole — dates, party size, budget, stop preference — with one commit action. Use it when the user wants to *adjust* the trip rather than discuss it. The panel replaces itself each time; it is not a feed.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "description": "Current start date, YYYY-MM-DD."
+                    },
+                    "endDate": {
+                      "type": "string",
+                      "description": "Current end date, YYYY-MM-DD."
+                    },
+                    "travelers": {
+                      "type": "integer"
+                    },
+                    "maxPrice": {
+                      "type": "number",
+                      "description": "Current fare cap."
+                    },
+                    "nonstopOnly": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": []
+                }
+              },
+              {
+                "name": "show_itinerary",
+                "description": "Builds a day-by-day plan for a destination from its real highlights and returns it as an A2UI itinerary the user can tap through.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string"
+                    },
+                    "days": {
+                      "type": "integer",
+                      "description": "How many days to plan, 1–7."
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "description": "First day, YYYY-MM-DD."
+                    },
+                    "surface": {
+                      "type": "string",
+                      "enum": [
+                        "inline",
+                        "sidebar",
+                        "home"
+                      ],
+                      "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+                    }
+                  },
+                  "required": [
+                    "destination"
+                  ]
+                }
+              },
+              {
+                "name": "show_trip_dashboard",
+                "description": "Returns a generated dashboard for a trip: days remaining, budget used, forecast and a map of what is planned. Use for \"how is my trip looking\" questions.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "description": "Departure date, YYYY-MM-DD."
+                    },
+                    "travelers": {
+                      "type": "integer"
+                    },
+                    "nights": {
+                      "type": "integer"
+                    },
+                    "budget": {
+                      "type": "number"
+                    },
+                    "spent": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "destination"
+                  ]
+                }
+              },
+              {
+                "name": "show_price_summary",
+                "description": "Returns an itemised cost breakdown and total as an A2UI price summary.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string"
+                    },
+                    "travelers": {
+                      "type": "integer"
+                    },
+                    "nights": {
+                      "type": "integer"
+                    },
+                    "flightPrice": {
+                      "type": "number"
+                    },
+                    "nightlyPrice": {
+                      "type": "number"
+                    },
+                    "surface": {
+                      "type": "string",
+                      "enum": [
+                        "inline",
+                        "sidebar",
+                        "home"
+                      ],
+                      "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+                    }
+                  },
+                  "required": [
+                    "destination"
+                  ]
+                }
+              },
+              {
+                "name": "search_flights",
+                "description": "Finds flights to a destination. Returns fare, timing and stop data — not UI. Call it before showing flight options so the numbers on screen are real. Needs a date: with none given and none saved on the trip, it returns a request to ask the traveler rather than pricing a week nobody chose. Set flexible only when they explicitly asked for a rough or seasonal figure.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string",
+                      "description": "Where the traveler is going: a city name or airport code, e.g. 'Madrid' or 'MAD'."
+                    },
+                    "origin": {
+                      "type": "string",
+                      "description": "Departure airport code. Required — the trip is not priced without one."
+                    },
+                    "date": {
+                      "type": "string",
+                      "description": "Outbound date as YYYY-MM-DD."
+                    },
+                    "travelers": {
+                      "type": "integer",
+                      "description": "Number of travelers."
+                    },
+                    "cabin": {
+                      "type": "string",
+                      "enum": [
+                        "economy",
+                        "premium",
+                        "business",
+                        "first"
+                      ]
+                    },
+                    "maxPrice": {
+                      "type": "number",
+                      "description": "Highest acceptable per-traveler fare."
+                    },
+                    "nonstopOnly": {
+                      "type": "boolean",
+                      "description": "Exclude itineraries with a stop."
+                    },
+                    "flexible": {
+                      "type": "boolean",
+                      "description": "Only when the traveler asked for a rough or seasonal figure rather than their trip. Prices an indicative date, which you must then label as indicative on screen."
+                    }
+                  },
+                  "required": [
+                    "destination"
+                  ]
+                }
+              },
+              {
+                "name": "search_hotels",
+                "description": "Finds places to stay. Returns nightly rates, neighbourhoods, ratings and amenities — not UI.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string",
+                      "description": "City name or airport code."
+                    },
+                    "nights": {
+                      "type": "integer",
+                      "description": "Length of stay in nights."
+                    },
+                    "travelers": {
+                      "type": "integer"
+                    },
+                    "maxNightly": {
+                      "type": "number",
+                      "description": "Highest acceptable nightly rate."
+                    },
+                    "neighborhood": {
+                      "type": "string",
+                      "description": "Preferred area, if the traveler named one."
+                    },
+                    "flexible": {
+                      "type": "boolean",
+                      "description": "Only for an explicitly rough figure. See search_flights."
+                    }
+                  },
+                  "required": [
+                    "destination"
+                  ]
+                }
+              },
+              {
+                "name": "get_destination",
+                "description": "Returns what is worth doing in a destination, when to go, and the local currency. Call it before writing an itinerary so the day plan names real places. With no argument, lists every destination this agent knows.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string",
+                      "description": "City name or airport code. Omit to list all."
+                    }
+                  },
+                  "required": []
+                }
+              },
+              {
+                "name": "get_weather",
+                "description": "Returns a short forecast for a destination — highs, lows and conditions by day.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "description": "First day of the forecast, YYYY-MM-DD."
+                    },
+                    "days": {
+                      "type": "integer",
+                      "description": "How many days, up to 7."
+                    }
+                  },
+                  "required": [
+                    "destination"
+                  ]
+                }
+              },
+              {
+                "name": "estimate_cost",
+                "description": "Breaks a trip into itemised costs and a total. Pass the chosen fare and nightly rate when the traveler has picked them, so the estimate reflects their actual trip rather than an average. Needs dates and party size, from the arguments or the saved trip; without them it returns a request to ask instead of a total that means nothing.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string"
+                    },
+                    "travelers": {
+                      "type": "integer"
+                    },
+                    "nights": {
+                      "type": "integer"
+                    },
+                    "flightPrice": {
+                      "type": "number",
+                      "description": "Chosen per-traveler fare, if any."
+                    },
+                    "nightlyPrice": {
+                      "type": "number",
+                      "description": "Chosen nightly rate, if any."
+                    },
+                    "flexible": {
+                      "type": "boolean",
+                      "description": "Only for an explicitly rough figure. See search_flights."
+                    }
+                  },
+                  "required": [
+                    "destination"
+                  ]
+                }
+              },
+              {
+                "name": "save_trip",
+                "description": "Records what the traveler has decided. Anything not saved here is forgotten when the turn ends. Returns what is still needed.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "description": "YYYY-MM-DD."
+                    },
+                    "endDate": {
+                      "type": "string",
+                      "description": "YYYY-MM-DD."
+                    },
+                    "travelers": {
+                      "type": "integer"
+                    },
+                    "budget": {
+                      "type": "number"
+                    },
+                    "selectedFlight": {
+                      "type": "string",
+                      "description": "Flight id the traveler chose."
+                    },
+                    "flightPrice": {
+                      "type": "number",
+                      "description": "Per-traveler fare of that flight."
+                    },
+                    "selectedHotel": {
+                      "type": "string",
+                      "description": "Hotel id the traveler chose."
+                    },
+                    "nightlyPrice": {
+                      "type": "number",
+                      "description": "Nightly rate of that stay."
+                    },
+                    "cabin": {
+                      "type": "string",
+                      "enum": [
+                        "economy",
+                        "premium",
+                        "business",
+                        "first"
+                      ]
+                    },
+                    "nonstopOnly": {
+                      "type": "boolean"
+                    },
+                    "neighborhood": {
+                      "type": "string"
+                    },
+                    "spent": {
+                      "type": "number",
+                      "description": "What is actually committed, not estimated."
+                    },
+                    "planned": {
+                      "type": "boolean",
+                      "description": "True once the day-by-day plan is drawn and the traveler is happy with it."
+                    },
+                    "skip": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "route",
+                          "dates",
+                          "party",
+                          "flight",
+                          "stay",
+                          "budget",
+                          "plan"
+                        ]
+                      },
+                      "description": "Stages this trip does not need. A skipped stage counts as settled."
+                    },
+                    "assumed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Fields in this call the traveler did not actually state — your best guess rather than their answer. They pre-fill the control and the question stays open, so you still ask."
+                    },
+                    "legs": {
+                      "type": "array",
+                      "description": "Stops after the first, in order. The top-level fields are the first leg.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "destination": {
+                            "type": "string"
+                          },
+                          "startDate": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD."
+                          },
+                          "endDate": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD."
+                          },
+                          "origin": {
+                            "type": "string",
+                            "description": "Departure airport. Omit and it departs from the previous stop."
+                          },
+                          "travelers": {
+                            "type": "integer",
+                            "description": "Only when this leg differs. Omit and it inherits the trip's."
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "description": "Why this stop exists — 'the wedding'."
+                          },
+                          "needsStay": {
+                            "type": "boolean",
+                            "description": "Whether this stop needs somewhere to stay."
+                          },
+                          "selectedHotel": {
+                            "type": "string",
+                            "description": "The stay chosen for this stop."
+                          },
+                          "nightlyPrice": {
+                            "type": "number"
+                          },
+                          "notes": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "destination"
+                        ]
+                      }
+                    },
+                    "notes": {
+                      "type": "string",
+                      "description": "Anything else worth remembering, in one line."
+                    }
+                  },
+                  "required": []
+                }
+              },
+              {
+                "name": "release_decision",
+                "description": "Lets go of something already decided. Clears the named fields *and* what depended on them, and returns what it cleared.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Trip fields to release, e.g. ['startDate'] or ['selectedFlight']."
+                    },
+                    "stages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "route",
+                          "dates",
+                          "party",
+                          "flight",
+                          "stay",
+                          "budget",
+                          "plan"
+                        ]
+                      },
+                      "description": "Stages to un-rule-out."
+                    }
+                  },
+                  "required": []
+                }
+              },
+              {
+                "name": "get_trip",
+                "description": "Reads back everything recorded about this trip so far.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {},
+                  "required": []
+                }
+              }
+            ]
+          }
+        ],
+        "inputAudioTranscription": {},
+        "outputAudioTranscription": {}
+      }
+    },
+    "toolNames": [
+      "show_flight_options",
+      "show_hotel_options",
+      "show_trip_controls",
+      "show_itinerary",
+      "show_trip_dashboard",
+      "show_price_summary",
+      "get_a2ui_component_reference",
+      "render_a2ui_express"
+    ]
+  }
+}

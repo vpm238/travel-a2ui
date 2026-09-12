@@ -22,7 +22,7 @@
     "check:catalog": "python3 scripts/build_catalog.py --check",
     "check:examples": "python3 scripts/build_examples.py --check",
     "check:skills": "python3 scripts/build_skills.py --check",
-    "check": "npm run check:catalog && npm run check:fixtures && npm run check:examples && npm run check:skills && npm run check:trip && npm run check:tools && npm run check:prompt && npm run check:skeleton && npm run check:surface",
+    "check": "npm run check:catalog && npm run check:fixtures && npm run check:examples && npm run check:skills && npm run check:trip && npm run check:tools && npm run check:prompt && npm run check:skeleton && npm run check:surface && npm run check:surfaces",
     "screenshots": "node tools/e2e/chat.mjs --screenshot docs/screenshots/01-chat-light.png && node tools/e2e/mcp.mjs --screenshot docs/screenshots/05-mcp-view.png && node tools/screenshots/capture.mjs docs/screenshots",
     "deploy": "npm run build && npm run deploy -w @travel-a2ui/worker",
     "check:catalog-page": "node tools/screenshots/catalog.mjs --check",
@@ -32,7 +32,8 @@
     "check:tools": "node tools/parity/tools-golden.mjs --check",
     "check:prompt": "node tools/parity/prompt-golden.mjs --check",
     "check:skeleton": "node tools/parity/skeleton-golden.mjs --check",
-    "check:surface": "node tools/parity/surface-golden.mjs --check"
+    "check:surface": "node tools/parity/surface-golden.mjs --check",
+    "check:surfaces": "node tools/parity/surfaces-golden.mjs --check"
   },
   "devDependencies": {
     "playwright": "^1.62.1",

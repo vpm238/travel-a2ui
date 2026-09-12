@@ -115,9 +115,9 @@ where they could disagree is pinned by a golden file. See
 the catalog loader, the skill generator — exists in exactly one language, and it
 is the reference implementation. Using it directly means the compiler in the
 path is the one the protocol authors wrote, not our reading of it. The
-TypeScript port remains, checked against the same goldens; when the two were
-compared on a non-trivial surface they agreed on every field but one (the
-catalog identifier — the port emits the short name, the SDK the canonical URI).
+TypeScript port remains, checked against the same goldens; compiled against a
+non-trivial surface — bindings, a `_template` row, an `Event` carrying bound
+context — the two agree on every field.
 
 **The catalog is the single source of truth.** `scripts/build_catalog.py` is the
 only file you edit to add a component; `npm run generate` regenerates the

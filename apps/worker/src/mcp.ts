@@ -850,6 +850,16 @@ export async function buildSurface(
   name: string,
   args: Record<string, unknown>,
   provider: TravelProvider = providerFor(undefined),
+  /**
+   * The day this is being built on, as `YYYY-MM-DD`.
+   *
+   * Optional and defaulted from the clock, because every caller means *now*.
+   * It is a parameter at all because two of these surfaces read the clock —
+   * "12 days to Madrid", and an itinerary that starts today when no date was
+   * given — so what they produce depends on when they run, and a golden of
+   * that would be different tomorrow.
+   */
+  today?: string,
 ): Promise<Surface> {
   switch (name) {
     case 'show_flight_options':
@@ -859,9 +869,9 @@ export async function buildSurface(
     case 'show_trip_controls':
       return controlsSurface(args, provider);
     case 'show_itinerary':
-      return itinerarySurface(args, provider);
+      return itinerarySurface(args, provider, today);
     case 'show_trip_dashboard':
-      return dashboardSurface(args, provider);
+      return dashboardSurface(args, provider, today);
     case 'show_price_summary':
       return priceSurface(args, provider);
     case 'render_a2ui_express':
@@ -1158,6 +1168,7 @@ async function controlsSurface(
 async function itinerarySurface(
   args: Record<string, unknown>,
   provider: TravelProvider,
+  today?: string,
 ): Promise<Surface> {
   const query = str(args['destination']);
   const destination = await provider.resolveDestination(query);
@@ -1167,7 +1178,11 @@ async function itinerarySurface(
   const surfaceId = surfaceIdFor(flow, 'mcp-itinerary');
   // The home flow is a summary, not a plan: one day, the next one.
   const days = flow === 'home' ? 1 : Math.min(Math.max(int(args['days'], 3), 1), 7);
-  const start = args['startDate'] ? new Date(str(args['startDate'])) : new Date();
+  const start = args['startDate']
+    ? new Date(str(args['startDate']))
+    : today
+      ? new Date(`${today}T00:00:00Z`)
+      : new Date();
   const highlights = destination.highlights;
 
   const lines = [
@@ -1220,6 +1235,7 @@ async function itinerarySurface(
 async function dashboardSurface(
   args: Record<string, unknown>,
   provider: TravelProvider,
+  today?: string,
 ): Promise<Surface> {
   const query = str(args['destination']);
   const destination = await provider.resolveDestination(query);
@@ -1230,8 +1246,9 @@ async function dashboardSurface(
   const spent = int(args['spent'], 0);
 
   const startDate = str(args['startDate']);
+  const now = today ? new Date(`${today}T00:00:00Z`).getTime() : Date.now();
   const daysOut = startDate
-    ? Math.max(0, Math.round((new Date(startDate).getTime() - Date.now()) / 86_400_000))
+    ? Math.max(0, Math.round((new Date(startDate).getTime() - now) / 86_400_000))
     : null;
 
   const estimate = estimateTrip({ destination: query, travelers, nights });

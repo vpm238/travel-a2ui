@@ -12,8 +12,7 @@ implementation and the port agree about what this program *means* — because if
 they did not, the surface would still render, just differently, and nothing
 would report it.
 
-They agree on every field but one, and the exception is recorded below rather
-than smoothed over.
+They agree on every field.
 """
 
 from __future__ import annotations
@@ -37,19 +36,18 @@ GOLDEN = json.loads(
 )
 CATALOG_PATH = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
 
-#: The one field the two implementations disagree about.
+#: The field worth naming, because it looked for a while like a difference.
 #:
-#: The catalog carries two names for itself: a short `catalogId` ("travel") and
-#: a canonical `$id` (a URI). The TypeScript port emits the short one; the SDK
-#: emits `$id`. Both round-trip, because the renderer stores the value on the
-#: surface and never dispatches on it — so this is a difference in what the wire
-#: says, not in what anyone draws.
+#: The catalog carries two names for itself — `catalogId` and `$id` — and they
+#: are the same string. An earlier comparison of the two implementations
+#: appeared to show the port emitting a short name where the SDK emitted the
+#: URI; that short name came from a hardcoded value in the throwaway harness
+#: doing the comparing, not from either implementation. They agree.
 #:
-#: It is not normalised away here. The Python server is the one that ships, so
-#: it emits what the reference implementation emits, and the turn's prompt is
-#: told the same value — the model and the wire agreeing matters more than the
-#: two servers agreeing, given one of them is being retired.
-CATALOG_ID_DIFFERS = "catalogId"
+#: Kept as a named constant rather than deleted because "do the two compilers
+#: agree about the catalog identifier" is a real question with a real answer,
+#: and the answer is worth asserting rather than remembering.
+CATALOG_ID = "catalogId"
 
 
 @pytest.fixture(scope="module")
@@ -57,14 +55,6 @@ def parser() -> ExpressParser:
     config = CatalogConfig.from_path("travel", str(CATALOG_PATH))
     catalog = A2uiCatalog.from_config(config, version="0.9.1")
     return ExpressParser(catalog=catalog, surface_id="inline-1", version="v0.9.1")
-
-
-def without_catalog_id(messages: list[dict]) -> list[dict]:
-    out = json.loads(json.dumps(messages))
-    for message in out:
-        if "createSurface" in message:
-            message["createSurface"].pop(CATALOG_ID_DIFFERS, None)
-    return out
 
 
 @pytest.mark.parametrize("tool", list(GOLDEN))
@@ -80,21 +70,33 @@ def test_compiles_to_what_the_typescript_compiles(tool: str, parser: ExpressPars
         return
 
     assert pending is not None
-    assert json.dumps(without_catalog_id(pending.opening), sort_keys=True) == json.dumps(
-        without_catalog_id(expected["opening"]), sort_keys=True
+    # Compared whole, nothing normalised away: the two compilers agree on every
+    # field, and stripping one before comparing is how a test stops noticing.
+    assert json.dumps(pending.opening, sort_keys=True) == json.dumps(
+        expected["opening"], sort_keys=True
     ), f"{tool}: the two Express compilers disagree"
 
 
-def test_the_catalog_id_is_the_one_difference(parser: ExpressParser) -> None:
-    """Asserted, so it stays a known difference rather than becoming folklore."""
+def test_both_implementations_name_the_catalog_the_same_way(
+    parser: ExpressParser,
+) -> None:
+    """The identifier the wire carries, and the one the prompt is told.
+
+    Asserted because it is the field most likely to drift silently: a renderer
+    stores it on the surface and never dispatches on it, so a mismatch changes
+    nothing visible until something downstream starts caring.
+    """
     pending = pending_surface_for("search_flights", "inline-1", parser)
     assert pending is not None
     created = next(m for m in pending.opening if "createSurface" in m)
     ts_created = next(m for m in GOLDEN["search_flights"]["opening"] if "createSurface" in m)
 
     catalog = json.loads(CATALOG_PATH.read_text("utf-8"))
-    assert created["createSurface"][CATALOG_ID_DIFFERS] == catalog["$id"]
-    assert ts_created["createSurface"][CATALOG_ID_DIFFERS] == catalog["catalogId"]
+    assert created["createSurface"][CATALOG_ID] == ts_created["createSurface"][CATALOG_ID]
+    assert created["createSurface"][CATALOG_ID] == catalog["$id"]
+    # The catalog's two names for itself are the same string; a change that
+    # made them differ would need a decision about which one goes on the wire.
+    assert catalog["catalogId"] == catalog["$id"]
 
 
 class TestTheOpening:

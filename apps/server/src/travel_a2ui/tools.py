@@ -185,12 +185,16 @@ def _estimate(
     Arithmetic over numbers the caller already has, so it queries nothing and
     stays here rather than behind the provider interface.
     """
-    from .providers.fixture import _js_round, _money, _rng, _seed
+    from .providers.fixture import _js_round, _money, _rng, _seed, code_for_seed
 
     currency = "USD"
     people = max(1, travelers or 2)
     stay_nights = max(1, nights or 5)
-    random = _rng(_seed(f"estimate-{destination}-{people}-{stay_nights}"))
+    # Seeded on the resolved airport code, not the text. "Madrid", "madrid" and
+    # "MAD" are one destination, and seeding on the spelling gives each of them
+    # its own set of plausible prices for the same trip.
+    code = code_for_seed(destination)
+    random = _rng(_seed(f"estimate-{code}-{people}-{stay_nights}"))
 
     flight = (flight_price if flight_price is not None else 380 + random() * 180) * people
     stay = (nightly_price if nightly_price is not None else 140 + random() * 90) * stay_nights

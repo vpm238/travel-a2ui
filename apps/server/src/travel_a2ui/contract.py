@@ -24,9 +24,7 @@ import json
 
 from .agent import CATALOG_JSON
 from .skills import skill_text
-
-#: The model a Live session runs on.
-VOICE_MODEL = "gemini-2.5-flash-native-audio-preview-09-2025"
+from .voice import VOICE_MODEL  # re-exported: callers ask the contract what it stamps
 
 #: How long an instantiation is good for, stamp unchanged.
 INSTANTIATION_MAX_AGE_MS = 24 * 60 * 60 * 1000
@@ -75,7 +73,7 @@ def contract_stamp() -> str:
     if _cached is not None:
         return _cached
 
-    from .voice import voice_tools
+    from .voice import VOICE_MODEL, voice_tools
 
     parts = [
         # `separators` and `ensure_ascii` matter: this has to be the same bytes
