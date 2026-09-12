@@ -7,20 +7,25 @@
 #
 # `zones` is pipe-separated. A timezone that matches none of these falls back to
 # the region (Europe/, Asia/), and if that finds nothing the caller asks outright.
-code,city,zones
-JFK,New York,America/New_York|America/Detroit|America/Toronto
-ORD,Chicago,America/Chicago|America/Winnipeg
-DEN,Denver,America/Denver|America/Edmonton|America/Phoenix
-LAX,Los Angeles,America/Los_Angeles|America/Vancouver|America/Tijuana
-MIA,Miami,America/Bogota|America/Lima|America/Panama
-GRU,São Paulo,America/Sao_Paulo|America/Argentina/Buenos_Aires
-LHR,London,Europe/London|Europe/Dublin|Europe/Lisbon
-CDG,Paris,Europe/Paris|Europe/Brussels|Europe/Madrid|Europe/Amsterdam
-FRA,Frankfurt,Europe/Berlin|Europe/Zurich|Europe/Vienna|Europe/Prague|Europe/Rome
-DXB,Dubai,Asia/Dubai|Asia/Riyadh|Asia/Qatar
-DEL,Delhi,Asia/Kolkata|Asia/Calcutta|Asia/Karachi|Asia/Kathmandu
-SIN,Singapore,Asia/Singapore|Asia/Kuala_Lumpur|Asia/Jakarta|Asia/Bangkok
-HKG,Hong Kong,Asia/Hong_Kong|Asia/Shanghai|Asia/Taipei|Asia/Manila
-NRT,Tokyo,Asia/Tokyo|Asia/Seoul
-SYD,Sydney,Australia/Sydney|Australia/Melbourne|Australia/Brisbane
-JNB,Johannesburg,Africa/Johannesburg|Africa/Nairobi|Africa/Lagos
+#
+# `lat`/`lon` are the airport itself, and they exist because a timezone is a bad
+# way to guess a departure airport: America/New_York covers Boston, Philadelphia
+# and Atlanta, and every one of them was being offered JFK. Given coordinates the
+# answer stops being a guess and becomes a short list of what is actually near.
+code,city,zones,lat,lon
+JFK,New York,America/New_York|America/Detroit|America/Toronto,40.6413,-73.7781
+ORD,Chicago,America/Chicago|America/Winnipeg,41.9742,-87.9073
+DEN,Denver,America/Denver|America/Edmonton|America/Phoenix,39.8561,-104.6737
+LAX,Los Angeles,America/Los_Angeles|America/Vancouver|America/Tijuana,33.9416,-118.4085
+MIA,Miami,America/Bogota|America/Lima|America/Panama,25.7959,-80.2870
+GRU,São Paulo,America/Sao_Paulo|America/Argentina/Buenos_Aires,-23.4356,-46.4731
+LHR,London,Europe/London|Europe/Dublin|Europe/Lisbon,51.4700,-0.4543
+CDG,Paris,Europe/Paris|Europe/Brussels|Europe/Madrid|Europe/Amsterdam,49.0097,2.5479
+FRA,Frankfurt,Europe/Berlin|Europe/Zurich|Europe/Vienna|Europe/Prague|Europe/Rome,50.0379,8.5622
+DXB,Dubai,Asia/Dubai|Asia/Riyadh|Asia/Qatar,25.2532,55.3657
+DEL,Delhi,Asia/Kolkata|Asia/Calcutta|Asia/Karachi|Asia/Kathmandu,28.5562,77.1000
+SIN,Singapore,Asia/Singapore|Asia/Kuala_Lumpur|Asia/Jakarta|Asia/Bangkok,1.3644,103.9915
+HKG,Hong Kong,Asia/Hong_Kong|Asia/Shanghai|Asia/Taipei|Asia/Manila,22.3080,113.9185
+NRT,Tokyo,Asia/Tokyo|Asia/Seoul,35.7720,140.3929
+SYD,Sydney,Australia/Sydney|Australia/Melbourne|Australia/Brisbane,-33.9399,151.1753
+JNB,Johannesburg,Africa/Johannesburg|Africa/Nairobi|Africa/Lagos,-26.1367,28.2411

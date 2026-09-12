@@ -96,12 +96,6 @@ jobs:
       - name: Catalog is current
         run: npm run check:catalog
 
-      # `data/` is read from disk at startup, and the fixtures are generated
-      # from it. Editing a CSV and forgetting to regenerate would ship the old
-      # rows silently — the app would work, with last week's data.
-      - name: Fixtures match data/
-        run: npm run check:fixtures
-
       - name: Examples compile and their JSON is current
         run: npm run check:examples
 

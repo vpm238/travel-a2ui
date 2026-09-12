@@ -234,8 +234,15 @@ function newSessionId(): string {
  * is, which is the point.
  */
 
-/** Read once, at module load: it does not change while the tab is open. */
-const HINTS = clientHints();
+/**
+ * Read per turn, not once.
+ *
+ * The timezone and locale do not change while the tab is open, and this was
+ * a module constant for that reason. Coordinates do change — they arrive the
+ * moment the traveler agrees to share them — and a constant read at module
+ * load would have captured the answer from before they were asked, so the
+ * permission prompt would have appeared, been granted, and changed nothing.
+ */
 
 /**
  * An interaction, in the shape A2UI already defines for one.
@@ -616,7 +623,10 @@ export function useAgent() {
             model: prefsRef.current.model,
             effort: prefsRef.current.effort,
             ...(options.surfaceId ? { surfaceId: options.surfaceId } : {}),
-            ...(HINTS ? { client: HINTS } : {}),
+            ...((): object => {
+              const hints = clientHints();
+              return hints ? { client: hints } : {};
+            })(),
           },
           { apiKey: keyRef.current, signal: controller.signal, onEvent: handle },
         );

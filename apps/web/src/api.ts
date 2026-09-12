@@ -129,7 +129,7 @@ export interface ChatRequest {
    * described. This gives it something better to offer, pre-filled, for the
    * traveler to confirm or change.
    */
-  client?: { timeZone?: string; locale?: string };
+  client?: { timeZone?: string; locale?: string; lat?: number; lon?: number };
 }
 
 /** The browser's own timezone and locale, read once. */
@@ -138,10 +138,64 @@ export function clientHints(): ChatRequest['client'] {
     return {
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       locale: navigator.language,
+      ...(sharedLocation ?? {}),
     };
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Coordinates, once the traveler has agreed to share them.
+ *
+ * Module-level rather than state because it is read where a request is built,
+ * not where anything renders, and because the answer does not change while the
+ * tab is open.
+ */
+let sharedLocation: { lat: number; lon: number } | undefined;
+
+/**
+ * Asks the browser where they are, if they will say.
+ *
+ * Never called on load. A permission prompt that appears before anyone has
+ * asked for anything is the kind of thing people refuse on principle, and a
+ * refusal is permanent for the origin — so this runs only when the traveler
+ * presses something that means "use my location", and the refusal path is
+ * simply that nothing changes.
+ *
+ * What it improves is worth the ask. Without coordinates the departure airport
+ * is guessed from the timezone, and a timezone covers a continent-slice:
+ * `America/New_York` offered JFK to Boston, Philadelphia and Atlanta alike,
+ * and Atlanta is 1,211 km from JFK and 965 km from Chicago. With coordinates
+ * the server answers with the nearest few and the agent offers them as a
+ * choice.
+ *
+ * The coordinates go to this app's own server, with the turn, and are not
+ * stored: they are used to sort a list of sixteen airports and then forgotten.
+ */
+export async function shareLocation(): Promise<boolean> {
+  if (!('geolocation' in navigator)) return false;
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        sharedLocation = {
+          // Three decimals is ~100 m, which is far finer than picking between
+          // airports hundreds of kilometres apart needs. Sending the full
+          // precision would be collecting something this app has no use for.
+          lat: Math.round(position.coords.latitude * 1000) / 1000,
+          lon: Math.round(position.coords.longitude * 1000) / 1000,
+        };
+        resolve(true);
+      },
+      () => resolve(false),
+      { timeout: 8000, maximumAge: 600_000 },
+    );
+  });
+}
+
+/** Whether coordinates are being sent with each turn. */
+export function locationShared(): boolean {
+  return sharedLocation !== undefined;
 }
 
 /**

@@ -17,6 +17,7 @@ import { A2uiSurface } from '@travel-a2ui/renderer';
 
 import type { Agent } from '../useAgent.js';
 import { Disclosure, Empty, Spinner } from './bits.js';
+import { locationShared, shareLocation } from '../api.js';
 
 /**
  * What a running tool is called, where the traveler can see it.
@@ -70,6 +71,11 @@ const OPENERS = [
 
 export function Chat({ agent }: { agent: Agent }) {
   const [draft, setDraft] = useState('');
+  // `locationShared()` rather than `false`: the permission survives a
+  // re-render of this component, and re-offering a button for something
+  // already granted is how an interface looks like it forgot.
+  const [located, setLocated] = useState(locationShared);
+  const [locating, setLocating] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
@@ -352,6 +358,34 @@ export function Chat({ agent }: { agent: Agent }) {
             }
           }}
         />
+        {/*
+          "Where am I flying from" answered by the browser instead of by a guess.
+
+          Without it the departure airport comes from the timezone, and a
+          timezone covers a continent-slice: America/New_York offered JFK to
+          Boston, Philadelphia and Atlanta alike. Pressing this sends
+          coordinates with the next turn and the agent offers the nearest few as
+          a choice.
+
+          Asked for on a press, never on load: a permission prompt nobody
+          invited gets refused, and a refusal is permanent for the origin.
+        */}
+        {!located ? (
+          <button
+            type="button"
+            className="composer__locate"
+            title="Use my location to suggest a departure airport"
+            disabled={locating}
+            onClick={async () => {
+              setLocating(true);
+              const ok = await shareLocation();
+              setLocating(false);
+              setLocated(ok);
+            }}
+          >
+            {locating ? <Spinner /> : 'Near me'}
+          </button>
+        ) : null}
         {agent.busy ? (
           <button type="button" className="composer__stop" onClick={agent.stop}>
             Stop

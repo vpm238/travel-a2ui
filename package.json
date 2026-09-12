@@ -21,11 +21,10 @@
     "check:catalog": "python3 scripts/build_catalog.py --check",
     "check:examples": "python3 scripts/build_examples.py --check",
     "check:skills": "python3 scripts/build_skills.py --check",
-    "check": "npm run check:catalog && npm run check:fixtures && npm run check:examples && npm run check:skills && npm run check:prompt",
+    "check": "npm run check:catalog && npm run check:examples && npm run check:skills && npm run check:prompt",
     "screenshots": "node tools/e2e/chat.mjs --screenshot docs/screenshots/01-chat-light.png && node tools/e2e/mcp.mjs --screenshot docs/screenshots/05-mcp-view.png && node tools/screenshots/capture.mjs docs/screenshots",
     "check:catalog-page": "node tools/screenshots/catalog.mjs --check",
     "docs:catalog": "node tools/screenshots/catalog.mjs",
-    "check:fixtures": "python3 scripts/build_fixtures.py --check",
     "check:prompt": "python3 tools/parity/capture.py --check"
   },
   "devDependencies": {

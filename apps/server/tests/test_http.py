@@ -523,3 +523,73 @@ class TestEachInlineCardIsItsOwnSurface:
         """Re-attaching to a card it already has is asking for that one."""
         _, drawn = self._drawn(client, monkeypatch, surfaceId="inline-7")
         assert drawn == "inline-7"
+
+
+class TestWhereTheyAreFlyingFrom:
+    """A timezone is a bad way to pick an airport, and it was the only way.
+
+    `America/New_York` covers Boston, Philadelphia and Atlanta, and every one of
+    them was offered JFK — confidently, with a fare attached. Atlanta is 1,211 km
+    from JFK and 965 km from Chicago, so the guess was not merely vague, it was
+    wrong, and it looked exactly as authoritative as a right answer.
+
+    Coordinates turn it into a shortlist. The hint still decides nothing: it
+    carries the nearest few so the agent can offer a choice, because "nearest"
+    is not "theirs" — somebody in Atlanta may well fly from Miami.
+    """
+
+    ATLANTA = {"lat": 33.7490, "lon": -84.3880}
+
+    def test_coordinates_beat_the_timezone(self) -> None:
+        from travel_a2ui.main import _origin_hint
+
+        hint = _origin_hint({**self.ATLANTA, "timeZone": "America/New_York"})
+        assert hint is not None
+        assert hint["from"] == "location"
+        assert hint["code"] == "ORD", "Chicago is nearer to Atlanta than New York"
+
+    def test_the_shortlist_is_nearest_first(self) -> None:
+        from travel_a2ui.main import _origin_hint
+
+        nearby = _origin_hint(self.ATLANTA)["nearby"]
+        assert [entry["km"] for entry in nearby] == sorted(entry["km"] for entry in nearby)
+        assert len(nearby) > 1, "one airport is an assertion, not a choice"
+
+    def test_a_timezone_still_works_on_its_own(self) -> None:
+        from travel_a2ui.main import _origin_hint
+
+        hint = _origin_hint({"timeZone": "America/New_York"})
+        assert hint["code"] == "JFK"
+        assert hint["from"] == "timezone"
+        assert "nearby" not in hint, "a timezone cannot honestly produce a shortlist"
+
+    def test_impossible_coordinates_fall_back_rather_than_guess(self) -> None:
+        """A bad fix is worse than none: it looks just as confident."""
+        from travel_a2ui.main import _origin_hint
+
+        hint = _origin_hint({"lat": 999, "lon": 0, "timeZone": "Europe/London"})
+        assert hint["from"] == "timezone"
+        assert hint["code"] == "LHR"
+
+    def test_nothing_known_offers_nothing(self) -> None:
+        from travel_a2ui.main import _origin_hint
+
+        assert _origin_hint({}) is None
+        assert _origin_hint(None) is None
+
+    def test_the_prompt_asks_for_a_choice_rather_than_asserting_one(self) -> None:
+        from travel_a2ui.main import _origin_hint
+        from travel_a2ui.skills import build_system_prompt
+
+        said = build_system_prompt(
+            variant="express-monolithic",
+            surface="inline",
+            surface_id="inline-1",
+            catalog_id="travel",
+            trip={},
+            today="2027-03-01",
+            origin_hint=_origin_hint(self.ATLANTA),
+        )
+        assert "nearest departure airports" in said
+        assert "ChoicePicker" in said
+        assert "$/trip/origin" in said

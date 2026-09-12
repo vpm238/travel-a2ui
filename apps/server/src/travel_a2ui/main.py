@@ -276,19 +276,56 @@ def _sse(event: dict[str, Any]) -> bytes:
     return f"data: {json.dumps(event, ensure_ascii=False)}\n\n".encode("utf-8")
 
 
-def _origin_hint(client: Any) -> dict[str, str] | None:
-    """A departure airport the browser's timezone suggests. Never a decision."""
+def _origin_hint(client: Any) -> dict[str, Any] | None:
+    """Where the traveller might be flying from. Never a decision.
+
+    Coordinates when the browser gave them, the timezone otherwise. The
+    difference is not small: a timezone covers a continent-slice, so
+    `America/New_York` offered JFK to Boston, Philadelphia and Atlanta alike —
+    and Atlanta is 1,211 km from JFK and 965 km from Chicago, so the confident
+    answer was also the wrong one.
+
+    With coordinates the hint carries the nearest few rather than one, because
+    "nearest" is not the same as "theirs": someone in Atlanta may well fly from
+    Miami. Offering three to press beats asserting one, and both beat asking
+    them to type an airport code.
+    """
     if not isinstance(client, dict):
         return None
+
+    from .providers.fixture import origin_for_time_zone, origins_near
+
+    lat, lon = client.get("lat"), client.get("lon")
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)) and not (
+        isinstance(lat, bool) or isinstance(lon, bool)
+    ):
+        # Out-of-range coordinates are not worth a guess; a bad fix is worse
+        # than none, because it looks just as confident.
+        if -90 <= lat <= 90 and -180 <= lon <= 180:
+            near = origins_near(float(lat), float(lon))
+            if near:
+                first = near[0]
+                return {
+                    "code": first["code"],
+                    "city": first["city"],
+                    "from": "location",
+                    "nearby": [
+                        {"code": a["code"], "city": a["city"], "km": a["km"]} for a in near
+                    ],
+                }
+
     zone = client.get("timeZone")
     if not isinstance(zone, str) or not zone:
         return None
-    from .providers.fixture import origin_for_time_zone
-
     suggested = origin_for_time_zone(zone)
     if not suggested:
         return None
-    return {"code": suggested["code"], "city": suggested["city"], "timeZone": zone}
+    return {
+        "code": suggested["code"],
+        "city": suggested["city"],
+        "timeZone": zone,
+        "from": "timezone",
+    }
 
 
 @app.get("/mcp")

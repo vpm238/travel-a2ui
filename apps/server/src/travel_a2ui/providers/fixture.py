@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import pathlib
 import re
 from datetime import date, timedelta
@@ -65,7 +66,13 @@ _DESTINATIONS: list[dict[str, Any]] = json.loads(
 )["destinations"]
 _AIRLINES = [{"code": r["code"], "name": r["name"]} for r in _rows("airlines.csv")]
 _ORIGINS = [
-    {"code": r["code"], "city": r["city"], "zones": r["zones"].split("|")}
+    {
+        "code": r["code"],
+        "city": r["city"],
+        "zones": r["zones"].split("|"),
+        "lat": float(r["lat"]),
+        "lon": float(r["lon"]),
+    }
     for r in _rows("origins.csv")
 ]
 _CURRENCY_SYMBOL = {r["code"]: r["symbol"] for r in _rows("currencies.csv")}
@@ -276,6 +283,35 @@ def origin_for_time_zone(time_zone: str | None) -> dict[str, Any] | None:
         if any(zone.split("/")[0] == region for zone in entry["zones"]):
             return {**entry, "zones": list(entry["zones"])}
     return None
+
+
+def origins_near(lat: float, lon: float, limit: int = 3) -> list[dict[str, Any]]:
+    """The airports closest to a point, nearest first, with distances in km.
+
+    A timezone was the only thing this app had to go on, and a timezone is a bad
+    way to pick an airport: `America/New_York` covers Boston, Philadelphia and
+    Atlanta, and every one of them was offered JFK — confidently, with a fare
+    attached. Coordinates turn that guess into a short list of what is actually
+    near, which is a question the traveller can answer by pressing one.
+
+    Great-circle rather than straight-line: at continental distances the flat
+    approximation puts airports in the wrong order, and the wrong order is the
+    whole failure — the point of this is that the first one is genuinely the
+    nearest.
+    """
+    here = (math.radians(lat), math.radians(lon))
+
+    def km_away(entry: dict[str, Any]) -> float:
+        lat2, lon2 = math.radians(entry["lat"]), math.radians(entry["lon"])
+        d_lat, d_lon = lat2 - here[0], lon2 - here[1]
+        a = math.sin(d_lat / 2) ** 2 + math.cos(here[0]) * math.cos(lat2) * math.sin(d_lon / 2) ** 2
+        return 6371.0 * 2 * math.asin(min(1.0, math.sqrt(a)))
+
+    ranked = sorted(
+        ({**entry, "zones": list(entry["zones"]), "km": round(km_away(entry))} for entry in _ORIGINS),
+        key=lambda entry: entry["km"],
+    )
+    return ranked[: max(1, limit)]
 
 
 class FixtureProvider:

@@ -1799,3 +1799,30 @@ a {
   font-variant-numeric: tabular-nums;
   color: var(--tv-ink);
 }
+
+/*
+ * "Near me" — the departure airport, answered rather than guessed.
+ *
+ * Quieter than Send, because it is an offer and not the action: it sits beside
+ * the thing the traveler came to press, and should not compete with it.
+ */
+.composer__locate {
+  border: 1px solid var(--tv-line);
+  background: transparent;
+  color: var(--tv-ink-soft);
+  border-radius: 999px;
+  padding: 0 14px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.composer__locate:hover:not(:disabled) {
+  color: var(--tv-ink);
+  border-color: var(--tv-ink-faint);
+}
+
+.composer__locate:disabled {
+  cursor: progress;
+}
