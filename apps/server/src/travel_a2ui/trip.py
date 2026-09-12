@@ -648,7 +648,21 @@ def stay_status(trip: Trip) -> dict[str, list[str]]:
     booked: list[str] = []
     not_needed: list[str] = []
 
-    for leg in stops(trip):
+    legs = stops(trip)
+    for index, leg in enumerate(legs):
+        # Nobody books a hotel in the city they live in. The last hop of a round
+        # trip lands back where the trip started, and asking "where are you
+        # staying in San Francisco?" of someone who has just flown home is the
+        # kind of question that makes an agent look like a form.
+        if (
+            index == len(legs) - 1
+            and index > 0
+            and trip.get("origin")
+            and leg["destination"] == trip["origin"]
+            and not leg.get("selectedHotel")
+        ):
+            not_needed.append(leg["destination"])
+            continue
         # A stay already chosen answers the question, whether or not anyone asked.
         if leg.get("selectedHotel"):
             booked.append(leg["destination"])
@@ -689,6 +703,25 @@ def _pending_for(trip: Trip, stage: str, legs: list[Leg]) -> dict[str, Any] | No
             for index, leg in enumerate(legs)
             if not (trip.get("selectedFlight") if index == 0 else leg.get("selectedFlight"))
         ]
+
+        # The way home is a hop like any other, and it is the one that kept
+        # going missing. "SFO to New York" is one leg, so the moment the
+        # outbound was chosen the flight stage counted itself finished and the
+        # plan moved on to hotels — with the traveller still in New York.
+        #
+        # There is no `returnFlight` field, deliberately. A return *is* a leg,
+        # and saying so once here means a three-city trip and a round trip are
+        # the same shape rather than two cases. Record the journey home as a leg
+        # and this falls silent on its own; say it is one-way — `skip:
+        # ["return"]` — and it stays silent too.
+        home = trip.get("origin")
+        if home and "return" not in set(trip.get("skip") or []) and legs[-1]["destination"] != home:
+            # Named rather than listed as a bare code, because this reads out on
+            # the panel beside real city names — "Flight — Madrid, JFK" looks
+            # like a second destination, and "Madrid, home (JFK)" is the hop it
+            # actually is. The code stays so the agent knows what to search.
+            unflown.append(f"home ({home})")
+
         return {"stops": unflown, "want": "a flight"} if unflown else None
 
     if stage == "dates":

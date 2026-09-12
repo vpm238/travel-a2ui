@@ -788,7 +788,8 @@
             "missing": [],
             "pending": {
               "stops": [
-                "Madrid"
+                "Madrid",
+                "home (JFK)"
               ],
               "want": "a flight"
             },
@@ -841,7 +842,8 @@
           "missing": [],
           "pending": {
             "stops": [
-              "Madrid"
+              "Madrid",
+              "home (JFK)"
             ],
             "want": "a flight"
           },
@@ -852,7 +854,7 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid, home (JFK) — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -978,7 +980,8 @@
             "missing": [],
             "pending": {
               "stops": [
-                "Madrid"
+                "Madrid",
+                "home (JFK)"
               ],
               "want": "a flight"
             },
@@ -1031,7 +1034,8 @@
           "missing": [],
           "pending": {
             "stops": [
-              "Madrid"
+              "Madrid",
+              "home (JFK)"
             ],
             "want": "a flight"
           },
@@ -1042,7 +1046,7 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid, home (JFK) — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -1169,7 +1173,8 @@
             "missing": [],
             "pending": {
               "stops": [
-                "Madrid"
+                "Madrid",
+                "home (JFK)"
               ],
               "want": "a flight"
             },
@@ -1222,7 +1227,8 @@
           "missing": [],
           "pending": {
             "stops": [
-              "Madrid"
+              "Madrid",
+              "home (JFK)"
             ],
             "want": "a flight"
           },
@@ -1233,7 +1239,7 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid, home (JFK) — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -1372,7 +1378,8 @@
             "missing": [],
             "pending": {
               "stops": [
-                "Madrid"
+                "Madrid",
+                "home (JFK)"
               ],
               "want": "a flight"
             },
@@ -1579,7 +1586,13 @@
             "label": "choose a flight for each hop",
             "needs": [],
             "missing": [],
-            "done": true,
+            "pending": {
+              "stops": [
+                "home (JFK)"
+              ],
+              "want": "a flight"
+            },
+            "done": false,
             "skipped": false
           },
           {
@@ -1616,22 +1629,24 @@
           }
         ],
         "next": {
-          "stage": "budget",
-          "label": "agree what the trip should cost",
-          "needs": [
-            "budget"
-          ],
-          "missing": [
-            "budget"
-          ],
+          "stage": "flight",
+          "label": "choose a flight for each hop",
+          "needs": [],
+          "missing": [],
+          "pending": {
+            "stops": [
+              "home (JFK)"
+            ],
+            "want": "a flight"
+          },
           "done": false,
           "skipped": false
         },
-        "done": 5,
+        "done": 4,
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 6 of 7: agree what the trip should cost. You still need what the whole trip should come to — ask for all of it in one surface, bound to $/trip/budget, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"budget\"]) and go to the next one instead of asking a question they have already answered.",
+      "nextStepFor": "Step 5 of 7: choose a flight for each hop. Waiting on home (JFK) — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -1651,7 +1666,7 @@
         "notNeeded": []
       },
       "partyVaries": false,
-      "decisionShape": "route,dates,party,flight,stay|Madrid|IB426|h_MAD_1|"
+      "decisionShape": "route,dates,party,stay|Madrid|IB426|h_MAD_1|"
     },
     "multi-leg, party varies": {
       "normalize": {
@@ -1800,8 +1815,7 @@
             "pending": {
               "stops": [
                 "Chicago",
-                "New York",
-                "SFO"
+                "New York"
               ],
               "want": "to know whether a stay is needed"
             },
@@ -1880,12 +1894,13 @@
       "stayStatus": {
         "unasked": [
           "Chicago",
-          "New York",
-          "SFO"
+          "New York"
         ],
         "needed": [],
         "booked": [],
-        "notNeeded": []
+        "notNeeded": [
+          "SFO"
+        ]
       },
       "partyVaries": true,
       "decisionShape": "route,party|Chicago|||New York>SFO"
@@ -1986,7 +2001,8 @@
             "missing": [],
             "pending": {
               "stops": [
-                "Madrid"
+                "Madrid",
+                "home (JFK)"
               ],
               "want": "a flight"
             },
@@ -2039,7 +2055,8 @@
           "missing": [],
           "pending": {
             "stops": [
-              "Madrid"
+              "Madrid",
+              "home (JFK)"
             ],
             "want": "a flight"
           },
@@ -2050,7 +2067,7 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid, home (JFK) — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",

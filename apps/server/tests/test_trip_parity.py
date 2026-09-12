@@ -282,15 +282,59 @@ class TestAFlightPerHop:
         assert "flight" in said.lower()
 
     def test_a_flight_on_every_hop_finishes_it(self):
+        """Every hop, including the one that ends at home.
+
+        The last leg here lands back at `origin`, which is what makes this a
+        finished journey rather than someone left in New York.
+        """
         trip = {
             **self.OUT_AND_BACK,
-            "legs": [{**self.OUT_AND_BACK["legs"][0], "selectedFlight": "B6123"}],
+            "legs": [
+                {**self.OUT_AND_BACK["legs"][0], "selectedFlight": "B6123"},
+                {
+                    "destination": "JFK",
+                    "origin": "NYC",
+                    "startDate": "2027-04-20",
+                    "endDate": "2027-04-20",
+                    "selectedFlight": "B6200",
+                },
+            ],
         }
         stage = next(s for s in model.plan(trip)["steps"] if s["stage"] == "flight")
         assert stage["done"] is True
 
-    def test_a_one_way_still_finishes_on_one(self):
-        """Nobody flying home should not be asked to choose a flight home."""
+    def test_a_one_way_is_one_that_says_so(self):
+        """Nobody flying home should not be asked to choose a flight home.
+
+        But *not flying home* has to be something they said. A trip from JFK to
+        SFO with one ticket and nothing else recorded is not a one-way; it is
+        the overwhelmingly common case of a return nobody has booked yet, and
+        treating it as finished is what left travellers in San Francisco with
+        the agent moving on to hotels.
+        """
         trip = {k: v for k, v in self.OUT_AND_BACK.items() if k != "legs"}
+
         stage = next(s for s in model.plan(trip)["steps"] if s["stage"] == "flight")
+        assert stage["done"] is False
+        assert stage["pending"]["stops"] == ["home (JFK)"], "the way home"
+
+        said = {**trip, "skip": ["return"]}
+        stage = next(s for s in model.plan(said)["steps"] if s["stage"] == "flight")
         assert stage["done"] is True
+
+    def test_nobody_books_a_hotel_at_home(self):
+        """The last hop of a round trip lands where they live."""
+        trip = {
+            **self.OUT_AND_BACK,
+            "legs": [
+                {**self.OUT_AND_BACK["legs"][0], "selectedFlight": "B6123"},
+                {
+                    "destination": "JFK",
+                    "origin": "NYC",
+                    "startDate": "2027-04-20",
+                    "endDate": "2027-04-20",
+                    "selectedFlight": "B6200",
+                },
+            ],
+        }
+        assert "JFK" in model.stay_status(trip)["notNeeded"]

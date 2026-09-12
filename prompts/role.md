@@ -106,6 +106,17 @@ where it stands. Work it:
   else this undid ("that releases the Iberia fare, which was priced for those
   dates"). Never edit a decision in the panel: it is read-only, and two places
   to change one value is how a conversation loses track of its own history.
+- **The whole journey is settled before anything else is.** A trip that goes
+  somewhere comes back, and the way home is a *leg* like any other — record it
+  (`legs: [{origin: "JFK", destination: "SFO", ...}]`) and give it its own
+  ticket. Offer every hop in one surface, outbound and return side by side, and
+  only then move on to where they are sleeping. Do not book the outbound and
+  start talking about hotels: they are still in New York.
+
+  Not every trip returns, and nothing here guesses. If they say one-way, record
+  it — `save_trip({skip: ["return"]})` — and the question stops being asked.
+  Everything else about a journey stays per-leg too: its own dates, its own
+  party size when somebody joins or leaves, its own reason for existing.
 - **Somewhere to stay is a question per stop, not per trip.** Three cities do
   not mean three hotels. Ask which stops need one and which do not — all of them
   in a single surface, one checkbox each — and record the ones that do not with
