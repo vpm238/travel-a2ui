@@ -84,6 +84,7 @@
           "badge": "Fastest"
         }
       ],
+      "pricesAre": "One traveller, so `price` is the whole of it.",
       "currency": "USD",
       "note": "4 option(s) for JFK → MAD. Typical fares: no departure city — sampled from New York (JFK).",
       "provenance": {
@@ -135,7 +136,12 @@
           "price": "$352",
           "priceValue": 352,
           "cabin": "economy",
-          "badge": "Cheapest"
+          "badge": "Cheapest",
+          "perUnit": "$352",
+          "units": 2,
+          "total": "$704",
+          "totalValue": 704,
+          "priceLabel": "$352 each · $704 for 2"
         },
         {
           "id": "AA1023",
@@ -149,7 +155,12 @@
           "stops": "1 stop · AMS",
           "price": "$353",
           "priceValue": 353,
-          "cabin": "economy"
+          "cabin": "economy",
+          "perUnit": "$353",
+          "units": 2,
+          "total": "$706",
+          "totalValue": 706,
+          "priceLabel": "$353 each · $706 for 2"
         },
         {
           "id": "TP6924",
@@ -164,7 +175,12 @@
           "price": "$362",
           "priceValue": 362,
           "cabin": "economy",
-          "badge": "Fastest"
+          "badge": "Fastest",
+          "perUnit": "$362",
+          "units": 2,
+          "total": "$724",
+          "totalValue": 724,
+          "priceLabel": "$362 each · $724 for 2"
         },
         {
           "id": "IB6415",
@@ -178,9 +194,15 @@
           "stops": "Nonstop",
           "price": "$415",
           "priceValue": 415,
-          "cabin": "economy"
+          "cabin": "economy",
+          "perUnit": "$415",
+          "units": 2,
+          "total": "$830",
+          "totalValue": 830,
+          "priceLabel": "$415 each · $830 for 2"
         }
       ],
+      "pricesAre": "`price` is one ticket. `total` is all 2 on this hop, and `priceLabel` says both — put that on the card, not the bare fare: a per-person figure beside a party of 2 reads as the total and is wrong by 2×.",
       "currency": "USD",
       "note": "4 option(s) for JFK → MAD on 2027-04-12.",
       "provenance": {
@@ -238,7 +260,12 @@
           "price": "$1,369",
           "priceValue": 1369,
           "cabin": "business",
-          "badge": "Cheapest"
+          "badge": "Cheapest",
+          "perUnit": "$1,369",
+          "units": 2,
+          "total": "$2,738",
+          "totalValue": 2738,
+          "priceLabel": "$1,369 each · $2,738 for 2"
         },
         {
           "id": "UA4808",
@@ -253,9 +280,15 @@
           "price": "$1,681",
           "priceValue": 1681,
           "cabin": "business",
-          "badge": "Fastest"
+          "badge": "Fastest",
+          "perUnit": "$1,681",
+          "units": 2,
+          "total": "$3,362",
+          "totalValue": 3362,
+          "priceLabel": "$1,681 each · $3,362 for 2"
         }
       ],
+      "pricesAre": "`price` is one ticket. `total` is all 2 on this hop, and `priceLabel` says both — put that on the card, not the bare fare: a per-person figure beside a party of 2 reads as the total and is wrong by 2×.",
       "currency": "USD",
       "note": "2 option(s) for JFK → MAD on 2027-04-12.",
       "provenance": {
@@ -310,7 +343,12 @@
           "price": "$370",
           "priceValue": 370,
           "cabin": "economy",
-          "badge": "Cheapest"
+          "badge": "Cheapest",
+          "perUnit": "$370",
+          "units": 1,
+          "total": "$370",
+          "totalValue": 370,
+          "priceLabel": "$370"
         },
         {
           "id": "DL2170",
@@ -324,7 +362,12 @@
           "stops": "1 stop · LHR",
           "price": "$376",
           "priceValue": 376,
-          "cabin": "economy"
+          "cabin": "economy",
+          "perUnit": "$376",
+          "units": 1,
+          "total": "$376",
+          "totalValue": 376,
+          "priceLabel": "$376"
         },
         {
           "id": "UA1948",
@@ -339,7 +382,12 @@
           "price": "$383",
           "priceValue": 383,
           "cabin": "economy",
-          "badge": "Fastest"
+          "badge": "Fastest",
+          "perUnit": "$383",
+          "units": 1,
+          "total": "$383",
+          "totalValue": 383,
+          "priceLabel": "$383"
         },
         {
           "id": "AA8568",
@@ -353,9 +401,15 @@
           "stops": "Nonstop",
           "price": "$404",
           "priceValue": 404,
-          "cabin": "economy"
+          "cabin": "economy",
+          "perUnit": "$404",
+          "units": 1,
+          "total": "$404",
+          "totalValue": 404,
+          "priceLabel": "$404"
         }
       ],
+      "pricesAre": "One traveller, so `price` is the whole of it.",
       "currency": "USD",
       "note": "Nothing matched the $1 cap — closest 4 for LAX → NRT on 2027-04-12.",
       "provenance": {
@@ -411,7 +465,12 @@
           "price": "$435",
           "priceValue": 435,
           "cabin": "economy",
-          "badge": "Cheapest"
+          "badge": "Cheapest",
+          "perUnit": "$435",
+          "units": 1,
+          "total": "$435",
+          "totalValue": 435,
+          "priceLabel": "$435"
         },
         {
           "id": "IB5830",
@@ -426,7 +485,12 @@
           "price": "$449",
           "priceValue": 449,
           "cabin": "economy",
-          "badge": "Fastest"
+          "badge": "Fastest",
+          "perUnit": "$449",
+          "units": 1,
+          "total": "$449",
+          "totalValue": 449,
+          "priceLabel": "$449"
         },
         {
           "id": "TP8344",
@@ -440,7 +504,12 @@
           "stops": "1 stop · FRA",
           "price": "$471",
           "priceValue": 471,
-          "cabin": "economy"
+          "cabin": "economy",
+          "perUnit": "$471",
+          "units": 1,
+          "total": "$471",
+          "totalValue": 471,
+          "priceLabel": "$471"
         },
         {
           "id": "DL6373",
@@ -454,9 +523,15 @@
           "stops": "Nonstop",
           "price": "$486",
           "priceValue": 486,
-          "cabin": "economy"
+          "cabin": "economy",
+          "perUnit": "$486",
+          "units": 1,
+          "total": "$486",
+          "totalValue": 486,
+          "priceLabel": "$486"
         }
       ],
+      "pricesAre": "One traveller, so `price` is the whole of it.",
       "currency": "USD",
       "note": "4 option(s) for JFK → ATL on 2027-04-12.",
       "provenance": {
@@ -524,7 +599,12 @@
           "price": "$256",
           "priceValue": 256,
           "cabin": "economy",
-          "badge": "Cheapest"
+          "badge": "Cheapest",
+          "perUnit": "$256",
+          "units": 3,
+          "total": "$768",
+          "totalValue": 768,
+          "priceLabel": "$256 each · $768 for 3"
         },
         {
           "id": "AA1703",
@@ -538,7 +618,12 @@
           "stops": "1 stop · CDG",
           "price": "$268",
           "priceValue": 268,
-          "cabin": "economy"
+          "cabin": "economy",
+          "perUnit": "$268",
+          "units": 3,
+          "total": "$804",
+          "totalValue": 804,
+          "priceLabel": "$268 each · $804 for 3"
         },
         {
           "id": "LH2106",
@@ -552,7 +637,12 @@
           "stops": "Nonstop",
           "price": "$321",
           "priceValue": 321,
-          "cabin": "economy"
+          "cabin": "economy",
+          "perUnit": "$321",
+          "units": 3,
+          "total": "$963",
+          "totalValue": 963,
+          "priceLabel": "$321 each · $963 for 3"
         },
         {
           "id": "AF4280",
@@ -566,9 +656,15 @@
           "stops": "Nonstop",
           "price": "$344",
           "priceValue": 344,
-          "cabin": "economy"
+          "cabin": "economy",
+          "perUnit": "$344",
+          "units": 3,
+          "total": "$1,032",
+          "totalValue": 1032,
+          "priceLabel": "$344 each · $1,032 for 3"
         }
       ],
+      "pricesAre": "`price` is one ticket. `total` is all 3 on this hop, and `priceLabel` says both — put that on the card, not the bare fare: a per-person figure beside a party of 3 reads as the total and is wrong by 3×.",
       "currency": "USD",
       "note": "4 option(s) for MAD → LIS on 2027-04-16.",
       "provenance": {
@@ -649,7 +745,12 @@
             "Rooftop",
             "Bikes"
           ],
-          "badge": "Best value"
+          "badge": "Best value",
+          "perUnit": "€101",
+          "units": 4,
+          "total": "€404",
+          "totalValue": 404,
+          "priceLabel": "€101 a night · €404 for 4 nights"
         },
         {
           "id": "h_MAD_3",
@@ -663,7 +764,12 @@
             "Kitchenette",
             "Rooftop",
             "Late check-out"
-          ]
+          ],
+          "perUnit": "€157",
+          "units": 4,
+          "total": "€628",
+          "totalValue": 628,
+          "priceLabel": "€157 a night · €628 for 4 nights"
         },
         {
           "id": "h_MAD_4",
@@ -675,7 +781,12 @@
           "amenities": [
             "Rooftop",
             "Laundry"
-          ]
+          ],
+          "perUnit": "€165",
+          "units": 4,
+          "total": "€660",
+          "totalValue": 660,
+          "priceLabel": "€165 a night · €660 for 4 nights"
         },
         {
           "id": "h_MAD_2",
@@ -689,9 +800,15 @@
             "Air-con",
             "Bikes",
             "Late check-out"
-          ]
+          ],
+          "perUnit": "€251",
+          "units": 4,
+          "total": "€1,004",
+          "totalValue": 1004,
+          "priceLabel": "€251 a night · €1,004 for 4 nights"
         }
       ],
+      "pricesAre": "`price` is one night. `total` is all 4 of them, and `priceLabel` says both — put that on the card.",
       "currency": "EUR",
       "note": "4 stay(s) in Madrid for 4 night(s).",
       "provenance": {
@@ -739,7 +856,12 @@
             "Air-con",
             "Bikes"
           ],
-          "badge": "Best value"
+          "badge": "Best value",
+          "perUnit": "€121",
+          "units": 7,
+          "total": "€847",
+          "totalValue": 847,
+          "priceLabel": "€121 a night · €847 for 7 nights"
         },
         {
           "id": "h_MAD_4",
@@ -752,7 +874,12 @@
             "Air-con",
             "Breakfast",
             "Late check-out"
-          ]
+          ],
+          "perUnit": "€158",
+          "units": 7,
+          "total": "€1,106",
+          "totalValue": 1106,
+          "priceLabel": "€158 a night · €1,106 for 7 nights"
         },
         {
           "id": "h_MAD_0",
@@ -766,7 +893,12 @@
             "Breakfast",
             "Bikes",
             "Rooftop"
-          ]
+          ],
+          "perUnit": "€175",
+          "units": 7,
+          "total": "€1,225",
+          "totalValue": 1225,
+          "priceLabel": "€175 a night · €1,225 for 7 nights"
         },
         {
           "id": "h_MAD_2",
@@ -778,9 +910,15 @@
           "amenities": [
             "Laundry",
             "Late check-out"
-          ]
+          ],
+          "perUnit": "€258",
+          "units": 7,
+          "total": "€1,806",
+          "totalValue": 1806,
+          "priceLabel": "€258 a night · €1,806 for 7 nights"
         }
       ],
+      "pricesAre": "`price` is one night. `total` is all 7 of them, and `priceLabel` says both — put that on the card.",
       "currency": "EUR",
       "note": "4 stay(s) in Madrid for 7 night(s).",
       "provenance": {
@@ -834,7 +972,12 @@
             "Kitchenette",
             "Bikes"
           ],
-          "badge": "Best value"
+          "badge": "Best value",
+          "perUnit": "€181",
+          "units": 3,
+          "total": "€543",
+          "totalValue": 543,
+          "priceLabel": "€181 a night · €543 for 3 nights"
         },
         {
           "id": "h_CDG_4",
@@ -848,7 +991,12 @@
             "Air-con",
             "Breakfast",
             "Laundry"
-          ]
+          ],
+          "perUnit": "€236",
+          "units": 3,
+          "total": "€708",
+          "totalValue": 708,
+          "priceLabel": "€236 a night · €708 for 3 nights"
         },
         {
           "id": "h_CDG_2",
@@ -860,7 +1008,12 @@
           "amenities": [
             "Rooftop",
             "Breakfast"
-          ]
+          ],
+          "perUnit": "€249",
+          "units": 3,
+          "total": "€747",
+          "totalValue": 747,
+          "priceLabel": "€249 a night · €747 for 3 nights"
         },
         {
           "id": "h_CDG_0",
@@ -874,9 +1027,15 @@
             "Laundry",
             "Breakfast",
             "Air-con"
-          ]
+          ],
+          "perUnit": "€283",
+          "units": 3,
+          "total": "€849",
+          "totalValue": 849,
+          "priceLabel": "€283 a night · €849 for 3 nights"
         }
       ],
+      "pricesAre": "`price` is one night. `total` is all 3 of them, and `priceLabel` says both — put that on the card.",
       "currency": "EUR",
       "note": "Nothing under the €1 a night cap. Closest 4 in Paris.",
       "provenance": {
@@ -928,7 +1087,12 @@
             "Late check-out",
             "Laundry"
           ],
-          "badge": "Best value"
+          "badge": "Best value",
+          "perUnit": "$97",
+          "units": 3,
+          "total": "$291",
+          "totalValue": 291,
+          "priceLabel": "$97 a night · $291 for 3 nights"
         },
         {
           "id": "h_ATL_0",
@@ -942,7 +1106,12 @@
             "Breakfast",
             "Rooftop",
             "Air-con"
-          ]
+          ],
+          "perUnit": "$116",
+          "units": 3,
+          "total": "$348",
+          "totalValue": 348,
+          "priceLabel": "$116 a night · $348 for 3 nights"
         },
         {
           "id": "h_ATL_3",
@@ -954,7 +1123,12 @@
           "amenities": [
             "Late check-out",
             "Laundry"
-          ]
+          ],
+          "perUnit": "$126",
+          "units": 3,
+          "total": "$378",
+          "totalValue": 378,
+          "priceLabel": "$126 a night · $378 for 3 nights"
         },
         {
           "id": "h_ATL_2",
@@ -966,9 +1140,15 @@
           "amenities": [
             "Kitchenette",
             "Late check-out"
-          ]
+          ],
+          "perUnit": "$152",
+          "units": 3,
+          "total": "$456",
+          "totalValue": 456,
+          "priceLabel": "$152 a night · $456 for 3 nights"
         }
       ],
+      "pricesAre": "`price` is one night. `total` is all 3 of them, and `priceLabel` says both — put that on the card.",
       "currency": "USD",
       "note": "4 stay(s) in Atlantis for 3 night(s).",
       "provenance": {

@@ -651,7 +651,14 @@ export function useAgent() {
             patchTurn(assistantId, { error: event.message });
             break;
           case 'done':
+            // The traveler's answer is finished, so the composer unlocks here
+            // rather than when the stream closes. What can still arrive after
+            // this is the standing panels, which the server rebuilds with a
+            // second model call — worth a few seconds of somebody *not*
+            // waiting, because nobody is looking at the sidebar while they
+            // read the card they just asked for.
             if (!options.silent) patchTurn(assistantId, { streaming: false });
+            setBusy(false);
             break;
         }
       };

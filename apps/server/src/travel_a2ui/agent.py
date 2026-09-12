@@ -39,7 +39,7 @@ from a2ui.schema.catalog import A2uiCatalog, CatalogConfig  # noqa: E402
 
 from . import trip as model  # noqa: E402
 from .express import ExpressStream, Failed, Text, Ui  # noqa: E402
-from .gemini import describe_api_error, stream_interaction  # noqa: E402
+from .gemini import describe_api_error, stream_interaction, supported_level  # noqa: E402
 from .providers.fixture import FixtureProvider  # noqa: E402
 from .providers.types import TravelProvider  # noqa: E402
 from .skeleton import pending_surface_for  # noqa: E402
@@ -736,8 +736,24 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     for event in panel_events(trip):
         yield event
 
+    # The traveller's answer is finished here. What follows is the panels, and
+    # they are not what was asked for.
+    mark("answered")
+    yield {"type": "done", "stopReason": stop_reason}
+
     shape = request.shape
     if request.surface == "inline":
+        # A second model call, and it was inside the turn: `done` waited for the
+        # panel to be rebuilt, so a turn whose inline card was on screen at 2.3s
+        # went on saying "thinking" until 9.3s while a model redrew a sidebar
+        # nobody was looking at. Measured across a flights turn, that second
+        # call was most of the wall clock.
+        #
+        # It still happens, and still only when the panel needs *different*
+        # controls — values reach it live, without a model — but it happens
+        # after the turn is answered. The events are ordinary `ui` messages
+        # addressed to `sidebar` and `home`, which a client applies whenever
+        # they arrive.
         async for event in _rebuild_panels(request, trip, today):
             if event["type"] == "__shape__":
                 shape = event["shape"]
@@ -750,7 +766,6 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     yield {"type": "timing", "ms": dict(marks)}
     print(f"turn timing {json.dumps(marks)}", flush=True)
 
-    yield {"type": "done", "stopReason": stop_reason}
     yield {
         "type": "__result__",
         "result": TurnResult(
@@ -787,7 +802,8 @@ async def _rebuild_panels(
         yield {"type": "__shape__", "shape": shape}
         return
 
-    for surface_id in STANDING_SURFACES:
+    async def one(surface_id: str) -> list[dict[str, Any]]:
+        """One panel, drawn whole, or nothing if drawing it failed."""
         system = build_system_prompt(
             variant=request.skill,
             surface=surface_id,
@@ -816,7 +832,14 @@ async def _rebuild_panels(
         try:
             async for event in stream_interaction(
                 api_key=request.api_key,
-                model=request.model,
+                # The fast model, deliberately, whatever is answering the
+                # conversation. The panel is the one surface in this app that
+                # is not a judgement call: it draws the record — these
+                # decisions, this route, a Change button on each — from rows the
+                # host has already composed. That is the work Flash Lite is good
+                # at and quick at, and the thing it was measurably *not* good at
+                # is deciding what comes next, which is not asked of it here.
+                model=FALLBACK_MODEL,
                 # Not chained to the conversation: a panel redraw is not
                 # something the traveller said, and threading it through
                 # `previous_interaction_id` would put "rebuild the panel" in the
@@ -825,19 +848,37 @@ async def _rebuild_panels(
                     {"type": "user_input", "content": [{"type": "text", "text": PANEL_REQUEST}]}
                 ],
                 system_instruction=system,
-                thinking_level="low",
+                thinking_level=supported_level(FALLBACK_MODEL, "minimal"),
+                fallback_model=request.model,
                 client=request.client,
             ):
                 if event["type"] == "text":
                     panel.extend(drawn(stream.push(event["delta"])))
             panel.extend(drawn(stream.end()))
         except Exception:  # noqa: BLE001 - a stale panel beats an error banner
-            yield {"type": "__shape__", "shape": shape}
-            return
+            return []
 
         # Collected rather than streamed, unlike the main loop: a panel is one
         # surface replaced whole, and a half-drawn record on screen beside a
         # finished answer reads as a bug rather than as progress.
+        return panel
+
+    # Both panels at once. They are two independent model calls with nothing to
+    # say to each other, and doing them in sequence meant the sidebar waited for
+    # the home summary — measured at about four and a half seconds for the pair,
+    # which is most of what is left of a turn once the answer has been sent.
+    #
+    # `request.client` is a single scripted fake in tests, and two coroutines
+    # pulling from one script would interleave into nonsense — so tests, which
+    # pass a client, keep the sequential path.
+    if request.client is not None:
+        drawn_panels = [await one(surface_id) for surface_id in STANDING_SURFACES]
+    else:
+        drawn_panels = list(
+            await asyncio.gather(*(one(surface_id) for surface_id in STANDING_SURFACES))
+        )
+
+    for panel in drawn_panels:
         for event in panel:
             yield event
 

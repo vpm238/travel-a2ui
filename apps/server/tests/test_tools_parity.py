@@ -238,3 +238,56 @@ class TestATripWithStopsIsCostedStopByStop:
         labels = [line["label"] for line in out["lines"]]
         assert labels[0].startswith("Flights ("), "still the simple shape"
         assert labels[1].startswith("Stay (")
+
+
+class TestAPriceIsForTheWholeParty:
+    """The number they are choosing between should be the number they pay.
+
+    A fare is per traveller and a room rate is per night, and the cards said
+    neither. `$352` sat beside a trip for two and `€121 / night` beside seven
+    nights — both correct, both read as the total, and both out by a factor the
+    traveller only discovered at the summary.
+    """
+
+    TRIP = {
+        "origin": "JFK",
+        "destination": "Madrid",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2,
+    }
+
+    def result(self, tool: str, trip: dict | None = None) -> dict:
+        import asyncio
+
+        from travel_a2ui import tools as tool_module
+        from travel_a2ui.providers.fixture import FixtureProvider
+
+        context = tool_module.ToolContext(
+            trip=dict(trip or self.TRIP), provider=FixtureProvider(), today=TODAY
+        )
+        out, _ = asyncio.run(tool_module._run(tool, {"destination": "Madrid"}, context))
+        return out
+
+    def test_a_fare_says_what_two_tickets_cost(self) -> None:
+        flight = self.result("search_flights")["flights"][0]
+        assert flight["units"] == 2
+        assert flight["totalValue"] == flight["priceValue"] * 2
+        assert "each" in flight["priceLabel"] and "for 2" in flight["priceLabel"]
+
+    def test_one_traveler_is_not_told_it_is_one(self) -> None:
+        """"$352 each · $352 for 1" is noise, so the label is just the fare."""
+        flight = self.result("search_flights", {**self.TRIP, "travelers": 1})["flights"][0]
+        assert flight["priceLabel"] == flight["price"]
+
+    def test_a_room_rate_says_what_the_week_costs(self) -> None:
+        stay = self.result("search_hotels")["hotels"][0]
+        assert stay["units"] == 7
+        assert stay["totalValue"] == stay["priceValue"] * 7
+
+    def test_the_total_is_in_the_currency_it_was_quoted_in(self) -> None:
+        """A euro rate totalled in dollars is a figure nobody can act on."""
+        out = self.result("search_hotels")
+        assert out["currency"] == "EUR"
+        assert out["hotels"][0]["total"].startswith("€")
+        assert "$" not in out["hotels"][0]["priceLabel"]

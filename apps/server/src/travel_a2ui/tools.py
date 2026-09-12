@@ -292,6 +292,57 @@ def _route_note(saved: dict[str, Any], searched: dict[str, Any]) -> dict[str, An
     }
 
 
+def _priced_for(
+    items: list[dict[str, Any]],
+    *,
+    each: str,
+    count: int | None,
+    unit: str,
+    whole: str,
+    currency: str = "USD",
+) -> list[dict[str, Any]]:
+    """Every option, with what it costs *this* party as well as what it costs one.
+
+    A fare is per traveller and a nightly rate is per night, and neither said so.
+    The card showed `$352` beside a trip for two, and `$200 / night` beside seven
+    nights — both correct, both read as the total, and both out by a factor the
+    traveller only discovers at the summary. The number they are choosing between
+    should be the number they are going to pay.
+
+    So each option carries three things: what one costs (`price`, unchanged),
+    what the whole of it costs (`total`), and `priceLabel` — the two of them in
+    one string, ready to bind to a card's `price`. With a party of one and a
+    single night there is nothing to multiply, and the label is just the price:
+    "$352 each · $352 for 1" is noise.
+    """
+    if not count or count < 1:
+        return items
+
+    out: list[dict[str, Any]] = []
+    for item in items:
+        value = _num(item.get(each))
+        if value is None:
+            out.append(item)
+            continue
+        total = value * count
+        out.append(
+            {
+                **item,
+                "perUnit": _money_text(value, currency),
+                "units": count,
+                "total": _money_text(total, currency),
+                "totalValue": model._js_round(total),
+                "priceLabel": (
+                    f"{_money_text(value, currency)} {unit} · "
+                    f"{_money_text(total, currency)} {whole}"
+                    if count > 1
+                    else _money_text(value, currency)
+                ),
+            }
+        )
+    return out
+
+
 def _nights_between(start: Any, end: Any) -> int:
     """Nights between two ISO dates, or 0 when either is missing or wrong-way."""
     if not isinstance(start, str) or not isinstance(end, str):
@@ -405,7 +456,7 @@ def _estimate(
         return {
             "lines": lines,
             "total": _money(total, currency),
-            "totalValue": _js_round(total),
+            "totalValue": model._js_round(total),
             "currency": currency,
         }
 
@@ -430,7 +481,7 @@ def _estimate(
     return {
         "lines": lines,
         "total": _money(total, currency),
-        "totalValue": _js_round(total),
+        "totalValue": model._js_round(total),
         "currency": currency,
     }
 
@@ -559,13 +610,24 @@ def _day_text(value: Any) -> str:
     return f"{when.day} {when.strftime('%b')}"
 
 
-def _money_text(value: Any) -> str:
+#: The symbol for each currency the fixtures quote in.
+#:
+#: A total printed in the wrong currency is worse than no total: "$847" under a
+#: list of "€121 / night" cards is a figure nobody can act on and everybody
+#: believes. Anything not named here keeps its ISO code, which is ugly and
+#: honest.
+_SYMBOLS = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "JPY": "\u00a5"}
+
+
+def _money_text(value: Any, currency: str = "USD") -> str:
     """A figure as a reader sees it, without importing the fixture's formatter."""
     try:
         number = float(value)
     except (TypeError, ValueError):
         return str(value)
-    return f"${number:,.0f}" if number == int(number) else f"${number:,.2f}"
+    symbol = _SYMBOLS.get((currency or "USD").upper())
+    figure = f"{number:,.0f}" if number == int(number) else f"{number:,.2f}"
+    return f"{symbol}{figure}" if symbol else f"{figure} {currency.upper()}"
 
 
 async def run_tool(
@@ -605,9 +667,25 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
         if not outcome.ok:
             return _cannot(outcome), False
 
+        party = trip.get("travelers")
         return (
             {
-                "flights": outcome.items,
+                "flights": _priced_for(
+                    outcome.items,
+                    each="priceValue",
+                    count=party if isinstance(party, int) else None,
+                    unit="each",
+                    whole=f"for {party}" if party else "",
+                    currency=outcome.currency or "USD",
+                ),
+                "pricesAre": (
+                    f"`price` is one ticket. `total` is all {party} on this hop, and "
+                    f"`priceLabel` says both — put that on the card, not the bare fare: "
+                    f"a per-person figure beside a party of {party} reads as the total "
+                    f"and is wrong by {party}×."
+                    if isinstance(party, int) and party > 1
+                    else "One traveller, so `price` is the whole of it."
+                ),
                 "currency": outcome.currency or "USD",
                 "note": outcome.note,
                 "provenance": outcome.provenance.as_dict(),
@@ -648,7 +726,20 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
 
         return (
             {
-                "hotels": outcome.items,
+                "hotels": _priced_for(
+                    outcome.items,
+                    each="priceValue",
+                    count=stay_nights if isinstance(stay_nights, int) else None,
+                    unit="a night",
+                    whole=f"for {stay_nights} nights" if stay_nights else "",
+                    currency=outcome.currency or "USD",
+                ),
+                "pricesAre": (
+                    f"`price` is one night. `total` is all {stay_nights} of them, and "
+                    f"`priceLabel` says both — put that on the card."
+                    if isinstance(stay_nights, int) and stay_nights > 1
+                    else "One night, so `price` is the whole of it."
+                ),
                 "currency": outcome.currency or "USD",
                 "note": outcome.note,
                 "provenance": outcome.provenance.as_dict(),

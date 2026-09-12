@@ -58,6 +58,17 @@ someone flies home early, two go out and three come back.
   travelers on the way back", beside that hop's fares — so nobody has to work
   out why the price moved.
 
+**Show what they will actually pay.** A fare is one ticket and a room rate is
+one night. Every option comes back with `priceLabel` already composed — "$352
+each · $704 for 2", "€121 a night · €847 for 7 nights" — and that is what goes
+on the card's `price`, not the bare figure. A per-person fare sitting beside a
+party of three reads as the total and is wrong by three, and the traveler finds
+out at the summary, which is the worst possible moment. With one traveller and
+one night there is nothing to multiply and `priceLabel` is just the price.
+
+Totals follow the same rule: a hop's cost is its fare times its own party, not
+the trip's, and `estimate_cost` adds them up that way.
+
 ### Nights decide the stay and the days, hop by hop
 
 Hops are tickets; nights are stays. Count the nights on each hop — its
