@@ -797,17 +797,23 @@ travel-a2ui/
 └── skills/                     generated SKILL.md files, checked in
 ```
 
-The Python server is the one being built out; `apps/worker` and
-`packages/trip` go once the cutover is verified. Both are kept in step by the
-goldens in `tools/parity/`, which is what makes retiring one of them a
-non-event.
+The Python server is the whole backend. `apps/worker` and `packages/trip` are
+gone: the cutover is done, and the goldens in `tools/parity/` are what made
+retiring them a non-event — they still pin the behaviour, now over one
+implementation rather than two.
+
+`packages/express` is what is left of the TypeScript, and it is no longer in the
+agent's path: the server compiles Express with the official Python SDK. The two
+pages that still use it — the protocol view and the component page — compile in
+the browser to *show* the round trip, which is the one place a second
+implementation earns its keep.
 
 ---
 
 ## Tests
 
 ```bash
-npm test                              # TypeScript: the Worker, the compiler, the renderer
+npm test                              # TypeScript: the compiler and the renderer
 npm run check                         # every generated artifact and every golden
 python3 -m pytest apps/server/tests   # the Python server
 python3 -m pytest tools/tests         # the build tooling
