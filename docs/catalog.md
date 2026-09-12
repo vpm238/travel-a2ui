@@ -9,7 +9,7 @@ build (`node tools/screenshots/catalog.mjs`), so it cannot describe a component
 that no longer exists or miss a prop that was added.
 
 **Lifting one of these.** A component is three things: an entry in the catalog
-schema, a React function in `packages/renderer/src/components/`, and whatever the
+schema, a React function in `renderers/react/src/components/`, and whatever the
 skill says about when to use it. Copy all three and it works in another A2UI
 project — nothing here is coupled to travel except the names.
 
@@ -36,6 +36,7 @@ root = ActivityItem("Prado Museum", "10:00", category="sight", location="Paseo d
 | `note` | bindable string |  | One short practical note, e.g. 'Book the timed entry'. |
 | `action` | action |  | Fired when the traveler taps the activity. |
 | `done` | bindable boolean |  | Whether the traveler has ticked this off. |
+| `onRemove` | action |  | Fired when the traveler drops this activity. Give every activity one: a day plan is theirs to edit. |
 
 ## Button
 
@@ -218,6 +219,7 @@ root = ItineraryDay("Day 2 — Old Madrid", [a1, a2], date="Mon 13 Apr", summary
 | `date` | bindable string |  | Date as a display string, e.g. 'Tue 14 Apr'. |
 | `summary` | bindable string |  | One-line character of the day, e.g. 'Old town, slow pace'. |
 | `action` | action |  | Fired when the traveler opens or edits the whole day. |
+| `onAdd` | action |  | Fired when the traveler wants something else in this day. |
 
 ## List
 

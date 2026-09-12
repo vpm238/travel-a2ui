@@ -58,7 +58,7 @@ _ROOT = ROOT
 #: stale `dist/` underneath it is how you end up debugging a build from
 #: yesterday.
 WEB_DIST = _ROOT / "apps" / "web" / "dist"
-FLUTTER_DIST = _ROOT / "apps" / "flutter_client" / "build" / "web"
+FLUTTER_DIST = _ROOT / "renderers" / "flutter" / "build" / "web"
 
 #: What the picker offers, and what answers when nobody picks.
 #:

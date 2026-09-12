@@ -98,7 +98,7 @@ around them.
  │ skills, tools, the trip │ the React client   │ the same renderer,    │
  │ record, surface passes  │ (3 flows)          │ for an MCP host       │
  ├─────────────────────────┼────────────────────┼───────────────────────┤
- │ apps/server/…/doors     │ apps/flutter_client│ apps/gallery          │
+ │ apps/server/…/doors     │ renderers/flutter│ apps/gallery          │
  │ interactions · live ·   │ the second client  │ static showcase       │
  │ plugin · http           │                    │                       │
  └─────────────────────────┴────────────────────┴───────────────────────┘

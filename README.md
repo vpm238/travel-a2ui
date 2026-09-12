@@ -399,7 +399,7 @@ that is to replace them. In rough order of effort:
 
 **Swap the catalog.** `catalogs/a2ui-travel/catalog.json` is the vocabulary: one
 JSON Schema entry per component. Add `InvoiceLine` beside `FlightOption`, write
-the React function in `packages/renderer/src/components/`, register it, and the
+the React function in `renderers/react/src/components/`, register it, and the
 model can draw invoices. [`docs/catalog.md`](docs/catalog.md) is generated from
 that file — every component pictured as the renderer actually draws it, with the
 one line of Express that produced it — so it is also the shape to copy.
@@ -586,7 +586,7 @@ prompts/*.md   ─────────►│    tools    what it can call   
                                           │
                           ┌───────────────┴───────────────┐
                           ▼                               ▼
-                  packages/renderer                apps/flutter_client
+                  renderers/react                  renderers/flutter
                   React                            Flutter
 ```
 

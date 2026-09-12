@@ -37,11 +37,15 @@ export default defineConfig({
     alias: {
       // Test the source, not the last build of it.
       '@travel-a2ui/express': resolve(root, 'packages/express/src/index.ts'),
-      '@travel-a2ui/renderer': resolve(root, 'packages/renderer/src/index.ts'),
+      '@travel-a2ui/renderer': resolve(root, 'renderers/react/src/index.ts'),
     },
   },
   test: {
-    include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts'],
+    include: [
+      'packages/*/test/**/*.test.ts',
+      'renderers/*/test/**/*.test.ts',
+      'apps/*/test/**/*.test.ts',
+    ],
     environment: 'node',
     testTimeout: 20_000,
   },

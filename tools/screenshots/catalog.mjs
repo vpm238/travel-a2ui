@@ -132,7 +132,7 @@ function markdown(captured) {
     'that no longer exists or miss a prop that was added.',
     '',
     '**Lifting one of these.** A component is three things: an entry in the catalog',
-    'schema, a React function in `packages/renderer/src/components/`, and whatever the',
+    'schema, a React function in `renderers/react/src/components/`, and whatever the',
     'skill says about when to use it. Copy all three and it works in another A2UI',
     'project — nothing here is coupled to travel except the names.',
     '',

@@ -23,7 +23,7 @@ COPY apps/web/package.json apps/web/
 COPY apps/gallery/package.json apps/gallery/
 COPY apps/mcp-view/package.json apps/mcp-view/
 COPY packages/express/package.json packages/express/
-COPY packages/renderer/package.json packages/renderer/
+COPY renderers/react/package.json renderers/react/
 RUN npm ci
 
 COPY . .
@@ -75,10 +75,10 @@ RUN git config --global --add safe.directory /opt/flutter \
 WORKDIR /build
 
 # Manifests first, so editing a widget does not re-resolve the package graph.
-COPY apps/flutter_client/pubspec.yaml apps/flutter_client/pubspec.lock ./
+COPY renderers/flutter/pubspec.yaml renderers/flutter/pubspec.lock ./
 RUN flutter pub get
 
-COPY apps/flutter_client/ ./
+COPY renderers/flutter/ ./
 # `--base-href` because the client is served under `/flutter/`, not at the root:
 # without it the bundle asks for `/main.dart.js` and gets the React app's HTML,
 # which fails as a syntax error rather than as a missing file.
@@ -129,7 +129,7 @@ COPY data/ data/
 COPY apps/server/src/ apps/server/src/
 
 COPY --from=web /build/apps/web/dist/ apps/web/dist/
-COPY --from=flutter /build/build/web/ apps/flutter_client/build/web/
+COPY --from=flutter /build/build/web/ renderers/flutter/build/web/
 
 # Import the app at build time, so a broken image fails here rather than in
 # production.

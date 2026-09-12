@@ -1,0 +1,1746 @@
+/*
+ * A2UI renderer styles.
+ *
+ * One design system, two themes, no build step. Everything is a custom
+ * property on `:root`, redefined once for dark, so a surface never has to know
+ * which theme it is in — and neither does the agent that generated it.
+ *
+ * Layout note: A2UI surfaces are composed by a model at runtime, which means
+ * the nesting is not known in advance. So spacing is owned by containers
+ * (`gap`), never by margins on children — a card dropped into a row and the
+ * same card dropped into a column both come out right.
+ */
+
+:root {
+  /*
+   * The palette is a departure board, not a stationery catalogue.
+   *
+   * It used to be warm cream, a serif display face and a teal accent, with
+   * terracotta beside it — a combination that says nothing about travel and a
+   * great deal about how it was chosen. These neutrals are biased cool-blue,
+   * the way timetable ink is; the accent is wayfinding blue, the colour this
+   * subject actually uses on signs; and the warm slot is departure-board amber,
+   * reserved for a badge that wants a glance.
+   */
+  --tv-paper: #f3f6fa;
+  --tv-surface: #ffffff;
+  --tv-surface-2: #e8edf4;
+  --tv-ink: #0b1220;
+  --tv-ink-muted: #4d5b73;
+  --tv-ink-faint: #7d8ca6;
+  --tv-line: rgba(11, 18, 32, 0.1);
+  --tv-line-strong: rgba(11, 18, 32, 0.2);
+
+  --tv-accent: #1f3f9e;
+  --tv-accent-ink: #ffffff;
+  --tv-accent-soft: rgba(31, 63, 158, 0.09);
+  --tv-accent-line: rgba(31, 63, 158, 0.34);
+
+  /* The one destructive colour. Separate from the accent and from the warm
+   * slot, because "remove this" and "worth a glance" are different claims. */
+  --tv-danger: #a3161b;
+
+  --tv-warm: #9a5b06;
+  --tv-warm-soft: rgba(154, 91, 6, 0.13);
+  --tv-positive: #10714c;
+  --tv-positive-soft: rgba(16, 113, 76, 0.12);
+  --tv-caution: #8a6209;
+  --tv-caution-soft: rgba(138, 98, 9, 0.14);
+  --tv-critical: #b02a2a;
+  --tv-critical-soft: rgba(176, 42, 42, 0.11);
+
+  --tv-radius-sm: 8px;
+  --tv-radius: 14px;
+  --tv-radius-lg: 20px;
+
+  --tv-shadow-sm: 0 1px 2px rgba(20, 23, 28, 0.06), 0 1px 3px rgba(20, 23, 28, 0.04);
+  --tv-shadow: 0 2px 4px rgba(20, 23, 28, 0.05), 0 8px 24px rgba(20, 23, 28, 0.07);
+  --tv-shadow-lg: 0 4px 8px rgba(20, 23, 28, 0.06), 0 20px 48px rgba(20, 23, 28, 0.12);
+
+  --tv-gap-xs: 4px;
+  --tv-gap-sm: 8px;
+  --tv-gap: 12px;
+  --tv-gap-lg: 20px;
+
+  /*
+   * Three faces, each doing a job this app actually has.
+   *
+   * Archivo comes out of signage and holds up at a heading's size. Public Sans
+   * was drawn for dense informational interfaces, which is what a fare list is.
+   * IBM Plex Mono carries the codes, times and prices, where a tabular figure
+   * matters more than a pretty one.
+   *
+   * Every stack ends somewhere real: the MCP app template declares
+   * `resourceDomains: []` and fetches nothing, so inside a host it renders on
+   * the fallbacks and has to look deliberate there too.
+   */
+  --tv-font: 'Public Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --tv-font-display: 'Archivo', 'Public Sans', ui-sans-serif, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --tv-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    monospace;
+
+  /* Numbers that sit in a column should line up in that column. */
+  --tv-figures: tabular-nums;
+}
+
+:root[data-theme='dark'],
+:root:not([data-theme='light']) .tv-dark-scope {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --tv-paper: #070b13;
+    --tv-surface: #101827;
+    --tv-surface-2: #182135;
+    --tv-ink: #e7edf8;
+    --tv-ink-muted: #9aa8c0;
+    --tv-ink-faint: #6b7b96;
+    --tv-line: rgba(231, 237, 248, 0.12);
+    --tv-line-strong: rgba(231, 237, 248, 0.22);
+
+    --tv-accent: #7ea2ff;
+    --tv-accent-ink: #05112e;
+    --tv-accent-soft: rgba(126, 162, 255, 0.15);
+    --tv-accent-line: rgba(126, 162, 255, 0.42);
+
+    --tv-danger: #ff8f8f;
+    --tv-warm: #f2b25c;
+    --tv-warm-soft: rgba(242, 178, 92, 0.16);
+    --tv-positive: #47ce9b;
+    --tv-positive-soft: rgba(71, 206, 155, 0.15);
+    --tv-caution: #e8c36a;
+    --tv-caution-soft: rgba(232, 195, 106, 0.16);
+    --tv-critical: #f4837a;
+    --tv-critical-soft: rgba(244, 131, 122, 0.15);
+
+    --tv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --tv-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.4);
+    --tv-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4), 0 24px 64px rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root[data-theme='dark'] {
+  --tv-paper: #070b13;
+  --tv-surface: #101827;
+  --tv-surface-2: #182135;
+  --tv-ink: #e7edf8;
+  --tv-ink-muted: #9aa8c0;
+  --tv-ink-faint: #6b7b96;
+  --tv-line: rgba(231, 237, 248, 0.12);
+  --tv-line-strong: rgba(231, 237, 248, 0.22);
+
+  --tv-accent: #7ea2ff;
+  --tv-accent-ink: #05112e;
+  --tv-accent-soft: rgba(126, 162, 255, 0.15);
+  --tv-accent-line: rgba(126, 162, 255, 0.42);
+
+  --tv-warm: #f2b25c;
+  --tv-warm-soft: rgba(242, 178, 92, 0.16);
+  --tv-positive: #47ce9b;
+  --tv-positive-soft: rgba(71, 206, 155, 0.15);
+  --tv-caution: #e8c36a;
+  --tv-caution-soft: rgba(232, 195, 106, 0.16);
+  --tv-critical: #f4837a;
+  --tv-critical-soft: rgba(244, 131, 122, 0.15);
+
+  --tv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --tv-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.4);
+  --tv-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4), 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------------------------------------------------------------- surface */
+
+/*
+ * A surface answers to the space it is in, not to the window.
+ *
+ * These cards live in three places of very different widths — a chat column
+ * around 560px, a panel around 320px, and a full-width home screen — inside the
+ * same browser window. The responsive rules keyed on viewport width, so a
+ * flight card in a 320px panel of a 1,440px window was handed the layout
+ * designed for 1,440px and squeezed three columns into a third of the room.
+ * That is most of what "the components look cramped" was.
+ *
+ * `container-type: inline-size` makes the surface itself the thing being
+ * measured, so the same card lays out wide when it has room and stacks when it
+ * does not, wherever it happens to be.
+ */
+.a2-surface {
+  container-type: inline-size;
+  container-name: surface;
+  color: var(--tv-ink);
+  font-family: var(--tv-font);
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tv-gap);
+}
+
+.a2-surface *,
+.a2-surface *::before,
+.a2-surface *::after {
+  box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------------ text */
+
+.a2-text {
+  margin: 0;
+  color: var(--tv-ink);
+  text-wrap: pretty;
+}
+
+.a2-text--h1 {
+  font-family: var(--tv-font-display);
+  font-size: 1.75rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.a2-text--h2 {
+  font-family: var(--tv-font-display);
+  font-size: 1.4rem;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+
+.a2-text--h3 {
+  font-size: 1.08rem;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+}
+
+.a2-text--h4 {
+  font-size: 0.95rem;
+  font-weight: 640;
+}
+
+.a2-text--h5 {
+  font-size: 0.82rem;
+  font-weight: 640;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tv-ink-muted);
+}
+
+.a2-text--caption {
+  font-size: 0.8rem;
+  color: var(--tv-ink-muted);
+}
+
+/* --------------------------------------------------------------- layout */
+
+.a2-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tv-gap);
+  min-width: 0;
+}
+
+.a2-row {
+  display: flex;
+  flex-direction: row;
+  gap: var(--tv-gap);
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.a2-list {
+  display: flex;
+  gap: var(--tv-gap-sm);
+  min-width: 0;
+}
+
+.a2-list--vertical {
+  flex-direction: column;
+}
+
+.a2-list--horizontal {
+  flex-direction: row;
+  overflow-x: auto;
+  padding-bottom: var(--tv-gap-xs);
+  scrollbar-width: thin;
+}
+
+.a2-card {
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  padding: var(--tv-gap-lg);
+  box-shadow: var(--tv-shadow-sm);
+  min-width: 0;
+}
+
+.a2-divider {
+  border: 0;
+  border-top: 1px solid var(--tv-line);
+  margin: 0;
+  width: 100%;
+}
+
+.a2-divider--vertical {
+  border-top: 0;
+  border-left: 1px solid var(--tv-line);
+  width: 0;
+  align-self: stretch;
+}
+
+.a2-image {
+  display: block;
+  max-width: 100%;
+  border-radius: var(--tv-radius-sm);
+}
+
+.a2-image--avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+}
+
+.a2-image--icon {
+  width: 20px;
+  height: 20px;
+}
+
+.a2-image--smallFeature {
+  max-height: 120px;
+}
+
+.a2-image--largeFeature,
+.a2-image--header {
+  width: 100%;
+  max-height: 260px;
+}
+
+.a2-video,
+.a2-audio {
+  width: 100%;
+  border-radius: var(--tv-radius-sm);
+}
+
+.a2-icon {
+  font-size: 1.1em;
+  color: var(--tv-ink-muted);
+}
+
+.a2-unknown {
+  border: 1px dashed var(--tv-line-strong);
+  border-radius: var(--tv-radius-sm);
+  padding: var(--tv-gap-sm) var(--tv-gap);
+  color: var(--tv-ink-muted);
+  font-size: 0.82rem;
+}
+
+/* --------------------------------------------------------------- controls */
+
+.a2-button {
+  appearance: none;
+  border: 1px solid var(--tv-line-strong);
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+  font: inherit;
+  font-weight: 560;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tv-gap-sm);
+  white-space: nowrap;
+}
+
+.a2-button:hover {
+  border-color: var(--tv-ink-faint);
+  background: var(--tv-surface-2);
+}
+
+.a2-button:active {
+  transform: translateY(1px);
+}
+
+.a2-button--primary {
+  background: var(--tv-accent);
+  border-color: transparent;
+  color: var(--tv-accent-ink);
+}
+
+.a2-button--primary:hover {
+  background: color-mix(in srgb, var(--tv-accent) 88%, black);
+  border-color: transparent;
+}
+
+.a2-button--borderless {
+  border-color: transparent;
+  background: transparent;
+  color: var(--tv-accent);
+  padding-inline: 6px;
+}
+
+.a2-button--borderless:hover {
+  background: var(--tv-accent-soft);
+}
+
+.a2-button .a2-text {
+  color: inherit;
+  font: inherit;
+}
+
+.a2-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.a2-field__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--tv-gap-sm);
+}
+
+.a2-field__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--tv-ink-muted);
+}
+
+.a2-field__value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.a2-field__error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--tv-critical);
+}
+
+.a2-input {
+  font: inherit;
+  color: var(--tv-ink);
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line-strong);
+  border-radius: var(--tv-radius-sm);
+  padding: 9px 12px;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.a2-input:focus {
+  outline: none;
+  border-color: var(--tv-accent);
+  box-shadow: 0 0 0 3px var(--tv-accent-soft);
+}
+
+.a2-input.is-invalid {
+  border-color: var(--tv-critical);
+}
+
+.a2-check {
+  display: flex;
+  align-items: center;
+  gap: var(--tv-gap-sm);
+}
+
+.a2-check__box {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--tv-accent);
+  flex: none;
+}
+
+.a2-check__label {
+  cursor: pointer;
+}
+
+.a2-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tv-gap-sm);
+}
+
+.a2-chip {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--tv-line-strong);
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+  padding: 6px 13px;
+  border-radius: 999px;
+  transition: all 0.15s ease;
+}
+
+.a2-chip:hover {
+  border-color: var(--tv-accent-line);
+}
+
+.a2-chip.is-selected {
+  background: var(--tv-accent-soft);
+  border-color: var(--tv-accent);
+  color: var(--tv-accent);
+  font-weight: 600;
+}
+
+.a2-slider {
+  width: 100%;
+  accent-color: var(--tv-accent);
+}
+
+.a2-tabs__strip {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--tv-line);
+  margin-bottom: var(--tv-gap);
+}
+
+.a2-tabs__tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  color: var(--tv-ink-muted);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.a2-tabs__tab.is-active {
+  color: var(--tv-ink);
+  border-bottom-color: var(--tv-accent);
+  font-weight: 600;
+}
+
+.a2-modal__trigger {
+  display: contents;
+}
+
+.a2-modal__scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 15, 0.5);
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  padding: var(--tv-gap-lg);
+  z-index: 60;
+}
+
+.a2-modal__panel {
+  position: relative;
+  background: var(--tv-surface);
+  border-radius: var(--tv-radius-lg);
+  padding: 28px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--tv-shadow-lg);
+}
+
+.a2-modal__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--tv-ink-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+/* ------------------------------------------------------- travel: badges */
+
+.tv-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--tv-warm-soft);
+  color: var(--tv-warm);
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.tv-badge--onMedia {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #7a3d20;
+  backdrop-filter: blur(4px);
+}
+
+/* ------------------------------------------------------- travel: flight */
+
+.tv-flight {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(200px, 2.2fr) auto;
+  gap: var(--tv-gap-lg);
+  align-items: center;
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  padding: 16px 18px;
+  box-shadow: var(--tv-shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.tv-flight.is-interactive {
+  cursor: pointer;
+}
+
+.tv-flight.is-interactive:hover {
+  border-color: var(--tv-accent-line);
+  box-shadow: var(--tv-shadow);
+  transform: translateY(-1px);
+}
+
+.tv-flight.is-selected {
+  border-color: var(--tv-accent);
+  background: var(--tv-accent-soft);
+}
+
+.tv-flight__carrier {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: var(--tv-gap-sm);
+  row-gap: 0;
+  align-items: center;
+  min-width: 0;
+}
+
+.tv-flight__mark {
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--tv-surface-2);
+  color: var(--tv-ink-muted);
+}
+
+/*
+ * With a flight number to read it from, the mark is the carrier code — which is
+ * what a boarding pass leads with, and what someone scanning four fares
+ * actually recognises. Without one it stays a glyph rather than inventing two
+ * letters.
+ */
+.tv-flight__mark.is-code {
+  font-family: var(--tv-font-mono);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--tv-ink);
+  background: var(--tv-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--tv-accent-line);
+}
+
+.tv-flight__airline {
+  font-weight: 620;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.tv-flight__number {
+  font-family: var(--tv-font-mono);
+  font-size: 0.72rem;
+  color: var(--tv-ink-faint);
+  line-height: 1.3;
+}
+
+/* Nothing to show in the second row when the flight number is absent. */
+.tv-flight__number:empty {
+  display: none;
+}
+
+.tv-flight__times {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--tv-gap);
+}
+
+.tv-flight__endpoint {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.tv-flight__endpoint strong {
+  font-family: var(--tv-font-display);
+  font-size: 1.08rem;
+  font-weight: 600;
+  font-variant-numeric: var(--tv-figures);
+  letter-spacing: -0.01em;
+}
+
+.tv-flight__endpoint span {
+  font-family: var(--tv-font-mono);
+  font-size: 0.7rem;
+  color: var(--tv-ink-faint);
+  letter-spacing: 0.08em;
+}
+
+.tv-flight__leg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tv-flight__line {
+  height: 1px;
+  width: 100%;
+  min-width: 40px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--tv-line-strong) 15%,
+    var(--tv-line-strong) 85%,
+    transparent
+  );
+  position: relative;
+}
+
+.tv-flight__line::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--tv-ink-faint);
+}
+
+.tv-flight__duration,
+.tv-flight__stops {
+  font-size: 0.72rem;
+  color: var(--tv-ink-muted);
+  white-space: nowrap;
+}
+
+.tv-flight__price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
+}
+
+.tv-flight__price strong {
+  font-family: var(--tv-font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: var(--tv-figures);
+  line-height: 1.1;
+}
+
+.tv-flight__cabin {
+  font-size: 0.7rem;
+  color: var(--tv-ink-faint);
+  text-transform: capitalize;
+}
+
+.tv-flight__tick {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--tv-accent);
+  color: var(--tv-accent-ink);
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  box-shadow: var(--tv-shadow-sm);
+}
+
+/*
+ * Below about 620px of *surface*, the three-column row stops being a row: the
+ * times want the full width to stay readable, so the carrier and the price
+ * share the top line and the journey gets its own beneath them.
+ */
+@container surface (max-width: 620px) {
+  .tv-flight {
+    grid-template-columns: 1fr auto;
+    gap: var(--tv-gap);
+  }
+  .tv-flight__times {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+
+/* -------------------------------------------------------- travel: hotel */
+
+.tv-hotel {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: 0;
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: var(--tv-shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.tv-hotel:hover {
+  border-color: var(--tv-accent-line);
+  box-shadow: var(--tv-shadow);
+  transform: translateY(-1px);
+}
+
+.tv-hotel.is-selected {
+  border-color: var(--tv-accent);
+}
+
+.tv-hotel__media {
+  position: relative;
+  display: block;
+  background: var(--tv-surface-2);
+  min-height: 132px;
+  overflow: hidden;
+}
+
+.tv-hotel__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.tv-art {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  background: linear-gradient(
+    180deg,
+    hsl(var(--art-hue) 62% 70%),
+    hsl(calc(var(--art-hue) + 38) 72% 88%)
+  );
+}
+
+.tv-art svg {
+  width: 100%;
+  display: block;
+}
+
+/* The generated skyline sits under a soft scrim so a badge stays readable on
+   any of the hues it can produce. */
+.tv-hotel__media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(0 0 0 / 18%), transparent 52%);
+  pointer-events: none;
+}
+
+.tv-hotel__body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.tv-hotel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--tv-gap);
+}
+
+.tv-hotel__head h4 {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+/* The score reads as a mark, the way every booking site sets it: one solid
+   block you can compare down a column without reading. */
+.tv-hotel__score {
+  flex: none;
+  font-size: 0.76rem;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+  color: var(--tv-on-accent, #fff);
+  background: var(--tv-accent);
+  border-radius: 8px;
+  padding: 4px 9px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.tv-hotel__where {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--tv-ink-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tv-hotel__where svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  opacity: 0.75;
+}
+
+.tv-hotel__amenities {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tv-hotel__amenities li {
+  font-size: 0.72rem;
+  color: var(--tv-ink-muted);
+  background: var(--tv-surface-2);
+  border: 1px solid var(--tv-line);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+/* The nightly rate leads and the stay total follows, because the first is what
+   you compare and the second is what you pay. */
+.tv-hotel__price {
+  margin-top: auto;
+  padding-top: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-hotel__price strong {
+  font-size: 1.08rem;
+  font-weight: 680;
+  letter-spacing: -0.015em;
+}
+
+.tv-hotel__price span {
+  font-size: 0.78rem;
+  color: var(--tv-ink-muted);
+}
+
+/* ---------------------------------------------------- travel: itinerary */
+
+.tv-day {
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  overflow: hidden;
+  box-shadow: var(--tv-shadow-sm);
+}
+
+.tv-day__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--tv-gap);
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--tv-line);
+  background: linear-gradient(var(--tv-surface-2), transparent);
+}
+
+.tv-day__head h3 {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.tv-day__head p {
+  margin: 3px 0 0;
+  font-size: 0.82rem;
+  color: var(--tv-ink-muted);
+}
+
+.tv-day__date {
+  font-size: 0.76rem;
+  color: var(--tv-ink-muted);
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.tv-day__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.tv-activity {
+  display: grid;
+  /* The fourth track is the remove control. `auto` rather than a fixed width so
+   * a day plan with nothing removable lays out exactly as it did before. */
+  grid-template-columns: 54px 30px 1fr auto;
+  gap: var(--tv-gap);
+  align-items: start;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--tv-line);
+  position: relative;
+}
+
+.tv-activity:last-child {
+  border-bottom: 0;
+}
+
+.tv-activity.is-interactive {
+  cursor: pointer;
+}
+
+.tv-activity.is-interactive:hover {
+  background: var(--tv-surface-2);
+}
+
+.tv-activity.is-done {
+  opacity: 0.55;
+}
+
+.tv-activity.is-done strong {
+  text-decoration: line-through;
+}
+
+.tv-activity__time {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.84rem;
+  color: var(--tv-ink-muted);
+  padding-top: 3px;
+}
+
+/*
+ * The icon is the marker on a spine, so it is round and it sits on a line.
+ *
+ * A day read as a table before this — a time column, an icon column, a title
+ * column, three separate things to scan. A schedule is one thing happening
+ * after another, and a vertical line through the markers says so without a
+ * word. The line is drawn on the row rather than the icon so it runs between
+ * markers and stops at the ends.
+ */
+.tv-activity__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--tv-surface-2);
+  color: var(--tv-ink-muted);
+  font-size: 0.9rem;
+  box-shadow: 0 0 0 3px var(--tv-surface);
+}
+
+/* The spine: one line down the day, behind the markers. */
+.tv-activity::before {
+  content: "";
+  position: absolute;
+  left: calc(18px + 54px + var(--tv-gap) + 13px);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--tv-line);
+}
+
+.tv-activity:first-child::before {
+  top: 13px;
+}
+
+.tv-activity:last-child::before {
+  bottom: calc(100% - 41px);
+}
+
+.tv-activity__icon--food {
+  background: var(--tv-warm-soft);
+  color: var(--tv-warm);
+}
+.tv-activity__icon--sight {
+  background: var(--tv-accent-soft);
+  color: var(--tv-accent);
+}
+.tv-activity__icon--outdoors {
+  background: var(--tv-positive-soft);
+  color: var(--tv-positive);
+}
+.tv-activity__icon--transit {
+  background: var(--tv-caution-soft);
+  color: var(--tv-caution);
+}
+
+.tv-activity__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tv-activity__meta {
+  font-size: 0.78rem;
+  color: var(--tv-ink-muted);
+}
+
+.tv-activity__note {
+  font-size: 0.78rem;
+  color: var(--tv-warm);
+  font-style: normal;
+}
+
+/* ---------------------------------------------------------- travel: map */
+
+.tv-map {
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  overflow: hidden;
+  background: var(--tv-surface);
+}
+
+.tv-map__canvas {
+  position: relative;
+  height: 190px;
+  background:
+    radial-gradient(circle at 22% 30%, var(--tv-accent-soft), transparent 45%),
+    radial-gradient(circle at 78% 70%, var(--tv-warm-soft), transparent 42%),
+    repeating-linear-gradient(0deg, var(--tv-line) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(90deg, var(--tv-line) 0 1px, transparent 1px 34px),
+    var(--tv-surface-2);
+}
+
+.tv-map__pin {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line-strong);
+  border-radius: 999px;
+  padding: 3px 10px 3px 7px;
+  font-size: 0.74rem;
+  box-shadow: var(--tv-shadow-sm);
+  white-space: nowrap;
+}
+
+.tv-map__pin em {
+  font-style: normal;
+  font-weight: 560;
+}
+
+.tv-map__pin--stay {
+  color: var(--tv-accent);
+  border-color: var(--tv-accent-line);
+}
+.tv-map__pin--food {
+  color: var(--tv-warm);
+}
+
+.tv-map__caption {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 0.8rem;
+  color: var(--tv-ink-muted);
+  border-top: 1px solid var(--tv-line);
+}
+
+/* -------------------------------------------------------- travel: price */
+
+.tv-price {
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tv-gap-sm);
+  box-shadow: var(--tv-shadow-sm);
+}
+
+.tv-price__lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.tv-price__lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--tv-gap);
+  font-size: 0.88rem;
+}
+
+.tv-price__label {
+  color: var(--tv-ink-muted);
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.tv-price__label em {
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--tv-ink-faint);
+}
+
+.tv-price__amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-price__total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 11px;
+  border-top: 1px solid var(--tv-line);
+  font-weight: 640;
+}
+
+.tv-price__total strong {
+  font-size: 1.28rem;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-price__caption {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--tv-ink-faint);
+}
+
+.tv-price__cta {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+/* -------------------------------------------------------- travel: dates */
+
+.tv-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tv-dates__row {
+  display: flex;
+  align-items: center;
+  gap: var(--tv-gap-sm);
+}
+
+.tv-dates__arrow {
+  color: var(--tv-ink-faint);
+  flex: none;
+}
+
+.tv-dates__nights {
+  font-size: 0.76rem;
+  color: var(--tv-ink-muted);
+}
+
+.tv-counter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--tv-gap);
+}
+
+.tv-counter__labels {
+  display: flex;
+  flex-direction: column;
+}
+
+.tv-counter__caption {
+  font-size: 0.72rem;
+  color: var(--tv-ink-faint);
+}
+
+.tv-counter__controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--tv-line-strong);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.tv-counter__controls button {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--tv-ink);
+  font-size: 1rem;
+  width: 28px;
+  height: 26px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.tv-counter__controls button:hover:not(:disabled) {
+  background: var(--tv-surface-2);
+}
+
+.tv-counter__controls button:disabled {
+  color: var(--tv-ink-faint);
+  cursor: default;
+}
+
+.tv-counter__controls output {
+  min-width: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------- travel: dashboard */
+
+/*
+ * A stat is a number, not a card with a number in it.
+ *
+ * This was a rounded card with a coloured rail down its left edge and a shadow
+ * — a combination that appears on roughly every dashboard generated in the last
+ * two years, and which spends three separate "this is a distinct object" signals
+ * on a figure that is already distinct because it is the largest thing in its
+ * box. The rail also lied: it was `--tv-ink-faint` unless a tone was set, so
+ * most tiles carried an emphasis stripe that emphasised nothing.
+ *
+ * What is left is the number, its label above it and its caption below, on a
+ * plain surface with one hairline. Tone now colours the *figure*, which is the
+ * thing the tone is about.
+ */
+.tv-stat {
+  flex: 1 1 130px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius-sm);
+  padding: 12px 14px 13px;
+}
+
+.tv-stat.is-interactive {
+  cursor: pointer;
+}
+
+.tv-stat.is-interactive:hover {
+  border-color: var(--tv-accent-line);
+}
+
+/* Tone colours the figure. Semantic colour is a claim about the value — over
+ * budget, on track — so it belongs on the value rather than beside it. */
+.tv-stat--accent .tv-stat__value {
+  color: var(--tv-accent);
+}
+.tv-stat--positive .tv-stat__value {
+  color: var(--tv-positive);
+}
+.tv-stat--caution .tv-stat__value {
+  color: var(--tv-caution);
+}
+.tv-stat--critical .tv-stat__value {
+  color: var(--tv-critical);
+}
+
+.tv-stat__label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--tv-ink-faint);
+  font-weight: 600;
+}
+
+.tv-stat__value {
+  font-family: var(--tv-font-display);
+  font-size: 1.9rem;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  /* Digits line up between one tile and the next, which is the whole reason
+   * these sit in a row. */
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-stat__caption {
+  font-size: 0.76rem;
+  color: var(--tv-ink-muted);
+  margin-top: 2px;
+}
+
+.tv-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tv-meter__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--tv-gap-sm);
+  font-size: 0.84rem;
+}
+
+.tv-meter__head em {
+  font-style: normal;
+  color: var(--tv-ink-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-meter__track {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--tv-surface-2);
+  overflow: hidden;
+}
+
+.tv-meter__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tv-accent);
+  transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.tv-meter--positive .tv-meter__fill {
+  background: var(--tv-positive);
+}
+.tv-meter--caution .tv-meter__fill {
+  background: var(--tv-caution);
+}
+.tv-meter--critical .tv-meter__fill {
+  background: var(--tv-critical);
+}
+
+.tv-weather {
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  padding: 13px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tv-gap-sm);
+}
+
+.tv-weather__place {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tv-ink-muted);
+  font-weight: 600;
+}
+
+.tv-weather__days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--tv-gap);
+  overflow-x: auto;
+}
+
+.tv-weather__days li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 44px;
+}
+
+.tv-weather__day {
+  font-size: 0.74rem;
+  color: var(--tv-ink-muted);
+}
+
+.tv-weather__icon {
+  font-size: 1.2rem;
+  color: var(--tv-caution);
+}
+
+.tv-weather__high {
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-weather__low {
+  font-size: 0.74rem;
+  color: var(--tv-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-weather__caption {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--tv-ink-muted);
+}
+
+.tv-split {
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tv-gap-sm);
+}
+
+.tv-split__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.tv-split__people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tv-split__people li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--tv-gap);
+  align-items: baseline;
+  font-size: 0.86rem;
+}
+
+.tv-split__share {
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-split__status {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tv-ink-faint);
+}
+
+.tv-split__people li.is-paid .tv-split__status,
+.tv-split__people li.is-settled .tv-split__status {
+  color: var(--tv-positive);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .a2-surface *,
+  .a2-surface *::before,
+  .a2-surface *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * A spent surface. `inert` already blocks input; this says so visually, since a
+ * control that looks live and does nothing is worse than one that looks done.
+ */
+.a2-surface--spent,
+.a2-surface--spent * {
+  cursor: default !important;
+}
+
+.a2-surface--spent .a2-button,
+.a2-surface--spent .tv-flight,
+.a2-surface--spent .tv-hotel {
+  box-shadow: none;
+  transform: none;
+}
+
+
+/*
+ * A value that has not arrived.
+ *
+ * Drawn as the space it will occupy, so a card laid out before its data does
+ * not resize under the reader when the data lands. The rule for what counts as
+ * "not arrived" is the data model's own: a binding whose path does not resolve
+ * is pending; one that resolves to an empty string is empty. Nothing extra is
+ * sent to say which.
+ */
+.tv-pending {
+  display: inline-block;
+  min-width: 2.5em;
+  height: 0.85em;
+  vertical-align: -0.08em;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--tv-surface-2) 0%,
+    var(--tv-line-strong) 50%,
+    var(--tv-surface-2) 100%
+  );
+  background-size: 220% 100%;
+  animation: tv-pending-sweep 1.25s ease-in-out infinite;
+}
+
+@keyframes tv-pending-sweep {
+  0% {
+    background-position: 220% 0;
+  }
+  100% {
+    background-position: -220% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-pending {
+    animation: none;
+    background: var(--tv-surface-2);
+  }
+}
+
+
+/* ------------------------------------------------- narrow, by container
+ *
+ * The panel is about 320px and a chat column about 560px. Everything below
+ * answers to the surface's own width — see `container-type` on `.a2-surface` —
+ * so a card is laid out for the space it is actually in rather than for the
+ * window it happens to be inside.
+ */
+
+@container surface (max-width: 420px) {
+  /* A 132px picture beside 188px of text is not a photograph, it is a stamp.
+   * Below this the image goes above the words and gets a shape of its own. */
+  .tv-hotel {
+    grid-template-columns: 1fr;
+  }
+
+  .tv-hotel__media {
+    min-height: 128px;
+    aspect-ratio: 16 / 9;
+  }
+
+  /* Two columns of tiles at 320px is four words per line. */
+  .tv-stats {
+    grid-template-columns: 1fr;
+  }
+
+  /* A day's entries keep their time column; the row below it was wrapping to
+   * two lines and losing the alignment that makes a day readable. */
+  .tv-activity {
+    column-gap: 10px;
+  }
+}
+
+/* Grid and flex children default to `min-width: auto`, which means a long word
+ * — a hotel name, a neighbourhood — makes the *track* wider instead of
+ * wrapping, and the card overflows its own card. Every text cell that lives in
+ * a grid says otherwise. */
+.tv-flight__carrier,
+.tv-flight__endpoint,
+.tv-hotel__body,
+.tv-activity__body,
+.tv-day__head {
+  min-width: 0;
+}
+
+.tv-hotel__head h4,
+.tv-activity__title {
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------- editing a day plan
+ *
+ * The one surface in this catalog that is a draft rather than a decision.
+ * Everything else asks a question and locks the answer; a day plan is a list
+ * somebody pushes around, so its rows carry a way out and its days carry a way
+ * to add. See Flow 6 in docs/user-flows.md.
+ */
+
+.tv-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tv-activity {
+  position: relative;
+}
+
+.tv-activity__remove {
+  border: 0;
+  background: transparent;
+  color: var(--tv-ink-faint);
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 6px;
+  margin: -6px -4px -6px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  align-self: start;
+  /* Quiet until wanted. A row of ✕ down a day plan reads as a warning; one that
+   * appears under the pointer reads as an affordance. Always visible to a
+   * keyboard, because :focus-visible is how it is reached at all. */
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease;
+}
+
+.tv-activity:hover .tv-activity__remove,
+.tv-activity__remove:focus-visible {
+  opacity: 1;
+}
+
+.tv-activity__remove:hover {
+  color: var(--tv-danger);
+  background: var(--tv-surface-2);
+}
+
+/* Touch has no hover, so there is nothing to reveal: the control is simply
+ * there. Anything else is an affordance a phone cannot reach. */
+@media (hover: none) {
+  .tv-activity__remove { opacity: 1; }
+}
+
+.tv-day__add {
+  border: 1px dashed var(--tv-line-strong);
+  background: transparent;
+  color: var(--tv-ink-muted);
+  border-radius: var(--tv-radius-sm, 8px);
+  padding: 9px 12px;
+  margin: 10px 14px 14px;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.tv-day__add:hover {
+  border-color: var(--tv-accent-line);
+  color: var(--tv-ink);
+}

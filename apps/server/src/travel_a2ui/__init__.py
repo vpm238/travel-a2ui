@@ -17,8 +17,8 @@ Two packages, and the split is the architecture:
   `doors`   the same brain reachable four ways: the Interactions API, the Live
             API, MCP, and the HTTP app that mounts them.
 
-The renderers are outside this package entirely — `packages/renderer` for React
-and `apps/flutter_client` for Flutter — and neither holds any travel logic. They
+The renderers are outside this package entirely — `renderers/react` and
+`renderers/flutter` — and neither holds any travel logic. They
 draw A2UI, send actions back, and wait for the next A2UI.
 """
 

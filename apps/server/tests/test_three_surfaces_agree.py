@@ -292,7 +292,7 @@ class TestNothingIsPromisedThatCannotBeDrawn:
     def test_the_flutter_client_draws_everything_it_is_told_about(self) -> None:
         import re
 
-        source = (ROOT / "apps" / "flutter_client" / "lib" / "components.dart").read_text("utf-8")
+        source = (ROOT / "renderers" / "flutter" / "lib" / "components.dart").read_text("utf-8")
         drawn = set(re.findall(r"^\s*'([A-Za-z]+)':\s*_", source, re.M))
         missing = sorted(self._told() - drawn)
         assert not missing, f"the agent is told to use {missing}, which Flutter draws as a box"
@@ -300,7 +300,7 @@ class TestNothingIsPromisedThatCannotBeDrawn:
     def test_the_react_client_draws_everything_it_is_told_about(self) -> None:
         import re
 
-        source = (ROOT / "packages" / "renderer" / "src" / "Surface.tsx").read_text("utf-8")
+        source = (ROOT / "renderers" / "react" / "src" / "Surface.tsx").read_text("utf-8")
         drawn = set(re.findall(r"^\s*([A-Z][A-Za-z]+):\s*(?:basic|travel)\.", source, re.M))
         missing = sorted(self._told() - drawn)
         assert not missing, f"the agent is told to use {missing}, which React does not draw"
@@ -322,7 +322,7 @@ class TestNothingIsPromisedThatCannotBeDrawn:
         react = set(
             re.findall(
                 r"^\s*([A-Z][A-Za-z]+):\s*(?:basic|travel)\.",
-                (ROOT / "packages" / "renderer" / "src" / "Surface.tsx").read_text("utf-8"),
+                (ROOT / "renderers" / "react" / "src" / "Surface.tsx").read_text("utf-8"),
                 re.M,
             )
         )
