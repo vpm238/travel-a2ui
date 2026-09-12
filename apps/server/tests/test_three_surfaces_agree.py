@@ -95,19 +95,26 @@ class TestOneSetOfRules:
         for entry in _DESTINATIONS:
             assert entry["city"] in said
 
-    def test_a_call_can_be_told_where_they_are_flying_from(self) -> None:
-        """The gap that made voice ask for an airport code out loud.
+    def test_a_call_asks_where_they_are_flying_from_too(self) -> None:
+        """Voice used to ask for an airport code out loud, and nothing else did.
 
-        The session has to be able to carry the hint; that it is passed is
-        asserted where the socket is opened. This is the narrower claim that the
-        seam exists at all, which is the part that was missing.
+        The fix was not a better guess for the call — it was removing the guess
+        everywhere. All three doors read the same rule out of `role.md`, so the
+        thing to hold is that the rule is in the shared half rather than in one
+        surface's brief.
         """
-        import dataclasses
+        from travel_a2ui.skills import build_system_prompt
 
-        from travel_a2ui.voice import VoiceSession
-
-        fields = {field.name for field in dataclasses.fields(VoiceSession)}
-        assert "origin_hint" in fields
+        for surface in ("inline", "sidebar", "home"):
+            said = build_system_prompt(
+                variant="express-monolithic",
+                surface=surface,
+                surface_id="voice-1",
+                catalog_id="travel",
+                trip={},
+                today="2027-03-01",
+            )
+            assert "always asked, never inferred" in said
 
 
 class TestOneSurfacePerDrawing:

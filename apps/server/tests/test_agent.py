@@ -550,3 +550,33 @@ def test_run_turn_collected_gathers_the_same_turn() -> None:
     assert out["ui"]
     assert out["trip"]["destination"] == "Madrid"
     assert out["interactionId"] == "int_1"
+
+
+class TestWhatDayItIs:
+    """The container is in UTC; the traveller is holding a different calendar.
+
+    At 18:00 in Los Angeles the server has already turned the page, so
+    "tomorrow" came back a day late and "this Saturday" was the wrong Saturday.
+    The browser is the only party that knows which day it is for them.
+    """
+
+    def test_the_browser_s_date_wins(self) -> None:
+        import datetime as dt
+
+        from travel_a2ui.agent import _today
+
+        theirs = (dt.date.today() + dt.timedelta(days=1)).isoformat()
+        assert _today({"today": theirs}) == theirs
+
+    def test_a_date_no_timezone_could_produce_is_ignored(self) -> None:
+        """Untrusted input. A day either side covers every real zone."""
+        import datetime as dt
+
+        from travel_a2ui.agent import _today
+
+        here = dt.date.today().isoformat()
+        assert _today({"today": "2019-01-01"}) == here
+        assert _today({"today": "not-a-date"}) == here
+        assert _today({"today": 7}) == here
+        assert _today({}) == here
+        assert _today(None) == here

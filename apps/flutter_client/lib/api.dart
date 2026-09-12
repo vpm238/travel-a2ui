@@ -50,6 +50,18 @@ class TurnEvent {
       ];
 }
 
+/// Today, in the traveller's own calendar, as `YYYY-MM-DD`.
+///
+/// `DateTime.now()` is already local; the only trick is not letting
+/// `toIso8601String` hand back a UTC instant, which is exactly the confusion
+/// this is here to prevent on the server.
+String _localToday() {
+  final now = DateTime.now();
+  return '${now.year.toString().padLeft(4, '0')}-'
+      '${now.month.toString().padLeft(2, '0')}-'
+      '${now.day.toString().padLeft(2, '0')}';
+}
+
 class TravelApi {
   TravelApi({required this.origin, this.apiKey = ''});
 
@@ -82,6 +94,7 @@ class TravelApi {
     String message = '',
     Map<String, dynamic>? action,
     String? sessionId,
+    Map<String, dynamic>? resume,
     String surface = 'inline',
     String surfaceId = 'inline-1',
     String? model,
@@ -95,11 +108,17 @@ class TravelApi {
       if (message.isNotEmpty) 'message': message,
       if (action != null) 'action': action,
       if (sessionId != null) 'sessionId': sessionId,
+      // The last turn's receipt, handed back unread. The server keeps its own
+      // copy, but only on the instance that answered — and the next turn may
+      // land on another one, which has never heard of this conversation.
+      if (resume != null) 'resume': resume,
       'surface': surface,
       'surfaceId': surfaceId,
       if (model != null) 'model': model,
       if (skill != null) 'skill': skill,
-      'client': {'timeZone': DateTime.now().timeZoneName},
+      // What day it is here. The server runs in UTC and would otherwise plan
+      // "tomorrow" against its own calendar rather than the traveller's.
+      'client': {'today': _localToday()},
     });
 
     final response = await http.Client().send(request);

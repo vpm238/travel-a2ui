@@ -208,8 +208,8 @@ class VoiceSession:
     on_trip: Any = None
     model: str = ""
     voice: str | None = None
-    #: Where they might be flying from, as the typed path computes it.
-    origin_hint: dict[str, Any] | None = None
+    #: What the browser knows about when the traveller is. See `agent._today`.
+    client_hints: dict[str, Any] | None = None
     skill: str = "express-monolithic"
     #: Injectable so a test can drive a whole call from a scripted session.
     client: Any = None
@@ -237,7 +237,7 @@ async def relay(
     from .surface import STANDING_SURFACES, finish, panel_events, trip_updates
     from .tools import ToolContext
 
-    today = _today()
+    today = _today(session.client_hints)
     trip = dict(session.trip)
     voice_model = session.model or VOICE_MODEL
 
@@ -263,11 +263,6 @@ async def relay(
         catalog_id=CATALOG_ID,
         trip=trip,
         today=today,
-        # A call had no idea where the traveller was. The typed path has offered
-        # a departure airport since there was one to offer — from the timezone,
-        # and now from coordinates when they share them — and voice was simply
-        # never passed it, so it asked people to say an airport code out loud.
-        origin_hint=session.origin_hint,
     )
 
     genai = session.client or Client(api_key=session.api_key)

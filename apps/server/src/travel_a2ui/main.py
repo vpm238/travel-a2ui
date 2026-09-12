@@ -231,14 +231,21 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
         model=str(body.get("model") or os.environ.get("DEFAULT_MODEL", "gemini-3.8-flash")),
         message=str(body.get("message") or ""),
         action=action,
-        interaction_id=session.interaction_id,
-        trip=dict(session.trip),
+        # What the client carried beats what this instance remembers, because
+        # the client is the only party present for every turn of a conversation.
+        # A second instance has never heard of this session and would otherwise
+        # start a fresh conversation with an empty trip — mid-conversation, with
+        # nothing on screen to explain it.
+        interaction_id=_resumed(body, "interactionId") or session.interaction_id,
+        trip=_resumed(body, "trip") or dict(session.trip),
         surface=requested_surface,
         surface_id=drawn_surface_id,
         skill=str(skill),
         effort=str(body.get("effort") or "medium"),
-        shape=session.shape,
-        origin_hint=_origin_hint(body.get("client")),
+        shape=_resumed(body, "shape") or session.shape,
+        # What day it is where they are. The container is in UTC, and a trip is
+        # planned in the calendar the traveller is holding.
+        client_hints=body.get("client") if isinstance(body.get("client"), dict) else None,
         provider=provider,
     )
 
@@ -249,6 +256,23 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
         async for event in run_turn(turn):
             if event["type"] == "__result__":
                 result = event["result"]
+                # The continuation, handed to the client.
+                #
+                # Everything needed to take the next turn: where Google's copy
+                # of the conversation is, and what has been decided. The client
+                # holds it opaquely and sends it back, which is what makes any
+                # instance able to answer any turn — the session store below is
+                # then a cache, not the only copy.
+                #
+                # It is not state the client has to understand. It is a receipt.
+                yield _sse(
+                    {
+                        "type": "resume",
+                        "interactionId": result.interaction_id,
+                        "trip": result.trip,
+                        "shape": result.shape,
+                    }
+                )
                 sessions.save(
                     session_id,
                     interaction_id=result.interaction_id,
@@ -276,56 +300,21 @@ def _sse(event: dict[str, Any]) -> bytes:
     return f"data: {json.dumps(event, ensure_ascii=False)}\n\n".encode("utf-8")
 
 
-def _origin_hint(client: Any) -> dict[str, Any] | None:
-    """Where the traveller might be flying from. Never a decision.
+def _resumed(body: dict[str, Any], key: str) -> Any:
+    """A value the client carried back from the last turn, if it did.
 
-    Coordinates when the browser gave them, the timezone otherwise. The
-    difference is not small: a timezone covers a continent-slice, so
-    `America/New_York` offered JFK to Boston, Philadelphia and Atlanta alike —
-    and Atlanta is 1,211 km from JFK and 965 km from Chicago, so the confident
-    answer was also the wrong one.
-
-    With coordinates the hint carries the nearest few rather than one, because
-    "nearest" is not the same as "theirs": someone in Atlanta may well fly from
-    Miami. Offering three to press beats asserting one, and both beat asking
-    them to type an airport code.
+    Read defensively: a client that omits it, or sends the wrong shape, falls
+    back to this instance's own memory rather than failing. Both paths are
+    correct — the continuation is an optimisation for the case where this
+    instance is not the one that answered last time.
     """
-    if not isinstance(client, dict):
+    resume = body.get("resume")
+    if not isinstance(resume, dict):
         return None
-
-    from .providers.fixture import origin_for_time_zone, origins_near
-
-    lat, lon = client.get("lat"), client.get("lon")
-    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)) and not (
-        isinstance(lat, bool) or isinstance(lon, bool)
-    ):
-        # Out-of-range coordinates are not worth a guess; a bad fix is worse
-        # than none, because it looks just as confident.
-        if -90 <= lat <= 90 and -180 <= lon <= 180:
-            near = origins_near(float(lat), float(lon))
-            if near:
-                first = near[0]
-                return {
-                    "code": first["code"],
-                    "city": first["city"],
-                    "from": "location",
-                    "nearby": [
-                        {"code": a["code"], "city": a["city"], "km": a["km"]} for a in near
-                    ],
-                }
-
-    zone = client.get("timeZone")
-    if not isinstance(zone, str) or not zone:
-        return None
-    suggested = origin_for_time_zone(zone)
-    if not suggested:
-        return None
-    return {
-        "code": suggested["code"],
-        "city": suggested["city"],
-        "timeZone": zone,
-        "from": "timezone",
-    }
+    value = resume.get(key)
+    if key == "trip":
+        return dict(value) if isinstance(value, dict) and value else None
+    return value if isinstance(value, str) and value else None
 
 
 @app.get("/mcp")
@@ -451,10 +440,8 @@ async def voice(socket: WebSocket) -> None:
         # Same session, one store — say "make it three of us" out loud and the
         # panel beside the conversation moves.
         on_trip=lambda value: sessions.patch_trip(session_id, value),
-        # The same hint the typed path gets, from the same function. A call had
-        # none of it, so it asked people to say an airport code out loud —
-        # exactly the question a suggestion exists to avoid.
-        origin_hint=_origin_hint(opening.get("client")),
+        # Same reading of "today" as the typed path: a call plans dates too.
+        client_hints=opening.get("client") if isinstance(opening.get("client"), dict) else None,
     )
 
     try:

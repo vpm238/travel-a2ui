@@ -86,8 +86,30 @@ def _parser(surface_id: str) -> ExpressParser:
     return ExpressParser(catalog=_CATALOG, surface_id=surface_id, version=PROTOCOL_VERSION)
 
 
-def _today() -> str:
-    return _dt.date.today().isoformat()
+def _today(client: Any = None) -> str:
+    """Today where the traveller is, not where the container is.
+
+    The server runs in UTC, and a trip is planned in a calendar the traveller is
+    holding. At 18:00 in Los Angeles the container has already turned the page:
+    "tomorrow" comes back a day late, and "this Saturday" is the wrong Saturday.
+    The browser is the only party that knows which day it is for them, so it
+    says, and this reads it.
+
+    Read sceptically, because it is untrusted input: a well-formed date within a
+    day of the server's own is the only thing that can move this, which covers
+    every real timezone and nothing else. A client that sends junk — or a clock
+    set to 2019 — gets the server's date, which is what there was before.
+    """
+    here = _dt.date.today()
+    said = client.get("today") if isinstance(client, dict) else None
+    if isinstance(said, str):
+        try:
+            theirs = _dt.date.fromisoformat(said)
+        except ValueError:
+            return here.isoformat()
+        if abs((theirs - here).days) <= 1:
+            return theirs.isoformat()
+    return here.isoformat()
 
 
 @dataclass
@@ -127,10 +149,10 @@ class TurnRequest:
     surface_id: str = "inline-1"
     skill: str = "express-monolithic"
     effort: str = "medium"
+    #: What the browser knows about when the traveller is. See `_today`.
+    client_hints: dict[str, Any] | None = None
     #: The decision shape the standing surfaces were last drawn for.
     shape: str | None = None
-    #: The browser's timezone, as a hint about the departure city. Never a decision.
-    origin_hint: dict[str, str] | None = None
     provider: TravelProvider | None = None
     #: Injectable so a test can drive the loop from a scripted stream.
     client: Any | None = None
@@ -236,7 +258,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     a generator is what FastAPI's streaming response wants — and because it
     makes the whole loop testable by iterating it.
     """
-    today = _today()
+    today = _today(request.client_hints)
     provider = request.provider or FixtureProvider()
 
     # Values the traveller set on screen are facts, and the host records them
@@ -335,7 +357,6 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         catalog_id=CATALOG_ID,
         trip=trip,
         today=today,
-        origin_hint=request.origin_hint,
     )
 
     stop_reason: str | None = None

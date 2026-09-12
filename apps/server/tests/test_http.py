@@ -197,6 +197,101 @@ class TestTheStream:
         assert session.trip == {"destination": "Lisbon"}
         assert session.shape == "shape-1"
 
+    def test_the_continuation_goes_to_the_client(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        """The receipt: where the conversation is, and what has been decided."""
+        from travel_a2ui.agent import TurnResult
+
+        async def fake_turn(request):  # noqa: ANN001, ANN202
+            yield {"type": "done", "stopReason": "completed"}
+            yield {
+                "type": "__result__",
+                "result": TurnResult(
+                    interaction_id="int_9",
+                    trip={"destination": "Lisbon"},
+                    stop_reason="completed",
+                    shape="shape-2",
+                ),
+            }
+
+        monkeypatch.setattr(main, "run_turn", fake_turn)
+        response = client.post(
+            "/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"}
+        )
+        resume = [e for e in self._events(response) if e["type"] == "resume"]
+        assert len(resume) == 1
+        assert resume[0]["interactionId"] == "int_9"
+        assert resume[0]["trip"] == {"destination": "Lisbon"}
+        assert resume[0]["shape"] == "shape-2"
+
+    def test_another_instance_answers_from_the_receipt(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        """The case this exists for, and the one nothing else covers.
+
+        Cloud Run does not promise the next turn lands on the instance that
+        answered the last one. An instance that has never heard of this session
+        finds nothing in memory — and used to start a brand-new Gemini
+        conversation with an empty trip, mid-sentence, with the half-planned
+        trip still on screen.
+
+        The client is the only party present for every turn, so the client
+        carries the thread. `sessionId` here is deliberately one this process
+        has never seen: that *is* the second instance.
+        """
+        seen: dict[str, Any] = {}
+
+        async def fake_turn(request):  # noqa: ANN001, ANN202
+            seen["interaction"] = request.interaction_id
+            seen["trip"] = request.trip
+            seen["shape"] = request.shape
+            yield {"type": "done", "stopReason": "completed"}
+
+        monkeypatch.setattr(main, "run_turn", fake_turn)
+        client.post(
+            "/api/chat",
+            json={
+                "message": "and a hotel",
+                "sessionId": "never-seen-here",
+                "resume": {
+                    "interactionId": "int_11",
+                    "trip": {"destination": "Lisbon"},
+                    "shape": "shape-3",
+                },
+            },
+            headers={"x-goog-api-key": "k"},
+        )
+        assert seen["interaction"] == "int_11"
+        assert seen["trip"] == {"destination": "Lisbon"}
+        assert seen["shape"] == "shape-3"
+
+    def test_a_junk_receipt_falls_back_rather_than_fails(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        """It is untrusted input: a client that garbles it gets this instance's
+        own memory, not a 500."""
+        seen: dict[str, Any] = {}
+
+        async def fake_turn(request):  # noqa: ANN001, ANN202
+            seen["interaction"] = request.interaction_id
+            seen["trip"] = request.trip
+            yield {"type": "done", "stopReason": "completed"}
+
+        monkeypatch.setattr(main, "run_turn", fake_turn)
+        main.sessions.save("garbled", interaction_id="int_mine", trip={"destination": "Oslo"})
+        client.post(
+            "/api/chat",
+            json={
+                "message": "hi",
+                "sessionId": "garbled",
+                "resume": {"interactionId": 7, "trip": "Lisbon", "shape": []},
+            },
+            headers={"x-goog-api-key": "k"},
+        )
+        assert seen["interaction"] == "int_mine"
+        assert seen["trip"] == {"destination": "Oslo"}
+
     def test_the_stream_is_not_buffered_by_a_proxy(
         self, client: TestClient, monkeypatch
     ) -> None:
@@ -281,35 +376,6 @@ class TestTheStream:
         from travel_a2ui.skills import SKILL_VARIANTS
 
         assert seen["skill"] in SKILL_VARIANTS
-
-    def test_the_timezone_becomes_a_suggestion_and_not_a_decision(
-        self, client: TestClient, monkeypatch
-    ) -> None:
-        seen: dict[str, Any] = {}
-
-        async def fake_turn(request):  # noqa: ANN001, ANN202
-            seen["hint"] = request.origin_hint
-            yield {"type": "done", "stopReason": "completed"}
-
-        monkeypatch.setattr(main, "run_turn", fake_turn)
-        client.post(
-            "/api/chat",
-            json={"message": "hi", "client": {"timeZone": "America/Los_Angeles"}},
-            headers={"x-goog-api-key": "k"},
-        )
-        assert seen["hint"]["code"] == "LAX"
-
-    def test_no_timezone_is_no_hint(self, client: TestClient, monkeypatch) -> None:
-        seen: dict[str, Any] = {}
-
-        async def fake_turn(request):  # noqa: ANN001, ANN202
-            seen["hint"] = request.origin_hint
-            yield {"type": "done", "stopReason": "completed"}
-
-        monkeypatch.setattr(main, "run_turn", fake_turn)
-        client.post("/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"})
-        assert seen["hint"] is None
-
 
 def test_health_answers_before_traffic_arrives(client: TestClient) -> None:
     assert client.get("/healthz").json()["ok"] is True
@@ -526,59 +592,30 @@ class TestEachInlineCardIsItsOwnSurface:
 
 
 class TestWhereTheyAreFlyingFrom:
-    """A timezone is a bad way to pick an airport, and it was the only way.
+    """Asked, not inferred.
 
-    `America/New_York` covers Boston, Philadelphia and Atlanta, and every one of
-    them was offered JFK — confidently, with a fare attached. Atlanta is 1,211 km
-    from JFK and 965 km from Chicago, so the guess was not merely vague, it was
-    wrong, and it looked exactly as authoritative as a right answer.
+    The browser's timezone used to pick the departure airport, and a timezone
+    covers a continent-slice: `America/New_York` offered JFK to Boston,
+    Philadelphia and Atlanta alike, and Atlanta is 1,211 km from JFK. A
+    coordinates path was built on top of it — a "Near me" button in the composer
+    and a nearest-three shortlist — which made the guess better and the app
+    stranger: a permission prompt beside the message box, for a question the
+    agent can simply ask inside the surface it was drawing anyway.
 
-    Coordinates turn it into a shortlist. The hint still decides nothing: it
-    carries the nearest few so the agent can offer a choice, because "nearest"
-    is not "theirs" — somebody in Atlanta may well fly from Miami.
+    So none of it is inferred now. What is left to test is that nothing quietly
+    guesses again, and that the contract says to ask.
     """
 
-    ATLANTA = {"lat": 33.7490, "lon": -84.3880}
+    def test_nothing_reads_the_browser_location(self) -> None:
+        """No coordinates in, no coordinates anywhere."""
+        import travel_a2ui.main as main_module
+        import travel_a2ui.providers.fixture as fixture_module
 
-    def test_coordinates_beat_the_timezone(self) -> None:
-        from travel_a2ui.main import _origin_hint
+        assert not hasattr(main_module, "_origin_hint")
+        assert not hasattr(fixture_module, "origins_near")
+        assert not hasattr(fixture_module, "origin_for_time_zone")
 
-        hint = _origin_hint({**self.ATLANTA, "timeZone": "America/New_York"})
-        assert hint is not None
-        assert hint["from"] == "location"
-        assert hint["code"] == "ORD", "Chicago is nearer to Atlanta than New York"
-
-    def test_the_shortlist_is_nearest_first(self) -> None:
-        from travel_a2ui.main import _origin_hint
-
-        nearby = _origin_hint(self.ATLANTA)["nearby"]
-        assert [entry["km"] for entry in nearby] == sorted(entry["km"] for entry in nearby)
-        assert len(nearby) > 1, "one airport is an assertion, not a choice"
-
-    def test_a_timezone_still_works_on_its_own(self) -> None:
-        from travel_a2ui.main import _origin_hint
-
-        hint = _origin_hint({"timeZone": "America/New_York"})
-        assert hint["code"] == "JFK"
-        assert hint["from"] == "timezone"
-        assert "nearby" not in hint, "a timezone cannot honestly produce a shortlist"
-
-    def test_impossible_coordinates_fall_back_rather_than_guess(self) -> None:
-        """A bad fix is worse than none: it looks just as confident."""
-        from travel_a2ui.main import _origin_hint
-
-        hint = _origin_hint({"lat": 999, "lon": 0, "timeZone": "Europe/London"})
-        assert hint["from"] == "timezone"
-        assert hint["code"] == "LHR"
-
-    def test_nothing_known_offers_nothing(self) -> None:
-        from travel_a2ui.main import _origin_hint
-
-        assert _origin_hint({}) is None
-        assert _origin_hint(None) is None
-
-    def test_the_prompt_asks_for_a_choice_rather_than_asserting_one(self) -> None:
-        from travel_a2ui.main import _origin_hint
+    def test_the_contract_says_to_ask(self) -> None:
         from travel_a2ui.skills import build_system_prompt
 
         said = build_system_prompt(
@@ -588,8 +625,7 @@ class TestWhereTheyAreFlyingFrom:
             catalog_id="travel",
             trip={},
             today="2027-03-01",
-            origin_hint=_origin_hint(self.ATLANTA),
         )
-        assert "nearest departure airports" in said
+        assert "always asked, never inferred" in said
         assert "ChoicePicker" in said
         assert "$/trip/origin" in said

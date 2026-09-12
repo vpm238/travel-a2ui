@@ -281,10 +281,26 @@ async def handle_rpc(request: dict[str, Any], context: RenderContext) -> dict[st
     if method == "tools/list":
         today = _dt.date.fromisoformat(context.today) if context.today else None
         examples = tool_examples(today)
-        # Surfaces first, then data. A host reading the list top-down meets
-        # the one-call path before the compose-it-yourself one, which is the
-        # right default: most turns want a good layout, not a new one.
-        listed = [_with_view(tool, examples) for tool in TOOLS] + mcp_data_tools()
+        # Data and the vocabulary. No prebuilt layouts.
+        #
+        # The six `show_*` tools each return a finished surface, and offering
+        # them to a host that is itself a capable model was self-defeating in a
+        # way that only shows up in behaviour: given both, Claude takes the
+        # one-call path every time, because it is one call. The generative path
+        # — look the data up, read the component reference, compose the
+        # surface — then never runs, and the demo whose entire thesis is that a
+        # model composes interfaces spends its life picking from a menu of six.
+        #
+        # So this server hands Claude what an agent needs and nothing that does
+        # the thinking for it: eight data tools, the component reference, and a
+        # compiler. The `show_*` builders are still here and still used — the
+        # voice relay calls `build_surface` directly, where a model composing
+        # Express mid-sentence would be paying latency it does not have.
+        listed = [
+            _with_view(tool, examples)
+            for tool in TOOLS
+            if not tool["name"].startswith("show_")
+        ] + mcp_data_tools()
         return ok(request_id, {"tools": listed})
 
     if method == "tools/call":

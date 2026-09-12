@@ -271,7 +271,6 @@ def build_system_prompt(
     catalog_id: str,
     trip: dict[str, Any],
     today: str,
-    origin_hint: dict[str, str] | None = None,
 ) -> str:
     """Builds the system prompt, with the stable half first.
 
@@ -296,36 +295,6 @@ def build_system_prompt(
         "## The trip so far",
         describe_trip(trip, today, surface),
     ]
-    if origin_hint and not trip.get("origin"):
-        nearby = origin_hint.get("nearby")
-        if nearby:
-            # Coordinates give a real shortlist, so offer the list rather than
-            # the first of it. "Nearest" is not "theirs": someone in Atlanta may
-            # well fly from Miami, and the difference between asserting one
-            # airport and offering three is the difference between a guess the
-            # traveller has to correct and a question they can answer by
-            # pressing.
-            options = ", ".join(
-                f"{entry['city']} ({entry['code']}, {entry['km']} km)" for entry in nearby
-            )
-            parts.append(
-                f"- They shared their location, and the nearest departure airports are: "
-                f"{options}. Offer these as a choice — a ChoicePicker bound to "
-                "`$/trip/origin`, nearest first — rather than asserting one. None of them "
-                "is their answer until they press it, and they may be flying from "
-                "somewhere else entirely, so leave the field editable."
-            )
-        else:
-            parts.append(
-                f"- The browser's timezone is {origin_hint['timeZone']}, so {origin_hint['city']} "
-                f"({origin_hint['code']}) is a reasonable *suggestion* for where they are flying "
-                "from. Offer it pre-filled and let them change it. Do not treat it as their "
-                "answer. A timezone covers a great deal of ground, so this is a weaker guess "
-                "than it looks — if they have not said, ask rather than assume."
-            )
-
-    # Empty entries drop out rather than becoming blank lines — including the
-    # origin hint when there is none, which is why this is a filter and not a
-    # conditional append.
+    # Empty entries drop out rather than becoming blank lines.
     volatile = "\n".join(part for part in parts if part)
     return f"{stable}\n\n---\n\n{volatile}"

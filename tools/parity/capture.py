@@ -83,8 +83,6 @@ TRIPS: dict[str, dict] = {
     },
 }
 
-ORIGIN_HINT = {"code": "SFO", "city": "San Francisco", "timeZone": "America/Los_Angeles"}
-
 SURFACES = ("inline", "sidebar", "home")
 VARIANTS = ("express-monolithic", "express-modular", "direct-json-monolithic")
 
@@ -92,8 +90,6 @@ VARIANTS = ("express-monolithic", "express-modular", "direct-json-monolithic")
 LABELS: list[str] = [
     *(f"{name} / {surface}" for name in TRIPS for surface in SURFACES),
     *(f"variant / {variant}" for variant in VARIANTS),
-    "origin hint / offered",
-    "origin hint / suppressed, because they already said",
 ]
 
 
@@ -113,17 +109,6 @@ def build(label: str) -> str:
             catalog_id="travel",
             trip=TRIPS["ready"],
             today=TODAY,
-        )
-    if kind == "origin hint":
-        trip = TRIPS["started"] if rest == "offered" else TRIPS["ready"]
-        return skills.build_system_prompt(
-            variant="express-monolithic",
-            surface="inline",
-            surface_id="inline-1",
-            catalog_id="travel",
-            trip=trip,
-            today=TODAY,
-            origin_hint=ORIGIN_HINT,
         )
     return skills.build_system_prompt(
         variant="express-monolithic",

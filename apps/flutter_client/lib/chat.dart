@@ -65,6 +65,13 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
+/// Surfaces that live somewhere of their own.
+///
+/// The server's `STANDING_SURFACES`, and the only thing this client needs to
+/// know about them: they are replaced rather than appended, so they are a
+/// panel and not a message.
+const Set<String> _standing = {'sidebar', 'home'};
+
 class _ChatScreenState extends State<ChatScreen> {
   late final MessageProcessor<FlutterComponent> _processor;
   final _parts = <Part>[];
@@ -72,11 +79,18 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scroll = ScrollController();
 
   String? _sessionId;
+
+  /// The last turn's receipt: where the conversation is, and what has been
+  /// decided. Kept, never read — see `resume` in `api.dart`.
+  Map<String, dynamic>? _resume;
   bool _busy = false;
   int _surfaceCounter = 0;
 
   /// The surface a press is still allowed to come from.
   String? _liveSurface;
+
+  /// The standing panel, once the server has drawn one.
+  String? _panel;
 
   @override
   void initState() {
@@ -103,7 +117,11 @@ class _ChatScreenState extends State<ChatScreen> {
   /// protocol or an arrangement.
   void _onAction(A2uiClientAction action) {
     if (_busy) return;
-    if (action.surfaceId != _liveSurface) return;
+    // A press on the panel is a request to re-open a decision, and deciding
+    // happens in the conversation — so it is allowed through even though the
+    // panel is not the live surface. Without this the only button the panel is
+    // permitted to draw was the one button this client silently ignored.
+    if (action.surfaceId != _liveSurface && !_standing.contains(action.surfaceId)) return;
 
     final surface = _processor.groupModel.getSurface(action.surfaceId);
     _send(
@@ -142,6 +160,7 @@ class _ChatScreenState extends State<ChatScreen> {
         message: message,
         action: action,
         sessionId: _sessionId,
+        resume: _resume,
         surfaceId: surfaceId,
       );
 
@@ -149,6 +168,13 @@ class _ChatScreenState extends State<ChatScreen> {
         switch (event.type) {
           case 'session':
             _sessionId = event.raw['sessionId'] as String?;
+
+          case 'resume':
+            _resume = {
+              'interactionId': event.raw['interactionId'],
+              'trip': event.raw['trip'],
+              'shape': event.raw['shape'],
+            };
 
           case 'text':
             setState(() {
@@ -204,6 +230,23 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     }
     _seed(event.messages);
+
+    // The panel lives beside the conversation, not inside it.
+    //
+    // A turn touches three surfaces: the card it drew, and the two standing
+    // panels the server refreshes from the trip. Filing all three as chat parts
+    // put the whole trip summary — Change buttons and all — in the middle of
+    // the feed, under the question still being answered, every single turn. It
+    // reads exactly like the agent drawing the panel inline, which is what it
+    // was mistaken for; it was this client filing a panel refresh as
+    // conversation.
+    if (_standing.contains(event.surfaceId)) {
+      // Nothing to append: the panel watches the store and redraws itself.
+      if (_processor.groupModel.getSurface(event.surfaceId) != null) {
+        setState(() => _panel = event.surfaceId);
+      }
+      return;
+    }
 
     final existing = _parts.whereType<Drawn>().any((part) => part.surfaceId == event.surfaceId);
     if (!existing && _processor.groupModel.getSurface(event.surfaceId) != null) {
@@ -283,21 +326,62 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _parts.isEmpty
-                ? const _Empty()
-                : ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _parts.length,
-                    itemBuilder: (context, index) => _part(_parts[index]),
-                  ),
-          ),
-          if (_busy) const LinearProgressIndicator(minHeight: 2),
-          _Composer(controller: _composer, enabled: !_busy, onSend: (text) => _send(message: text)),
-        ],
+      // Two columns where there is room, one where there is not.
+      //
+      // The panel is the trip as it stands and the feed is how it got there,
+      // and on a phone those cannot both be on screen — so the panel folds to
+      // a strip above the conversation rather than competing with it. 900 is
+      // where a sidebar stops being a sidebar and starts being a squeeze.
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 900;
+          final conversation = Column(
+            children: [
+              Expanded(
+                child: _parts.isEmpty
+                    ? const _Empty()
+                    : ListView.builder(
+                        controller: _scroll,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _parts.length,
+                        itemBuilder: (context, index) => _part(_parts[index]),
+                      ),
+              ),
+              if (_busy) const LinearProgressIndicator(minHeight: 2),
+              _Composer(
+                controller: _composer,
+                enabled: !_busy,
+                onSend: (text) => _send(message: text),
+              ),
+            ],
+          );
+
+          final panelId = _panel;
+          final panel =
+              panelId == null ? null : _processor.groupModel.getSurface(panelId);
+          if (panel == null) return conversation;
+
+          if (wide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: conversation),
+                const VerticalDivider(width: 1),
+                SizedBox(width: 320, child: _Panel(surface: panel)),
+              ],
+            );
+          }
+          return Column(
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 220),
+                child: _Panel(surface: panel),
+              ),
+              const Divider(height: 1),
+              Expanded(child: conversation),
+            ],
+          );
+        },
       ),
     );
   }
@@ -419,6 +503,29 @@ class _Composer extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+/// The trip as it stands, beside the conversation that built it.
+///
+/// Read-only by construction rather than by convention: the server strips every
+/// action from a panel except `change`, so whatever arrives here is already
+/// safe to draw. Actions are not wired here either — the processor routes every
+/// surface's actions to one handler — which is what keeps this a view of a
+/// surface rather than a second place that knows what a trip is.
+class _Panel extends StatelessWidget {
+  const _Panel({required this.surface});
+
+  final SurfaceModel<FlutterComponent> surface;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceContainerLowest,
+      padding: const EdgeInsets.all(14),
+      child: SingleChildScrollView(child: A2uiSurface(surface: surface)),
     );
   }
 }

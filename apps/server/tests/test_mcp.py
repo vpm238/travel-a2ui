@@ -146,21 +146,31 @@ class TestBatches:
 
 
 class TestTools:
-    def test_every_surface_tool_is_listed_with_a_view_and_an_example(self) -> None:
-        """The view belongs to the tools that draw, and only to those.
+    def test_the_plugin_offers_no_prebuilt_layouts(self) -> None:
+        """A capable host gets data and a vocabulary, not a menu.
 
-        The data tools are listed too now — `search_flights` returns flights,
-        and the host model composes the surface itself — and they carry no
-        `ui` resource because they produce no surface. Asserting a view on
-        every listed tool would be asserting that this server only draws.
+        The six `show_*` tools each return a finished surface, and offering them
+        alongside the generative path was self-defeating in a way that only
+        shows up in behaviour: given both, a host takes the one-call path every
+        time, because it is one call. The compose path then never runs, and a
+        demo whose entire thesis is that a model composes interfaces spends its
+        life picking from six.
+
+        The builders are not gone — the voice relay calls `build_surface`
+        directly, where composing Express mid-sentence would cost latency a call
+        does not have. They are simply not offered here.
         """
-        listed = call("tools/list")["result"]["tools"]
-        by_name = {tool["name"]: tool for tool in listed}
+        listed = [tool["name"] for tool in call("tools/list")["result"]["tools"]]
+        assert not [name for name in listed if name.startswith("show_")], listed
+        assert "render_a2ui_express" in listed
+        assert "get_a2ui_component_reference" in listed
+        assert "search_flights" in listed
 
-        for tool in TOOLS:
-            entry = by_name[tool["name"]]
-            assert entry["_meta"]["ui"]["resourceUri"] == APP_URI
-            assert "example" in entry["_meta"]
+    def test_the_compiler_is_listed_with_a_view(self) -> None:
+        """`render_a2ui_express` draws, so it carries the app resource."""
+        listed = {tool["name"]: tool for tool in call("tools/list")["result"]["tools"]}
+        entry = listed["render_a2ui_express"]
+        assert entry["_meta"]["ui"]["resourceUri"] == APP_URI
 
     def test_the_data_tools_are_listed_and_draw_nothing(self) -> None:
         from travel_a2ui.tools import mcp_data_tools

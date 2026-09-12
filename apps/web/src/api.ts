@@ -45,7 +45,24 @@ export type AgentEvent =
    * `tool:<name>` is how long each lookup took.
    */
   | { type: 'timing'; ms: Record<string, number> }
+  /**
+   * The receipt for this turn, to be handed back with the next one.
+   *
+   * Opaque on purpose: where Google's copy of the conversation is, and what has
+   * been decided so far. The client does not read it — it stores it and sends
+   * it back — which is what lets any server instance answer any turn. Without
+   * it a second instance has never heard of this conversation and starts a new
+   * one with an empty trip, mid-sentence.
+   */
+  | { type: 'resume'; interactionId?: string; trip?: Record<string, unknown>; shape?: string }
   | { type: 'done'; stopReason: string | null };
+
+/** The last turn's receipt, carried by the client and sent back unread. */
+export interface Resume {
+  interactionId?: string;
+  trip?: Record<string, unknown>;
+  shape?: string;
+}
 
 export interface ModelOption {
   id: string;
@@ -121,81 +138,43 @@ export interface ChatRequest {
   model: string;
   effort?: 'low' | 'medium' | 'high';
   /**
-   * What the browser knows about where and when the traveler is.
+   * What came back on the last turn, handed straight back.
    *
-   * A *hint*, never a decision. The agent used to price every trip out of JFK
-   * because that was the default, which is the same failure as inventing a
-   * departure date: an authoritative-looking number for a journey nobody
-   * described. This gives it something better to offer, pre-filled, for the
-   * traveler to confirm or change.
+   * The server keeps a copy too, but only the one instance that answered has
+   * it, and Cloud Run will happily send the next turn somewhere else. The
+   * client is the only party present for every turn of a conversation, so it
+   * is the one that carries the thread.
    */
-  client?: { timeZone?: string; locale?: string; lat?: number; lon?: number };
+  resume?: Resume;
+  /**
+   * *When* the traveler is. Not where.
+   *
+   * This used to carry a timezone that the server turned into a departure
+   * airport, and that was the mistake: a timezone covers a continent-slice, so
+   * `America/New_York` picked JFK for someone in Atlanta, 1,211 km away, and
+   * said it with a fare attached. Where they are flying from is a question the
+   * agent asks now, in the surface it was drawing anyway.
+   *
+   * What is left is the one thing the server genuinely cannot know. It runs in
+   * UTC; at 18:00 in Los Angeles it has already turned the page, so "tomorrow"
+   * comes back a day late and "this Saturday" is the wrong Saturday.
+   */
+  client?: { today?: string; locale?: string };
 }
 
-/** The browser's own timezone and locale, read once. */
+/** What day it is where the traveler is, and what language they read. */
 export function clientHints(): ChatRequest['client'] {
   try {
     return {
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      // `en-CA` is the shortest honest way to get a local `YYYY-MM-DD` out of
+      // the browser: `toISOString` would convert to UTC first, which is the bug
+      // this exists to fix.
+      today: new Date().toLocaleDateString('en-CA'),
       locale: navigator.language,
-      ...(sharedLocation ?? {}),
     };
   } catch {
     return undefined;
   }
-}
-
-/**
- * Coordinates, once the traveler has agreed to share them.
- *
- * Module-level rather than state because it is read where a request is built,
- * not where anything renders, and because the answer does not change while the
- * tab is open.
- */
-let sharedLocation: { lat: number; lon: number } | undefined;
-
-/**
- * Asks the browser where they are, if they will say.
- *
- * Never called on load. A permission prompt that appears before anyone has
- * asked for anything is the kind of thing people refuse on principle, and a
- * refusal is permanent for the origin — so this runs only when the traveler
- * presses something that means "use my location", and the refusal path is
- * simply that nothing changes.
- *
- * What it improves is worth the ask. Without coordinates the departure airport
- * is guessed from the timezone, and a timezone covers a continent-slice:
- * `America/New_York` offered JFK to Boston, Philadelphia and Atlanta alike,
- * and Atlanta is 1,211 km from JFK and 965 km from Chicago. With coordinates
- * the server answers with the nearest few and the agent offers them as a
- * choice.
- *
- * The coordinates go to this app's own server, with the turn, and are not
- * stored: they are used to sort a list of sixteen airports and then forgotten.
- */
-export async function shareLocation(): Promise<boolean> {
-  if (!('geolocation' in navigator)) return false;
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        sharedLocation = {
-          // Three decimals is ~100 m, which is far finer than picking between
-          // airports hundreds of kilometres apart needs. Sending the full
-          // precision would be collecting something this app has no use for.
-          lat: Math.round(position.coords.latitude * 1000) / 1000,
-          lon: Math.round(position.coords.longitude * 1000) / 1000,
-        };
-        resolve(true);
-      },
-      () => resolve(false),
-      { timeout: 8000, maximumAge: 600_000 },
-    );
-  });
-}
-
-/** Whether coordinates are being sent with each turn. */
-export function locationShared(): boolean {
-  return sharedLocation !== undefined;
 }
 
 /**

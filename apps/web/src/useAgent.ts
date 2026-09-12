@@ -41,6 +41,7 @@ import {
   type AgentEvent,
   type BackendId,
   type Meta,
+  type Resume,
   type SkillVariant,
   type SurfaceAction,
   type SurfaceKind,
@@ -308,6 +309,25 @@ export function useAgent() {
    * much more annoying kind of forgetting.
    */
   const [sessionId, setSessionId] = useState<string>(newSessionId);
+
+  /**
+   * The last turn's receipt, carried by this tab and handed back unread.
+   *
+   * The server keeps its own copy keyed by `sessionId`, but *only the instance
+   * that answered* has it, and the point of Cloud Run is that the next turn may
+   * land somewhere else. That instance has never heard of this conversation:
+   * without the receipt it starts a new one with an empty trip, mid-sentence,
+   * with the half-planned trip still on screen.
+   *
+   * The client is the only party present for every turn, so the client is what
+   * carries the thread. It never reads this — it is where Google's copy of the
+   * conversation lives plus what has been decided — which is what keeps the
+   * browser from needing to know what a trip is.
+   *
+   * A ref, not state: it is read where a request is built and rendering nothing
+   * depends on it, so a re-render would be pure waste.
+   */
+  const resumeRef = useRef<Resume | undefined>(undefined);
 
   const [prefs, setPrefsState] = useState<Prefs>(() => {
     try {
@@ -590,6 +610,14 @@ export function useAgent() {
           case 'trip':
             setTrip(event.trip);
             break;
+          case 'resume':
+            // Kept, not read. See `resumeRef`.
+            resumeRef.current = {
+              interactionId: event.interactionId,
+              trip: event.trip,
+              shape: event.shape,
+            };
+            break;
           case 'timing':
             if (!options.silent) patchTurn(assistantId, { timing: event.ms });
             break;
@@ -623,6 +651,7 @@ export function useAgent() {
             model: prefsRef.current.model,
             effort: prefsRef.current.effort,
             ...(options.surfaceId ? { surfaceId: options.surfaceId } : {}),
+            ...(resumeRef.current ? { resume: resumeRef.current } : {}),
             ...((): object => {
               const hints = clientHints();
               return hints ? { client: hints } : {};
@@ -703,6 +732,9 @@ export function useAgent() {
   const reset = useCallback(async () => {
     abortRef.current?.abort();
     await resetSession(sessionId).catch(() => undefined);
+    // The receipt goes with the conversation it belongs to. Keeping it would
+    // resume the trip that was just thrown away, on the next message.
+    resumeRef.current = undefined;
     setSessionId(newSessionId());
     setTurns([]);
     setTrip({});
