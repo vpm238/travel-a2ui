@@ -194,6 +194,16 @@ export function ItineraryDay({ node, scope, ctx }: ComponentProps) {
         {node['date'] ? <span className="tv-day__date">{resolveText(node['date'], scope)}</span> : null}
       </header>
       <div className="tv-day__body">{ctx.renderChildren(node['children'], scope)}</div>
+      {/* A day you can only read is a day you argue with in prose. */}
+      {node['onAdd'] ? (
+        <button
+          type="button"
+          className="tv-day__add"
+          onClick={() => runAction(node['onAdd'], scope, ctx, node)}
+        >
+          + Add something else
+        </button>
+      ) : null}
     </section>
   );
 }
@@ -220,6 +230,28 @@ export function ActivityItem({ node, scope, ctx }: ComponentProps) {
         {meta ? <span className="tv-activity__meta">{meta}</span> : null}
         {node['note'] ? <em className="tv-activity__note">{resolveText(node['note'], scope)}</em> : null}
       </div>
+      {/*
+        Removing is its own button, not the card's action.
+        The card's action opens the activity; this drops it. Sharing one gesture
+        between "tell me more" and "get rid of it" is how a plan loses a museum
+        nobody meant to lose — so the ✕ stops the click from reaching the row.
+      */}
+      {node['onRemove'] ? (
+        <button
+          type="button"
+          className="tv-activity__remove"
+          title={`Remove ${resolveText(node['title'], scope)}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            runAction(node['onRemove'], scope, ctx, node);
+          }}
+        >
+          <span aria-hidden>✕</span>
+          <span className="tv-visually-hidden">
+            Remove {resolveText(node['title'], scope)}
+          </span>
+        </button>
+      ) : null}
     </div>
   );
 }

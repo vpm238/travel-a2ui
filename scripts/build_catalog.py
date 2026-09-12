@@ -201,6 +201,9 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
             "date": dyn_str("Date as a display string, e.g. 'Tue 14 Apr'."),
             "summary": dyn_str("One-line character of the day, e.g. 'Old town, slow pace'."),
             "action": action("Fired when the traveler opens or edits the whole day."),
+            "onAdd": action(
+                "Fired when the traveler wants something else in this day."
+            ),
         },
         required=["title", "children"],
     ),
@@ -221,6 +224,14 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
             "note": dyn_str("One short practical note, e.g. 'Book the timed entry'."),
             "action": action("Fired when the traveler taps the activity."),
             "done": dyn_bool("Whether the traveler has ticked this off."),
+            # A day plan is a draft, not a decision. Every other surface in this
+            # catalog asks a question and locks the answer; this one is a list
+            # somebody pushes around — drop the museum, move the lunch — and a
+            # list you cannot remove from is a list you argue with in prose.
+            "onRemove": action(
+                "Fired when the traveler drops this activity. Give every activity"
+                " one: a day plan is theirs to edit."
+            ),
         },
         required=["title"],
     ),

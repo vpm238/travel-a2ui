@@ -127,6 +127,13 @@
         "note": "One line. Preferences and constraints that do not have a field."
       },
       {
+        "key": "days",
+        "kind": "days",
+        "label": "the day-by-day plan",
+        "stage": "plan",
+        "note": "The itinerary itself, one entry per day, each with its activities in time order. Recorded rather than merely drawn: an itinerary that lives only in the surface that drew it cannot be edited, revisited or shared, which is why removing an activity had nowhere to go."
+      },
+      {
         "key": "planned",
         "kind": "flag",
         "label": "a day-by-day plan",
@@ -182,6 +189,7 @@
       "budget",
       "spent",
       "notes",
+      "days",
       "planned",
       "skip",
       "assumed",
@@ -228,6 +236,7 @@
       "budget": "/trip/budget",
       "spent": "/trip/spent",
       "notes": "/trip/notes",
+      "days": "/trip/days",
       "planned": "/trip/planned",
       "skip": "/trip/skip",
       "assumed": "/trip/assumed",

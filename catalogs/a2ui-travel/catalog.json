@@ -1116,6 +1116,10 @@
             "action": {
               "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action",
               "description": "Fired when the traveler opens or edits the whole day."
+            },
+            "onAdd": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action",
+              "description": "Fired when the traveler wants something else in this day."
             }
           },
           "required": [
@@ -1185,6 +1189,10 @@
             "done": {
               "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean",
               "description": "Whether the traveler has ticked this off."
+            },
+            "onRemove": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action",
+              "description": "Fired when the traveler drops this activity. Give every activity one: a day plan is theirs to edit."
             }
           },
           "required": [

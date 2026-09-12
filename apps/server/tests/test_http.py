@@ -629,3 +629,99 @@ class TestWhereTheyAreFlyingFrom:
         assert "always asked, never inferred" in said
         assert "ChoicePicker" in said
         assert "$/trip/origin" in said
+
+
+class TestPressesTheHostAnswersItself:
+    """Dropping an activity has nothing to decide.
+
+    Every other press is a question — pick this flight, search those dates — and
+    the answer needs judgement. Removing a museum from a day does not: the
+    outcome is completely determined by what was pressed. Routing it through the
+    model costs five to fifteen seconds and a chance of it redrawing the surface
+    while it is there.
+
+    The itinerary had nowhere to be removed *from* until today: it was drawn and
+    forgotten, living only in the Express that produced it. It is part of the
+    trip now, which is what makes editing, revisiting and sharing it possible.
+    """
+
+    TRIP = {
+        "destination": "Madrid",
+        "days": [
+            {
+                "title": "Day 1",
+                "date": "2027-04-12",
+                "activities": [
+                    {"title": "Prado Museum", "time": "10:00"},
+                    {"title": "Lunch at Sobrino", "time": "13:30"},
+                ],
+            },
+            {"title": "Day 2", "date": "2027-04-13", "activities": [{"title": "Toledo"}]},
+        ],
+    }
+
+    def _drop(self, client: TestClient, monkeypatch, day: int, index: int):
+        called: dict[str, Any] = {"model": False}
+
+        async def fake_turn(request):  # noqa: ANN001, ANN202
+            called["model"] = True
+            yield {"type": "done", "stopReason": "completed"}
+
+        monkeypatch.setattr(main, "run_turn", fake_turn)
+        main.sessions.save("plan-1", trip=dict(self.TRIP))
+        response = client.post(
+            "/api/chat",
+            json={
+                "sessionId": "plan-1",
+                "action": {
+                    "name": "drop_activity",
+                    "surfaceId": "inline-3",
+                    "context": {"day": day, "index": index},
+                },
+            },
+            headers={"x-goog-api-key": "k"},
+        )
+        events = [
+            json.loads(line[6:])
+            for line in response.text.splitlines()
+            if line.startswith("data: ")
+        ]
+        return called, events
+
+    def test_the_model_is_not_woken(self, client: TestClient, monkeypatch) -> None:
+        called, events = self._drop(client, monkeypatch, 0, 0)
+        assert called["model"] is False
+        assert [event["type"] for event in events][-1] == "done"
+
+    def test_the_activity_is_gone_from_the_trip(self, client: TestClient, monkeypatch) -> None:
+        _, events = self._drop(client, monkeypatch, 0, 0)
+        trip = next(event["trip"] for event in events if event["type"] == "trip")
+        assert [a["title"] for a in trip["days"][0]["activities"]] == ["Lunch at Sobrino"]
+        assert [a["title"] for a in trip["days"][1]["activities"]] == ["Toledo"]
+        # And it is what the next turn will read.
+        assert main.sessions.get("plan-1").trip["days"][0]["activities"][0]["title"] == (
+            "Lunch at Sobrino"
+        )
+
+    def test_every_renderer_hears_about_it_the_usual_way(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        """`updateDataModel`, which every client already applies."""
+        _, events = self._drop(client, monkeypatch, 0, 0)
+        surfaces = {event["surfaceId"] for event in events if event["type"] == "ui"}
+        assert "inline-3" in surfaces, "the surface they pressed on"
+        assert "sidebar" in surfaces, "and the panel beside it"
+
+    def test_an_emptied_day_stays(self, client: TestClient, monkeypatch) -> None:
+        """An empty day is a rest day. Deleting the card would lose the date."""
+        _, events = self._drop(client, monkeypatch, 1, 0)
+        trip = next(event["trip"] for event in events if event["type"] == "trip")
+        assert trip["days"][1]["activities"] == []
+        assert trip["days"][1]["date"] == "2027-04-13"
+
+    def test_a_press_that_does_not_resolve_goes_to_the_model(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        """Removing the wrong activity is worse than removing none."""
+        called, _ = self._drop(client, monkeypatch, 9, 9)
+        assert called["model"] is True

@@ -49,7 +49,7 @@ BY_KEY: dict[str, dict[str, Any]] = {field["key"]: field for field in FIELDS}
 TRIP_KEYS: list[str] = [field["key"] for field in FIELDS]
 
 #: Field kinds whose value really is a list, and so are not unwrapped.
-LIST_KINDS = frozenset({"stages", "legs", "fields"})
+LIST_KINDS = frozenset({"stages", "legs", "fields", "days"})
 
 _DATE_ONLY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _CODE = re.compile(r"^[A-Z]{3}$")
@@ -144,6 +144,67 @@ def _to_flag(value: Any) -> bool | None:
     if value in ("false", "no", 0):
         return False
     return None
+
+
+def _to_activity(value: Any) -> dict[str, Any] | None:
+    """One scheduled thing, or nothing if it has no name.
+
+    Deliberately narrow. An activity is a title and some optional decoration —
+    the moment it grows a price or a booking reference it has become a decision,
+    and decisions live in their own fields where releasing one can clear what
+    depended on it.
+    """
+    if isinstance(value, str):
+        title = value.strip()
+        return {"title": title[:120]} if title else None
+    if not isinstance(value, dict):
+        return None
+
+    title = value.get("title") or value.get("name")
+    title = title.strip() if isinstance(title, str) else ""
+    if not title:
+        return None
+
+    out: dict[str, Any] = {"title": title[:120]}
+    for key in ("time", "category", "location", "duration", "note"):
+        text = value.get(key)
+        if isinstance(text, str) and text.strip():
+            out[key] = text.strip()[:160]
+    if value.get("done") is True:
+        out["done"] = True
+    return out
+
+
+def _to_day(value: Any) -> dict[str, Any] | None:
+    """One day of the plan, with its activities in the order they arrived.
+
+    A day with no activities is kept, because an empty day is a real answer — a
+    rest day, or a day somebody has just emptied — and dropping it would lose
+    the date with it.
+    """
+    if not isinstance(value, dict):
+        return None
+
+    title = value.get("title")
+    title = title.strip() if isinstance(title, str) else ""
+    date = _to_date(value.get("date"))
+    if not title and not date:
+        return None
+
+    raw = value.get("activities")
+    entries = raw if isinstance(raw, list) else []
+    activities = [item for item in (_to_activity(entry) for entry in entries) if item is not None]
+
+    out: dict[str, Any] = {}
+    if title:
+        out["title"] = title[:120]
+    if date:
+        out["date"] = date
+    summary = value.get("summary")
+    if isinstance(summary, str) and summary.strip():
+        out["summary"] = summary.strip()[:200]
+    out["activities"] = activities
+    return out
 
 
 def _to_leg(value: Any) -> Leg | None:
@@ -244,6 +305,11 @@ def coerce(key: str, value: Any) -> Any:
         entries = value if isinstance(value, list) else [value]
         legs = [leg for leg in (_to_leg(entry) for entry in entries) if leg is not None]
         return legs or None
+
+    if kind == "days":
+        entries = value if isinstance(value, list) else [value]
+        days = [day for day in (_to_day(entry) for entry in entries) if day is not None]
+        return days or None
 
     if kind == "date":
         return _to_date(value)

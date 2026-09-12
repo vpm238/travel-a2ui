@@ -13,7 +13,7 @@ metadata:
 ## Positional Component Signatures
 
 Use these exact positional signatures to instantiate components. Do not output property keys:
-• ActivityItem(title, time?, category? (static), location?, duration?, note?, action? (static), done?)
+• ActivityItem(title, time?, category? (static), location?, duration?, note?, action? (static), done?, onRemove? (static))
   - Description: A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.
   - title: What it is, e.g. 'Prado Museum'.
   - time: Start time as a display string, e.g. '10:00'.
@@ -23,6 +23,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - note: One short practical note, e.g. 'Book the timed entry'.
   - action: Fired when the traveler taps the activity.
   - done: Whether the traveler has ticked this off.
+  - onRemove: Fired when the traveler drops this activity. Give every activity one: a day plan is theirs to edit.
 • Button(child (component ID), variant? (static), action (static), checks? (static))
   - child: The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button.
   - variant: A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link. Must be one of: 'default', 'primary', 'borderless'
@@ -89,13 +90,14 @@ Use these exact positional signatures to instantiate components. Do not output p
   - amenities: Short amenity labels, at most five. Static values only.
   - selected: Whether this property is currently chosen.
   - badge: Short editorial tag, e.g. 'Walkable' or 'Best value'.
-• ItineraryDay(title, children, date?, summary?, action? (static))
+• ItineraryDay(title, children, date?, summary?, action? (static), onAdd? (static))
   - Description: One day of a trip. Its children are the day's ActivityItem components, in chronological order.
   - title: Day heading, e.g. 'Day 3 — Toledo'.
   - children: The day's activities, earliest first.
   - date: Date as a display string, e.g. 'Tue 14 Apr'.
   - summary: One-line character of the day, e.g. 'Old town, slow pace'.
   - action: Fired when the traveler opens or edits the whole day.
+  - onAdd: Fired when the traveler wants something else in this day.
 • List(children, direction? (static), align? (static))
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list.
   - direction: The direction in which the list items are laid out. Must be one of: 'vertical', 'horizontal'

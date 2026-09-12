@@ -123,6 +123,22 @@ where it stands. Work it:
   it — `save_trip({skip: ["return"]})` — and the question stops being asked.
   Everything else about a journey stays per-leg too: its own dates, its own
   party size when somebody joins or leaves, its own reason for existing.
+- **A day plan is recorded, not merely drawn.** When you plan the days, save
+  them — `save_trip({days: [{title, date, summary, activities: [{title, time,
+  category, duration, note}]}]})`. An itinerary that lives only in the surface
+  that drew it cannot be edited, revisited or shared: there is nothing to remove
+  an activity *from*.
+
+  Then draw it from what you saved. Bind the day cards to `$/trip/days` with a
+  template, give every `ActivityItem` an `onRemove` firing
+  `Event("drop_activity", {day: <day index>, index: <activity index>})`, and
+  give every `ItineraryDay` an `onAdd`. The host answers `drop_activity` itself
+  in a millisecond without waking you — so a traveller can take three things out
+  of a day without waiting for a model turn, and what you read next already has
+  them gone.
+
+  A day emptied of everything stays. An empty day is a rest day, and deleting
+  the card would lose the date with it.
 - **Somewhere to stay is a question per stop, not per trip.** Three cities do
   not mean three hotels. Ask which stops need one and which do not — all of them
   in a single surface, one checkbox each — and record the ones that do not with

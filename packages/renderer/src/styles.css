@@ -36,6 +36,10 @@
   --tv-accent-soft: rgba(31, 63, 158, 0.09);
   --tv-accent-line: rgba(31, 63, 158, 0.34);
 
+  /* The one destructive colour. Separate from the accent and from the warm
+   * slot, because "remove this" and "worth a glance" are different claims. */
+  --tv-danger: #a3161b;
+
   --tv-warm: #9a5b06;
   --tv-warm-soft: rgba(154, 91, 6, 0.13);
   --tv-positive: #10714c;
@@ -102,6 +106,7 @@
     --tv-accent-soft: rgba(126, 162, 255, 0.15);
     --tv-accent-line: rgba(126, 162, 255, 0.42);
 
+    --tv-danger: #ff8f8f;
     --tv-warm: #f2b25c;
     --tv-warm-soft: rgba(242, 178, 92, 0.16);
     --tv-positive: #47ce9b;
@@ -926,7 +931,9 @@
 
 .tv-activity {
   display: grid;
-  grid-template-columns: 54px 30px 1fr;
+  /* The fourth track is the remove control. `auto` rather than a fixed width so
+   * a day plan with nothing removable lays out exactly as it did before. */
+  grid-template-columns: 54px 30px 1fr auto;
   gap: var(--tv-gap);
   align-items: start;
   padding: 13px 18px;
@@ -1542,4 +1549,81 @@
 .tv-hotel__head h4,
 .tv-activity__title {
   overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------- editing a day plan
+ *
+ * The one surface in this catalog that is a draft rather than a decision.
+ * Everything else asks a question and locks the answer; a day plan is a list
+ * somebody pushes around, so its rows carry a way out and its days carry a way
+ * to add. See Flow 6 in docs/user-flows.md.
+ */
+
+.tv-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tv-activity {
+  position: relative;
+}
+
+.tv-activity__remove {
+  border: 0;
+  background: transparent;
+  color: var(--tv-ink-faint);
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 6px;
+  margin: -6px -4px -6px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  align-self: start;
+  /* Quiet until wanted. A row of ✕ down a day plan reads as a warning; one that
+   * appears under the pointer reads as an affordance. Always visible to a
+   * keyboard, because :focus-visible is how it is reached at all. */
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease;
+}
+
+.tv-activity:hover .tv-activity__remove,
+.tv-activity__remove:focus-visible {
+  opacity: 1;
+}
+
+.tv-activity__remove:hover {
+  color: var(--tv-danger);
+  background: var(--tv-surface-2);
+}
+
+/* Touch has no hover, so there is nothing to reveal: the control is simply
+ * there. Anything else is an affordance a phone cannot reach. */
+@media (hover: none) {
+  .tv-activity__remove { opacity: 1; }
+}
+
+.tv-day__add {
+  border: 1px dashed var(--tv-line-strong);
+  background: transparent;
+  color: var(--tv-ink-muted);
+  border-radius: var(--tv-radius-sm, 8px);
+  padding: 9px 12px;
+  margin: 10px 14px 14px;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.tv-day__add:hover {
+  border-color: var(--tv-accent-line);
+  color: var(--tv-ink);
 }

@@ -41,7 +41,9 @@ from .contract import INSTANTIATION_MAX_AGE_MS, contract_stamp
 from .providers.fixture import FixtureProvider
 from . import mcp
 from .sessions import SessionStore
-from .surface import STANDING_SURFACES
+from . import host_actions
+from . import trip as model
+from .surface import STANDING_SURFACES, panel_events, trip_updates
 from .voice import VoiceSession, relay
 from .skills import SKILL_VARIANTS, describe_all_skills, is_skill_variant
 
@@ -292,6 +294,39 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
         # The session id goes out first, so a client that did not send one
         # knows what to send next time. Everything after it is a turn event.
         yield _sse({"type": "session", "sessionId": session_id})
+
+        # A press the host can answer itself.
+        #
+        # Dropping an activity from a day plan has nothing to decide: the
+        # outcome is completely determined by what was pressed. Sending it to
+        # the model costs five to fifteen seconds and a chance of it redrawing
+        # the surface while it is there. See `host_actions.py` for why the list
+        # is short and why the edit happens here rather than in the browser.
+        if action is not None and host_actions.handles(action.name):
+            patch = host_actions.apply(action.name, turn.trip, action.context)
+            if patch is not None:
+                trip = model.merge(turn.trip, patch)
+                sessions.save(session_id, trip=trip)
+                # The same messages any other trip change produces, so every
+                # renderer applies them the way it already does — the card they
+                # pressed on first, then the panels beside it.
+                pressed = trip_updates(action.surface_id, trip)
+                if pressed:
+                    yield _sse(
+                        {
+                            "type": "ui",
+                            "surfaceId": action.surface_id,
+                            "messages": pressed,
+                            "done": True,
+                        }
+                    )
+                for event in panel_events(trip):
+                    yield _sse(event)
+                yield _sse({"type": "trip", "trip": trip})
+                yield _sse({"type": "resume", "trip": trip})
+                yield _sse({"type": "done", "stopReason": "host"})
+                return
+
         async for event in run_turn(turn):
             if event["type"] == "__result__":
                 result = event["result"]

@@ -73,10 +73,18 @@ class ComponentBuild {
   /// broken.
   bool get hasAction => props['action'] is Function;
 
+  /// Whether some *other* action property is declared — `onRemove`, `onAdd`.
+  ///
+  /// A day plan is the one surface here that is a draft rather than a decision,
+  /// so its rows carry a second action beside the one that opens them. Sharing
+  /// a single gesture between "tell me more" and "get rid of it" is how a plan
+  /// loses a museum nobody meant to lose.
+  bool has(String key) => props[key] is Function;
+
   /// Fires the declared action: an event back to the agent, or a catalog
   /// function run here in the renderer.
-  void fire() {
-    final declared = props['action'];
+  void fire([String key = 'action']) {
+    final declared = props[key];
     if (declared is Function) declared();
   }
 
@@ -585,6 +593,14 @@ Widget _itineraryDay(BuildContext context, ComponentBuild build) {
           ),
         const SizedBox(height: 8),
         ...build.children('activities'),
+        if (build.has('onAdd'))
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => build.fire('onAdd'),
+              child: const Text('+ Add something else'),
+            ),
+          ),
       ],
     ),
   );
@@ -612,6 +628,16 @@ Widget _activityItem(BuildContext context, ComponentBuild build) {
             ],
           ),
         ),
+        // Always visible here, unlike the web's hover-revealed control: there
+        // is no hover on a phone, and an affordance a touch device cannot
+        // reach is not an affordance.
+        if (build.has('onRemove'))
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            tooltip: 'Remove ${build.string('title') ?? 'this'}',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => build.fire('onRemove'),
+          ),
       ],
     ),
   );
