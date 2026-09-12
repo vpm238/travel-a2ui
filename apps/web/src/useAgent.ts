@@ -15,9 +15,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SurfaceStore, type A2uiEvent } from '@travel-a2ui/renderer';
-import { TRIP_KEYS, plan as planTrip, type Trip } from '@travel-a2ui/trip';
 
 import { consumeKeyFromUrl } from './apiKey.js';
+
+/**
+ * The trip, as far as this client is concerned: whatever the server sent.
+ *
+ * Deliberately opaque. The client used to import the real field list and the
+ * planner from the trip package and decide for itself when a panel was stale;
+ * that logic moved to the server so a Flutter or Swift client would get a
+ * panel too, and the imports outlived it — `TRIP_KEYS` and `plan` were still
+ * being pulled in and never called. Naming the shape here is the honest
+ * version: this is a renderer, and it does not know what a trip is.
+ */
+export type Trip = Record<string, unknown>;
 import { instantiateLive, startCall, type VoiceCall } from './voice.js';
 import {
   clientHints,

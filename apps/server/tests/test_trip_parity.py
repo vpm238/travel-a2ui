@@ -227,3 +227,70 @@ class TestAPartyThatChangesAlongTheWay:
         assert normalized["legs"][0]["travelers"] == 2
         assert normalized["travelers"] == 1
         assert model.problems(normalized, TODAY) == []
+
+
+class TestAFlightPerHop:
+    """A return is a separate ticket, and the trip had nowhere to put it.
+
+    `selectedFlight` was one trip-level field and the flight stage needed only
+    that, so choosing the outbound marked the whole stage done. The agent then
+    moved on to hotels and never offered a way home — and a leg could not have
+    recorded one anyway, because `normalize` dropped `selectedFlight` off a leg
+    on the way in.
+
+    `stay` was already per-stop and is the shape this now follows.
+    """
+
+    OUT_AND_BACK = {
+        "origin": "JFK",
+        "destination": "SFO",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 1,
+        "selectedFlight": "UA830",
+        "flightPrice": 274,
+        # Dated, or the *dates* stage is legitimately the one still pending
+        # and this would be testing the wrong stage.
+        "legs": [
+            {
+                "destination": "NYC",
+                "origin": "SFO",
+                "travelers": 2,
+                "startDate": "2027-04-19",
+                "endDate": "2027-04-20",
+            }
+        ],
+    }
+
+    def test_a_leg_can_hold_its_own_flight(self):
+        trip = model.normalize(
+            {
+                "destination": "SFO",
+                "legs": [{"destination": "NYC", "selectedFlight": "B6123", "flightPrice": 310}],
+            }
+        )
+        assert trip["legs"][0]["selectedFlight"] == "B6123"
+        assert trip["legs"][0]["flightPrice"] == 310
+
+    def test_the_outbound_alone_does_not_finish_the_stage(self):
+        stage = next(s for s in model.plan(self.OUT_AND_BACK)["steps"] if s["stage"] == "flight")
+        assert stage["done"] is False
+
+    def test_and_the_agent_is_told_which_hop_is_missing_one(self):
+        said = model.next_step_for(self.OUT_AND_BACK)
+        assert "NYC" in said
+        assert "flight" in said.lower()
+
+    def test_a_flight_on_every_hop_finishes_it(self):
+        trip = {
+            **self.OUT_AND_BACK,
+            "legs": [{**self.OUT_AND_BACK["legs"][0], "selectedFlight": "B6123"}],
+        }
+        stage = next(s for s in model.plan(trip)["steps"] if s["stage"] == "flight")
+        assert stage["done"] is True
+
+    def test_a_one_way_still_finishes_on_one(self):
+        """Nobody flying home should not be asked to choose a flight home."""
+        trip = {k: v for k, v in self.OUT_AND_BACK.items() if k != "legs"}
+        stage = next(s for s in model.plan(trip)["steps"] if s["stage"] == "flight")
+        assert stage["done"] is True

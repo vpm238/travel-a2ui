@@ -22,15 +22,12 @@ COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
 COPY apps/gallery/package.json apps/gallery/
 COPY apps/mcp-view/package.json apps/mcp-view/
-COPY apps/worker/package.json apps/worker/
 COPY packages/express/package.json packages/express/
 COPY packages/renderer/package.json packages/renderer/
-COPY packages/trip/package.json packages/trip/
 RUN npm ci
 
 COPY . .
-RUN npm run build -w @travel-a2ui/trip \
- && npm run build -w @travel-a2ui/express \
+RUN npm run build -w @travel-a2ui/express \
  && npm run build -w @travel-a2ui/renderer \
  && npm run build -w @travel-a2ui/web
 

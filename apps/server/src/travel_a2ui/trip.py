@@ -172,6 +172,12 @@ def _to_leg(value: Any) -> Leg | None:
     party = _to_number(raw.get("travelers"))
     travelers = None if party is None else max(1, _js_round(party))
     needs_stay = _to_flag(raw.get("needsStay"))
+    # A leg carries its own flight, because a return is a separate ticket that
+    # somebody has to choose. Without this the trip had one `selectedFlight`
+    # for the whole journey, so the flight stage counted itself finished the
+    # moment the outbound was picked and the traveller was never offered a way
+    # home.
+    fare = _to_number(raw.get("flightPrice"))
     nightly = _to_number(raw.get("nightlyPrice"))
 
     # Key order mirrors the TypeScript object literal, because the golden
@@ -189,6 +195,10 @@ def _to_leg(value: Any) -> Leg | None:
         leg["travelers"] = travelers
     if needs_stay is not None:
         leg["needsStay"] = needs_stay
+    if text("selectedFlight"):
+        leg["selectedFlight"] = text("selectedFlight")
+    if fare is not None:
+        leg["flightPrice"] = _js_round(fare)
     if text("selectedHotel"):
         leg["selectedHotel"] = text("selectedHotel")
     if nightly is not None:
@@ -572,7 +582,11 @@ STEPS: list[dict[str, Any]] = [
     },
     {"stage": "dates", "label": "settle the dates", "needs": ["startDate", "endDate"]},
     {"stage": "party", "label": "settle how many are travelling", "needs": ["travelers"]},
-    {"stage": "flight", "label": "choose a flight", "needs": ["selectedFlight"]},
+    # No trip-level field, for the same reason `stay` has none: a journey with
+    # more than one hop needs a ticket for each, and `selectedFlight` alone
+    # declared the stage finished as soon as the outbound was chosen.
+    # `_pending_for` is what makes this step complete.
+    {"stage": "flight", "label": "choose a flight for each hop", "needs": []},
     # No trip-level field: whether a stay is needed, and which one, is decided
     # per stop. `_pending_for` is what makes this step complete.
     {"stage": "stay", "label": "sort out where you are sleeping, stop by stop", "needs": []},
@@ -657,11 +671,26 @@ def party_varies(trip: Trip) -> bool:
 def _pending_for(trip: Trip, stage: str, legs: list[Leg]) -> dict[str, Any] | None:
     """What a per-stop stage is still waiting on, if anything.
 
-    Only two stages are per-stop. Dates, because every place needs a span. And
-    somewhere to stay, because that is a question you ask city by city — and the
+    Three stages are per-stop. Dates, because every place needs a span.
+    Somewhere to stay, because that is a question you ask city by city — and the
     answer "not there, I'm at my sister's" has to be recordable, or the agent
-    asks about it forever.
+    asks about it forever. And the flight, because a return is a separate ticket:
+    a trip with one `selectedFlight` counted the whole journey settled the moment
+    the outbound was chosen, and the traveller was never offered a way home.
     """
+    if stage == "flight":
+        if not legs:
+            return {"stops": [], "want": "a destination first"}
+        # The first leg is the flat `selectedFlight`; the rest carry their own.
+        # `stops()` has already resolved each leg's origin against the one
+        # before it, so "unflown" is genuinely the list of hops with no ticket.
+        unflown = [
+            leg["destination"]
+            for index, leg in enumerate(legs)
+            if not (trip.get("selectedFlight") if index == 0 else leg.get("selectedFlight"))
+        ]
+        return {"stops": unflown, "want": "a flight"} if unflown else None
+
     if stage == "dates":
         undated = [
             leg["destination"] for leg in legs if not leg.get("startDate") or not leg.get("endDate")

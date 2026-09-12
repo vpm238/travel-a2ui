@@ -96,17 +96,11 @@ jobs:
       - name: Catalog is current
         run: npm run check:catalog
 
-      # A Worker has no filesystem, so `data/` travels in the bundle as a
-      # generated module. Editing a CSV and forgetting to regenerate would ship
-      # the old rows silently — the app would work, with last week's data.
+      # `data/` is read from disk at startup, and the fixtures are generated
+      # from it. Editing a CSV and forgetting to regenerate would ship the old
+      # rows silently — the app would work, with last week's data.
       - name: Fixtures match data/
         run: npm run check:fixtures
-
-      # The trip model is the one piece neither generated from the catalog nor
-      # provided by the SDK, and it is being reimplemented in Python. The golden
-      # is what stops the two drifting into subtly different agents.
-      - name: The trip model matches its golden
-        run: npm run check:trip
 
       - name: Examples compile and their JSON is current
         run: npm run check:examples
@@ -114,22 +108,12 @@ jobs:
       - name: Skills are current
         run: npm run check:skills
 
-      # The rest of the port, each against a golden written by the TypeScript.
-      # These are the layers where two implementations drift without either
-      # looking wrong: the tools' manners, the prompt the model is actually
-      # given, the skeleton's compiled output, and the four passes the server
-      # makes over a surface before it goes out.
-      - name: The tools match their golden
-        run: npm run check:tools
-
+      # The prompt is assembled from markdown people edit on purpose, so its
+      # golden is the one that is *meant* to move — and the one most likely to
+      # be edited without being re-recorded. That is a failed build here rather
+      # than a mystery a week later.
       - name: The prompt matches its golden
-        run: npm run check:prompt
-
-      - name: The skeleton matches its golden
-        run: npm run check:skeleton
-
-      - name: The surface passes match their golden
-        run: npm run check:surface
+        run: python3 tools/parity/capture.py --check
 
       - name: Python tests
         run: |
@@ -164,14 +148,21 @@ jobs:
       - name: End-to-end
         run: |
           npx playwright install --with-deps chromium
-          (cd apps/worker && npx wrangler dev --port 8787 --ip 127.0.0.1 &)
+          # The real server with a scripted model in place of Gemini, so this
+          # needs no API key and costs nothing to run — which is the only way an
+          # end-to-end test actually gets run. Everything else in the process is
+          # the real thing: the real agent events, the real surface passes, the
+          # real SSE transport, the real static mounts.
+          pip install --quiet -e ./apps/server
+          GEMINI_API_KEY=scripted python3 tools/e2e/scripted_server.py 8131 &
           for _ in $(seq 1 60); do
-            curl -sf http://127.0.0.1:8787/api/meta >/dev/null && break
+            curl -sf http://127.0.0.1:8131/api/meta >/dev/null && break
             sleep 2
           done
-          curl -sf http://127.0.0.1:8787/api/meta >/dev/null || {
-            echo "The dev server never came up." >&2; exit 1;
+          curl -sf http://127.0.0.1:8131/api/meta >/dev/null || {
+            echo "The server never came up." >&2; exit 1;
           }
+          export BASE_URL=http://127.0.0.1:8131
           node tools/e2e/chat.mjs
           node tools/e2e/interaction.mjs
           node tools/e2e/frameworks.mjs
@@ -179,7 +170,6 @@ jobs:
         env:
           # Let Playwright use the browser it just installed.
           CHROMIUM_PATH: ''
-          CLOUDFLARE_API_TOKEN: ''
 
       # The component reference is generated from the catalog and the gallery
       # build, so it goes stale the moment either changes — and a reference page

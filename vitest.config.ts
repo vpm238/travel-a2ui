@@ -8,7 +8,7 @@ const root = dirname(fileURLToPath(import.meta.url));
 /**
  * Loads the Worker's text imports as text.
  *
- * The Worker does this through a `rules` entry in `wrangler.jsonc`, so a
+ * The Python server reads these files from disk at runtime, so a
  * generated `SKILL.md` and the MCP view's shell are the same artifacts at test
  * time as at run time. Without it the tests would be checking a mock of the
  * thing they exist to check — and Vite would try to process the shell as an

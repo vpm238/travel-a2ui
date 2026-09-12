@@ -1693,7 +1693,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "regex": {
       "type": "object",
@@ -1727,7 +1728,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "length": {
       "type": "object",
@@ -1778,7 +1780,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "numeric": {
       "type": "object",
@@ -1827,7 +1830,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "email": {
       "type": "object",
@@ -1856,7 +1860,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "formatString": {
       "type": "object",
@@ -1885,7 +1890,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "formatNumber": {
       "type": "object",
@@ -1923,7 +1929,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "formatCurrency": {
       "type": "object",
@@ -1966,7 +1973,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "formatDate": {
       "type": "object",
@@ -2001,7 +2009,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "pluralize": {
       "type": "object",
@@ -2056,7 +2065,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "openUrl": {
       "type": "object",
@@ -2087,7 +2097,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "and": {
       "type": "object",
@@ -2121,7 +2132,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "or": {
       "type": "object",
@@ -2155,7 +2167,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "not": {
       "type": "object",
@@ -2185,7 +2198,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     },
     "calcNights": {
       "type": "object",
@@ -2220,7 +2234,8 @@
         "call",
         "args"
       ],
-      "unevaluatedProperties": false
+      "unevaluatedProperties": false,
+      "x-runsOn": "client"
     }
   },
   "$defs": {

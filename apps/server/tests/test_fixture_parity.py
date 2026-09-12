@@ -6,7 +6,7 @@ stays true, a test can assert on a fare, and someone who reloads does not get a
 different trip. Two implementations that are each deterministic and disagree
 with each other have none of that.
 
-The golden is `apps/worker/test/__golden__/travel.json`, written by the
+The golden is `tools/parity/__golden__/fixtures.json`, written by the
 TypeScript provider and already the thing that pins it. It does double duty
 here: the same file is now the contract between the two.
 
@@ -27,7 +27,7 @@ from travel_a2ui.providers.fixture import FixtureProvider
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = json.loads(
-    (ROOT / "apps" / "worker" / "test" / "__golden__" / "travel.json").read_text("utf-8")
+    (ROOT / "tools" / "parity" / "__golden__" / "fixtures.json").read_text("utf-8")
 )
 
 provider = FixtureProvider()

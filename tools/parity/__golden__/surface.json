@@ -103,8 +103,8 @@
           "label": "Flight",
           "mark": "·",
           "state": "todo",
-          "note": "",
-          "line": "· Flight"
+          "note": "Madrid",
+          "line": "· Flight — Madrid"
         },
         {
           "stage": "stay",
@@ -176,8 +176,8 @@
           "label": "Flight",
           "mark": "→",
           "state": "next",
-          "note": "",
-          "line": "→ Flight"
+          "note": "Madrid",
+          "line": "→ Flight — Madrid"
         },
         {
           "stage": "stay",
@@ -249,8 +249,8 @@
           "label": "Flight",
           "mark": "·",
           "state": "todo",
-          "note": "",
-          "line": "· Flight"
+          "note": "Madrid",
+          "line": "· Flight — Madrid"
         },
         {
           "stage": "stay",
@@ -322,8 +322,8 @@
           "label": "Flight",
           "mark": "·",
           "state": "todo",
-          "note": "",
-          "line": "· Flight"
+          "note": "Chicago, New York, San Francisco",
+          "line": "· Flight — Chicago, New York, San Francisco"
         },
         {
           "stage": "stay",
@@ -497,8 +497,8 @@
                 "label": "Flight",
                 "mark": "·",
                 "state": "todo",
-                "note": "",
-                "line": "· Flight"
+                "note": "Madrid",
+                "line": "· Flight — Madrid"
               },
               {
                 "stage": "stay",
@@ -619,8 +619,8 @@
                 "label": "Flight",
                 "mark": "→",
                 "state": "next",
-                "note": "",
-                "line": "→ Flight"
+                "note": "Madrid",
+                "line": "→ Flight — Madrid"
               },
               {
                 "stage": "stay",
@@ -728,8 +728,8 @@
                 "label": "Flight",
                 "mark": "·",
                 "state": "todo",
-                "note": "",
-                "line": "· Flight"
+                "note": "Madrid",
+                "line": "· Flight — Madrid"
               },
               {
                 "stage": "stay",
@@ -871,8 +871,8 @@
                 "label": "Flight",
                 "mark": "·",
                 "state": "todo",
-                "note": "",
-                "line": "· Flight"
+                "note": "Chicago, New York, San Francisco",
+                "line": "· Flight — Chicago, New York, San Francisco"
               },
               {
                 "stage": "stay",
@@ -973,8 +973,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -1139,8 +1139,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -1281,8 +1281,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -1423,8 +1423,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -1584,8 +1584,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -1726,8 +1726,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -1868,8 +1868,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -2010,8 +2010,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -2124,8 +2124,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -2248,8 +2248,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -2359,8 +2359,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -2484,8 +2484,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",
@@ -2626,8 +2626,8 @@
                   "label": "Flight",
                   "mark": "→",
                   "state": "next",
-                  "note": "",
-                  "line": "→ Flight"
+                  "note": "Madrid",
+                  "line": "→ Flight — Madrid"
                 },
                 {
                   "stage": "stay",

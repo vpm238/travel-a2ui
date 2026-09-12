@@ -434,13 +434,13 @@
           },
           {
             "stage": "flight",
-            "label": "choose a flight",
-            "needs": [
-              "selectedFlight"
-            ],
-            "missing": [
-              "selectedFlight"
-            ],
+            "label": "choose a flight for each hop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [],
+              "want": "a destination first"
+            },
             "done": false,
             "skipped": false
           },
@@ -607,13 +607,15 @@
           },
           {
             "stage": "flight",
-            "label": "choose a flight",
-            "needs": [
-              "selectedFlight"
-            ],
-            "missing": [
-              "selectedFlight"
-            ],
+            "label": "choose a flight for each hop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "a flight"
+            },
             "done": false,
             "skipped": false
           },
@@ -781,13 +783,15 @@
           },
           {
             "stage": "flight",
-            "label": "choose a flight",
-            "needs": [
-              "selectedFlight"
-            ],
-            "missing": [
-              "selectedFlight"
-            ],
+            "label": "choose a flight for each hop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "a flight"
+            },
             "done": false,
             "skipped": false
           },
@@ -832,13 +836,15 @@
         ],
         "next": {
           "stage": "flight",
-          "label": "choose a flight",
-          "needs": [
-            "selectedFlight"
-          ],
-          "missing": [
-            "selectedFlight"
-          ],
+          "label": "choose a flight for each hop",
+          "needs": [],
+          "missing": [],
+          "pending": {
+            "stops": [
+              "Madrid"
+            ],
+            "want": "a flight"
+          },
           "done": false,
           "skipped": false
         },
@@ -846,7 +852,7 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight. You still need the flight you chose — ask for all of it in one surface, bound to $/trip/selectedFlight, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -967,13 +973,15 @@
           },
           {
             "stage": "flight",
-            "label": "choose a flight",
-            "needs": [
-              "selectedFlight"
-            ],
-            "missing": [
-              "selectedFlight"
-            ],
+            "label": "choose a flight for each hop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "a flight"
+            },
             "done": false,
             "skipped": false
           },
@@ -1018,13 +1026,15 @@
         ],
         "next": {
           "stage": "flight",
-          "label": "choose a flight",
-          "needs": [
-            "selectedFlight"
-          ],
-          "missing": [
-            "selectedFlight"
-          ],
+          "label": "choose a flight for each hop",
+          "needs": [],
+          "missing": [],
+          "pending": {
+            "stops": [
+              "Madrid"
+            ],
+            "want": "a flight"
+          },
           "done": false,
           "skipped": false
         },
@@ -1032,7 +1042,7 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight. You still need the flight you chose — ask for all of it in one surface, bound to $/trip/selectedFlight, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -1154,13 +1164,15 @@
           },
           {
             "stage": "flight",
-            "label": "choose a flight",
-            "needs": [
-              "selectedFlight"
-            ],
-            "missing": [
-              "selectedFlight"
-            ],
+            "label": "choose a flight for each hop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "a flight"
+            },
             "done": false,
             "skipped": false
           },
@@ -1205,13 +1217,15 @@
         ],
         "next": {
           "stage": "flight",
-          "label": "choose a flight",
-          "needs": [
-            "selectedFlight"
-          ],
-          "missing": [
-            "selectedFlight"
-          ],
+          "label": "choose a flight for each hop",
+          "needs": [],
+          "missing": [],
+          "pending": {
+            "stops": [
+              "Madrid"
+            ],
+            "want": "a flight"
+          },
           "done": false,
           "skipped": false
         },
@@ -1219,7 +1233,7 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight. You still need the flight you chose — ask for all of it in one surface, bound to $/trip/selectedFlight, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",
@@ -1353,13 +1367,15 @@
           },
           {
             "stage": "flight",
-            "label": "choose a flight",
-            "needs": [
-              "selectedFlight"
-            ],
-            "missing": [
-              "selectedFlight"
-            ],
+            "label": "choose a flight for each hop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "a flight"
+            },
             "done": false,
             "skipped": false
           },
@@ -1560,10 +1576,8 @@
           },
           {
             "stage": "flight",
-            "label": "choose a flight",
-            "needs": [
-              "selectedFlight"
-            ],
+            "label": "choose a flight for each hop",
+            "needs": [],
             "missing": [],
             "done": true,
             "skipped": false
@@ -1764,13 +1778,17 @@
           },
           {
             "stage": "flight",
-            "label": "choose a flight",
-            "needs": [
-              "selectedFlight"
-            ],
-            "missing": [
-              "selectedFlight"
-            ],
+            "label": "choose a flight for each hop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Chicago",
+                "New York",
+                "SFO"
+              ],
+              "want": "a flight"
+            },
             "done": false,
             "skipped": false
           },
@@ -1963,13 +1981,15 @@
           },
           {
             "stage": "flight",
-            "label": "choose a flight",
-            "needs": [
-              "selectedFlight"
-            ],
-            "missing": [
-              "selectedFlight"
-            ],
+            "label": "choose a flight for each hop",
+            "needs": [],
+            "missing": [],
+            "pending": {
+              "stops": [
+                "Madrid"
+              ],
+              "want": "a flight"
+            },
             "done": false,
             "skipped": false
           },
@@ -2014,13 +2034,15 @@
         ],
         "next": {
           "stage": "flight",
-          "label": "choose a flight",
-          "needs": [
-            "selectedFlight"
-          ],
-          "missing": [
-            "selectedFlight"
-          ],
+          "label": "choose a flight for each hop",
+          "needs": [],
+          "missing": [],
+          "pending": {
+            "stops": [
+              "Madrid"
+            ],
+            "want": "a flight"
+          },
           "done": false,
           "skipped": false
         },
@@ -2028,7 +2050,7 @@
         "total": 7,
         "complete": false
       },
-      "nextStepFor": "Step 4 of 7: choose a flight. You still need the flight you chose — ask for all of it in one surface, bound to $/trip/selectedFlight, with one button. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
+      "nextStepFor": "Step 4 of 7: choose a flight for each hop. Waiting on Madrid — a flight. A trip with several stops needs one for each, not one covering all of them. End every turn having moved the trip on, or having asked exactly what it takes to. If this stage does not apply to their trip — driving rather than flying, staying with family, no fixed budget — record that with save_trip (skip: [\"flight\"]) and go to the next one instead of asking a question they have already answered.",
       "stops": [
         {
           "destination": "Madrid",

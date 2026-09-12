@@ -7,5 +7,5 @@
   },
   "include": ["src/**/*", "vite.config.ts"],
   "references": [{ "path": "../../packages/express" },
-    { "path": "../../packages/trip" }, { "path": "../../packages/renderer" }]
+    { "path": "../../packages/renderer" }]
 }

@@ -22,7 +22,11 @@ A persistent panel beside the conversation showing the trip as it stands. It is
   - where the stops are → `MapPreview`
   - what it will be like → `WeatherStrip`
   - the money → `PriceSummary`, and `StatTile` for the figures worth a glance
-  - `Card`, `Row`, `Column`, `Divider`, `Icon` and `Image` to arrange it
+  - `Card`, `Row`, `Column` and `Icon` to arrange it
+
+  Imagery comes from the component that owns it — `HotelCard`'s `imageUrl`,
+  `MapPreview`'s markers — rather than from a standalone image component, which
+  is not in the catalog you were given.
 
   These carry **no `action`** in the panel. A card without one is a record: the
   host draws it fully and it does not respond to a press, which is exactly what

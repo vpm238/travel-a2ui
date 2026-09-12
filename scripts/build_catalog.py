@@ -373,6 +373,22 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
 #: number every stay question hangs off ("3 nights, $291 a night"), and asking a
 #: language model to subtract two dates is the wrong tool by several orders of
 #: magnitude.
+def _tag_as_client_side(functions: dict[str, Any]) -> dict[str, Any]:
+    """Marks every function with where it runs.
+
+    All of them run in the renderer, and nothing in the schema said so. You
+    could only find out by noticing there was an implementation in
+    `packages/renderer/src/functions.ts` and in the Flutter client's
+    `functions.dart`, and none on the server — which is a fact about where code
+    happens to live, not a contract. A third client had to guess, and guessing
+    wrong means a label that silently never updates.
+
+    Applied to the basic catalog's functions too, not just this one's: the
+    distinction is about A2UI, not about travel.
+    """
+    return {name: {**fn, "x-runsOn": "client"} for name, fn in functions.items()}
+
+
 TRAVEL_FUNCTIONS: dict[str, dict[str, Any]] = {
     "calcNights": {
         "type": "object",
@@ -413,7 +429,7 @@ def build() -> dict[str, Any]:
         "instructions": CATALOG_INSTRUCTIONS,
         "extends": basic["catalogId"],
         "components": {**basic["components"], **TRAVEL_COMPONENTS},
-        "functions": {**basic["functions"], **TRAVEL_FUNCTIONS},
+        "functions": _tag_as_client_side({**basic["functions"], **TRAVEL_FUNCTIONS}),
         "$defs": dict(basic["$defs"]),
     }
 

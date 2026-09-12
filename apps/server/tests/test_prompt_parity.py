@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import sys
 
 import pytest
 
@@ -25,92 +26,13 @@ from travel_a2ui import skills
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = json.loads((ROOT / "tools" / "parity" / "__golden__" / "prompt.json").read_text("utf-8"))
 
-TODAY = "2027-03-01"
-
-#: The same trips the capture script used, chosen for the branches they take
-#: through `describe_trip`: nothing settled, something settled, everything
-#: settled, something wrong with it, a stage ruled out, a route with stops.
-TRIPS: dict[str, dict] = {
-    "empty": {},
-    "started": {"destination": "Madrid"},
-    "ready": {
-        "origin": "JFK",
-        "destination": "Madrid",
-        "startDate": "2027-04-12",
-        "endDate": "2027-04-19",
-        "travelers": 2,
-    },
-    "priced": {
-        "origin": "JFK",
-        "destination": "Madrid",
-        "startDate": "2027-04-12",
-        "endDate": "2027-04-19",
-        "travelers": 2,
-        "flightPrice": 780,
-        "nightlyPrice": 190,
-        "budget": 3000,
-        "selectedFlight": "IB614",
-    },
-    "broken": {
-        "destination": "Madrid",
-        "origin": "JFK",
-        "startDate": "2027-04-20",
-        "endDate": "2027-04-12",
-        "travelers": 2,
-    },
-    "skipping": {"destination": "Madrid", "origin": "JFK", "skip": ["stay", "budget"]},
-    "multiCity": {
-        "origin": "SFO",
-        "destination": "Chicago",
-        "startDate": "2027-04-12",
-        "endDate": "2027-04-14",
-        "travelers": 1,
-        "legs": [
-            {"destination": "New York", "startDate": "2027-04-14", "endDate": "2027-04-18"},
-            {"destination": "San Francisco", "startDate": "2027-04-18", "travelers": 2},
-        ],
-    },
-}
-
-ORIGIN_HINT = {"code": "SFO", "city": "San Francisco", "timeZone": "America/Los_Angeles"}
-
-
-def build(label: str) -> str:
-    """Rebuilds one golden prompt from its label.
-
-    The labels encode the case, so there is one table of trips rather than two
-    that can disagree about what "ready" means.
-    """
-    kind, _, rest = label.partition(" / ")
-    if kind == "variant":
-        return skills.build_system_prompt(
-            variant=rest,
-            surface="inline",
-            surface_id="inline-1",
-            catalog_id="travel",
-            trip=TRIPS["ready"],
-            today=TODAY,
-        )
-    if kind == "origin hint":
-        trip = TRIPS["started"] if rest == "offered" else TRIPS["ready"]
-        return skills.build_system_prompt(
-            variant="express-monolithic",
-            surface="inline",
-            surface_id="inline-1",
-            catalog_id="travel",
-            trip=trip,
-            today=TODAY,
-            origin_hint=ORIGIN_HINT,
-        )
-    return skills.build_system_prompt(
-        variant="express-monolithic",
-        surface=rest,
-        surface_id="inline-1" if rest == "inline" else rest,
-        catalog_id="travel",
-        trip=TRIPS[kind],
-        today=TODAY,
-    )
-
+# The trips, the origin hint and the assembly are defined once, in the script
+# that records the golden — `tools/parity/capture.py`. They lived here as well
+# for a while and the two copies disagreed about what "skipping" skipped, which
+# meant this suite and the recorder built different prompts from the same label
+# and each believed the other was wrong.
+sys.path.insert(0, str(ROOT / "tools" / "parity"))
+from capture import LABELS, TODAY, TRIPS, build  # noqa: E402,F401
 
 def first_difference(actual: str, expected: str) -> str:
     """Where two prompts part company, with enough either side to read it.
@@ -134,8 +56,8 @@ def first_difference(actual: str, expected: str) -> str:
     )
 
 
-@pytest.mark.parametrize("label", list(GOLDEN["prompts"]))
-def test_matches_the_typescript(label: str) -> None:
+@pytest.mark.parametrize("label", LABELS)
+def test_the_prompt_matches_its_golden(label: str) -> None:
     expected = GOLDEN["prompts"][label]
     actual = build(label)
     assert actual == expected, f"{label} diverged at {first_difference(actual, expected)}"
@@ -159,3 +81,51 @@ def test_the_stable_half_comes_first() -> None:
     assert prompt.index(skills.ROLE) == 0
     assert prompt.index("## The trip so far") > prompt.index(skills.SURFACE_BRIEFS["inline"])
     assert prompt.index(skills.SURFACE_BRIEFS["inline"]) > prompt.index("## Make the surface")
+
+
+class TestThePromptOnlyNamesComponentsTheModelHas:
+    """A prompt may not recommend a component that pruning removed.
+
+    The catalog carries 30 components; the model is shown 24, because
+    `with_pruning` drops the ones a travel agent never needs (AudioPlayer,
+    Video, Modal, Tabs, Divider, Image). That is a large, cheap saving and it
+    has one sharp edge: the surface briefs are prose, written by hand, and
+    nothing stopped one of them naming a component that is no longer there.
+
+    The failure is quiet in the worst way. The model is told to draw the panel
+    with `Image`, cannot find `Image` in its catalog, and either invents a
+    component that fails to compile or silently drops the thing it was asked to
+    show. Neither looks like a prompt problem from the outside.
+    """
+
+    @staticmethod
+    def _pruned_names() -> set[str]:
+        import json
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parents[3]
+        catalog = json.loads(
+            (root / "catalogs" / "a2ui-travel" / "catalog.json").read_text("utf-8")
+        )
+        skill = (root / "skills" / "express-monolithic" / "a2ui" / "SKILL.md").read_text("utf-8")
+        return {name for name in catalog["components"] if name not in skill}
+
+    @pytest.mark.parametrize("brief", ["role", "surface-inline", "surface-sidebar", "surface-home"])
+    def test_no_brief_recommends_a_pruned_component(self, brief: str) -> None:
+        import pathlib
+        import re
+
+        root = pathlib.Path(__file__).resolve().parents[3]
+        path = root / "prompts" / f"{brief}.md"
+        if not path.exists():
+            pytest.skip(f"no {brief} brief")
+        text = path.read_text("utf-8")
+
+        # Only backticked names count. Prose may say "an image" without meaning
+        # the component, and failing on that would make this untriageable.
+        mentioned = set(re.findall(r"`([A-Z][A-Za-z]+)`", text))
+        offenders = sorted(mentioned & self._pruned_names())
+        assert not offenders, (
+            f"{brief}.md recommends {offenders}, which pruning removes from the "
+            "catalog the model is given"
+        )

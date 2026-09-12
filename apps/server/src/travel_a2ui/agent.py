@@ -484,6 +484,11 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 else None
             )
             if pending:
+                # The skeleton counts. It is a real interface on screen — the
+                # whole point of drawing it — and leaving it out of the mark
+                # measured the *model's* surface instead, which arrives a
+                # tool-round later and made the app look far slower than it is.
+                mark("firstSurface")
                 yield {
                     "type": "ui",
                     "surfaceId": request.surface_id,
