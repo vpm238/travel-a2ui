@@ -8,11 +8,15 @@ name: travel-a2ui Cloud Run
 # while costing a CORS configuration, a second deployment to keep in step, and
 # a class of bug where the two halves are different versions of the same app.
 #
-# Manual until the cutover is proven. The Cloudflare Worker is still the thing
-# on the public URL, and having two deploys race to serve the same users on
-# every push is how a demo becomes unexplainable.
+# Every push to `main` deploys. This was manual while the Cloudflare Worker was
+# the thing on the public URL — two deploys racing to serve the same users is
+# how a demo becomes unexplainable — and with Cloud Run as the only deployment
+# that reason is gone.
 
 on:
+  push:
+    branches: [main]
+    paths: ['**']
   workflow_dispatch:
     inputs:
       service:
@@ -72,14 +76,24 @@ jobs:
           set -euo pipefail
           region="${{ vars.GCP_REGION }}"
           project="${{ vars.GCP_PROJECT_ID }}"
-          service="${{ inputs.service }}"
+          service="${{ inputs.service || 'travel-a2ui' }}"
           image="${region}-docker.pkg.dev/${project}/${service}/server"
 
           gcloud auth configure-docker "${region}-docker.pkg.dev" --quiet
 
+          # The previous image as a layer cache. The build installs the Flutter
+          # SDK and resolves two package graphs, none of which changes between
+          # most pushes — without this every deploy pays for all of it, and a
+          # one-line prompt edit costs the same as a rewrite. `|| true` because
+          # the very first deploy has nothing to pull.
+          docker pull "${image}:latest" || true
+
           # Tagged with the commit as well as `latest`, so a rollback names a
           # commit rather than "the one before this one".
-          docker build -t "${image}:${GITHUB_SHA}" -t "${image}:latest" .
+          DOCKER_BUILDKIT=1 docker build \
+            --cache-from "${image}:latest" \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            -t "${image}:${GITHUB_SHA}" -t "${image}:latest" .
           docker push "${image}:${GITHUB_SHA}"
           docker push "${image}:latest"
 
@@ -88,7 +102,7 @@ jobs:
       - name: Deploy
         run: |
           set -euo pipefail
-          gcloud run deploy "${{ inputs.service }}" \
+          gcloud run deploy "${{ inputs.service || 'travel-a2ui' }}" \
             --image "${IMAGE}" \
             --region "${{ vars.GCP_REGION }}" \
             --project "${{ vars.GCP_PROJECT_ID }}" \
@@ -119,7 +133,7 @@ jobs:
 
       - name: Say where it went
         run: |
-          url=$(gcloud run services describe "${{ inputs.service }}" \
+          url=$(gcloud run services describe "${{ inputs.service || 'travel-a2ui' }}" \
             --region "${{ vars.GCP_REGION }}" \
             --project "${{ vars.GCP_PROJECT_ID }}" \
             --format 'value(status.url)')

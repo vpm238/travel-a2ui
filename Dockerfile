@@ -35,6 +35,59 @@ RUN npm run build -w @travel-a2ui/trip \
  && npm run build -w @travel-a2ui/web
 
 # ---------------------------------------------------------------------------
+# Stage 1b: build the Flutter client
+# ---------------------------------------------------------------------------
+#
+# The SDK from Google's own release archive, pinned to an exact version.
+#
+# Not a prebuilt community image, which would be the obvious choice: the ones
+# that exist lag stable by several releases, so pinning one means building the
+# client with an SDK nobody developed or tested it against. The download is the
+# price of building with the same toolchain the tests ran on.
+#
+# Bumping FLUTTER_VERSION is a deliberate act. It should match the SDK the
+# Flutter tests are run with, or `flutter build web` here can succeed on code
+# that was never analysed at that version — and the first sign of it is a
+# rendering difference in production.
+FROM debian:bookworm-slim AS flutter
+
+ARG FLUTTER_VERSION=3.47.4
+
+# `git` because the SDK is a git checkout and its tooling reads its own
+# revision; `xz-utils` to unpack the archive; `curl`/`ca-certificates` to fetch
+# it. `unzip` is used by `flutter precache` for its own artifacts.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates curl git unzip xz-utils \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL -o /tmp/flutter.tar.xz \
+      "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+ && tar -xJf /tmp/flutter.tar.xz -C /opt \
+ && rm /tmp/flutter.tar.xz
+
+ENV PATH="/opt/flutter/bin:${PATH}"
+
+# The SDK is unpacked as a git checkout owned by a different uid than the one
+# building; without this every `flutter` call fails on git's ownership check
+# rather than on anything to do with the app.
+RUN git config --global --add safe.directory /opt/flutter \
+ && flutter --version \
+ && flutter precache --web
+
+WORKDIR /build
+
+# Manifests first, so editing a widget does not re-resolve the package graph.
+COPY apps/flutter_client/pubspec.yaml apps/flutter_client/pubspec.lock ./
+RUN flutter pub get
+
+COPY apps/flutter_client/ ./
+# `--base-href` because the client is served under `/flutter/`, not at the root:
+# without it the bundle asks for `/main.dart.js` and gets the React app's HTML,
+# which fails as a syntax error rather than as a missing file.
+RUN flutter build web --release --base-href=/flutter/
+
+# ---------------------------------------------------------------------------
 # Stage 2: the server
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim AS runtime
@@ -61,6 +114,7 @@ COPY data/ data/
 COPY apps/server/src/ apps/server/src/
 
 COPY --from=web /build/apps/web/dist/ apps/web/dist/
+COPY --from=flutter /build/build/web/ apps/flutter_client/build/web/
 
 # Cloud Run sends traffic to $PORT and does not ask.
 ENV PORT=8080

@@ -46,6 +46,26 @@ const browser = await chromium.launch(
 );
 const page = await browser.newPage({ viewport: { width: 900, height: 1100 } });
 
+/**
+ * What a screen reader would actually read.
+ *
+ * Flutter splits its accessibility tree two ways: some nodes carry their text
+ * as DOM text, and some — anything the framework merges into one node, which
+ * is most plain text inside a card — carry it as an `aria-label` instead.
+ * Reading only `innerText` therefore misses whole headings while the surface
+ * is plainly on screen, which looks exactly like a rendering bug and is not
+ * one. Both halves together are the readable page.
+ */
+const readable = () =>
+  page.evaluate(() =>
+    [
+      document.body.innerText,
+      ...[...document.querySelectorAll('[aria-label]')].map((el) =>
+        el.getAttribute('aria-label'),
+      ),
+    ].join('\n'),
+  );
+
 /** Every request the client makes, so the boot sequence can be asserted. */
 const requested = [];
 page.on('request', (request) => requested.push(request.url().replace(ORIGIN, '')));
@@ -66,11 +86,15 @@ try {
   check(true, 'the engine started');
 
   // Semantics on, so there is something to assert against.
-  const placeholder = page.locator('flt-semantics-placeholder, [aria-label="Enable accessibility"]');
-  await placeholder.first().click({ timeout: 30_000, force: true }).catch(() => {});
-  await page.waitForTimeout(1200);
+  //
+  // Dispatched from the page rather than clicked through Playwright: the
+  // placeholder is a 1×1 element parked at (-1, -1), which is outside the
+  // viewport, and a real click is refused for exactly that reason. What the
+  // framework listens for is the click event itself.
+  await page.evaluate(() => document.querySelector('flt-semantics-placeholder')?.click());
+  await page.waitForTimeout(1500);
 
-  const bootText = await page.locator('body').innerText().catch(() => '');
+  const bootText = await readable().catch(() => '');
   check(
     bootText.includes('Describe a trip') || bootText.includes('Travel A2UI'),
     'the app rendered its opening screen',
@@ -96,17 +120,34 @@ try {
   // The skeleton goes out before the search returns, so a surface exists well
   // before the turn ends. Waiting for the heading is waiting for that.
   await page.waitForFunction(
-    () => document.body.innerText.includes('Flights to Madrid'),
+    () =>
+      [...document.querySelectorAll('[aria-label]')]
+        .map((el) => el.getAttribute('aria-label'))
+        .concat(document.body.innerText)
+        .join('\n')
+        .includes('Flights to Madrid'),
     { timeout: 60_000 },
   );
   check(true, 'a surface painted during the turn');
 
   await page.waitForTimeout(2500);
-  const after = await page.locator('body').innerText();
+  const after = await readable();
 
   check(after.includes('Looking at flights'), 'the prose arrived');
-  check(after.includes('Iberia') || /\$\d/.test(after), 'the flights filled in', after.slice(0, 400));
-  check(after.includes('Sample data'), 'and it says the data is generated');
+  check(/United|Lufthansa/.test(after), 'the flights filled in', after.slice(0, 400));
+
+  // Asserted against the labels rather than the whole page, because the app's
+  // own header also says "Sample data" — reading the page as one string lets
+  // the chrome answer for the surface, and the check passes with no surface
+  // at all.
+  const labels = await page.evaluate(() =>
+    [...document.querySelectorAll('[aria-label]')].map((el) => el.getAttribute('aria-label')),
+  );
+  check(
+    labels.some((label) => label?.includes('Sample data')),
+    'and the surface itself says the data is generated',
+    labels.join(' | '),
+  );
 
   // Four options, as the fixtures return.
   const fares = after.match(/\$\d{2,4}/g) ?? [];
@@ -114,8 +155,11 @@ try {
 
   console.log('\nPressing a flight');
   const before = requested.filter((url) => url.startsWith('/api/chat')).length;
-  const card = page.locator(`text=Iberia`).first();
-  await card.click({ timeout: 30_000, force: true }).catch(() => {});
+  // Pressed through the accessibility tree, which is the point: a flight card
+  // is only selectable if it reached that tree as a button. Clicking painted
+  // pixels by coordinate would pass whether or not it did.
+  const cards = page.locator('flt-semantics[role="button"]', { hasText: 'United' });
+  await cards.first().click({ timeout: 30_000 });
   await page.waitForTimeout(2000);
 
   const chats = requested.filter((url) => url.startsWith('/api/chat')).length;

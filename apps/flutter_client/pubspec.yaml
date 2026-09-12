@@ -29,3 +29,20 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Roboto, bundled rather than fetched.
+  #
+  # Flutter web's default theme asks for Roboto and the engine then downloads it
+  # from `fonts.gstatic.com`, blocking the first frame until it arrives. On a
+  # network that cannot reach Google the page loads, the engine starts, no error
+  # is reported, and nothing ever paints — which is exactly how this was found.
+  #
+  # Naming a font the engine cannot resolve is worse: the layout appears and
+  # every glyph is invisible. So it is bundled. Apache-2.0, the same licence as
+  # this project, and 340 KB against a 40 MB engine.
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 500

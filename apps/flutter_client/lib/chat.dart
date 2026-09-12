@@ -183,20 +183,27 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _draw(TurnEvent event) {
-    try {
-      _processor.processMessages([
-        for (final message in event.messages) A2uiMessage.fromJson(_readable(message)),
-      ]);
-      _seed(event.messages);
-    } on A2uiStateError {
-      // A surface that already exists, or components for one that does not.
-      // Both happen while streaming and neither should end a turn: the surface
-      // on screen is still the right one.
-      return;
-    } on A2uiValidationError catch (error) {
-      setState(() => _parts.add(Failed('That surface could not be read: ${error.message}')));
-      return;
+    // One message at a time, and a failure skips only that message.
+    //
+    // Processing the batch as a unit looks tidier and is wrong: the agent draws
+    // a skeleton into `inline-1`, and its own surface then arrives for the same
+    // id. That second `createSurface` raises — the surface exists — and taking
+    // the whole batch down with it drops the `updateComponents` behind it. The
+    // result is a turn that renders the *skeleton* forever: the rows fill in,
+    // the heading still says "Finding flights", and nothing reports a thing.
+    for (final message in event.messages) {
+      try {
+        _processor.processMessages([A2uiMessage.fromJson(_readable(message))]);
+      } on A2uiStateError {
+        // A surface that already exists, or components for one that does not.
+        // Both are ordinary while streaming.
+        continue;
+      } on A2uiValidationError catch (error) {
+        setState(() => _parts.add(Failed('That surface could not be read: ${error.message}')));
+        continue;
+      }
     }
+    _seed(event.messages);
 
     final existing = _parts.whereType<Drawn>().any((part) => part.surfaceId == event.surfaceId);
     if (!existing && _processor.groupModel.getSurface(event.surfaceId) != null) {

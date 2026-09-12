@@ -96,6 +96,29 @@ class ComponentBuild {
 
 typedef ComponentBuilder = Widget Function(BuildContext, ComponentBuild);
 
+/// A card the traveller can press.
+///
+/// `InkWell` alone registers a tap handler but does not claim to *be* a button,
+/// and Flutter draws to a canvas — so on the web the card lands in the
+/// accessibility tree as an anonymous group with no role and no way to
+/// activate it. A screen-reader user can then hear four flights and choose
+/// none of them, which is a broken surface however good it looks.
+///
+/// `button: true` is what makes it a real control, and the flag belongs here
+/// rather than on each card so that the next tappable component gets it by
+/// construction.
+Widget _tappable({required VoidCallback? onTap, required Widget child}) {
+  return Semantics(
+    button: onTap != null,
+    enabled: onTap != null,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: child,
+    ),
+  );
+}
+
 /// A field that is still loading, drawn as a shimmering bar.
 class _Pending extends StatelessWidget {
   const _Pending({this.width = 64});
@@ -231,9 +254,8 @@ Widget _flightOption(BuildContext context, ComponentBuild build) {
   final text = Theme.of(context).textTheme;
   final badge = build.string('badge');
 
-  return InkWell(
+  return _tappable(
     onTap: build.hasAction ? build.fire : null,
-    borderRadius: BorderRadius.circular(12),
     child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -267,7 +289,11 @@ Widget _flightOption(BuildContext context, ComponentBuild build) {
             children: [
               _bound(build, 'departTime', text.bodyLarge, width: 48),
               const SizedBox(width: 6),
-              Text('→', style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+              // A Material icon rather than U+2192: the bundled Roboto subset
+              // does not carry that arrow, and a missing glyph renders as a
+              // tofu box — which reads as a broken card rather than a missing
+              // character.
+              Icon(Icons.arrow_right_alt, size: 16, color: scheme.onSurfaceVariant),
               const SizedBox(width: 6),
               _bound(build, 'arriveTime', text.bodyLarge, width: 48),
               const SizedBox(width: 12),
@@ -304,9 +330,8 @@ Widget _hotelCard(BuildContext context, ComponentBuild build) {
   final text = Theme.of(context).textTheme;
   final amenities = build.props['amenities'];
 
-  return InkWell(
+  return _tappable(
     onTap: build.hasAction ? build.fire : null,
-    borderRadius: BorderRadius.circular(12),
     child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -749,7 +774,7 @@ Widget _dateRangePicker(BuildContext context, ComponentBuild build) {
     build.write('end', range.end.toIso8601String());
   }
 
-  return InkWell(
+  return _tappable(
     onTap: pick,
     child: InputDecorator(
       decoration: InputDecoration(
@@ -760,9 +785,12 @@ Widget _dateRangePicker(BuildContext context, ComponentBuild build) {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              (start == null || start.isEmpty) ? 'Choose dates' : '${_day(start)} → ${_day(end)}',
-            ),
+            child: (start == null || start.isEmpty)
+                ? const Text('Choose dates')
+                // An en dash, not U+2192: the bundled Roboto subset has no
+                // arrow, and a missing glyph draws a tofu box. See the note on
+                // the icon in `_flightOption`.
+                : Text('${_day(start)} – ${_day(end)}'),
           ),
           // The nights label is a `formatString` over `calcNights`, so it
           // recomputes as the picker moves rather than being written out this
@@ -783,7 +811,7 @@ String _day(String? iso) {
 
 Widget _dateTimeInput(BuildContext context, ComponentBuild build) {
   final value = build.string('value');
-  return InkWell(
+  return _tappable(
     onTap: () async {
       final now = DateTime.now();
       final picked = await showDatePicker(
