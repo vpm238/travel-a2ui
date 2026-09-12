@@ -334,8 +334,9 @@ browser. `?key=` also works, because people paste it, but the server saw it and
 the app says so once — treat such a key as logged. (Get one at
 [aistudio.google.com/apikey](https://aistudio.google.com/apikey).)
 
-The **MCP** tab works with no key at all — those tools compose surfaces from the
-catalog without a model in the path, so it is the fastest way to see A2UI render.
+The **Catalog** tab works with no key at all — every component the agent can
+draw, rendered by the real renderer, so it is the fastest way to see A2UI render
+with nothing else in the path.
 
 ### Deploy it
 

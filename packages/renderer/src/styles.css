@@ -968,15 +968,45 @@
   padding-top: 3px;
 }
 
+/*
+ * The icon is the marker on a spine, so it is round and it sits on a line.
+ *
+ * A day read as a table before this — a time column, an icon column, a title
+ * column, three separate things to scan. A schedule is one thing happening
+ * after another, and a vertical line through the markers says so without a
+ * word. The line is drawn on the row rather than the icon so it runs between
+ * markers and stops at the ends.
+ */
 .tv-activity__icon {
+  position: relative;
   display: grid;
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 9px;
+  border-radius: 999px;
   background: var(--tv-surface-2);
   color: var(--tv-ink-muted);
   font-size: 0.9rem;
+  box-shadow: 0 0 0 3px var(--tv-surface);
+}
+
+/* The spine: one line down the day, behind the markers. */
+.tv-activity::before {
+  content: "";
+  position: absolute;
+  left: calc(18px + 54px + var(--tv-gap) + 13px);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--tv-line);
+}
+
+.tv-activity:first-child::before {
+  top: 13px;
+}
+
+.tv-activity:last-child::before {
+  bottom: calc(100% - 41px);
 }
 
 .tv-activity__icon--food {
@@ -1222,18 +1252,30 @@
 
 /* ---------------------------------------------------- travel: dashboard */
 
+/*
+ * A stat is a number, not a card with a number in it.
+ *
+ * This was a rounded card with a coloured rail down its left edge and a shadow
+ * — a combination that appears on roughly every dashboard generated in the last
+ * two years, and which spends three separate "this is a distinct object" signals
+ * on a figure that is already distinct because it is the largest thing in its
+ * box. The rail also lied: it was `--tv-ink-faint` unless a tone was set, so
+ * most tiles carried an emphasis stripe that emphasised nothing.
+ *
+ * What is left is the number, its label above it and its caption below, on a
+ * plain surface with one hairline. Tone now colours the *figure*, which is the
+ * thing the tone is about.
+ */
 .tv-stat {
   flex: 1 1 130px;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   background: var(--tv-surface);
   border: 1px solid var(--tv-line);
-  border-left: 3px solid var(--tv-ink-faint);
   border-radius: var(--tv-radius-sm);
-  padding: 13px 15px;
-  box-shadow: var(--tv-shadow-sm);
+  padding: 12px 14px 13px;
 }
 
 .tv-stat.is-interactive {
@@ -1241,40 +1283,46 @@
 }
 
 .tv-stat.is-interactive:hover {
-  box-shadow: var(--tv-shadow);
+  border-color: var(--tv-accent-line);
 }
 
-.tv-stat--accent {
-  border-left-color: var(--tv-accent);
+/* Tone colours the figure. Semantic colour is a claim about the value — over
+ * budget, on track — so it belongs on the value rather than beside it. */
+.tv-stat--accent .tv-stat__value {
+  color: var(--tv-accent);
 }
-.tv-stat--positive {
-  border-left-color: var(--tv-positive);
+.tv-stat--positive .tv-stat__value {
+  color: var(--tv-positive);
 }
-.tv-stat--caution {
-  border-left-color: var(--tv-caution);
+.tv-stat--caution .tv-stat__value {
+  color: var(--tv-caution);
 }
-.tv-stat--critical {
-  border-left-color: var(--tv-critical);
+.tv-stat--critical .tv-stat__value {
+  color: var(--tv-critical);
 }
 
 .tv-stat__label {
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--tv-ink-muted);
+  letter-spacing: 0.09em;
+  color: var(--tv-ink-faint);
   font-weight: 600;
 }
 
 .tv-stat__value {
   font-family: var(--tv-font-display);
-  font-size: 1.6rem;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  font-size: 1.9rem;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  /* Digits line up between one tile and the next, which is the whole reason
+   * these sit in a row. */
+  font-variant-numeric: tabular-nums;
 }
 
 .tv-stat__caption {
   font-size: 0.76rem;
-  color: var(--tv-ink-faint);
+  color: var(--tv-ink-muted);
+  margin-top: 2px;
 }
 
 .tv-meter {

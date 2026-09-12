@@ -169,14 +169,17 @@ Then rule something out:
 The flight step should go struck-through and *not needed*, and the agent should
 move to the next step rather than asking about flights again.
 
-## Flow 6 · No key, no model — the catalog and the MCP console
+## Flow 6 · No key, no model — the catalog
 
 **The job.** Seeing A2UI render with nothing in the path. Good for a reviewer
 who has no key, and the fastest way to prove the renderer is real.
 
-**Click the MCP tab**, pick a tool, press run. A surface appears, composed
-server-side from the catalog, with the JSON-RPC request and response beside it.
-Nothing here calls a model.
+There used to be an MCP console here — a tool picker with the JSON-RPC request
+and response beside it. It went when the plugin stopped offering finished
+layouts: the tools it demonstrated were six `show_*` calls that each returned a
+card, and the whole point of the change was that a capable host composes its own
+surfaces instead of picking from a menu. A console for calling data tools by
+hand is a debugging aid, not a demo, and `curl` already does it.
 
 **Click the Catalog tab.** Every component the agent can draw, with the exact
 positional signature the model is given. Anything with a schema but no React

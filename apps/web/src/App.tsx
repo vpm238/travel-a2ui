@@ -15,19 +15,17 @@ import { Catalog } from './components/Catalog.js';
 import { Chat } from './components/Chat.js';
 import { Home } from './components/Home.js';
 import { KeyGate } from './components/KeyGate.js';
-import { McpConsole } from './components/McpConsole.js';
 import { Protocol } from './components/Protocol.js';
 import { RuntimePicker } from './components/RuntimePicker.js';
 import { Sidebar } from './components/Sidebar.js';
 import { Select } from './components/bits.js';
 import { useAgent } from './useAgent.js';
 
-type View = 'chat' | 'home' | 'mcp' | 'catalog' | 'protocol';
+type View = 'chat' | 'home' | 'catalog' | 'protocol';
 
 const VIEWS: Array<{ id: View; label: string; hint: string }> = [
   { id: 'chat', label: 'Chat', hint: 'Inline cards and the context sidebar' },
   { id: 'home', label: 'Home', hint: 'A dashboard generated for today' },
-  { id: 'mcp', label: 'MCP', hint: 'Tools that return interfaces' },
   { id: 'catalog', label: 'Catalog', hint: 'Everything the agent can draw' },
   { id: 'protocol', label: 'Wire', hint: 'What the agent actually emitted' },
 ];
@@ -193,7 +191,6 @@ export default function App() {
           </>
         ) : null}
         {view === 'home' ? <Home agent={agent} /> : null}
-        {view === 'mcp' ? <McpConsole agent={agent} /> : null}
         {view === 'catalog' ? <Catalog /> : null}
         {view === 'protocol' ? <Protocol agent={agent} /> : null}
       </main>

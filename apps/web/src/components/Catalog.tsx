@@ -210,7 +210,7 @@ export function Catalog() {
         </div>
       </header>
 
-      {error ? <p className="mcp__error">{error}</p> : null}
+      {error ? <p className="catalog__error">{error}</p> : null}
       {!catalog && !error ? <Spinner label="Loading the catalog" /> : null}
 
       {catalog ? (
