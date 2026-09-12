@@ -146,12 +146,31 @@ class TestBatches:
 
 
 class TestTools:
-    def test_every_tool_is_listed_with_a_view_and_an_example(self) -> None:
-        tools = call("tools/list")["result"]["tools"]
-        assert len(tools) == len(TOOLS)
-        for tool in tools:
-            assert tool["_meta"]["ui"]["resourceUri"] == APP_URI
-            assert "example" in tool["_meta"]
+    def test_every_surface_tool_is_listed_with_a_view_and_an_example(self) -> None:
+        """The view belongs to the tools that draw, and only to those.
+
+        The data tools are listed too now — `search_flights` returns flights,
+        and the host model composes the surface itself — and they carry no
+        `ui` resource because they produce no surface. Asserting a view on
+        every listed tool would be asserting that this server only draws.
+        """
+        listed = call("tools/list")["result"]["tools"]
+        by_name = {tool["name"]: tool for tool in listed}
+
+        for tool in TOOLS:
+            entry = by_name[tool["name"]]
+            assert entry["_meta"]["ui"]["resourceUri"] == APP_URI
+            assert "example" in entry["_meta"]
+
+    def test_the_data_tools_are_listed_and_draw_nothing(self) -> None:
+        from travel_a2ui.tools import mcp_data_tools
+
+        listed = {tool["name"]: tool for tool in call("tools/list")["result"]["tools"]}
+        for tool in mcp_data_tools():
+            entry = listed[tool["name"]]
+            assert "ui" not in (entry.get("_meta") or {}), (
+                f"{tool['name']} returns data, not a surface"
+            )
 
     @pytest.mark.parametrize("name", [tool["name"] for tool in TOOLS])
     def test_every_shipped_example_actually_works(self, name: str) -> None:

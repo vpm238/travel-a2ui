@@ -51,6 +51,22 @@ class TestOneVocabulary:
         spoken = {tool["name"] for tool in voice_tools() if tool["name"].startswith("show_")}
         assert plugin == spoken, f"only one door has {plugin ^ spoken}"
 
+    def test_every_door_can_reach_the_data(self) -> None:
+        """The thesis, asserted on the door where it used to be false.
+
+        `tools.py` opens by saying tools return data and the skill turns data
+        into UI, "because a tool returning pre-rendered cards moves that
+        decision into this file, where it would be frozen and wrong half the
+        time". MCP exposed six pre-rendered cards and no way to reach a flight,
+        so Claude was the one caller for whom that paragraph was untrue — it
+        could pick from six layouts or write Express blind.
+        """
+        from travel_a2ui.tools import gemini_tools, mcp_data_tools
+
+        typed = {tool["name"] for tool in gemini_tools()}
+        plugin = {tool["name"] for tool in mcp_data_tools()}
+        assert typed == plugin, f"Claude cannot {sorted(typed - plugin)}"
+
     def test_the_typed_path_and_a_call_share_the_data_tools(self) -> None:
         from travel_a2ui.tools import gemini_tools
         from travel_a2ui.voice import voice_tools
@@ -179,3 +195,55 @@ class TestBehaviourLivesInMarkdown:
         from travel_a2ui.voice import VOICE_BRIEF
 
         assert VOICE_BRIEF == (ROOT / "prompts" / "voice.md").read_text("utf-8").strip()
+
+
+class TestOneImplementationNotThree:
+    """The steps every door performs are performed by the same code.
+
+    Agreement tested by assertion is agreement maintained by luck: the suite
+    above catches drift *after* someone writes it. These are the places where
+    drift is no longer possible because there is only one implementation left.
+
+    Not a rewrite. `agent.py`, `voice.py` and `mcp.py` are still three loops —
+    an SSE generator, a websocket pump and a JSON-RPC handler, which is what
+    their transports actually are. What they no longer each own is the work
+    that has nothing to do with transport.
+    """
+
+    def test_the_panels_are_refreshed_by_one_function(self) -> None:
+        import inspect
+
+        from travel_a2ui import agent, voice
+
+        for module in (agent, voice):
+            source = inspect.getsource(module)
+            assert "panel_events(" in source, f"{module.__name__} does not use it"
+            # The loop it replaced. Two copies is how the typed path grew a
+            # per-turn surface id and a departure hint that voice did not.
+            assert "for surface_id in STANDING_SURFACES:\n            updates" not in source
+
+    def test_a_surface_is_compiled_by_one_function(self) -> None:
+        import inspect
+
+        from travel_a2ui import mcp, voice
+
+        for module in (mcp, voice):
+            source = inspect.getsource(module)
+            assert "compile_surface(" in source, f"{module.__name__} compiles its own"
+            assert ".compile(surface.express" not in source
+
+    def test_the_two_halves_of_drawing_stay_together(self) -> None:
+        """`build_surface` validates; `compile_surface` emits. Both or neither.
+
+        The validation that rejects an invented component went into
+        `build_surface` and reached MCP and voice both — but only because they
+        happened to share that call. Had either compiled from its own source,
+        it would have kept the bug.
+        """
+        import inspect
+
+        from travel_a2ui import surfaces
+
+        source = inspect.getsource(surfaces)
+        assert "def compile_surface(" in source
+        assert "def build_surface(" in source

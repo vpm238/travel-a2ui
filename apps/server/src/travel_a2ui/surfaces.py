@@ -160,6 +160,25 @@ def _money(value: int) -> str:
     return f"${value:,}"
 
 
+def compile_surface(surface: Surface) -> list[dict[str, Any]]:
+    """A built surface, turned into the A2UI messages that go on the wire.
+
+    The other half of `build_surface`, and it was written out twice — once in
+    the MCP handler and once in the voice relay, identically. Two call sites
+    for one step is how the doors end up differing: the validation that catches
+    an invented component went into `build_surface` and reached both, but only
+    because they happened to share *that* function. This makes the pairing
+    explicit rather than coincidental.
+
+    `is_final=True` because a built surface is complete by construction. The
+    streaming path is the one that compiles partial sources, and it has its own
+    machinery for exactly that reason.
+    """
+    from .agent import _parser
+
+    return _parser(surface.surface_id).compile(surface.express, is_final=True)
+
+
 async def build_surface(
     name: str,
     args: dict[str, Any],

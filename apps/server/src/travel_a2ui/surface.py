@@ -504,6 +504,35 @@ def bind_derived_labels(messages: list[A2uiMessage]) -> list[A2uiMessage]:
 # --------------------------------------------------------------------------
 
 
+def panel_events(trip: dict[str, Any]) -> list[A2uiMessage]:
+    """The standing panels, brought up to date, as events for any transport.
+
+    Every door does this at the end of a turn and each used to do it itself: the
+    same loop over `STANDING_SURFACES`, the same `trip_updates`, the same event
+    shape, written twice. That is not a lot of code, and duplication of exactly
+    this size is how the doors drift — the typed path grew a per-turn surface id
+    and a departure-airport hint that the voice path did not, for no reason
+    except that nobody was looking at both.
+
+    Returned rather than yielded because one caller is a synchronous generator
+    and the other is inside a websocket pump; a list is the shape both can use
+    without either pretending to be the other.
+    """
+    events: list[A2uiMessage] = []
+    for surface_id in STANDING_SURFACES:
+        updates = trip_updates(surface_id, trip)
+        if updates:
+            events.append(
+                {
+                    "type": "ui",
+                    "surfaceId": surface_id,
+                    "messages": updates,
+                    "done": True,
+                }
+            )
+    return events
+
+
 def strip_panel_actions(
     messages: list[A2uiMessage], standing_surfaces: Iterable[str] = STANDING_SURFACES
 ) -> list[A2uiMessage]:

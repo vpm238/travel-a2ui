@@ -158,7 +158,6 @@ async def run_voice_tool(
     name: str,
     args: dict[str, Any],
     context: Any,
-    parser_for: Any,
 ) -> dict[str, Any]:
     """Runs one function call and says what to do with the result.
 
@@ -167,7 +166,7 @@ async def run_voice_tool(
     surface back to the model would put a flight list in its context and invite
     it to read the list out, which is the one thing this mode is for not doing.
     """
-    from .surfaces import build_surface
+    from .surfaces import build_surface, compile_surface
     from .tools import run_tool
 
     if name.startswith("show_") or name == "render_a2ui_express":
@@ -177,8 +176,7 @@ async def run_voice_tool(
             surface = await build_surface(
                 name, {**context.trip, **args}, context.provider, context.day()
             )
-            parser = parser_for(surface.surface_id)
-            messages = parser.compile(surface.express, is_final=True)
+            messages = compile_surface(surface)
             return {
                 "response": {"shown": True, "summary": surface.summary},
                 "ui": {"surfaceId": surface.surface_id, "messages": messages},
@@ -236,7 +234,7 @@ async def relay(
     from . import trip as model
     from .agent import CATALOG_ID, _parser, _today
     from .skills import build_system_prompt
-    from .surface import STANDING_SURFACES, finish, trip_updates
+    from .surface import STANDING_SURFACES, finish, panel_events, trip_updates
     from .tools import ToolContext
 
     today = _today()
@@ -367,9 +365,7 @@ async def relay(
                             if function.name.startswith("show_") and not args.get("surfaceId"):
                                 drawings += 1
                                 args["surfaceId"] = f"voice-{drawings}"
-                            outcome = await run_voice_tool(
-                                function.name, args, context, _parser
-                            )
+                            outcome = await run_voice_tool(function.name, args, context)
                             drawn = outcome.get("ui")
                             if drawn:
                                 await announce(
@@ -397,17 +393,10 @@ async def relay(
                         # reads as the app not having heard — the exact
                         # impression the transcripts exist to prevent.
                         await announce({"type": "trip", "trip": dict(trip)})
-                        for surface_id in STANDING_SURFACES:
-                            updates = trip_updates(surface_id, trip)
-                            if updates:
-                                await announce(
-                                    {
-                                        "type": "ui",
-                                        "surfaceId": surface_id,
-                                        "messages": updates,
-                                        "done": True,
-                                    }
-                                )
+                        # The same refresh the typed turn does, from the same
+                        # function — see `panel_events`.
+                        for event in panel_events(trip):
+                            await announce(event)
 
                         # And a real redraw when the decisions changed shape
                         # enough to need different controls — the same rule the

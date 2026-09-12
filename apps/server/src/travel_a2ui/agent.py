@@ -43,7 +43,7 @@ from .providers.fixture import FixtureProvider  # noqa: E402
 from .providers.types import TravelProvider  # noqa: E402
 from .skeleton import pending_surface_for  # noqa: E402
 from .skills import build_system_prompt  # noqa: E402
-from .surface import STANDING_SURFACES, finish, trip_updates  # noqa: E402
+from .surface import STANDING_SURFACES, finish, panel_events, trip_updates  # noqa: E402
 from .tools import ToolContext, gemini_tools, grounding_tools, run_tool  # noqa: E402
 
 _ROOT = pathlib.Path(__file__).resolve().parents[4]
@@ -542,10 +542,10 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
 
     # The panels outlive the turn that drew them, so the trip reaches them as
     # ordinary A2UI rather than as something the client works out for itself.
-    for surface_id in STANDING_SURFACES:
-        updates = trip_updates(surface_id, trip)
-        if updates:
-            yield {"type": "ui", "surfaceId": surface_id, "messages": updates, "done": True}
+    # Shared with the voice relay, which does the same thing at the end of its
+    # own turns — see `panel_events`.
+    for event in panel_events(trip):
+        yield event
 
     shape = request.shape
     if request.surface == "inline":

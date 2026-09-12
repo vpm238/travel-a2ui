@@ -406,7 +406,17 @@ export const mcp = {
   callTool: (name: string, args: Record<string, unknown>) =>
     mcpCall<{
       content: Array<{ type: string; text?: string; resource?: { uri: string; mimeType: string; text: string } }>;
-      structuredContent?: { surfaceId: string; catalogId: string; messages: A2uiMessage[] };
+      /**
+       * What the tool returned, and its shape says which kind of tool it was.
+       *
+       * A `show_*` tool composed a surface, so this carries `messages`. A data
+       * tool returned flights or rates or a forecast, and the host model is
+       * expected to compose the surface itself — so the fields are the data's
+       * own and there is nothing here to render directly.
+       */
+      structuredContent?:
+        | { surfaceId: string; catalogId: string; messages: A2uiMessage[] }
+        | Record<string, unknown>;
       isError?: boolean;
     }>('tools/call', { name, arguments: args }),
 };

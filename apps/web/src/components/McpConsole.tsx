@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { A2uiSurface } from '@travel-a2ui/renderer';
+import type { A2uiMessage } from '@travel-a2ui/express';
 
 import { mcp, type McpTool } from '../api.js';
 import type { Agent } from '../useAgent.js';
@@ -95,12 +96,35 @@ export function McpConsole({ agent }: { agent: Agent }) {
       }
 
       const payload = result.structuredContent;
-      if (payload) {
-        store.remove(payload.surfaceId);
-        store.apply(payload.messages);
-        setSurfaceId(payload.surfaceId);
-        setRaw(JSON.stringify(payload.messages, null, 2));
+      if (!payload) return;
+
+      // Two kinds of tool, and the difference is the architecture.
+      //
+      // A `show_*` tool returns A2UI: the server composed the surface and the
+      // host renders it. A data tool returns *data* — flights, rates, a
+      // forecast — and the host model composes the surface itself, which is
+      // this project's actual thesis and until recently something only the
+      // Gemini paths could do.
+      //
+      // Rendering has to branch, because a data result has no `messages` to
+      // apply. It used to be assumed: selecting a data tool called
+      // `store.apply(undefined)` and drew nothing, with nothing on screen to
+      // say why.
+      // Narrowed by shape rather than by a flag, because the shape is the
+      // only thing a generic MCP host actually has to go on.
+      const drawn = payload as { surfaceId?: unknown; messages?: unknown };
+      if (Array.isArray(drawn.messages) && typeof drawn.surfaceId === 'string') {
+        store.remove(drawn.surfaceId);
+        store.apply(drawn.messages as A2uiMessage[]);
+        setSurfaceId(drawn.surfaceId);
+        setRaw(JSON.stringify(drawn.messages, null, 2));
+        return;
       }
+
+      // Data, not a surface. Shown as what it is: the JSON a host model
+      // reads before deciding what to draw.
+      setSurfaceId(null);
+      setRaw(JSON.stringify(payload, null, 2));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -114,8 +138,12 @@ export function McpConsole({ agent }: { agent: Agent }) {
         <div>
           <h2>MCP app</h2>
           <p>
-            Tools that return interfaces instead of text. Any MCP host — Claude, Codex, your own —
-            can call these and render what comes back. This console is one such host.
+            Two kinds of tool, and the difference is the whole idea. The{' '}
+            <strong>show_</strong> tools return a finished interface — one call, a good layout,
+            nothing to compose. The <strong>data</strong> tools return flights and rates and
+            forecasts, and the host model composes the surface itself from the component
+            reference. Any MCP host — Claude, Codex, your own — can do either. This console is
+            one such host.
           </p>
         </div>
         <code className="mcp__endpoint">POST {window.location.origin}/mcp</code>

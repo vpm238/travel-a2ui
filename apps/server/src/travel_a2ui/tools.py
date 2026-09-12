@@ -94,6 +94,36 @@ def gemini_tools() -> list[dict[str, Any]]:
 GROUNDING = os.environ.get("GROUNDING", "on").strip().lower() not in {"off", "0", "false"}
 
 
+#: Tools a host model may call for data rather than for a surface.
+#:
+#: Named as a set rather than "everything not `show_`" because the two lists are
+#: read by different doors and a tool that quietly became callable over MCP
+#: because of how its name was spelled would be a change nobody decided to make.
+DATA_TOOL_NAMES = frozenset(tool["name"] for tool in TOOLS)
+
+
+def is_data_tool(name: str) -> bool:
+    return name in DATA_TOOL_NAMES
+
+
+def mcp_data_tools() -> list[dict[str, Any]]:
+    """The data tools in MCP's shape.
+
+    Same contracts as the Gemini declarations — `data/tools.json` is the one
+    source — re-keyed from `parameters` to `inputSchema`, which is the only
+    thing the two protocols disagree about.
+    """
+    return [
+        {
+            "name": tool["name"],
+            "title": tool["name"].replace("_", " ").capitalize(),
+            "description": tool["description"],
+            "inputSchema": tool["input_schema"],
+        }
+        for tool in TOOLS
+    ]
+
+
 def grounding_tools() -> list[dict[str, Any]]:
     """Google's own tools, for the parts of a trip that are facts about the world.
 

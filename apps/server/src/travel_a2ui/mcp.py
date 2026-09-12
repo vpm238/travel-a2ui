@@ -41,7 +41,8 @@ from typing import Any
 from .agent import CATALOG_ID, CATALOG_JSON, _parser
 from .providers.types import TravelProvider
 from .skills import skill_text
-from .surfaces import Surface, build_surface
+from .surfaces import Surface, build_surface, compile_surface
+from .tools import ToolContext, is_data_tool, mcp_data_tools, run_tool
 
 _ROOT = pathlib.Path(__file__).resolve().parents[4]
 _MCP = json.loads((_ROOT / "data" / "mcp-tools.json").read_text("utf-8"))
@@ -280,7 +281,11 @@ async def handle_rpc(request: dict[str, Any], context: RenderContext) -> dict[st
     if method == "tools/list":
         today = _dt.date.fromisoformat(context.today) if context.today else None
         examples = tool_examples(today)
-        return ok(request_id, {"tools": [_with_view(tool, examples) for tool in TOOLS]})
+        # Surfaces first, then data. A host reading the list top-down meets
+        # the one-call path before the compose-it-yourself one, which is the
+        # right default: most turns want a good layout, not a new one.
+        listed = [_with_view(tool, examples) for tool in TOOLS] + mcp_data_tools()
+        return ok(request_id, {"tools": listed})
 
     if method == "tools/call":
         return await call_tool(request_id, params, context)
@@ -376,6 +381,38 @@ async def call_tool(
             },
         )
 
+    # The data tools, exposed rather than hidden behind the six `show_*` layouts.
+    #
+    # This project's whole thesis is in `tools.py`: *tools return data, the
+    # skill turns data into UI*, because deciding how to present five flights is
+    # a judgement call and a tool returning pre-rendered cards freezes that
+    # judgement. The Gemini paths have always worked that way. MCP did not —
+    # Claude was handed six finished layouts and no way to reach a flight,
+    # which made it the one door where the thesis was false.
+    #
+    # Both are offered now, and they are not redundant. `show_flight_options`
+    # is the fast path: one call, a good layout, nothing to compose. The data
+    # tools plus `get_a2ui_component_reference` and `render_a2ui_express` are
+    # the generative path, for when the host model wants a layout nobody wrote
+    # in advance — three cities side by side, a comparison the fixtures never
+    # anticipated. A host that only ever calls `show_*` loses nothing.
+    if is_data_tool(name):
+        trip = dict(args.get("trip") or {})
+        tool_context = ToolContext(
+            trip=trip, provider=context.provider, today=context.today
+        )
+        output, failed = await run_tool(name, args, tool_context)
+        return ok(
+            request_id,
+            {
+                "content": [
+                    {"type": "text", "text": json.dumps(output, ensure_ascii=False)}
+                ],
+                "structuredContent": output if isinstance(output, dict) else {"result": output},
+                "isError": failed,
+            },
+        )
+
     try:
         surface: Surface = await build_surface(name, args, context.provider, context.today)
     except ValueError as error:
@@ -386,7 +423,7 @@ async def call_tool(
         return ok(request_id, tool_error(str(error)))
 
     try:
-        messages = _parser(surface.surface_id).compile(surface.express, is_final=True)
+        messages = compile_surface(surface)
     except Exception as error:  # noqa: BLE001
         # A compile failure is the host model's to fix — it wrote the Express —
         # so say what broke rather than returning something it cannot act on.
