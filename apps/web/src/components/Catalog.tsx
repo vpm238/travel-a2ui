@@ -26,7 +26,17 @@
  * one three rows down, and an interaction goes nowhere: this is a specimen, not
  * a conversation.
  */
-function Preview({ catalog, name }: { catalog: CatalogSchema; name: string }) {
+function Preview({
+  catalog,
+  name,
+  withSource = true,
+}: {
+  catalog: CatalogSchema;
+  name: string;
+  /** The Express that drew it. Off on a card face, where thirty copies of
+   *  a disclosure nobody opened is the only thing the eye can see. */
+  withSource?: boolean;
+}) {
   const { store, source, error } = useMemo(() => {
     const express = exampleExpress(catalog, name);
     if (!express) return { store: null, source: '', error: 'No example for this component.' };
@@ -58,7 +68,7 @@ function Preview({ catalog, name }: { catalog: CatalogSchema; name: string }) {
       ) : (
         <p className="preview__error">{error}</p>
       )}
-      {source ? (
+      {source && withSource ? (
         <details className="preview__source">
           <summary>The Express that drew it</summary>
           <pre>{source}</pre>
@@ -244,49 +254,80 @@ export function Catalog() {
           {visible.length === 0 ? (
             <Empty title="Nothing matches">Try a different filter.</Empty>
           ) : (
-            <ul className="catalog__list">
-              {visible.map((component) => (
-                <li key={component.name} className={component.travel ? 'is-travel' : undefined}>
-                  <h3>
+            <ul className="catalog__grid">
+              {visible.map((component) => {
+                const isOpen = open === component.name;
+                return (
+                  <li
+                    key={component.name}
+                    className={`catalog__card${component.travel ? ' is-travel' : ''}${
+                      isOpen ? ' is-open' : ''
+                    }`}
+                  >
+                    {/*
+                      The component itself, first and largest.
+
+                      This page used to lead with a name and a signature —
+                      `FlightOption(airline, departTime, …)` — with the rendered
+                      component hidden behind a click. That is a reference
+                      manual for something whose entire argument is that it
+                      *looks* like a flight. Anyone deciding whether the catalog
+                      is any good is deciding by eye, and the eye had nothing to
+                      go on until it clicked twenty times.
+                    */}
                     <button
                       type="button"
-                      className="catalog__toggle"
-                      aria-expanded={open === component.name}
-                      onClick={() => setOpen(open === component.name ? null : component.name)}
+                      className="catalog__cardFace"
+                      aria-expanded={isOpen}
+                      onClick={() => setOpen(isOpen ? null : component.name)}
                     >
-                      <span className="catalog__name">{component.name}</span>
-                      <span className="catalog__args">({component.args})</span>
+                      {catalog ? (
+                        <div className="catalog__render" aria-hidden>
+                          <Preview catalog={catalog} name={component.name} withSource={false} />
+                        </div>
+                      ) : null}
+                      <span className="catalog__label">
+                        <span className="catalog__name">{component.name}</span>
+                        {component.travel ? <span className="catalog__tag">travel</span> : null}
+                      </span>
                     </button>
-                    {component.travel ? <span className="catalog__tag">travel</span> : null}
-                  </h3>
 
-                  {open === component.name && catalog ? (
-                    <Preview catalog={catalog} name={component.name} />
-                  ) : null}
-                  {component.description ? <p>{component.description}</p> : null}
-                  <dl>
-                    {component.props.map((prop) => (
-                      <div key={prop.name}>
-                        <dt>
-                          {prop.name}
-                          {prop.required ? <em title="required">required</em> : null}
-                          {prop.static ? <em className="is-static" title="literal values only">static</em> : null}
-                        </dt>
-                        <dd>
-                          {prop.description ?? ''}
-                          {prop.enum ? (
-                            <span className="catalog__enum">
-                              {prop.enum.map((value) => (
-                                <code key={value}>{value}</code>
-                              ))}
-                            </span>
-                          ) : null}
-                        </dd>
+                    {/* The reference, for when the picture has done its job. */}
+                    {isOpen ? (
+                      <div className="catalog__detail">
+                        <p className="catalog__args">({component.args})</p>
+                        {catalog ? (
+                          <Preview catalog={catalog} name={component.name} />
+                        ) : null}
+                        {component.description ? <p>{component.description}</p> : null}
+                        <dl>
+                          {component.props.map((prop) => (
+                            <div key={prop.name}>
+                              <dt>
+                                {prop.name}
+                                {prop.required ? <em title="required">required</em> : null}
+                                {prop.static ? (
+                                  <em className="is-static" title="literal values only">static</em>
+                                ) : null}
+                              </dt>
+                              <dd>
+                                {prop.description ?? ''}
+                                {prop.enum ? (
+                                  <span className="catalog__enum">
+                                    {prop.enum.map((value) => (
+                                      <code key={value}>{value}</code>
+                                    ))}
+                                  </span>
+                                ) : null}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
                       </div>
-                    ))}
-                  </dl>
-                </li>
-              ))}
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           )}
 

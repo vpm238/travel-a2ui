@@ -1096,42 +1096,6 @@ a {
   font-size: 0.85rem;
 }
 
-.catalog__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 14px;
-  align-items: start;
-}
-
-.catalog__list > li {
-  background: var(--tv-surface);
-  border: 1px solid var(--tv-line);
-  border-left: 3px solid var(--tv-line-strong);
-  border-radius: var(--tv-radius);
-  padding: 14px 16px;
-  min-width: 0;
-}
-
-.catalog__list > li.is-travel {
-  border-left-color: var(--tv-accent);
-}
-
-.catalog__list h3 {
-  margin: 0 0 6px;
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  flex-wrap: wrap;
-  font-size: 0.92rem;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--tv-ink);
-}
-
 .catalog__name {
   font-family: var(--tv-font-mono);
   font-weight: 700;
@@ -1157,14 +1121,7 @@ a {
   padding: 2px 8px;
 }
 
-.catalog__list > li > p {
-  margin: 0 0 10px;
-  font-size: 0.84rem;
-  color: var(--tv-ink-muted);
-  text-wrap: pretty;
-}
-
-.catalog__list dl {
+.catalog__detail dl {
   margin: 0;
   display: flex;
   flex-direction: column;
@@ -1173,7 +1130,7 @@ a {
   padding-top: 10px;
 }
 
-.catalog__list dt {
+.catalog__detail dt {
   font-family: var(--tv-font-mono);
   font-size: 0.78rem;
   font-weight: 600;
@@ -1183,7 +1140,7 @@ a {
   flex-wrap: wrap;
 }
 
-.catalog__list dt em {
+.catalog__detail dt em {
   font-family: var(--tv-font);
   font-style: normal;
   font-size: 0.6rem;
@@ -1196,12 +1153,12 @@ a {
   padding: 1px 7px;
 }
 
-.catalog__list dt em.is-static {
+.catalog__detail dt em.is-static {
   color: var(--tv-ink-muted);
   background: var(--tv-surface-2);
 }
 
-.catalog__list dd {
+.catalog__detail dd {
   margin: 2px 0 0;
   font-size: 0.8rem;
   color: var(--tv-ink-muted);
@@ -1825,4 +1782,112 @@ a {
 
 .composer__locate:disabled {
   cursor: progress;
+}
+
+/* ------------------------------------------------------------- the catalog
+ *
+ * Components shown, not listed.
+ *
+ * This page led with names and signatures, with the rendered component behind
+ * a click — a reference manual for a catalog whose whole argument is that a
+ * flight *looks* like a flight. Anyone judging whether these components are any
+ * good judges by eye, and the eye had nothing until it had clicked twenty
+ * times. So the render is the card, and the reference is what opens.
+ */
+.catalog__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* An opened card takes the full row: the props table is a table, and squeezing
+ * it into a third of the width makes it unreadable to save space nobody needed. */
+.catalog__card.is-open {
+  grid-column: 1 / -1;
+}
+
+.catalog__cardFace {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--tv-line);
+  border-radius: 12px;
+  background: var(--tv-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.catalog__cardFace:hover {
+  border-color: var(--tv-ink-faint);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.05);
+}
+
+.catalog__card.is-travel .catalog__cardFace {
+  border-color: color-mix(in srgb, var(--tv-accent) 32%, var(--tv-line));
+}
+
+/* The component sits in a box of its own so a tall one does not stretch the
+ * grid row and a short one does not leave the card looking empty. */
+.catalog__render {
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.catalog__render > * {
+  width: 100%;
+}
+
+.catalog__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--tv-ink);
+}
+
+.catalog__detail {
+  padding: 4px 14px 14px;
+  font-size: 0.86rem;
+}
+
+.catalog__detail .catalog__args {
+  font-family: var(--tv-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+  color: var(--tv-ink-soft);
+  margin: 0 0 6px;
+}
+
+/* A component is shown at a readable size, not at whatever size it wants.
+ *
+ * `Video` and `AudioPlayer` render real media controls and are several times
+ * the height of a `Text`, which left the grid ragged and the short cards
+ * looking broken. Capped and clipped: this is a thumbnail of the component, and
+ * the detail view is where it gets room. */
+.catalog__render {
+  max-height: 132px;
+}
+
+.catalog__render video,
+.catalog__render img {
+  max-height: 108px;
+  width: auto;
+}
+
+/* The opened card shows the component again, at full size, with its source. */
+.catalog__detail .preview__stage {
+  padding: 12px;
+  border: 1px solid var(--tv-line);
+  border-radius: 10px;
+  background: var(--tv-bg);
+  margin-bottom: 10px;
 }

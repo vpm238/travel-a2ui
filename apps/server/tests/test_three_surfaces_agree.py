@@ -247,3 +247,69 @@ class TestOneImplementationNotThree:
         source = inspect.getsource(surfaces)
         assert "def compile_surface(" in source
         assert "def build_surface(" in source
+
+
+class TestNothingIsPromisedThatCannotBeDrawn:
+    """The model may only be told about components every renderer has.
+
+    Pruning cuts the catalog from 30 to 24 before the model sees it, which is a
+    large, cheap saving — and it is a *list*, maintained by hand, with no
+    relationship to what the clients can actually draw. Those two drifted apart
+    in both directions at once: pruning removed `Divider`, which Flutter draws
+    perfectly well, and kept `Icon`, which Flutter did not implement at all.
+
+    So the agent was being told to use `Icon`, did, and the Flutter client drew
+    a placeholder box — a component that exists in the catalog, is recommended
+    in a brief, compiles without complaint, and silently is not there. Nothing
+    in the pipeline objected, because nothing in the pipeline knew.
+    """
+
+    @staticmethod
+    def _told() -> set[str]:
+        import json
+
+        catalog = json.loads(
+            (ROOT / "catalogs" / "a2ui-travel" / "catalog.json").read_text("utf-8")
+        )
+        skill = (ROOT / "skills" / "express-monolithic" / "a2ui" / "SKILL.md").read_text("utf-8")
+        return {name for name in catalog["components"] if name in skill}
+
+    def test_the_flutter_client_draws_everything_it_is_told_about(self) -> None:
+        import re
+
+        source = (ROOT / "apps" / "flutter_client" / "lib" / "components.dart").read_text("utf-8")
+        drawn = set(re.findall(r"^\s*'([A-Za-z]+)':\s*_", source, re.M))
+        missing = sorted(self._told() - drawn)
+        assert not missing, f"the agent is told to use {missing}, which Flutter draws as a box"
+
+    def test_the_react_client_draws_everything_it_is_told_about(self) -> None:
+        import re
+
+        source = (ROOT / "packages" / "renderer" / "src" / "Surface.tsx").read_text("utf-8")
+        drawn = set(re.findall(r"^\s*([A-Z][A-Za-z]+):\s*(?:basic|travel)\.", source, re.M))
+        missing = sorted(self._told() - drawn)
+        assert not missing, f"the agent is told to use {missing}, which React does not draw"
+
+    def test_a_host_composing_for_itself_is_told_the_same_thing(self) -> None:
+        """Claude reads the catalog through `get_a2ui_component_reference`.
+
+        It is given all 30 rather than the pruned 24, and that is deliberate
+        rather than an oversight: the MCP app renders in React, which draws all
+        of them, and Claude's context is its own to spend. What would be a bug
+        is a component *no* renderer has, so that is what this asserts.
+        """
+        import json
+        import re
+
+        catalog = json.loads(
+            (ROOT / "catalogs" / "a2ui-travel" / "catalog.json").read_text("utf-8")
+        )
+        react = set(
+            re.findall(
+                r"^\s*([A-Z][A-Za-z]+):\s*(?:basic|travel)\.",
+                (ROOT / "packages" / "renderer" / "src" / "Surface.tsx").read_text("utf-8"),
+                re.M,
+            )
+        )
+        undrawable = sorted(set(catalog["components"]) - react)
+        assert not undrawable, f"the catalog offers {undrawable} and nothing renders them"

@@ -249,6 +249,87 @@ Widget _button(BuildContext context, ComponentBuild build) {
 // Travel
 // ---------------------------------------------------------------------------
 
+/// The catalog's icon names, mapped to Material's.
+///
+/// The catalog names 59 icons in its own lower-camel spelling, which is the
+/// protocol's vocabulary and deliberately not any one toolkit's. Flutter did
+/// not draw `Icon` at all, so every one of them came out as a placeholder box —
+/// while the model was being told it could use them, because pruning removes
+/// `Divider` (which Flutter *can* draw) and keeps `Icon` (which it could not).
+///
+/// An unknown name falls through to a neutral dot rather than to nothing: a
+/// missing icon should leave the row the right shape.
+const Map<String, IconData> _iconNames = {
+  'accountCircle': Icons.account_circle,
+  'add': Icons.add,
+  'arrowBack': Icons.arrow_back,
+  'arrowForward': Icons.arrow_forward,
+  'attachFile': Icons.attach_file,
+  'calendarToday': Icons.calendar_today,
+  'call': Icons.call,
+  'camera': Icons.camera_alt,
+  'check': Icons.check,
+  'close': Icons.close,
+  'delete': Icons.delete,
+  'download': Icons.download,
+  'edit': Icons.edit,
+  'event': Icons.event,
+  'error': Icons.error,
+  'fastForward': Icons.fast_forward,
+  'favorite': Icons.favorite,
+  'favoriteOff': Icons.favorite_border,
+  'folder': Icons.folder,
+  'help': Icons.help,
+  'home': Icons.home,
+  'info': Icons.info,
+  'locationOn': Icons.location_on,
+  'lock': Icons.lock,
+  'lockOpen': Icons.lock_open,
+  'mail': Icons.mail,
+  'menu': Icons.menu,
+  'moreVert': Icons.more_vert,
+  'moreHoriz': Icons.more_horiz,
+  'notificationsOff': Icons.notifications_off,
+  'notifications': Icons.notifications,
+  'pause': Icons.pause,
+  'payment': Icons.payment,
+  'person': Icons.person,
+  'phone': Icons.phone,
+  'photo': Icons.photo,
+  'play': Icons.play_arrow,
+  'print': Icons.print,
+  'refresh': Icons.refresh,
+  'rewind': Icons.fast_rewind,
+  'search': Icons.search,
+  'send': Icons.send,
+  'settings': Icons.settings,
+  'share': Icons.share,
+  'shoppingCart': Icons.shopping_cart,
+  'skipNext': Icons.skip_next,
+  'skipPrevious': Icons.skip_previous,
+  'star': Icons.star,
+  'starHalf': Icons.star_half,
+  'starOff': Icons.star_border,
+  'stop': Icons.stop,
+  'upload': Icons.upload,
+  'visibility': Icons.visibility,
+  'visibilityOff': Icons.visibility_off,
+  'volumeDown': Icons.volume_down,
+  'volumeMute': Icons.volume_mute,
+  'volumeOff': Icons.volume_off,
+  'volumeUp': Icons.volume_up,
+  'warning': Icons.warning,
+};
+
+Widget _icon(BuildContext context, ComponentBuild build) {
+  final name = build.string('name') ?? '';
+  return Icon(
+    _iconNames[name] ?? Icons.circle,
+    size: 18,
+    color: Theme.of(context).colorScheme.onSurfaceVariant,
+  );
+}
+
 Widget _flightOption(BuildContext context, ComponentBuild build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
@@ -898,6 +979,7 @@ final Map<String, ComponentBuilder> _builders = {
   'List': _list,
   'Card': _card,
   'Divider': _divider,
+  'Icon': _icon,
   'Button': _button,
   'TextField': _textField,
   'CheckBox': _checkBox,
