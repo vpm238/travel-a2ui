@@ -309,9 +309,38 @@ async def relay(
 
             async def pump_live() -> None:
                 nonlocal drawings
-                """Audio, transcripts, tool calls and surfaces, downstream."""
+                """Audio, transcripts, tool calls and surfaces, downstream.
+
+                `receive()` is **one turn**, not the session. The SDK's own loop
+                is `while result := await self._receive(): ... if complete:
+                break` — so an `async for` over it ends the moment the model
+                stops talking, and this function returned. `_race` then saw a
+                pump finish and tore the call down.
+
+                Every Live conversation in this app was therefore exactly one
+                turn long: the first answer arrived, the traveller replied, and
+                nothing ever came back. It looked like the model ignoring them,
+                which is why it read as "voice does not work" rather than as a
+                loop that had quietly ended.
+
+                So the turns are the outer loop and `receive()` is the inner
+                one, which is how the SDK's own examples read once you notice
+                they call it per turn.
+                """
                 nonlocal shape
+                # A turn that yielded nothing is a closed session, not a quiet
+                # one: that is how this ends when the socket goes away, rather
+                # than spinning on an exhausted stream.
+                while await _one_turn():
+                    pass
+
+            async def _one_turn() -> bool:
+                """One model turn. False when the session has nothing left."""
+                nonlocal drawings
+                nonlocal shape
+                alive = False
                 async for frame in live.receive():
+                    alive = True
                     content = getattr(frame, "server_content", None)
                     if content is not None:
                         turn = getattr(content, "model_turn", None)
@@ -412,6 +441,11 @@ async def relay(
                                 "another when ready.",
                             }
                         )
+                        # Google said the session is ending. Asking it for
+                        # another turn would hang until the socket dropped.
+                        return False
+
+                return alive
 
             # Both directions at once, and either ending ends the call: a
             # browser that closed should not leave a Live session running, and a

@@ -146,47 +146,46 @@
     "ok": true,
     "items": [
       {
-        "id": "IB3174",
-        "airline": "Iberia",
-        "flightNumber": "IB655",
-        "origin": "BOS",
+        "id": "AA6958",
+        "airline": "American",
+        "flightNumber": "AA401",
+        "origin": "LHR",
         "destination": "LIS",
-        "departTime": "09:58",
-        "arriveTime": "18:17",
-        "duration": "8h 19m",
+        "departTime": "07:14",
+        "arriveTime": "14:58",
+        "duration": "7h 44m",
         "stops": "Nonstop",
-        "price": "$431",
-        "priceValue": 431,
+        "price": "$366",
+        "priceValue": 366,
         "cabin": "economy",
         "badge": "Cheapest"
       },
       {
-        "id": "UA7819",
-        "airline": "United",
-        "flightNumber": "UA886",
-        "origin": "BOS",
+        "id": "IB6401",
+        "airline": "Iberia",
+        "flightNumber": "IB924",
+        "origin": "LHR",
         "destination": "LIS",
-        "departTime": "07:58",
-        "arriveTime": "15:32",
-        "duration": "7h 34m",
+        "departTime": "06:18",
+        "arriveTime": "14:52",
+        "duration": "8h 34m",
         "stops": "Nonstop",
-        "price": "$488",
-        "priceValue": 488,
-        "cabin": "economy",
-        "badge": "Fastest"
+        "price": "$451",
+        "priceValue": 451,
+        "cabin": "economy"
       },
       {
-        "id": "DL1383",
-        "airline": "Delta",
-        "flightNumber": "DL352",
-        "origin": "BOS",
+        "id": "UA8784",
+        "airline": "United",
+        "flightNumber": "UA107",
+        "origin": "LHR",
         "destination": "LIS",
-        "departTime": "11:12",
-        "arriveTime": "19:40",
-        "duration": "8h 28m",
+        "departTime": "17:57",
+        "arriveTime": "01:59 +1",
+        "duration": "8h 2m",
         "stops": "Nonstop",
-        "price": "$527",
-        "priceValue": 527,
+        "price": "$473",
+        "priceValue": 473,
         "cabin": "economy"
       }
     ],
@@ -196,7 +195,7 @@
       "label": "Sample data",
       "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
     },
-    "note": "3 option(s) for BOS → LIS.",
+    "note": "3 option(s) for LHR → LIS.",
     "relaxed": [],
     "currency": "USD"
   },
@@ -309,10 +308,10 @@
     "recover": [
       "New York (JFK)",
       "Chicago (ORD)",
+      "San Francisco (SFO)",
       "Denver (DEN)",
       "Los Angeles (LAX)",
-      "Miami (MIA)",
-      "São Paulo (GRU)"
+      "Miami (MIA)"
     ]
   },
   "flights: no departure city, explicitly rough": {
@@ -621,5 +620,39 @@
     "total": "$3,500",
     "totalValue": 3500,
     "currency": "USD"
+  },
+  "flights: an airport this deployment does not serve": {
+    "ok": false,
+    "reason": "unknown-origin",
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+    },
+    "message": "There are no flights out of BOS here.",
+    "recover": [
+      "New York (JFK)",
+      "Chicago (ORD)",
+      "San Francisco (SFO)",
+      "Denver (DEN)",
+      "Los Angeles (LAX)",
+      "Miami (MIA)",
+      "Mexico City (MEX)",
+      "São Paulo (GRU)",
+      "London (LHR)",
+      "Paris (CDG)",
+      "Madrid (MAD)",
+      "Lisbon (LIS)",
+      "Athens (ATH)",
+      "Frankfurt (FRA)",
+      "Dubai (DXB)",
+      "Delhi (DEL)",
+      "Singapore (SIN)",
+      "Hong Kong (HKG)",
+      "Tokyo (NRT)",
+      "Sydney (SYD)",
+      "Johannesburg (JNB)"
+    ]
   }
 }

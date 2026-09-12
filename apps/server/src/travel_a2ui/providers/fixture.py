@@ -65,16 +65,8 @@ _DESTINATIONS: list[dict[str, Any]] = json.loads(
     (_DATA / "destinations.json").read_text("utf-8")
 )["destinations"]
 _AIRLINES = [{"code": r["code"], "name": r["name"]} for r in _rows("airlines.csv")]
-_ORIGINS = [
-    {
-        "code": r["code"],
-        "city": r["city"],
-        "zones": r["zones"].split("|"),
-        "lat": float(r["lat"]),
-        "lon": float(r["lon"]),
-    }
-    for r in _rows("origins.csv")
-]
+_ORIGINS = [{"code": r["code"], "city": r["city"]} for r in _rows("origins.csv")]
+_ORIGIN_CODES = {entry["code"] for entry in _ORIGINS}
 _CURRENCY_SYMBOL = {r["code"]: r["symbol"] for r in _rows("currencies.csv")}
 
 _LODGING: dict[str, list[str]] = {}
@@ -276,7 +268,7 @@ class FixtureProvider:
         return _DESTINATION_LIST
 
     async def origins(self) -> list[dict[str, Any]]:
-        return [{**entry, "zones": list(entry["zones"])} for entry in _ORIGINS]
+        return [dict(entry) for entry in _ORIGINS]
 
     async def search_flights(self, query: dict[str, Any]) -> Outcome:
         destination = _resolve(query.get("destination") or "")
@@ -285,6 +277,19 @@ class FixtureProvider:
 
         origin = (query.get("origin") or "")[:3].upper()
         sampled: list[str] = []
+        if origin and origin not in _ORIGIN_CODES:
+            # The list in the prompt was a promise this refused to keep. The
+            # agent is told "these are the departure airports, refuse politely
+            # for anything else" and then handed a fixture that invented a fare
+            # out of any three letters — so the typed agent priced a trip from
+            # an airport the voice agent had just refused, and neither was
+            # wrong about the rules it could see.
+            return not_found(
+                "unknown-origin",
+                FIXTURE_PROVENANCE,
+                f"There are no flights out of {origin} here.",
+                [f"{entry['city']} ({entry['code']})" for entry in _ORIGINS],
+            )
         if not origin:
             if not query.get("indicative"):
                 return not_found(

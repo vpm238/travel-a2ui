@@ -67,9 +67,16 @@ CASES = {
         "flights",
         {"destination": "Madrid", "origin": "JFK", "date": "2027-04-12", "cabin": "business"},
     ),
+    # Boston used to be this case's departure city, back when the fixture would
+    # invent a fare out of any three letters. It is not one of the airports this
+    # deployment serves, so it is now its own case below — refused, by name.
     "flights: nonstop only": (
         "flights",
-        {"destination": "Lisbon", "origin": "BOS", "nonstopOnly": True},
+        {"destination": "Lisbon", "origin": "LHR", "nonstopOnly": True},
+    ),
+    "flights: an airport this deployment does not serve": (
+        "flights",
+        {"destination": "Lisbon", "origin": "BOS"},
     ),
     "flights: impossible price cap": (
         "flights",
@@ -202,15 +209,21 @@ class TestTheDataIsNotEmpty:
         empty = sorted(name for name, rows in lists.items() if not rows)
         assert not empty, f"{empty} would produce 'undefined undefined' rather than fail"
 
-    def test_every_origin_has_usable_coordinates(self) -> None:
-        """A missing coordinate sorts an airport to the wrong end of the list."""
+    def test_every_destination_can_be_flown_home_from(self) -> None:
+        """Closed under going home, which is now a hop that has to be ticketed.
+
+        A destination missing from the departure list is a trip that can never
+        finish: the agent flies somebody to San Francisco, the return hop needs
+        a ticket out of SFO, and there are no flights out of SFO because SFO was
+        a place you could only arrive at. It was exactly that, and it is the
+        first thing anybody types into this demo.
+        """
         from travel_a2ui.providers import fixture
 
-        for entry in fixture._ORIGINS:
-            assert -90 <= entry["lat"] <= 90, entry["code"]
-            assert -180 <= entry["lon"] <= 180, entry["code"]
-            assert (entry["lat"], entry["lon"]) != (0.0, 0.0), (
-                f"{entry['code']} sits at Null Island, which means the column was blank"
+        departures = {entry["code"] for entry in fixture._ORIGINS}
+        for entry in fixture._DESTINATIONS:
+            assert entry["airport"] in departures, (
+                f"{entry['city']} can be flown to and not from"
             )
 
     def test_every_destination_a_tool_can_be_asked_for_actually_answers(self) -> None:

@@ -41,13 +41,13 @@
       "tool": "show_flight_options",
       "args": {
         "destination": "Lisbon",
-        "origin": "BOS",
+        "origin": "LHR",
         "date": "2027-04-12",
         "nonstopOnly": true
       },
-      "express": "surface(\"mcp-flights\")\nhead = Text(\"BOS → Lisbon · from 12 Apr\", variant=\"h3\")\nf0 = FlightOption(\"Lufthansa\", \"13:44\", \"21:54\", \"BOS\", \"LIS\", \"$374\", Event(\"select_flight\", {id: \"LH4439\", price: \"$374\"}), duration=\"8h 10m\", stops=\"Nonstop\", flightNumber=\"LH739\", cabin=\"economy\", badge=\"Cheapest\")\nf1 = FlightOption(\"Delta\", \"19:02\", \"03:50 +1\", \"BOS\", \"LIS\", \"$396\", Event(\"select_flight\", {id: \"DL8301\", price: \"$396\"}), duration=\"8h 48m\", stops=\"Nonstop\", flightNumber=\"DL399\", cabin=\"economy\")\nf2 = FlightOption(\"TAP Air Portugal\", \"06:22\", \"14:45\", \"BOS\", \"LIS\", \"$444\", Event(\"select_flight\", {id: \"TP5497\", price: \"$444\"}), duration=\"8h 23m\", stops=\"Nonstop\", flightNumber=\"TP859\", cabin=\"economy\")\nf3 = FlightOption(\"Air France\", \"07:56\", \"15:22\", \"BOS\", \"LIS\", \"$475\", Event(\"select_flight\", {id: \"AF2203\", price: \"$475\"}), duration=\"7h 26m\", stops=\"Nonstop\", flightNumber=\"AF390\", cabin=\"economy\", badge=\"Fastest\")\nfoot = Text(\"4 option(s) for BOS → LIS on 2027-04-12. · Sample data\", variant=\"caption\")\nroot = Column([head, f0, f1, f2, f3, foot])",
+      "express": "surface(\"mcp-flights\")\nhead = Text(\"LHR → Lisbon · from 12 Apr\", variant=\"h3\")\nf0 = FlightOption(\"TAP Air Portugal\", \"17:37\", \"02:14 +1\", \"LHR\", \"LIS\", \"$354\", Event(\"select_flight\", {id: \"TP3447\", price: \"$354\"}), duration=\"8h 37m\", stops=\"Nonstop\", flightNumber=\"TP791\", cabin=\"economy\", badge=\"Cheapest\")\nf1 = FlightOption(\"Iberia\", \"19:43\", \"03:05 +1\", \"LHR\", \"LIS\", \"$367\", Event(\"select_flight\", {id: \"IB6776\", price: \"$367\"}), duration=\"7h 22m\", stops=\"Nonstop\", flightNumber=\"IB227\", cabin=\"economy\", badge=\"Fastest\")\nf2 = FlightOption(\"Lufthansa\", \"08:10\", \"16:22\", \"LHR\", \"LIS\", \"$418\", Event(\"select_flight\", {id: \"LH5443\", price: \"$418\"}), duration=\"8h 12m\", stops=\"Nonstop\", flightNumber=\"LH788\", cabin=\"economy\")\nfoot = Text(\"3 option(s) for LHR → LIS on 2027-04-12. · Sample data\", variant=\"caption\")\nroot = Column([head, f0, f1, f2, foot])",
       "surfaceId": "mcp-flights",
-      "summary": "4 flight option(s), BOS → Lisbon · from 12 Apr, cheapest $374. Sample data."
+      "summary": "3 flight option(s), LHR → Lisbon · from 12 Apr, cheapest $354. Sample data."
     },
     "flights: a cap nothing meets, so it widens and says so": {
       "tool": "show_flight_options",
@@ -297,6 +297,15 @@
       "express": "surface(\"mcp\")\nhead = Text(\"Anything\", variant=\"h3\")\nroot = Column([head])",
       "summary": "A custom interface.",
       "surfaceId": "mcp"
+    },
+    "flights: an airport this deployment does not serve": {
+      "tool": "show_flight_options",
+      "args": {
+        "destination": "Lisbon",
+        "origin": "BOS",
+        "date": "2027-04-12"
+      },
+      "error": "There are no flights out of BOS here. Offer these as choices: New York (JFK), Chicago (ORD), San Francisco (SFO), Denver (DEN), Los Angeles (LAX), Miami (MIA), Mexico City (MEX), São Paulo (GRU), London (LHR), Paris (CDG), Madrid (MAD), Lisbon (LIS), Athens (ATH), Frankfurt (FRA), Dubai (DXB), Delhi (DEL), Singapore (SIN), Hong Kong (HKG), Tokyo (NRT), Sydney (SYD), Johannesburg (JNB). Do not substitute a different city, invent an airport code, or draw an empty list."
     }
   },
   "examples": {

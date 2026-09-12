@@ -28,10 +28,27 @@ from travel_a2ui.voice import VoiceSession, relay, setup_config, voice_tools
 
 
 class FakeLive:
-    """A Live session that yields the frames it was given."""
+    """A Live session that yields the frames it was given, one turn at a time.
+
+    Faithful to the SDK on the point that mattered: `receive()` is **one turn**,
+    not the session — its own loop breaks when the interaction completes, and
+    the caller is expected to call it again for the next turn. This fake used to
+    re-yield the whole script on every call, which made a relay that iterated
+    `receive()` exactly once look correct here and answer exactly one turn in
+    production.
+
+    A flat list is one turn, which is what most of these tests want. A list of
+    lists is a conversation.
+    """
 
     def __init__(self, frames: list[Any]) -> None:
         self.frames = frames
+        self.turns: list[list[Any]] = (
+            [list(turn) for turn in frames]
+            if frames and all(isinstance(turn, list) for turn in frames)
+            else [list(frames)]
+        )
+        self.received = 0
         self.sent: list[Any] = []
         self.tool_responses: list[Any] = []
 
@@ -51,7 +68,10 @@ class FakeLive:
         self.tool_responses.append(kwargs)
 
     async def receive(self):  # noqa: ANN201
-        for frame in self.frames:
+        """One turn's frames. Exhausted after the last turn, like a closed socket."""
+        turn = self.turns[self.received] if self.received < len(self.turns) else []
+        self.received += 1
+        for frame in turn:
             yield frame
 
 
@@ -165,6 +185,36 @@ def run_call(
     )
     asyncio.run(relay(session, send, messages()))
     return seen, client, saved
+
+
+class TestACallIsMoreThanOneTurn:
+    """The bug that made voice look like it ignored people.
+
+    `receive()` is one turn, not the session: the SDK's own loop breaks when the
+    interaction completes and the caller is expected to call it again. The relay
+    iterated it exactly once, so the first answer arrived, the traveller
+    replied, and nothing ever came back — and `_race` then tore the call down
+    because a pump had "finished".
+
+    The fake used to re-yield its whole script on every call, which is what let
+    this pass for the life of the suite.
+    """
+
+    def test_a_second_turn_is_answered(self) -> None:
+        seen, _, _ = run_call(
+            [
+                [transcript_frame("First.", "agent")],
+                [transcript_frame("Second.", "agent")],
+            ],
+            incoming=[{"type": "text", "text": "hello"}, {"type": "text", "text": "and again"}],
+        )
+        said = [event["text"] for event in seen if event["type"] == "transcript"]
+        assert said == ["First.", "Second."], "the call stopped listening after one turn"
+
+    def test_an_exhausted_session_ends_the_call(self) -> None:
+        """And does not spin: a turn that yields nothing is a closed socket."""
+        seen, _, _ = run_call([[transcript_frame("Only.", "agent")]])
+        assert [event["text"] for event in seen if event["type"] == "transcript"] == ["Only."]
 
 
 class TestOpeningTheSession:
