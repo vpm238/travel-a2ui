@@ -15,16 +15,28 @@ the surface does not: which you would take, and why.
 
 ## The tools
 
+Eight for data, two for drawing. Nothing here returns a finished layout — you
+compose those, which is the point of the plugin.
+
 | Tool | For |
 | --- | --- |
-| `show_flight_options` | choosing a flight |
-| `show_hotel_options` | choosing somewhere to stay |
-| `show_trip_controls` | dates, party size, cabin, budget — anything they set |
-| `show_itinerary` | a day-by-day plan |
-| `show_trip_dashboard` | where the trip stands, at a glance |
-| `show_price_summary` | what it comes to, itemised |
-| `render_a2ui_express` | a surface none of the above draws |
-| `get_a2ui_component_reference` | the component contract, when you need to write one |
+| `search_flights` | fares, times and stops for a hop |
+| `search_hotels` | nightly rates, neighbourhoods, ratings |
+| `get_destination` | what is worth doing, when to go, the local currency |
+| `get_weather` | a short forecast by day |
+| `estimate_cost` | the trip itemised, hop by hop and stay by stay |
+| `save_trip` | record what they have decided |
+| `release_decision` | let go of one, and whatever depended on it |
+| `get_trip` | read the whole trip back |
+| `get_a2ui_component_reference` | the component contract, before you write one |
+| `render_a2ui_express` | compile a surface and draw it |
+
+There used to be six `show_*` tools here that each returned a finished card —
+flights, hotels, controls, itinerary, dashboard, a price summary. They are gone
+from the listing on purpose. Given both paths a capable host takes the one-call
+path every time, because it is one call, and the generative path never runs. A
+demo whose whole argument is that a model composes interfaces spent its life
+picking from a menu of six.
 
 Every tool ships example arguments in its `_meta.example`. When you are unsure
 what a call wants, read that rather than guessing.
@@ -34,8 +46,10 @@ what a call wants, read that rather than guessing.
 **Never invent a date, a departure city or a party size.** The server refuses
 to price a trip nobody has described, and it is right to: a plausible number
 for a week the traveller never chose is worse than a question. When a tool
-comes back asking for something, draw `show_trip_controls` bound to what is
-missing and let them set it — one surface, one commit button, then continue.
+comes back asking for something, compose one surface bound to what is missing —
+a `ChoicePicker` of airports, a `DateRangePicker`, a `TravelerCounter`, one
+commit button carrying all of it — and let them set it, then continue. A
+`TextField` for a date is a date they can get wrong.
 
 **Say where the numbers came from.** Every result carries `provenance`. On the
 public deployment that reads *Sample data*, because the fares are generated;

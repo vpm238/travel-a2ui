@@ -34,9 +34,10 @@ so the panel gave up its controls and kept the record.
 1. The agent records the route — all of it, in one call, including stops, why
    each exists, and where the party size differs.
 2. It works out what is *missing* for the next step and asks for **all of it in
-   one surface**: dates, departure airport, how many people. Pre-filled with the
-   best suggestion it has — the departure airport from the browser's timezone,
-   the dates from anything they said.
+   one surface**: dates, departure airport, how many people — each in a control
+   the answer cannot be wrong in. Airports are a `ChoicePicker` of the airports
+   this deployment actually serves; dates are a `DateRangePicker`; the party is
+   a `TravelerCounter`. Pre-filled with anything they already said.
 3. One button. Editing sends nothing.
 4. Pressing it sends one message. Everything above greys out.
 
@@ -45,7 +46,8 @@ so the panel gave up its controls and kept the record.
 | Case | What happens |
 | --- | --- |
 | No dates given | It asks. It does **not** price "a sample week in April" — the pricing tools refuse without dates and return what to ask for. |
-| No departure airport | Suggested from the timezone, shown pre-filled, never assumed. If the timezone is unknown, it asks outright. |
+| No departure airport | **Asked, never inferred.** A timezone covers a continent-slice — `America/New_York` offered JFK to someone in Atlanta, 1,211 km away, with a fare attached — so the guess is gone and the question is a row of airport pills. |
+| A date asked for in a text box | Refused before it is drawn. `data/controls.json` says which control each decision may be asked in, the prompt teaches it and the host checks it, so the model rewrites the surface rather than the traveller mistyping "April 12ish". |
 | "Roughly what does April cost?" | Answered, and labelled *indicative*, because they asked for a rough figure rather than their trip. |
 | Dates in the past | Refused at save, with the reason. April 2026 asked for in September 2026 means April 2027. |
 | Return before departure | Refused at save. |
@@ -121,7 +123,58 @@ red-eye out the same night — all reasons a stop needs nothing.
 Answered once per stop and never asked again. Stays are then found only for the
 stops that need one.
 
-## Flow 6 · Finishing
+## Flow 6 · Planning the days
+
+The first five flows settle *facts*. This one curates a *list*, and the
+difference changes the interaction.
+
+A decision — a flight, a date — is locked once made and changed by releasing it.
+A day plan is never locked: it is a draft you push around. So the day cards are
+the one place the panel is **editable in place**.
+
+1. The agent draws a card per day, each with its activities in time order.
+2. Every activity carries **remove**, and the day carries **add something else**.
+3. Removing is immediate and local — the data model changes, no model turn, no
+   waiting. `callFunction` recomputes the day's hours as it goes.
+4. The turn commits when they press **looks good** or **more options**, which is
+   what makes a dozen small edits one message instead of a dozen.
+
+**Edge cases**
+
+| Case | What happens |
+| --- | --- |
+| Removing everything from a day | The day stays, empty, offering to fill itself. An empty day is a real answer — a rest day — and deleting the card would lose the date. |
+| Editing after "looks good" | Same as any decision: it reopens. The plan is the one stage that is *expected* to be revisited. |
+| Typing instead of pressing | Works. The buttons are the fast path, not the only path — a typed "drop the museum, it's too far" is the same turn. |
+| A day with nothing worth doing | Says so and offers the next town over, rather than padding the day. |
+
+## Flow 7 · Sharing what you planned
+
+A finished trip is a thing you send to whoever is coming.
+
+1. The last surface carries **share** beside the plan.
+2. Sharing produces the trip as a readable page — the route, each hop, each
+   stay, the days, and what it comes to — not a screenshot of the app.
+3. Nothing is booked and the page says so. The provenance label travels with it:
+   sample fares are labelled sample fares wherever they end up.
+
+## Flow 8 · Correcting the thing on screen
+
+"NYC and all nearby airports" after a surface has already asked for a departure
+airport is **not** the next step. It is the same step, asked again, wider.
+
+1. A message that changes what the *last card* asked about redraws that
+   question — same controls, more options, pre-filled with what was there.
+2. It does not advance the plan and it does not start searching.
+3. The card that was superseded greys out like any answered card; the
+   conversation keeps both, because "I changed my mind here" is history worth
+   having.
+
+This is a rule the model follows rather than one the host enforces, and that is
+the honest description: the host cannot tell a correction from a new request
+without understanding the sentence.
+
+## Flow 9 · Finishing
 
 When every stage is settled or ruled out, the agent stops asking. It shows the
 whole trip on one surface and offers the two things actually left — adding more
@@ -132,7 +185,7 @@ good trip.
 who only wanted a fare. The agent does not force the sequence; a stage ruled out
 is a stage finished, and one that has not come up is not nagged about.
 
-## Flow 7 · Inside Claude
+## Flow 10 · Inside Claude
 
 The same three placements travel to an MCP host, because they are properties of
 where an answer goes rather than of this codebase. What does not travel is the
@@ -160,6 +213,11 @@ is a guarantee.
 | No prices without dates and a route | the tools | A model in a hurry prices a plausible week and calls it a sample. |
 | A date range that ends before it starts | the tools | Silent corruption of everything downstream. |
 | One surface, one button, ask for everything | the skill | A judgement call about layout, which is the model's job — and now one it cannot get *wrong* in a way that loses an answer. |
+| Which control a decision may be asked in | **`data/controls.json`**, taught by the skill and checked by the host | One table read twice. A rule stated in a prompt and enforced by a separate hand-kept list is two rules, and they drift the first time somebody edits one. |
+| A component the catalog does not define | the host, before compiling | The SDK drops an invented component silently, so a surface made only of them compiles to an empty box with no error anywhere. |
+| A child nobody defined | the host, via the SDK validator | `Column([head, footer])` with no `footer` is valid Express and renders a hole. Compiling is not validating. |
+| A flight for every hop, including home | **the trip model** | The model believed a one-leg trip was complete the moment the outbound was chosen, and moved on to hotels with the traveller still in New York. |
+| What this deployment has data for | **the data**, and the prompt says so | The list of airports in the prompt was a promise `search_flights` refused to keep: it invented a fare from any three letters, so the typed agent priced a trip the voice agent had just refused. |
 | Say what a price is priced against | the skill, from a value the tools supply | The wording is the model's; the facts are not. |
 | Lead the trip; know when to stop | the skill, from the model's plan | Same split: the sequence is computed, the phrasing is not. |
 

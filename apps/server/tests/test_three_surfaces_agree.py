@@ -326,3 +326,50 @@ class TestNothingIsPromisedThatCannotBeDrawn:
         )
         undrawable = sorted(set(catalog["components"]) - react)
         assert not undrawable, f"the catalog offers {undrawable} and nothing renders them"
+
+
+class TestThePluginTeachesToolsThatExist:
+    """A plugin skill is a contract with a host that cannot check it.
+
+    The skill named six `show_*` tools with a table of what each one drew.
+    Those stopped being listed the day the plugin was changed to compose
+    instead of picking from a menu — and nothing anywhere noticed, because a
+    SKILL.md is prose until a host reads it. Somebody installing the plugin got
+    an agent confidently calling six tools the server does not offer.
+    """
+
+    def _skill(self) -> str:
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parents[3]
+        return (
+            root / "plugins" / "travel-a2ui" / "skills" / "travel-a2ui" / "SKILL.md"
+        ).read_text("utf-8")
+
+    def test_every_tool_the_skill_names_is_one_the_server_lists(self) -> None:
+        import re
+
+        from travel_a2ui.mcp import TOOLS
+        from travel_a2ui.tools import mcp_data_tools
+
+        listed = {t["name"] for t in TOOLS if not t["name"].startswith("show_")}
+        listed |= {t["name"] for t in mcp_data_tools()}
+
+        # Backticked names in the skill's tool table.
+        named = set(re.findall(r"`([a-z_]+)`", self._skill()))
+        # Only judge names that look like tools of ours, not prose in backticks.
+        named = {n for n in named if "_" in n}
+        unlisted = {
+            n
+            for n in named
+            if n not in listed and (n.startswith("show_") or n.startswith("get_") or n.startswith("search_"))
+        }
+        assert not unlisted, f"the skill teaches tools nobody serves: {sorted(unlisted)}"
+
+    def test_the_data_tools_are_all_taught(self) -> None:
+        """The other direction: a tool nobody is told about is a tool nobody calls."""
+        from travel_a2ui.tools import mcp_data_tools
+
+        skill = self._skill()
+        missing = [t["name"] for t in mcp_data_tools() if t["name"] not in skill]
+        assert not missing, f"served but never mentioned: {missing}"
