@@ -32,7 +32,7 @@ GOLDEN = json.loads((ROOT / "tools" / "parity" / "__golden__" / "prompt.json").r
 # meant this suite and the recorder built different prompts from the same label
 # and each believed the other was wrong.
 sys.path.insert(0, str(ROOT / "tools" / "parity"))
-from capture import LABELS, TODAY, TRIPS, build  # noqa: E402,F401
+from capture import IN_FULL, LABELS, TODAY, TRIPS, build  # noqa: E402,F401
 
 def first_difference(actual: str, expected: str) -> str:
     """Where two prompts part company, with enough either side to read it.
@@ -58,7 +58,32 @@ def first_difference(actual: str, expected: str) -> str:
 
 @pytest.mark.parametrize("label", LABELS)
 def test_the_prompt_matches_its_golden(label: str) -> None:
-    expected = GOLDEN["prompts"][label]
+    """By digest, because twenty-four prompts in full was a diff nobody read.
+
+    A change nobody meant to make still fails here, by name. The two cases kept
+    whole — see `IN_FULL` — are what makes the failure readable: when a digest
+    moves, one of those usually moved with it, and the diff shows the sentence.
+    """
+    import hashlib
+
+    actual = build(label)
+    digest = hashlib.sha256(actual.encode("utf-8")).hexdigest()
+    if digest == GOLDEN["digests"][label]:
+        return
+
+    if label in GOLDEN["inFull"]:
+        expected = GOLDEN["inFull"][label]
+        raise AssertionError(f"{label} diverged at {first_difference(actual, expected)}")
+    raise AssertionError(
+        f"{label} no longer matches its golden digest. "
+        f"Re-record with `python3 tools/parity/capture.py` once the change is "
+        f"intended; the two cases kept in full show what moved."
+    )
+
+
+@pytest.mark.parametrize("label", IN_FULL)
+def test_the_cases_kept_whole_are_byte_for_byte(label: str) -> None:
+    expected = GOLDEN["inFull"][label]
     actual = build(label)
     assert actual == expected, f"{label} diverged at {first_difference(actual, expected)}"
 

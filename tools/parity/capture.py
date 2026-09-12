@@ -23,6 +23,7 @@ a failed build rather than a mystery a week later.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import pathlib
 import sys
@@ -120,9 +121,35 @@ def build(label: str) -> str:
     )
 
 
+#: The cases kept in full, because a digest tells you *that* something moved
+#: and not what.
+#:
+#: One trip at its emptiest and one with everything decided: between them they
+#: contain every section the assembly can emit — the inventory, the control
+#: table, the surface brief, the trip description with and without decisions,
+#: and the "do this next" sentence in both its shapes.
+IN_FULL = ("empty / inline", "ready / sidebar")
+
+
 def capture() -> dict:
+    """The golden: a digest per case, and two prompts kept whole.
+
+    It used to be twenty-four prompts in full — 1.16 MB of checked-in JSON, and
+    every intentional edit to `prompts/role.md` produced a diff no human read.
+    That is the failure mode a golden exists to prevent, arriving by a different
+    road: nobody reviews a hundred-thousand-line diff, so nobody would have seen
+    an unintended change hiding in one.
+
+    A digest catches the same drift in a line. The two full prompts are there so
+    that when a digest moves you can *see* the change in the same commit rather
+    than having to reproduce it.
+    """
     return {
-        "prompts": {label: build(label) for label in LABELS},
+        "digests": {
+            label: hashlib.sha256(build(label).encode("utf-8")).hexdigest()
+            for label in LABELS
+        },
+        "inFull": {label: build(label) for label in IN_FULL},
         "skills": skills.describe_all_skills(),
     }
 
@@ -137,12 +164,12 @@ def main() -> int:
             return 1
         current = json.loads(GOLDEN.read_text("utf-8"))
         if current == fresh:
-            print(f"{len(fresh['prompts'])} prompts match their golden.")
+            print(f"{len(fresh['digests'])} prompts match their golden.")
             return 0
         changed = sorted(
             name
-            for name in set(current["prompts"]) | set(fresh["prompts"])
-            if current["prompts"].get(name) != fresh["prompts"].get(name)
+            for name in set(current.get("digests", {})) | set(fresh["digests"])
+            if current.get("digests", {}).get(name) != fresh["digests"].get(name)
         )
         print("The prompt golden is out of date. Changed:", file=sys.stderr)
         for name in changed:
@@ -151,7 +178,7 @@ def main() -> int:
         return 1
 
     GOLDEN.write_text(json.dumps(fresh, indent=2, ensure_ascii=False) + "\n", "utf-8")
-    print(f"Wrote {len(fresh['prompts'])} prompts to {GOLDEN}")
+    print(f"Wrote {len(fresh['digests'])} digests and {len(IN_FULL)} prompts to {GOLDEN}")
     return 0
 
 
