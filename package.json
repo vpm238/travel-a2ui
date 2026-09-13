@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "e2e": "node tools/e2e/chat.mjs && node tools/e2e/interaction.mjs && node tools/e2e/frameworks.mjs && node tools/e2e/mcp.mjs",
     "typecheck": "tsc -b packages/express renderers/react && tsc -p apps/web --noEmit && tsc -p apps/mcp-view --noEmit && tsc -p apps/gallery --noEmit",
-    "generate": "python3 scripts/build_catalog.py && python3 scripts/build_fixtures.py && python3 scripts/build_examples.py && python3 scripts/build_skills.py",
+    "generate": "python3 scripts/build_catalog.py && python3 scripts/build_examples.py && python3 scripts/build_skills.py",
     "check:catalog": "python3 scripts/build_catalog.py --check",
     "check:examples": "python3 scripts/build_examples.py --check",
     "check:skills": "python3 scripts/build_skills.py --check",

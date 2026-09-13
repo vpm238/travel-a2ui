@@ -8,12 +8,15 @@ Flows 1–5 need the web app and a Gemini key. Flow 6 needs nothing at all.
 Flow 7 runs inside Claude.
 
 ```bash
-npm run setup && npm run dev:worker   # or the Python server — see the README
-open http://127.0.0.1:8787/#key=AIza...
+npm run setup
+pip install -e ./apps/server
+uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src
+open http://127.0.0.1:8080/#key=AIza...
 ```
 
-Model **Opus 5**, skill **Express · one skill**, effort **Medium** unless a flow
-says otherwise. Roughly 4–8 seconds per turn.
+Default model and effort unless a flow says otherwise. Roughly 4–8 seconds per
+turn; the interface itself appears well before that, which is the number that
+decides how it feels — open the timing disclosure under any reply to see both.
 
 **Reloading starts a new conversation.** The transcript and the trip are gone;
 your key is not. That is the fastest way to get back to a clean slate between
@@ -226,7 +229,7 @@ components.
 Everything above has a scripted equivalent that needs no key and costs nothing.
 
 ```bash
-npm run dev:worker      # in another terminal (or the Python server)
+uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src   # in another terminal
 
 node tools/e2e/chat.mjs   # flow 1, 14 assertions
 node tools/e2e/mcp.mjs    # flows 4 + 6, 24 assertions
@@ -265,7 +268,7 @@ npm run screenshots
 No browser, one curl, real model:
 
 ```bash
-curl -sN http://127.0.0.1:8787/api/chat \
+curl -sN http://127.0.0.1:8080/api/chat \
   -H 'content-type: application/json' \
   -H "x-goog-api-key: $GEMINI_API_KEY" \
   -d '{"sessionId":"demo","message":"Show me flights to Madrid for two in April.",

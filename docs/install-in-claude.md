@@ -86,26 +86,37 @@ from the catalog rather than picking from a menu.
 
 ## What Claude gets
 
-**Eight tools**, each pointed at the view by `_meta.ui.resourceUri`.
+**Eleven tools**, each pointed at the view by `_meta.ui.resourceUri`. Nine
+return data; two are the vocabulary and the compiler. **Nothing here returns a
+finished layout** — Claude composes those, which is the whole point of the
+plugin.
 
 | Tool | Returns |
 | --- | --- |
-| `show_flight_options` | a flight picker |
-| `show_hotel_options` | stay cards with rating, neighbourhood, nightly rate |
-| `show_trip_controls` | the sidebar panel: dates, party size, fare cap, stops |
-| `show_itinerary` | a day-by-day plan from the destination's real highlights |
-| `show_trip_dashboard` | the home screen: days out, budget, forecast, map |
-| `show_price_summary` | an itemised cost breakdown |
+| `search_flights` | fares, times and stops for one hop |
+| `search_hotels` | nightly rates, neighbourhoods, ratings |
+| `get_destination` | what is worth doing, when to go, the local currency |
+| `get_weather` | a short forecast by day |
+| `estimate_cost` | the trip itemised, hop by hop and stay by stay |
+| `save_trip` | records what has been decided |
+| `release_decision` | lets one go, and whatever depended on it |
+| `get_trip` | the whole trip read back |
+| `share_plan` | the trip as a page somebody outside the chat can read |
 | `get_a2ui_component_reference` | the grammar and every component signature |
 | `render_a2ui_express` | compiles Express Claude wrote into a live surface |
 
-Every tool that composes content takes `surface: inline | sidebar | home`. It
-changes *what is composed*, not just where it lands — a sidebar shows three
-flights and the filters that produced them, a home screen shows that a flight is
-still unbooked. So the three flows from the web app are all reachable here:
+Six server-composed layouts used to be listed here too — a flight picker, stay
+cards, the controls panel, an itinerary, a dashboard, a price summary. They were
+removed on purpose, and that was a behavioural finding rather than a preference:
+given both paths, Claude takes the one-call path every time, because it is one
+call. The generative path then never runs, and a plugin whose entire argument is
+that a model composes interfaces spends its life picking from a menu of six.
 
-> Show me flights to Lisbon **in the sidebar**.
-> **On my home screen**, how is the Madrid trip looking?
+The three placements are still reachable — Claude names the surface it writes
+into, and a surface that replaces itself behaves like a panel wherever it lands:
+
+> Show me flights to Lisbon **as a sidebar panel**.
+> Compose **a home screen** for how the Madrid trip is looking.
 
 **Two resources** — `a2ui://catalog/travel` (the JSON Schema catalog) and
 `a2ui://skill/express` (the generated output contract). Attach either as

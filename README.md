@@ -16,6 +16,18 @@ somebody designed in advance.
   <img src="docs/screenshots/02-mcp-light.png" alt="Flight options rendered as A2UI components" width="820">
 </p>
 
+<p align="center">
+  <b><a href="https://travel-a2ui-vy7stnte2a-uc.a.run.app">Try it</a></b> ·
+  <a href="https://travel-a2ui-vy7stnte2a-uc.a.run.app/flutter">the same agent, drawn by Flutter</a> ·
+  <a href="docs/install-in-claude.md">install it in Claude</a> ·
+  <a href="docs/demo-script.md">what to type</a>
+</p>
+
+<p align="center">
+  <sub>The <b>Catalog</b> tab needs no API key — every component the agent can draw,
+  rendered by the real renderer.</sub>
+</p>
+
 ---
 
 ## Start with the problem
@@ -230,6 +242,66 @@ says so and offers ones it knows, rather than inventing an airport code. Every
 price on screen carries a note saying where the number came from. See
 [Notes on the parts that are simulated](#notes-on-the-parts-that-are-simulated).
 
+### What decides the next screen
+
+This is the part most worth stealing, and the part that took longest to get
+right.
+
+The obvious way to build this is a state machine: seven stages, a `next_step()`
+that looks at the trip and returns the one after it, and a surface per stage.
+That is how this started, and it works exactly until somebody says *"a friend
+joins us in Chicago and comes back with us"*. Now there are three hops with two
+different party sizes, one of them needs a hotel and one does not, and there is
+no ordering of seven stages that describes it. Every trip that is not the common
+one becomes a special case, and a state machine full of special cases is a form
+with extra steps.
+
+So there is no state machine. There is a loop, and the agent runs it:
+
+> **an input arrives → it is a decision → the record updates → the agent works
+> out what is next from what is now known → it draws the UI for that next set of
+> decisions.**
+
+Three consequences, and they are what make it hold together:
+
+**Everything is a decision, whatever shape it arrives in.** Typing "three of us
+on the way back" is one. Tapping a fare out of four is one — *choosing one of
+many is a decision*, not a step towards one. Ticking "no bed needed here" is one.
+Each lands on the trip record the same way, and the panel on the right redraws
+itself from it without costing a turn.
+
+**What is open decides what is drawn.** The trip is not a form with a progress
+bar; it is a record with open questions in it, and the interface is the
+projection of those questions. `journey()` in `brain/trip.py` walks the route and
+reports, hop by hop, what that hop still wants: a date, a party size, a ticket, a
+place to stay *only if somebody sleeps there*, something to do *only if they stay
+more than a night*. Four hops with three parties and two stays is not a special
+case — it is the same walk, over a longer route.
+
+**The judgement is prompted; the vocabulary is generated.** Two things sit in
+`prompts/`: [`flow.md`](prompts/flow.md), which is the loop above and a table of
+gap → step → tool → components, and [`journey.md`](prompts/journey.md), which is
+how a route is read ("the journey is hops, and every hop is its own ticket" —
+including the hop home, which is how the agent stopped stranding people in
+Madrid). Neither one names a step number. What components exist and how to write
+them is *generated* from the catalog and never authored. Judgement in prose,
+vocabulary from a schema, and nothing in between hard-coding an order.
+
+Two things are fixed, deliberately, and only two: the trip's field names, so the
+panel, the tools and the prompt cannot disagree about what has been decided; and
+that a decision is asked for in a control its answer cannot be wrong in — a date
+in a date picker, a party size in a counter. Everything else — how many legs, how
+many days, what the surface's data model holds — is the agent's to shape for the
+trip in front of it.
+
+And because none of that is deterministic, it is measured rather than asserted.
+[`tools/eval/flow.py`](tools/eval/flow.py) plays whole conversations — the words,
+then the presses, resolved through the surface's own bindings exactly as a
+renderer would send them — and scores the *run*: did the route come home, was a
+question re-asked after it was answered, did any turn draw nothing. Every turn of
+the stranding bug was individually fine. The journey was not, and only a harness
+that plays journeys could see it.
+
 ### The shape of the system
 
 ```
@@ -281,7 +353,7 @@ Start wherever matches what you want:
 | Understand the flows and the edge cases | **[docs/user-flows.md](docs/user-flows.md)** — including which rules are enforced in code rather than asked of the model |
 | Understand how it is built | **[docs/architecture.md](docs/architecture.md)** — the long version, decision by decision |
 | Use it inside Claude | **[docs/install-in-claude.md](docs/install-in-claude.md)** — the plugin, and what it carries |
-| Deploy it | **[docs/deploying.md](docs/deploying.md)** — Cloudflare and Cloud Run, and the one setting not to change |
+| Deploy it | **[docs/deploying.md](docs/deploying.md)** — Cloud Run, and the one setting not to change |
 
 ---
 ## Run it
@@ -311,12 +383,6 @@ enough:
 http://127.0.0.1:8080
 ```
 
-### The Worker
-
-```bash
-npm run dev:worker       # http://127.0.0.1:8787 — API, MCP and the built app
-```
-
 ### The key
 
 Paste it when asked, or skip the form entirely:
@@ -338,10 +404,10 @@ with nothing else in the path.
 
 ### Deploy it
 
-Either server serves the API, the MCP endpoint and the built web app from one
+One server, serving the API, the MCP endpoint and both built clients from one
 origin — one deploy, one URL, no CORS to configure.
 
-**Cloud Run** (the Python server) builds from the `Dockerfile` at the repository
+**Cloud Run** builds from the `Dockerfile` at the repository
 root: Node builds the clients in one stage, Python runs them in the next. Run
 [`.github/workflows/cloudrun.yml`](.github/workflows/cloudrun.yml)
 from the Actions tab with four settings in place:
@@ -353,10 +419,7 @@ from the Actions tab with four settings in place:
 | `WIF_PROVIDER` *(secret)* | A Workload Identity provider, so no service-account key is ever stored |
 | `WIF_SERVICE_ACCOUNT` *(secret)* | The account it impersonates — needs Cloud Run Admin, Artifact Registry Writer and Service Account User |
 
-Every push to `main` deploys. This was manual while the Cloudflare Worker still
-held the public URL — two deploys racing to serve the same users is how a demo
-becomes unexplainable — and with Cloud Run as the deployment that reason is
-gone. The live service is
+Every push to `main` deploys. The live service is
 [travel-a2ui-vy7stnte2a-uc.a.run.app](https://travel-a2ui-vy7stnte2a-uc.a.run.app),
 and it serves all of it: the React client at `/`, the Flutter client at
 `/flutter`, the agent API, and the MCP endpoint at `/mcp`.
@@ -373,22 +436,22 @@ anything — so a second instance would hold a second set of conversations, and 
 traveller whose next request landed on it would find their trip gone. Raising
 the limit means giving the sessions somewhere shared to live first.
 
-**Cloudflare** (the Worker) — the original backend, now superseded by the
-Python server and kept only until it is removed:
+By default every visitor brings their own key. To run a shared deployment on one
+key instead, set `GEMINI_API_KEY` as a Cloud Run environment variable and the
+app stops asking.
 
-```bash
-npx wrangler login
-npm run deploy
+One thing the deploy does that is worth copying: the image ends with
+
+```dockerfile
+RUN python -c "import travel_a2ui.doors.http"
 ```
 
-Or push to `main` with `CLOUDFLARE_API_TOKEN` (the "Edit Cloudflare Workers"
-template) and `CLOUDFLARE_ACCOUNT_ID` set, and
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
-does it. Tests run first; a red build does not deploy.
-
-By default every visitor brings their own key. To run a shared deployment on one
-key instead, set `GEMINI_API_KEY` — as a Cloud Run environment variable, or a
-Worker secret — and the app stops asking.
+Everything above that line can succeed and still produce a container that cannot
+start — a module reading a data file nobody copied, a static mount pointing at a
+directory that is not there. Cloud Run reports all of it identically ("failed to
+start and listen on the port"), several minutes after the build went green, in a
+log the deploy does not show you. Importing the app at build time turns that into
+a build failure that names the file. It has already caught two.
 
 ---
 
@@ -481,17 +544,18 @@ Read first, and not in reply to anything.
 - **User flow**: open the app in the morning → *17 days to Madrid*, budget used,
   the one unbooked thing → tap it and land back in the conversation.
 
-| | Rendered in the app by | Composed for MCP hosts by |
+| | Rendered in the app by | Composed by |
 |---|---|---|
-| Inline | `apps/web/src/components/Chat.tsx` | `show_flight_options`, `show_hotel_options`, `show_itinerary`, `show_price_summary` |
-| Sidebar | `apps/web/src/components/Sidebar.tsx` | `show_trip_controls` |
-| Home | `apps/web/src/components/Home.tsx` | `show_trip_dashboard` |
+| Inline | `apps/web/src/components/Chat.tsx` | the agent, per answer — keyed `inline-3`, so the transcript is a list of things that were asked |
+| Sidebar | `apps/web/src/components/Sidebar.tsx` | the agent, singular — writing to it again rebuilds it |
+| Home | `apps/web/src/components/Home.tsx` | the agent, singular, regenerated when the trip or the day changes |
 
-**The same three flows are available over MCP.** Every placing tool takes a
-`surface` argument (`inline` \| `sidebar` \| `home`), which changes what is
-composed and where it is written — `sidebar` and `home` are singular surfaces
-that replace themselves, inline ones are keyed per answer. So a plugin installed
-in Claude gets the same product, not a subset of it.
+**They are placements, not screens**, which is why they survive the trip into
+someone else's chat app: an MCP host draws whatever surface the tool result
+names, and a surface that replaces itself behaves like a panel wherever it lands.
+A plugin installed in Claude gets the same product, not a subset of it — see
+[the MCP section](#the-mcp-app-the-same-ui-inside-claude) for how the model
+composes them there.
 
 <p align="center">
   <img src="docs/screenshots/03-dashboard-dark.png" alt="A generated trip dashboard in dark mode" width="820">
@@ -515,22 +579,33 @@ is the first question anyone asks about generative UI.
 
 ---
 
-## Voice
+## Talking to it
 
 Choosing **Gemini Live** as the agent framework puts a microphone in the
 composer. The session is relayed through the server rather than opened straight
 from the browser, and that choice is the whole architecture in miniature: the
 browser *could* open the socket itself, and then every client would need the
 catalog, the compiler, the tools and the trip. Instead it sends microphone bytes
-and receives audio plus A2UI — exactly what the Flutter client sends
-and receive.
+and receives audio plus A2UI — exactly what the Flutter client would send and
+receive.
 
-Voice is a property of the *backend*, not of the client. Every client can speak
-if the Live framework is selected; none of them contains any audio logic beyond
-a microphone and a speaker.
+Speech is a property of the *backend*, not of the client. Every client can listen
+if the Live framework is selected; none of them contains any audio logic beyond a
+microphone and a speaker.
 
-The model is handed the same six `show_*` builders the MCP endpoint uses and
-told to draw rather than read a list aloud. A live turn:
+**It is not a call.** That is not a wording preference, it is the design, and
+getting it wrong broke the feature for a week. A call has a beginning and an end
+you press a button for, and the screen is somewhere you go. Here the screen is
+already in front of you the entire time — talking is simply one way to use it, in
+the way the assistant on your phone is. So there is a microphone that opens and
+closes, over a session that outlives both, and stopping talking ends a *sentence*.
+It used to end the conversation, which is exactly why speaking and then stopping
+appeared to do nothing: the session was torn down before the answer could arrive.
+
+The model is handed the six server-composed builders — the ones the MCP endpoint
+deliberately withholds — and told to draw rather than read a list aloud. The
+trade is the right way round here: mid-sentence, a model composing Express would
+be paying latency a spoken turn does not have. A live turn:
 
 ```
 TOOL    save_trip {travelers: 2, startDate: 2027-04-12, …}
@@ -549,12 +624,25 @@ Switching framework reloads the page and starts a fresh conversation with an
 empty trip. Two APIs with two conversation histories is difference enough
 without also deciding which parts of a half-made trip survive the crossing.
 
-Three things cost an evening and are worth knowing if you build one:
-`fetch` refuses a `wss:` URL (Workers upgrade over `https:`); the runtime
-delivers inbound frames as a **Blob**, so `TextDecoder().decode` produces rubbish
-and every frame vanishes without an error; and the Live API rejects an entire
-`setup` if a function declaration carries `additionalProperties`, `$schema` or
-`strict` — which ordinary Gemini tool schemas all do.
+Four things cost an evening each and are worth knowing if you build one:
+
+- **The model answers on voice activity detection, and VAD decides you stopped
+  talking by *hearing* the silence after you.** A browser that stops sending the
+  instant you stop speaking never sends that silence, so the model sits waiting
+  for audio that is not coming. There is a frame for saying so —
+  `send_realtime_input(audio_stream_end=True)` — and sending it is the difference
+  between a reply and nothing at all.
+- **Inbound frames arrive as a `Blob`**, so `TextDecoder().decode` on one produces
+  rubbish and every frame vanishes without throwing.
+- **The Live API rejects an entire `setup`** if a function declaration carries
+  `additionalProperties`, `$schema` or `strict` — which ordinary Gemini tool
+  schemas all do. One bad key and nothing connects.
+- **There is no agent object to point at.** Interactions has one; Live does not,
+  so the first spoken turn has to do a handshake that binds the catalog, the
+  skill and the tools. That used to be a setup banner beside a microphone that
+  was `disabled` until you had dealt with it. A microphone you cannot press is
+  not a microphone: the tap does the handshake now, and the only thing left on
+  screen is a failure with a retry.
 
 ---
 
@@ -619,18 +707,17 @@ so a change to what the agent is told is reviewable as a diff — and there is n
 second, hand-typed copy to drift. A retyped prompt is a different agent, and the
 difference does not look like a bug from either side.
 
-Four things are generated and checked in, so a stale one fails CI rather than
+Three things are generated and checked in, so a stale one fails CI rather than
 shipping quietly:
 
 | Generated | From | Regenerate |
 |---|---|---|
 | `catalogs/a2ui-travel/catalog.json` | the vendored upstream basic catalog + travel components | `python3 scripts/build_catalog.py` |
-| `apps/server/src/travel_a2ui/brain/providers/fixtures.generated.py` | `data/` | `python3 scripts/build_fixtures.py` |
 | `catalogs/a2ui-travel/examples/compiled/*.json` | the `.express` examples | `python3 scripts/build_examples.py` |
 | `skills/**/SKILL.md` | the catalog, via the SDK's `SkillGenerator` | `python3 scripts/build_skills.py` |
 
-`npm run generate` does all four; `npm run check` fails if any is stale, and
-also checks the six goldens described under [Tests](#tests).
+`npm run generate` does all three; `npm run check` fails if any is stale, and
+also checks the goldens described under [Tests](#tests).
 
 ---
 
@@ -720,8 +807,8 @@ Three properties make it worth a compiler:
 
 [`packages/express`](packages/express) is a TypeScript port of the reference
 implementation in [google/a2ui](https://github.com/google/a2ui) — lexer, parser,
-compiler, decompiler and a streaming front end, with no ANTLR runtime, so it fits
-in a Worker.
+compiler, decompiler and a streaming front end, with no ANTLR runtime, so it runs
+in a browser tab.
 
 **It is diffed against the original.** Twenty cases in `tools/parity/cases` are
 compiled by both this and Google's Python compiler and asserted equal. When they
@@ -765,30 +852,49 @@ The shell is not the renderer. It is the payload inlined, plus a `<script src>`
 pointing back at the deployment the host just called — so the 220 kB React
 bundle is fetched once and cached, instead of riding along on every tool call
 and eating the host's result budget each time. The origin comes from the request
-URL, so a production deploy, a preview and `wrangler dev` each serve their own
+itself, so a production deploy, a preview and a local server each serve their own
 with nothing configured (`?origin=` overrides it, for a tunnel or a proxy).
+
+Two things about that origin, both of which produced an empty frame and no error
+anywhere. The host loads the shell into a **null-origin** sandbox, so the bundle
+needs `access-control-allow-origin: *` or the fetch never completes. And the
+scheme has to come from `x-forwarded-proto` rather than from the socket: Cloud Run
+terminates TLS at its front end and speaks plain HTTP to the container, so the
+obvious `request.base_url` writes `http://` into a page the host loaded over
+`https://`, and the browser blocks it as mixed content.
 
 A host that renders A2UI natively can drop the HTML with `POST /mcp?view=payload`;
 an HTML-only host can drop the payload with `?view=html`.
 
 ### Composed on the fly, not a menu of cards
 
-Eight tools, and the split matters:
+Eleven tools are listed, and what is *missing* from the list is the design
+decision:
 
-- `show_flight_options`, `show_hotel_options`, `show_trip_controls`,
-  `show_itinerary`, `show_trip_dashboard`, `show_price_summary` — shortcuts for
-  the six layouts that come up most, composed from the catalog server-side.
-  Fast, deterministic, no second model in the path. Each takes
-  `surface: inline | sidebar | home`, so the three flows are available in Claude
-  exactly as they are in the web app.
-- `get_a2ui_component_reference` → `render_a2ui_express` — **the actual
-  capability.** The first returns the generated output contract: the grammar,
-  the streaming rules, and the positional signature of all 40-odd components.
-  The model reads it once, writes A2UI Express for the layout *this*
-  conversation needs, and the second compiles it and hands back a surface drawn
-  by the same components. Compile errors come back naming exactly what was
-  wrong — including an invented component name, with the list of real ones — so
-  a second attempt can fix it.
+- **Nine data tools** — `search_flights`, `search_hotels`, `get_destination`,
+  `get_weather`, `estimate_cost`, `save_trip`, `release_decision`, `get_trip`,
+  `share_plan`. The same nine the agent uses, read from the same
+  `data/tools.json`. They return facts, not layouts.
+- **`get_a2ui_component_reference` → `render_a2ui_express`** — the actual
+  capability. The first returns the generated output contract: the grammar, the
+  streaming rules, and the positional signature of all 40-odd components. The
+  model reads it once, writes A2UI Express for the layout *this* conversation
+  needs, and the second compiles it and hands back a surface drawn by the same
+  React components the web app uses. Compile errors name exactly what was wrong —
+  including an invented component name, with the list of real ones — so a second
+  attempt can fix it.
+
+The six server-composed layouts (`show_flight_options`, `show_hotel_options`,
+`show_trip_controls`, `show_itinerary`, `show_trip_dashboard`,
+`show_price_summary`) still exist and are still used — the voice relay calls them
+directly, where a model composing Express mid-sentence would be paying latency it
+does not have. **They are deliberately not offered here**, and that was a
+behavioural finding rather than a preference: given both paths, a capable host
+takes the one-call path every single time, because it is one call. The generative
+path then never runs, and a demo whose entire thesis is that a model composes
+interfaces spends its life picking from a menu of six. Hand an agent what an
+agent needs — data, a vocabulary, a compiler — and nothing that does the thinking
+for it.
 
 The reference is a *tool* and not only a prompt on purpose: hosts surface MCP
 prompts as something the user must invoke by hand, so a model that can only read
@@ -808,9 +914,11 @@ the strictest thing a host does.
 Calling it directly:
 
 ```bash
-curl -s localhost:8787/mcp -H 'content-type: application/json' \
+curl -s localhost:8080/mcp -H 'content-type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
-        "name":"show_flight_options","arguments":{"destination":"Madrid"}}}' | jq
+        "name":"render_a2ui_express","arguments":{
+          "surfaceId":"demo",
+          "source":"surface(\"demo\")\nh = Text(\"Hello\", variant=\"h3\")\nroot = Column([h])"}}}' | jq
 ```
 
 ---
@@ -825,14 +933,15 @@ travel-a2ui/
 │   ├── basic/                  vendored A2UI v0.9.1 basic catalog
 │   └── a2ui-travel/            generated: basic + 12 travel components, and the examples
 ├── apps/
-│   ├── server/                 ★ the Python server: the agent, the tools, the trip, MCP, voice
+│   ├── server/                 ★ the whole backend: brain/ and doors/
 │   ├── web/                    React client: the three flows, the catalog and the wire inspector
-│   ├── mcp-view/               the renderer as one self-contained HTML file, for MCP hosts
-│   └── worker/                 the original TypeScript server — still deployed, being retired
+│   ├── mcp-view/               the renderer as one bundle an MCP host loads into its frame
+│   └── gallery/                every component drawn on its own, with the Express that made it
+├── renderers/
+│   ├── react/                  React host for both catalogs, and the design system
+│   └── flutter/                a second implementation of the same protocol, not a port
 ├── packages/
-│   ├── renderer/               React host for both catalogs, and the design system
-│   ├── express/                the TypeScript Express port: lexer, parser, compiler, decompiler
-│   └── trip/                   the TypeScript trip model — retiring with the Worker
+│   └── express/                the TypeScript Express port: lexer, parser, compiler, decompiler
 ├── tools/
 │   ├── parity/                 the goldens, and the scripts that write them
 │   ├── e2e/                    a whole browser turn against a scripted model
@@ -850,10 +959,10 @@ travel-a2ui/
 
 The Python server is the whole backend, and it is two packages: `brain/` — the
 skills, the tools, the trip record, the surface passes — and `doors/`, which is
-that brain reachable four ways. The TypeScript worker and `packages/trip` are
-gone: the cutover is done, and the goldens in `tools/parity/` are what made
-retiring them a non-event — they still pin the behaviour, now over one
-implementation rather than two.
+that brain reachable four ways. A second, TypeScript implementation of the agent
+and the trip model used to live here too; it is gone, and the goldens in
+`tools/parity/` are what made retiring it a non-event — they still pin the
+behaviour, now over one implementation rather than two.
 
 `packages/express` is what is left of the TypeScript, and it is no longer in the
 agent's path: the server compiles Express with the official Python SDK. The two
@@ -875,7 +984,7 @@ npm run e2e                           # a whole browser turn, against a scripted
 
 None of it needs an API key.
 
-### The goldens, and why there are six
+### The goldens, and why there are seven
 
 They were written when two servers implemented the same agent, and the
 dangerous failure there is not a break — a break is visible — but *silent
@@ -892,12 +1001,20 @@ and CI fails if you forget.
 
 | Golden | Pins |
 | --- | --- |
-| `travel.json` | what the fixtures generate — the same airlines, times and fares |
-| `trip.json` | the trip model: what blocks what, and what to ask for next |
+| `fixtures.json` | what the fixtures generate — the same airlines, times and fares |
+| `trip.json` | the trip model: which decisions are open, and what a route's hops need |
 | `tools.json` | the tools' *manners* — how a refusal is worded, which stop of a route a call is about |
+| `surfaces.json` | the six server-composed layouts, as Express, including the refusals |
 | `prompt.json` | the whole system prompt, byte for byte, across seven trips and three surfaces |
 | `skeleton.json` | the compiled skeleton — which also proves the two Express compilers agree |
 | `surface.json` | the four passes the server makes over a surface before it goes out |
+
+One of them earned its keep the day this paragraph was written, in a way worth
+repeating: a golden that reads the clock is not a golden. `get_weather` with no
+date meant "from today", today meant `date.today()`, and the recorded forecast
+began on whatever weekday it was captured on — green on that weekday, red on the
+other six. Anything a golden covers has to be handed the day it is running on
+rather than allowed to ask.
 
 The working rule, which has paid for itself repeatedly: **write the golden from
 the incumbent before porting, then check the golden fails when you break the

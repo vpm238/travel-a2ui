@@ -85,9 +85,9 @@ around them.
            ┌─────────────────────────┼─────────────────────────┐
            │                         │                         │
  ┌─────────▼──────────┐   ┌──────────▼─────────┐   ┌───────────▼────────┐
- │  Express ⇄ A2UI    │   │  renderers         │   │  skills/*/SKILL.md │
- │  the SDK's parser  │   │  React (packages/) │   │  what the model    │
- │  (Python) and our  │   │  Flutter (apps/)   │   │  is told           │
+ │  Express ⇄ A2UI    │   │  renderers/        │   │  skills/*/SKILL.md │
+ │  the SDK's parser  │   │  react/            │   │  what the model    │
+ │  (Python) and our  │   │  flutter/          │   │  is told           │
  │  port (TypeScript) │   │                    │   │                    │
  └─────────┬──────────┘   └──────────┬─────────┘   └───────────┬────────┘
            │                         │                         │
@@ -98,7 +98,7 @@ around them.
  │ skills, tools, the trip │ the React client   │ the same renderer,    │
  │ record, surface passes  │ (3 flows)          │ for an MCP host       │
  ├─────────────────────────┼────────────────────┼───────────────────────┤
- │ apps/server/…/doors     │ renderers/flutter│ apps/gallery          │
+ │ apps/server/…/doors     │ renderers/flutter  │ apps/gallery          │
  │ interactions · live ·   │ the second client  │ static showcase       │
  │ plugin · http           │                    │                       │
  └─────────────────────────┴────────────────────┴───────────────────────┘
@@ -125,7 +125,7 @@ context — the two agree on every field.
 
 **The catalog is the single source of truth.** `scripts/build_catalog.py` is the
 only file you edit to add a component; `npm run generate` regenerates the
-catalog JSON, the fixtures, the compiled examples and every `SKILL.md`. `npm run
+catalog JSON, the compiled examples and every `SKILL.md`. `npm run
 check` fails CI if any drifts, so "the docs are stale" is not a state this
 repository can be in.
 
@@ -136,8 +136,8 @@ tidiness — a retyped prompt is a different agent, and two agents with differen
 manners is a bug nobody can see in a diff.
 
 There is one thing the catalog does not generate: **the trip model** — what a
-trip *is*, which fields block which goals, and what to ask for next. It is
-shared by the agent, the tools, the prompt and the panels. See
+trip *is*, which fields block which goals, and what each hop of a route still
+wants. It is shared by the agent, the tools, the prompt and the panels. See
 [The trip is a model](#the-trip-is-a-model-not-a-bag-of-keys).
 
 ---
@@ -218,8 +218,11 @@ back quietly.
   story, and it is why the payload lives in a JSON script block rather than in
   a JS string literal.
 - `__ORIGIN__` is substituted from the URL the host just called, so production,
-  a preview and `wrangler dev` each serve their own renderer with nothing
-  configured. `?origin=` overrides it for a tunnel or a proxy, and non-http(s)
+  a preview and a local server each serve their own renderer with nothing
+  configured. The scheme comes from `x-forwarded-proto`, not from the socket:
+  behind a TLS terminator the obvious `request.base_url` writes `http://` into a
+  page the host loaded over `https://`, and the browser blocks it as mixed
+  content. `?origin=` overrides it for a tunnel or a proxy, and non-http(s)
   values are rejected.
 - The bundle is a **classic script, not a module**. The frame has an opaque
   origin, and a module script is fetched in CORS mode; a classic one is not.
@@ -389,46 +392,71 @@ in two formats, `cabin` arriving from a picker as `["economy"]` and reaching a
 tool expecting `"economy"`, "is this priceable yet" answered three different
 ways, two copies of the field list drifting apart.
 
-It carries four things:
+It carries five things:
 
-- **`FIELDS`** — what a trip is made of. Twenty-one fields across seven stages,
-  each with the kind it holds and how to name it when asking a person for it.
-  They are declared in `data/trip-model.json` and read by both servers, so the
-  two cannot hold different opinions about what a trip is.
-- **`normalize`** — the only way values get in. It coerces the shapes a real
-  interface produces: a picker's single-item array, an RFC 3339 instant from a
-  date input, `"$2,600"` typed into a text field.
-- **`missingFor` / `canDo`** — "can this be priced yet", answered once for
+- **`FIELDS`** — what a trip is made of: each field's key, the kind it holds, and
+  how to name it when asking a person for it. Declared in
+  `data/trip-model.json` rather than in code, so the tools, the panel and the
+  prompt cannot hold different opinions about what a trip is.
+- **`normalize` / `coerce`** — the only way values get in. They coerce the shapes
+  a real interface produces: a picker's single-item array, an RFC 3339 instant
+  from a date input, `"$2,600"` typed into a text field.
+- **`missing_for` / `can_do`** — "can this be priced yet", answered once for
   everyone. The tool gate, the prompt and the UI all call it.
-- **`plan`** — the trip as a sequence of steps, which is what makes the agent
-  lead instead of wait.
+- **`DECISIONS`** — the fields that are *decisions* rather than refinements. A
+  decision is something the traveller settled and can press Change on, and
+  gaining or losing one is what makes the standing panel need different
+  controls. A cabin preference, a neighbourhood, a ceiling on the nightly rate
+  refines a decision already made, so it reaches a standing surface live as
+  `updateDataModel` and costs no model turn.
+- **`journey`** — the route hop by hop, with what each hop has and what it still
+  wants.
 
-It reads one file and does nothing else — no network, no database — because it
-is imported by a Python server, a Cloudflare Worker, a browser bundle and a test
-suite alike. It exists twice, once in each language, and a golden file holds the
-two to the same answers: 9 trips chosen for the decisions they force, every
-function's output pinned.
+It reads one file and does nothing else — no network, no database — because it is
+imported by the server, the tools and a test suite alike, and a golden file pins
+every function's output across trips chosen for the decisions they force.
 
 ### The agent leads, and finishes
 
 A planner that answers questions is a search box with better manners. So the
-model knows the order things get decided — route, dates, party, flight, stay,
-budget, days — and `nextStepFor(trip)` goes into every prompt as an instruction:
-here is where the trip stands, here is the next thing, end the turn having moved
-it on or having asked exactly what it takes to. When every stage is settled it
-says so, and the agent stops inventing questions and wishes them a good trip.
+agent is expected to end every turn having moved the trip on or having asked
+exactly what it takes to.
 
-The sidebar shows the same sequence as a checklist, read from the same model, so
-the panel cannot disagree with what the agent thinks is left.
+**What it must not be is a ladder.** There used to be one: seven stages, and a
+`next_step_for(trip)` that returned the stage after the current one. It works
+until somebody says *"a friend joins us in Chicago and comes back with us"* —
+three hops, two party sizes, one of them needing a hotel and one not — and no
+ordering of seven stages describes that. Every uncommon trip becomes a special
+case, and a ladder full of special cases is a form with extra steps.
 
-**Real trips bend the plan**, and the model bends with them:
+So the order is gone and the judgement is the agent's. `DECISIONS` is still
+written in the order things are usually settled, but it is a list for reading,
+not a sequence anything is held to. What the host provides instead is facts:
 
-- **`skip`** — stages this trip does not need. Driving rather than flying,
-  staying with family, no fixed budget. A skipped stage counts as settled and is
+- **`journey(trip)`** walks the route and reports, per hop, what that hop still
+  wants — dates, who is on it, a ticket if it is flown, somewhere to stay *only
+  if somebody sleeps there*, something to do *only if they stay more than a
+  night*. Facts in travelling order, with no opinion about which gap matters
+  most and nothing invented: a hop nobody recorded does not appear, including
+  the way home.
+- **`prompts/flow.md`** holds the judgement — the loop, and a table of gap →
+  step → tool → components. **`prompts/journey.md`** holds how a route is read,
+  including noticing that it ends somewhere other than home. Both are markdown
+  people edit on purpose, so a change to how the agent decides is a reviewable
+  diff rather than a code change.
+
+The sidebar is built from the same `journey()`, so the panel cannot disagree with
+what the agent thinks is left.
+
+**Real trips bend**, and two fields are how:
+
+- **`skip`** — what this trip does not need. Driving rather than flying, staying
+  with family, no fixed budget, not coming back. Skipped counts as settled and is
   never asked about again, which is the difference between a planner and a form.
 - **`legs`** — the route after the first stop. Each leg carries its own dates,
-  its own origin when it is not simply the previous stop, its own party size
-  when that differs, and a purpose when it has one.
+  its own origin when it is not simply the previous stop, its own party size when
+  that differs, its own ticket, its own stay, and a `mode` when the hop is not
+  flown at all.
 
 The party size is the part worth dwelling on, because it is where a simpler
 model quietly gets the answer wrong:
@@ -441,9 +469,24 @@ of the outbound. With a single `travelers` the way home is priced for one person
 and the friend has no seat, silently. `stops()` resolves each leg against the
 trip and the leg before it — an omitted origin means "from wherever I just was",
 an omitted party size means "same as the rest" — so nothing downstream
-reimplements those defaults, and `partyVaries()` tells the interface when the
+reimplements those defaults, and `party_varies()` tells the interface when the
 difference is worth showing. The agent records the whole route in one
 `save_trip` and then asks only for the dates.
+
+That resolution is also what makes a price correct. A fare is quoted per person,
+so a hop with three on it is three tickets, and a room rate is per night, so six
+nights is six of them. The tools return `perUnit`, `units`, `total` and a
+`priceLabel` computed from the *hop's* party rather than the trip's — "$412 each
+· $1,236 for 3" — and the total is carried in the currency it was quoted in,
+because a euro rate summed into dollars is a number nobody can act on. One
+traveller gets the bare fare and no "for 1", which is noise.
+
+The nights are the other multiplier, and they decide more than the arithmetic. A
+hop that lands and leaves the same day wants no hotel and no day plan; a hop that
+stays four nights wants both, and they are two separate answers — "I'm at my
+sister's" settles the bed and nothing else, and the four days are still empty.
+Asking about a hotel for nought nights is exactly the question that makes an
+agent look like a form.
 
 ### `/trip` is shared; everything else is per-surface
 
@@ -462,7 +505,7 @@ than a prompt instruction.
 
 A surface is born with `/trip` already filled in from what is decided, so a
 `DateRangePicker` bound to `$/trip/startDate` shows the agreed date without the
-model doing anything. Committing sends those values back, and the Worker merges
+model doing anything. Committing sends those values back, and the host merges
 them into the trip *before* building the prompt — so what the traveler set on
 screen is recorded because the host recorded it, not because the model
 remembered to call `save_trip`.
@@ -492,7 +535,7 @@ picker rather than returning numbers. `flexible: true` is the deliberate way
 through for "roughly what does Madrid cost in April", and what comes back is
 labelled indicative. `save_trip` refuses a range that ends before it starts.
 
-For location the browser sends its timezone, which the Worker maps to a
+For location the browser sends its timezone, which the server maps to a
 departure airport and offers to the model as an explicit *suggestion* — London
 for `Europe/London`, Delhi for `Asia/Kolkata`, a regional hub when the zone is
 not listed, and nothing at all when it cannot tell. The model must offer it
@@ -624,25 +667,34 @@ session each reload leaves behind goes away instead of accumulating.
 
 ## 7 · The MCP server
 
-Stateless Streamable HTTP: every POST is self-contained, which is all a Worker
-wants to be and means no session affinity to arrange.
+Stateless Streamable HTTP: every POST is self-contained, so there is no session
+affinity to arrange and no state to lose between calls.
 
-Eight tools, in two groups:
+Eleven tools, in two groups:
 
-- **Six `show_*` tools** take structured arguments and return a surface composed
-  server-side from the catalog. The host's model decides *what* to show; this
-  server decides how. Fast, deterministic, no second model in the path.
-- **`get_a2ui_component_reference` → `render_a2ui_express`** is the general
-  case, and the `show_*` tools are shortcuts for it. The first returns the
-  generated output contract — grammar, streaming rules, every positional
-  signature. The model reads it once, writes Express for the layout this
-  conversation actually needs, and the second compiles it.
+- **Nine data tools** — the same ones the agent uses, read from the same
+  `data/tools.json`. They return facts: fares, rooms, a destination guide, a
+  forecast, an estimate, and the trip record itself.
+- **`get_a2ui_component_reference` → `render_a2ui_express`** — the vocabulary and
+  the compiler. The first returns the generated output contract — grammar,
+  streaming rules, every positional signature. The model reads it once, writes
+  Express for the layout this conversation actually needs, and the second
+  compiles it.
+
+**The six `show_*` builders are not listed here, on purpose.** They exist and are
+still used — the Live relay calls `build_surface` directly, where a model
+composing Express mid-sentence would be paying latency it does not have — but
+offering them to a host that is itself a capable model was self-defeating in a
+way that only shows up in behaviour: given both, the host takes the one-call path
+every time, because it is one call. The generative path then never runs, and a
+demo whose entire thesis is that a model composes interfaces spends its life
+picking from a menu of six. Hand an agent data, a vocabulary and a compiler, and
+nothing that does the thinking for it.
 
 The reference is exposed as a **tool** and not only as an MCP prompt because
-hosts surface prompts to the *user*, as something to invoke by hand. A model
-that can only read prompts can never learn the vocabulary mid-conversation. As a
-tool it can, and that is the difference between generative layouts and a menu of
-six cards.
+hosts surface prompts to the *user*, as something to invoke by hand. A model that
+can only read prompts can never learn the vocabulary mid-conversation. As a tool
+it can.
 
 A compile failure is returned as an `isError` result naming what was wrong —
 including an invented component name, with the list of real ones — because the
@@ -654,7 +706,7 @@ act on.
 ## 8 · Where the API key lives
 
 Nowhere on the server. The browser holds it, sends it in `x-goog-api-key` on
-each request, and the Worker passes it to the SDK and forgets it. It is never
+each request, and the server passes it to the SDK and forgets it. It is never
 written to any session, never logged, and never put in a URL — a key in a
 query string lands in every access log between the browser and the edge.
 
@@ -663,8 +715,8 @@ fragment is never sent to a server. `?key=…` also works and the app takes it,
 strips it from the address bar, and then tells you plainly that the server saw
 it and to rotate it.
 
-For a shared deployment that does not want to ask, an `ANTHROPIC_API_KEY` Worker
-secret is used when the header is absent.
+For a shared deployment that does not want to ask, a `GEMINI_API_KEY` in the
+environment is used when the header is absent.
 
 Inside Claude, none of this applies: Claude is already the model, so the MCP
 server holds no credentials at all — which is also why it holds no trip data.
@@ -675,7 +727,7 @@ server holds no credentials at all — which is also why it holds no trip data.
 
 | Layer | How |
 | --- | --- |
-| Trip model | coercion from real interface shapes, readiness, the plan, skipped stages, and a three-leg route with two party sizes |
+| Trip model | coercion from real interface shapes, readiness, what each hop still wants, what was ruled out, and a three-leg route with two party sizes |
 | Compiler | 20 golden cases byte-checked against the reference Python compiler |
 | Skill generator | output byte-identical to the reference generator |
 | Renderer store | bindings, checks, templates, surface lifecycle |
@@ -732,10 +784,8 @@ not, because Amadeus has no weather product and the fixture's provenance travels
 with the delegated answer.
 
 **Fixtures** are a deterministic generator over the rows in `data/` — CSV and
-JSON. The Python server reads them from disk; the Worker cannot, having no
-filesystem, so `scripts/build_fixtures.py` compiles the same rows into its
-bundle. Prices move with distance, cabin and season; the same
-query returns the same result. Destination guidance is real; fares, schedules
+JSON, read from disk at startup. Prices move with distance, cabin and season;
+the same query returns the same result. Destination guidance is real; fares, schedules
 and hotels are not, and the UI says so. No booking happens.
 
 ### The contract, and why it is shaped like that

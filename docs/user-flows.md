@@ -87,7 +87,7 @@ change it.
 | A value changes on an inline card | The panel updates immediately, with no model turn — the server sends `updateDataModel`. Trip facts are shared state, not something the agent re-renders. |
 | The plan moves on | Same: the checklist is bound to `/plan`, which the server keeps current. The agent drew the shape once. |
 | Nothing decided yet | The panel says what the agent is about to ask, rather than showing an empty form. |
-| A stage the trip does not need | Struck through and marked *not needed*. Never asked about again. |
+| Something the trip does not need | Struck through and marked *not needed*. Never asked about again. |
 | A stop still missing something | Flagged on that stop — `dates?`, `stay?` — not as a trip-wide gap. |
 
 ## Flow 4 · Changing your mind
@@ -110,7 +110,7 @@ into the conversation keeps one editing surface and one history.
 | Case | What happens |
 | --- | --- |
 | Changing something others depend on | The dependents are released too. A new date range releases the flight priced against it, and the agent says so. |
-| Changing a stage that was skipped | It comes back — "actually, we do need a hotel in Madrid" un-skips it. |
+| Changing something that was ruled out | It comes back — "actually, we do need a hotel in Madrid" un-skips it. |
 | Changing after the trip is finished | The plan reopens at that step. |
 | Pressing Change twice | The second is a no-op; it is already released and open inline. |
 
@@ -144,7 +144,7 @@ the one place the panel is **editable in place**.
 | Case | What happens |
 | --- | --- |
 | Removing everything from a day | The day stays, empty, offering to fill itself. An empty day is a real answer — a rest day — and deleting the card would lose the date. |
-| Editing after "looks good" | Same as any decision: it reopens. The plan is the one stage that is *expected* to be revisited. |
+| Editing after "looks good" | Same as any decision: it reopens. The day plan is the one that is *expected* to be revisited. |
 | Typing instead of pressing | Works. The buttons are the fast path, not the only path — a typed "drop the museum, it's too far" is the same turn. |
 | A day with nothing worth doing | Says so and offers the next town over, rather than padding the day. |
 
@@ -176,14 +176,16 @@ without understanding the sentence.
 
 ## Flow 9 · Finishing
 
-When every stage is settled or ruled out, the agent stops asking. It shows the
+When every hop has what it needs and everything else is settled or ruled out,
+the agent stops asking. It shows the
 whole trip on one surface and offers the two things actually left — adding more
 to the days, or sharing the plan with whoever else is coming — and wishes them a
 good trip.
 
 **Edge case:** a trip that will never be "complete" — someone browsing, someone
-who only wanted a fare. The agent does not force the sequence; a stage ruled out
-is a stage finished, and one that has not come up is not nagged about.
+who only wanted a fare. There is no sequence to force — the agent decides each
+turn what is worth asking next from what is now known, and something ruled out
+is something finished.
 
 ## Flow 10 · Inside Claude
 
@@ -208,7 +210,7 @@ is a guarantee.
 | Only the newest surface is interactive | the host (`inert`) | The agent has no idea what else is on screen. |
 | Trip values pre-fill every surface | **the server** (`createSurface.dataModel`) | Prompting a model to remember state it cannot see is how it forgets — and doing it in the browser is how only one client gets it right. |
 | A panel stays current as the trip moves | **the server** (`updateDataModel`) | Same reason. It is a message every renderer already applies, so it costs a mobile client nothing. |
-| Everything on a surface is sent together | **the server** (`bindCommitContext`) | Every path the editors write to is bound into the commit button before the surface leaves the Worker. |
+| Everything on a surface is sent together | **the server** (`bind_commit_context`) | Every path the editors write to is bound into the commit button before the surface leaves the server. |
 | A card of editors is never a dead end | **the server** (`bindCommitContext`) | A surface with editors and no button gets one. This used to be a bar the React app drew, which meant the Flutter client shipped the dead end. |
 | No prices without dates and a route | the tools | A model in a hurry prices a plausible week and calls it a sample. |
 | A date range that ends before it starts | the tools | Silent corruption of everything downstream. |

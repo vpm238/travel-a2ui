@@ -8,34 +8,11 @@ cross-origin requests.
 | --- | --- | --- |
 | **Cloud Run** | `apps/server` (Python) | One Cloud Run service, deployed from `main` |
 
-There used to be two: a TypeScript Worker on Cloudflare and this one. The
-cutover is done and the Worker is deleted. What made removing it a non-event was
-the goldens in `tools/parity/` — they pinned every layer where two
-implementations could silently disagree, so the second one could go without
-anybody having to trust that it was safe.
-
----
-
-## Cloudflare
-
-### From your machine
-
-```bash
-npx wrangler login
-npm run deploy          # builds, then deploys
-```
-
-### From CI
-
-Push to `main`. [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)
-runs the tests first and does not deploy a red build.
-
-Two repository secrets:
-
-| Secret | Where to get it |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → Create → **Edit Cloudflare Workers** template |
-| `CLOUDFLARE_ACCOUNT_ID` | Workers & Pages → the sidebar |
+There used to be a second, TypeScript server on a different platform. The
+cutover is done and it is deleted. What made removing it a non-event was the
+goldens in `tools/parity/` — they pinned every layer where two implementations
+could silently disagree, so the second one could go without anybody having to
+trust that it was safe.
 
 ---
 
@@ -142,11 +119,16 @@ minutes into a build.
 
 ### Running it
 
-Actions → **travel-a2ui Cloud Run** → Run workflow.
+Every push to `main` deploys. Actions → **travel-a2ui Cloud Run** → Run workflow
+runs it by hand as well, for a re-deploy without a commit.
 
-Deliberately manual. The Worker is still the thing on the public URL, and two
-deploys racing to serve the same users on every push is how a demo becomes
-unexplainable. Once the cutover is done, change `on:` to `push: branches: [main]`.
+The build ends with `RUN python -c "import travel_a2ui.doors.http"`, and that
+line is worth keeping. Everything above it can succeed and still produce a
+container that cannot start — a module reading a data file nobody copied, a
+static mount pointing at a directory that is not there. Cloud Run reports all of
+it identically ("failed to start and listen on the port"), several minutes after
+the build went green, in a log the deploy does not show you. Importing the app at
+build time turns that into a build failure that names the file.
 
 ### The one setting not to change without reading this
 
