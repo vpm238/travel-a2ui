@@ -589,11 +589,19 @@ def mount_clients() -> None:
         #
         # Scoped to this one directory. The app itself is same-origin and has no
         # business being readable from anywhere.
-        app.mount(
-            "/mcp-view",
-            _AnyOrigin(directory=WEB_DIST / "mcp-view"),
-            name="mcp-view",
-        )
+        #
+        # Guarded like every other mount here, because `StaticFiles` raises on a
+        # missing directory *at import time* rather than serving 404s. Mounting
+        # it unguarded took the whole server down with
+        # `RuntimeError: Directory '…/mcp-view' does not exist` — caught by the
+        # Dockerfile's import check rather than by Cloud Run, which is the one
+        # thing that went right about it.
+        if (WEB_DIST / "mcp-view").is_dir():
+            app.mount(
+                "/mcp-view",
+                _AnyOrigin(directory=WEB_DIST / "mcp-view"),
+                name="mcp-view",
+            )
         app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
 
         @app.exception_handler(404)

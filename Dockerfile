@@ -27,8 +27,15 @@ COPY renderers/react/package.json renderers/react/
 RUN npm ci
 
 COPY . .
+# `mcp-view` is not optional and was missing, which is worth a line so it does
+# not get dropped again. It is the renderer an MCP host loads into its own
+# frame, and the tool result is a one-kilobyte shell that links it from this
+# deployment. Leave it out and the image serves a shell pointing at a bundle
+# that 404s: the host renders an empty box, reports nothing, and the plugin
+# looks broken for a reason nothing in the logs explains.
 RUN npm run build -w @travel-a2ui/express \
  && npm run build -w @travel-a2ui/renderer \
+ && npm run build -w @travel-a2ui/mcp-view \
  && npm run build -w @travel-a2ui/web
 
 # ---------------------------------------------------------------------------
