@@ -19,6 +19,7 @@ from .. import ROOT
 import json
 import os
 import pathlib
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -265,6 +266,12 @@ async def relay(
         catalog_id=CATALOG_ID,
         trip=trip,
         today=today,
+        # Tools, not Express. This session answers in audio, so anything the
+        # model writes is *spoken* — and `voice_tools()` carries no compiler to
+        # send a notation to. Teaching it Express here made it emit
+        # `<a2ui> surface("voice-1") …` into its reply about one turn in three:
+        # read aloud, never drawn, and invisible in every log.
+        draws="tools",
     )
 
     genai = session.client or Client(api_key=session.api_key)
@@ -371,9 +378,18 @@ async def relay(
                                 await announce({"type": "audio", "data": _b64(data)})
                         spoken = getattr(content, "output_transcription", None)
                         if getattr(spoken, "text", None):
-                            await announce(
-                                {"type": "transcript", "text": spoken.text, "who": "agent"}
-                            )
+                            # Belt and braces over the prompt. The instruction
+                            # says not to write interface code on this channel;
+                            # if a turn does it anyway, the traveller should not
+                            # have to *hear* it. Dropping it from the transcript
+                            # cannot unsay the audio, but it keeps the written
+                            # record readable and makes the mistake obvious in
+                            # a way that a wall of Express does not.
+                            said = _without_markup(spoken.text)
+                            if said:
+                                await announce(
+                                    {"type": "transcript", "text": said, "who": "agent"}
+                                )
                         heard = getattr(content, "input_transcription", None)
                         if getattr(heard, "text", None):
                             await announce(
@@ -562,6 +578,37 @@ async def _race(asyncio_module: Any, *coroutines: Any) -> None:
             if not task.done():
                 task.cancel()
         await asyncio_module.gather(*tasks, return_exceptions=True)
+
+
+#: An `<a2ui>` block, opened or closed, and the Express lines inside one.
+#:
+#: Matched loosely because a transcript arrives in fragments: " surface(", then
+#: "\"voice-1\")", then the next line. There is no point waiting for a
+#: well-formed block that will never be delivered in one piece.
+_MARKUP = re.compile(
+    r"</?a2ui>|^\s*(?:surface\s*\(|\$/[\w/]+\s*=|\w+\s*=\s*[A-Z]\w*\s*\()",
+    re.MULTILINE,
+)
+
+
+def _without_markup(text: str) -> str:
+    """What is left of a spoken line once interface code is taken out of it.
+
+    A Live session answers in audio, so the model's text *is* its speech. A turn
+    that writes Express writes it into the transcript and says it out loud —
+    "less than a2ui greater than, surface, open paren, quote, voice dash one" —
+    which is the worst thing this app can do to somebody who is listening.
+
+    The prompt is what stops it (see `SPOKEN_DRAWING`); this is what keeps the
+    written record clean when the prompt is not enough. It cannot unsay the
+    audio, and it deliberately does not try to *compile* what it finds: there is
+    no surface id to trust, no guarantee the fragment is whole, and drawing
+    something half-said is worse than drawing nothing.
+    """
+    if not _MARKUP.search(text):
+        return text
+    kept = [line for line in text.split("\n") if not _MARKUP.search(line)]
+    return "\n".join(kept).strip()
 
 
 def _b64(data: Any) -> str:

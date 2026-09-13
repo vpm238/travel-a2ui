@@ -254,7 +254,16 @@ class TestOpeningTheSession:
     def test_the_voice_brief_is_appended_and_does_not_replace_the_prompt(self) -> None:
         config = setup_config("THE ORDINARY PROMPT")
         assert "THE ORDINARY PROMPT" in config["system_instruction"]
-        assert "on a phone call" in config["system_instruction"]
+        # Not the phrasing — the phrasing changed once already, and pinning it
+        # is how a test ends up defending the wording it was written beside.
+        # What has to be true is that the spoken brief is *there*, and that the
+        # rule it exists for survived the edit: a turn with something to show
+        # ends with something drawn. The model answering "let me find those for
+        # you" and stopping is the failure this whole surface has.
+        instruction = config["system_instruction"]
+        assert "spoken" in instruction
+        assert "Drawing is not optional" in instruction
+        assert "phone call" not in instruction, "voice is not a call — see prompts/live.md"
 
 
 class TestCarryingTheCall:
@@ -552,3 +561,107 @@ class TestStoppingTheMicrophoneIsNotHangingUp:
         """`end` is for closing the tab, and it still closes the session."""
         _, client, _ = run_call([], incoming=[{"type": "end"}, {"type": "audio", "data": "X"}])
         assert client.live_session.sent == [], "nothing is sent after they leave"
+
+
+class TestASpokenTurnCannotWriteInterfaceCode:
+    """The bug that made Live look broken, and it was in the prompt.
+
+    A Live session answers in audio: the model's text output *is* its speech,
+    and `voice_tools()` carries no compiler. Handing it the Express skill taught
+    it a second way to draw that does not exist on this channel — so about one
+    turn in three it wrote `<a2ui> surface("voice-1") …` into its reply, the
+    session read the interface aloud, and the screen stayed empty. Measured, in
+    a real browser against the real model: 0 drawings in 5.
+    """
+
+    def test_the_spoken_prompt_teaches_tools_rather_than_express(self) -> None:
+        from travel_a2ui.brain.skills import build_system_prompt
+
+        spoken = build_system_prompt(
+            variant="express-modular",
+            surface="inline",
+            surface_id="voice-1",
+            catalog_id="x",
+            trip={},
+            today="2027-03-01",
+            draws="tools",
+        )
+        assert "Putting something on the screen" in spoken
+        assert "Never write interface code in a reply" in spoken
+
+    def test_it_does_not_carry_the_express_output_contract(self) -> None:
+        from travel_a2ui.brain.skills import build_system_prompt
+
+        common = dict(
+            variant="express-modular",
+            surface="inline",
+            surface_id="voice-1",
+            catalog_id="x",
+            trip={},
+            today="2027-03-01",
+        )
+        spoken = build_system_prompt(**common, draws="tools")
+        typed = build_system_prompt(**common)
+
+        # The component signatures and the streaming rules are the contract
+        # that teaches emission. The typed channel has a parser for what they
+        # produce; the spoken one has a loudspeaker.
+        #
+        # Deliberately not asserting on the literal "<a2ui>": the spoken prompt
+        # contains it too, inside the sentence forbidding it.
+        for taught in ("FlightOption(", "ItineraryDay(", "positional", "sentinel"):
+            assert taught in typed, taught
+            assert taught not in spoken, taught
+
+        # And roughly 25,000 characters lighter, which a spoken turn pays for
+        # in latency on every single reply.
+        assert len(typed) - len(spoken) > 20_000
+
+    def test_the_typed_channel_is_unchanged_by_default(self) -> None:
+        """`draws` defaults to express, so nothing else moved."""
+        from travel_a2ui.brain.skills import build_system_prompt
+
+        common = dict(
+            variant="express-modular",
+            surface="inline",
+            surface_id="inline-1",
+            catalog_id="x",
+            trip={},
+            today="2027-03-01",
+        )
+        assert build_system_prompt(**common) == build_system_prompt(**common, draws="express")
+
+
+class TestNobodyShouldHaveToHearExpressReadAloud:
+    """The safety net under the prompt.
+
+    It cannot unsay the audio — by the time a transcript arrives the words are
+    already out — but it keeps the written record readable, and it makes the
+    mistake legible instead of burying it in a wall of notation.
+    """
+
+    def said(self, text: str) -> str:
+        from travel_a2ui.doors.live import _without_markup
+
+        return _without_markup(text)
+
+    def test_ordinary_speech_is_left_exactly_as_it_was(self) -> None:
+        line = "Four fares up — the Iberia one is cheapest and gets in before lunch."
+        assert self.said(line) == line
+
+    def test_a_sentence_about_a_surface_is_not_mistaken_for_one(self) -> None:
+        line = "I've put the flights on the screen for you."
+        assert self.said(line) == line
+
+    def test_the_block_markers_go(self) -> None:
+        assert self.said("<a2ui>") == ""
+        assert self.said("</a2ui>") == ""
+
+    def test_express_statements_go(self) -> None:
+        assert self.said('surface("voice-1")') == ""
+        assert self.said('$/trip/origin = "JFK"') == ""
+        assert self.said('f1 = FlightOption("Iberia", "18:40")') == ""
+
+    def test_prose_survives_a_block_beside_it(self) -> None:
+        heard = self.said('Here they are.\n<a2ui>\nsurface("voice-1")\n')
+        assert heard == "Here they are."

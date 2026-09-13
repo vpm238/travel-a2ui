@@ -375,6 +375,41 @@ def _inventory() -> str:
     )
 
 
+#: What replaces the Express skill on a channel that cannot carry Express.
+#:
+#: The Live API answers in *audio*: the model's text output is what it says out
+#: loud. Give it the Express output contract there and it does exactly what it
+#: was taught — writes `<a2ui> surface("voice-1") …` into its reply — and the
+#: session reads the interface aloud, one token at a time, while the screen
+#: stays empty. Nothing parses it, because on this channel there is no text
+#: stream to parse: there is speech, and there are function calls.
+#:
+#: This was the whole of "Gemini Live still does not work". Both paths were
+#: taught and only one of them was wired, so which one a turn took was a coin
+#: flip — measured at one drawing in three, and nothing in any log said why.
+#:
+#: So the skill comes out and this goes in. It is short on purpose: a spoken
+#: turn is paying latency for every token of system instruction, and the
+#: vocabulary is no use to a session that has no compiler to send it to.
+SPOKEN_DRAWING = """\
+## Putting something on the screen
+
+You are answering out loud, and **everything you write is spoken**. There is no
+text channel here: a reply is speech, and the only other thing you can emit is a
+function call.
+
+So there is exactly one way to draw, and it is to call one of the `show_*`
+tools. They compose the surface for you and put it on the screen beside the
+traveller.
+
+**Never write interface code in a reply.** No `<a2ui>` blocks, no
+`surface("…")`, no `$/trip/...` assignments, no component names. There is no
+compiler on this channel — anything of that shape is simply read aloud, which
+sounds like the app having a stroke, and the screen stays empty. If you catch
+yourself about to describe a layout, call the tool instead.\
+"""
+
+
 def build_prompt_parts(
     *,
     variant: str,
@@ -383,6 +418,7 @@ def build_prompt_parts(
     catalog_id: str,
     trip: dict[str, Any],
     today: str,
+    draws: str = "express",
 ) -> tuple[str, str]:
     """The prompt in its two halves: what never changes, and what always does.
 
@@ -409,6 +445,16 @@ def build_prompt_parts(
     the trip change every turn, and a model told once, ten turns ago, which
     surface to draw into would draw into the wrong one.
     """
+    # `draws` is how the answer leaves, and it decides whether the model is
+    # taught a notation at all. "express" is the text channels, where the host
+    # parses `<a2ui>` blocks out of the stream; "tools" is the spoken one, where
+    # the reply is audio and a function call is the only way to reach a screen.
+    drawing: list[str] = (
+        [SPOKEN_DRAWING]
+        if draws == "tools"
+        else [_body(source) for source in _SKILL_SOURCES[variant]]
+    )
+
     stable = "\n\n---\n\n".join(
         [
             ROLE,
@@ -416,7 +462,7 @@ def build_prompt_parts(
             JOURNEY,
             _inventory(),
             _controls(),
-            *(_body(source) for source in _SKILL_SOURCES[variant]),
+            *drawing,
         ]
     )
 
