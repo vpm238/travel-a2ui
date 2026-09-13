@@ -291,3 +291,41 @@ class TestAPriceIsForTheWholeParty:
         assert out["currency"] == "EUR"
         assert out["hotels"][0]["total"].startswith("€")
         assert "$" not in out["hotels"][0]["priceLabel"]
+
+
+class TestAForecastIsPinnedToTheTurnsDay:
+    """The one golden that could pass on a Saturday and fail on a Sunday.
+
+    `get_weather` with no start date meant "from today", and today meant the
+    wall clock — so the recorded forecast started on whatever weekday the
+    golden happened to be captured on and drifted off it the next morning. It
+    is not a flake: every other day of the week it was a real, reproducible
+    failure of a test that was asserting the calendar rather than the code.
+
+    The fix is the one `save_trip` already used: the turn carries its day, and
+    nothing underneath it reaches for the clock.
+    """
+
+    def forecast(self, today: str, start_date: str | None = None) -> list[dict]:
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
+
+        context = ToolContext(trip={}, provider=FixtureProvider(), today=today)
+        args = {"destination": "Madrid"}
+        if start_date:
+            args["startDate"] = start_date
+        out, _ = asyncio.run(run_tool("get_weather", args, context))
+        return out["days"]
+
+    def test_the_days_run_from_the_day_the_turn_happens_on(self) -> None:
+        # 2027-03-01 is a Monday and 2027-03-06 a Saturday.
+        assert self.forecast("2027-03-01")[0]["day"] == "Mon"
+        assert self.forecast("2027-03-06")[0]["day"] == "Sat"
+
+    def test_the_same_day_twice_is_the_same_forecast(self) -> None:
+        assert self.forecast("2027-03-01") == self.forecast("2027-03-01")
+
+    def test_an_explicit_date_still_wins(self) -> None:
+        assert self.forecast("2027-03-01", "2027-04-12")[0]["day"] == "Mon"
+        assert self.forecast("2027-03-06", "2027-04-12") == self.forecast(
+            "2027-03-01", "2027-04-12"
+        )

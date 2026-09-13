@@ -1698,34 +1698,34 @@
       "place": "Atlantis",
       "days": [
         {
-          "day": "Sat",
-          "high": "23°",
-          "low": "16°",
-          "condition": "sun"
-        },
-        {
-          "day": "Sun",
-          "high": "24°",
-          "low": "15°",
-          "condition": "fog"
-        },
-        {
           "day": "Mon",
-          "high": "24°",
-          "low": "16°",
-          "condition": "sun"
+          "high": "16°",
+          "low": "9°",
+          "condition": "cloud"
         },
         {
           "day": "Tue",
-          "high": "23°",
-          "low": "15°",
-          "condition": "fog"
+          "high": "17°",
+          "low": "12°",
+          "condition": "sun"
         },
         {
           "day": "Wed",
-          "high": "22°",
-          "low": "17°",
+          "high": "17°",
+          "low": "10°",
           "condition": "cloud"
+        },
+        {
+          "day": "Thu",
+          "high": "14°",
+          "low": "8°",
+          "condition": "sun"
+        },
+        {
+          "day": "Fri",
+          "high": "13°",
+          "low": "6°",
+          "condition": "fog"
         }
       ],
       "note": "Mostly dry; a light jacket is enough.",

@@ -533,8 +533,12 @@ class FixtureProvider:
         if not resolved:
             return _unknown_destination(destination)
 
+        # The clock is the last resort, not the default: every caller in this
+        # app passes the day its turn is happening on, precisely so that what
+        # comes back does not depend on the day the process runs. See
+        # `TravelProvider.get_weather`.
         start = date.fromisoformat(start_date) if start_date else date.today()
-        random = _rng(_seed(f"weather-{resolved['city']}-{start_date or ''}"))
+        random = _rng(_seed(f"weather-{resolved['city']}-{start.isoformat()}"))
         conditions = ["sun", "sun", "cloud", "cloud", "rain", "fog"]
         weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 

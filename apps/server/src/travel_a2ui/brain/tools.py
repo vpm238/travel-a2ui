@@ -778,7 +778,9 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
     if name == "get_weather":
         outcome = await provider.get_weather(
             _str(args.get("destination")),
-            _str(args.get("startDate")) or None,
+            # "What is it like there?" with no date means from today, and today
+            # is the turn's day rather than the clock's — see `ToolContext.day`.
+            _str(args.get("startDate")) or context.day(),
             int(args.get("days") or 5),
         )
         if not outcome.ok:

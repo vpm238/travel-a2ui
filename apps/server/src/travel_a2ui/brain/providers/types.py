@@ -151,4 +151,15 @@ class TravelProvider(Protocol):
 
     async def get_weather(
         self, destination: str, start_date: str | None = None, days: int = 5
-    ) -> Outcome: ...
+    ) -> Outcome:
+        """The forecast from `start_date`, which the caller is expected to fill in.
+
+        It is optional in the signature and should not be in practice. Every
+        caller in this app knows the day its turn is happening on — the tools
+        from `ToolContext.day()`, the surfaces from `build_surface(today=…)` —
+        and a provider left to read the clock itself is a provider whose answer
+        depends on the day it runs. That is untestable by construction: the
+        golden for "no date given" passed on the weekday it was recorded on and
+        failed on the other six.
+        """
+        ...

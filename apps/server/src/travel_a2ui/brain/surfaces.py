@@ -543,14 +543,17 @@ async def _dashboard(
     budget = _int(args.get("budget"), 0)
     spent = _int(args.get("spent"), 0)
 
+    now = _dt.date.fromisoformat(today) if today else _dt.date.today()
     start_date = _str(args.get("startDate"))
     days_out: int | None = None
     if start_date:
-        now = _dt.date.fromisoformat(today) if today else _dt.date.today()
         days_out = max(0, (_dt.date.fromisoformat(start_date) - now).days)
 
     estimate = _estimate(query, travelers, nights, None, None)
-    weather = await provider.get_weather(query, start_date or None, 5)
+    # A dashboard with no dates on it still shows a forecast, and it is the
+    # forecast from this turn's day — `now`, not whatever day the process
+    # happens to be running on.
+    weather = await provider.get_weather(query, start_date or now.isoformat(), 5)
     if not weather.ok:
         raise NoData(weather)
     forecast = weather.items[0]
