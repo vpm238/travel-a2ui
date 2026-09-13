@@ -1,6 +1,6 @@
 ## This surface: a phone call
 
-Appended to the ordinary brief rather than replacing it. The agent on a call
+Appended to the ordinary brief rather than replacing it. The agent being spoken to
 is the same agent with the same catalog and the same refusals — everything
 here is about *speaking* rather than about travel.
 

@@ -29,7 +29,7 @@ import { consumeKeyFromUrl } from './apiKey.js';
  * version: this is a renderer, and it does not know what a trip is.
  */
 export type Trip = Record<string, unknown>;
-import { instantiateLive, startCall, type VoiceCall } from './voice.js';
+import { instantiateLive, startVoice as openVoice, type VoiceSession } from './voice.js';
 import {
   clientHints,
   fetchMeta,
@@ -466,7 +466,7 @@ export function useAgent() {
       writeStored(BACKEND_KEY, JSON.stringify({ id, origin: clean }));
       // Release the microphone before the page goes, so the recording
       // indicator does not linger through the reload.
-      callRef.current?.hangUp();
+      sessionRef.current?.close();
       window.location.reload();
       return true;
     } catch (error) {
@@ -537,7 +537,7 @@ export function useAgent() {
       if (frameworkRef.current === 'live' && !drawing && !options.silent) {
         const spoken = await speakRef.current?.(text);
         if (spoken) return;
-        // Falling through means the call could not be opened — the microphone
+        // Falling through means the microphone could not be opened — it
         // was refused, or the key is missing. The error is already on screen.
         return;
       }
@@ -771,7 +771,7 @@ export function useAgent() {
   // it draws land in this store. Nothing here knows what a flight is.
 
   /**
-   * Adds to the transcript as a call goes on.
+   * Adds to the transcript as a spoken turn goes on.
    *
    * Transcription arrives in fragments rather than whole sentences, so a run of
    * them from the same speaker is glued into one turn — otherwise a sentence
@@ -850,6 +850,9 @@ export function useAgent() {
     return 'ready';
   })();
 
+  const liveStatusRef = useRef(liveStatus);
+  liveStatusRef.current = liveStatus;
+
   const runInstantiate = useCallback(async (): Promise<boolean> => {
     if (!keyRef.current) {
       setLiveError('Add your Gemini key first.');
@@ -894,42 +897,43 @@ export function useAgent() {
     void runInstantiate();
   }, [backend.id, apiKey, liveStatus, meta?.contract?.stamp, runInstantiate]);
 
-  const [call, setCall] = useState<VoiceCall | null>(null);
-  /** The same call, readable synchronously — `setCall` lands a tick too late. */
-  const callRef = useRef<VoiceCall | null>(null);
+  const [session, setSession] = useState<VoiceSession | null>(null);
+  /** The same session, readable synchronously — `setSession` lands a tick late. */
+  const sessionRef = useRef<VoiceSession | null>(null);
   const [listening, setListening] = useState(false);
   const [agentSpeaking, setAgentSpeaking] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
-  const hangUp = useCallback(() => {
-    call?.hangUp();
-    callRef.current = null;
-    setCall(null);
+  const closeVoice = useCallback(() => {
+    session?.close();
+    sessionRef.current = null;
+    setSession(null);
     setListening(false);
     setAgentSpeaking(false);
-  }, [call]);
+  }, [session]);
 
   /**
-   * The microphone, toggled over a session that outlives it.
+   * Tap to talk. Tap again when you have finished talking.
    *
-   * This used to be `if (call) return hangUp()`: the same button opened a call
-   * and ended one. That is the phone-call model, and it is the wrong one here —
-   * the traveller has the screen in front of them the whole time and talking is
-   * one way to use it. Pressing stop after speaking therefore tore the session
-   * down before the answer could arrive, which is why speaking and then
-   * stopping did nothing at all.
+   * That is the whole interaction, and it is the one people already have with
+   * the assistant on their phone. What was here instead was a *call*: the first
+   * press dialled, the second hung up, and — because hanging up tears the
+   * session down — speaking and then pressing stop threw away the answer on its
+   * way back. Nobody dials an assistant.
    *
-   * Now the first press opens a session and starts listening, and each press
-   * after that opens or closes the microphone. The session ends when they leave
-   * the tab or switch runtime, not when they finish a sentence.
+   * The setup is folded in rather than asked for. The Live API keeps no agent
+   * object, so the first turn needs a handshake that binds the catalog, the
+   * skill and the tools; that used to be a banner and a disabled microphone
+   * until you pressed something. A microphone you cannot press is not a
+   * microphone. Now the tap does it, and the button shows it is busy.
    */
-  const startVoice = useCallback(async () => {
-    if (call) {
-      if (call.listening()) {
-        call.stopListening();
+  const toggleVoice = useCallback(async () => {
+    if (session) {
+      if (session.listening()) {
+        session.stopListening();
         setListening(false);
       } else {
-        call.listen();
+        session.listen();
         setListening(true);
       }
       return;
@@ -939,8 +943,13 @@ export function useAgent() {
       return;
     }
     setVoiceError(null);
+
+    // Bind the agent if this is the first thing said, or if the deployment has
+    // moved on since it was bound.
+    if (liveStatusRef.current !== 'ready' && !(await runInstantiate())) return;
+
     try {
-      const started = await startCall({
+      const started = await openVoice({
         origin: backendRef.current,
         sessionId,
         apiKey: keyRef.current,
@@ -949,8 +958,8 @@ export function useAgent() {
           switch (event.type) {
             case 'ui':
               store.apply(event.messages as never);
-              // Voice surfaces join the transcript like any other, so the
-              // record of a call reads the same as the record of a chat.
+              // Spoken surfaces join the transcript like any other, so the
+              // record of a spoken turn reads the same as a typed one.
               appendVoiceTurn({ kind: 'surface', surfaceId: event.surfaceId });
               break;
             case 'transcript':
@@ -967,30 +976,31 @@ export function useAgent() {
           }
         },
       });
-      callRef.current = started;
-      setCall(started);
+      sessionRef.current = started;
+      setSession(started);
       started.listen();
       setListening(true);
       return started;
     } catch (error) {
       setVoiceError(error instanceof Error ? error.message : String(error));
     }
-  }, [call, hangUp, sessionId, store]);
+  }, [session, runInstantiate, sessionId, store]);
 
   /**
    * Types into the Live session, opening it first if nothing is open.
    *
-   * `startVoice` toggles, so this only calls it when there is demonstrably no
-   * call — otherwise a typed line would hang up on the traveller.
+   * `toggleVoice` toggles, so this only reaches for it when there is
+   * demonstrably no session — otherwise a typed line would close the
+   * microphone on somebody mid-sentence.
    */
   const speak = useCallback(
     async (text: string): Promise<boolean> => {
-      const existing = callRef.current ?? (await startVoice()) ?? null;
+      const existing = sessionRef.current ?? (await toggleVoice()) ?? null;
       if (!existing) return false;
       existing.say(text);
       return true;
     },
-    [startVoice],
+    [toggleVoice],
   );
   speakRef.current = speak;
 
@@ -1014,9 +1024,9 @@ export function useAgent() {
       listening,
       speaking: agentSpeaking,
       error: voiceError,
-      start: startVoice,
-      hangUp,
-      say: (text: string) => call?.say(text),
+      toggle: toggleVoice,
+      close: closeVoice,
+      say: (text: string) => session?.say(text),
     },
     meta,
     metaError,

@@ -1578,9 +1578,9 @@ a {
   line-height: 1.5;
 }
 
-/* --------------------------------------------------------------- the call */
+/* ---------------------------------------------------------- the microphone */
 
-.composer__call {
+.composer__mic {
   appearance: none;
   font: inherit;
   font-size: 1.05rem;
@@ -1598,23 +1598,24 @@ a {
   transition: background 120ms ease, border-color 120ms ease;
 }
 
-.composer__call:hover {
+.composer__mic:hover {
   border-color: var(--tv-accent);
 }
 
-.composer__call.is-live {
+.composer__mic.is-live {
   background: var(--tv-accent);
   border-color: var(--tv-accent);
   color: var(--tv-accent-ink);
 }
 
 /*
- * The one piece of motion in the app, and it earns its place: on a call there
+ * The one piece of motion in the app, and it earns its place: while it is
+ * speaking there
  * is otherwise nothing on screen that says the agent is talking, because the
  * answer is a surface and the speech is audio. A ring that pulses while it
  * speaks is the difference between "it is thinking" and "my speakers are off".
  */
-.composer__call.is-speaking {
+.composer__mic.is-speaking {
   animation: tv-speaking 1.1s ease-in-out infinite;
 }
 
@@ -1629,7 +1630,7 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .composer__call.is-speaking {
+  .composer__mic.is-speaking {
     animation: none;
     box-shadow: 0 0 0 4px var(--tv-accent-soft);
   }
@@ -1714,7 +1715,7 @@ a {
 }
 
 /* The microphone is not usable until the agent it talks to exists. */
-.composer__call:disabled {
+.composer__mic:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }

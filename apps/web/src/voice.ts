@@ -73,28 +73,29 @@ function fromPcm16(bytes: Uint8Array): Float32Array<ArrayBuffer> {
 }
 
 /**
- * A live session over the screen the traveller is already looking at.
+ * Talking to the app, the way you talk to the assistant on a phone.
  *
- * Not a phone call, which is what it was modelled as and why stopping did
- * nothing: the microphone toggle was wired to `hangUp`, so speaking and then
- * pressing stop tore the session down before the answer arrived. A screen is in
- * front of them the whole time; talking is one way to use it, and stopping
- * talking is the end of a sentence rather than the end of the conversation.
+ * This was modelled as a *call* — `startCall`, `hangUp`, a button that said
+ * "End the call" — and the model was the bug. Nobody dials an assistant. You
+ * tap the microphone, say a thing, and it answers; the screen never goes away
+ * and there is nothing to hang up. Built as a call, the microphone toggle was
+ * wired to the hang-up, so speaking and then stopping tore the session down
+ * before the answer could arrive.
  *
- * So `listen` and `stopListening` open and close the microphone, and the
- * session — the socket, the surfaces, the transcript — outlives both. `hangUp`
- * is for leaving.
+ * `listen` and `stopListening` open and close the microphone. Everything else —
+ * the socket, the surfaces, the transcript — outlives both of them, and `close`
+ * exists for leaving the page, not for ending a sentence.
  */
-export interface VoiceCall {
-  /** Ends the session and releases the microphone. */
-  hangUp(): void;
+export interface VoiceSession {
+  /** Releases the microphone and drops the socket. For leaving, not for stopping. */
+  close(): void;
   /** Opens the microphone. Audio streams until `stopListening`. */
   listen(): void;
   /** Closes the microphone and lets the model take its turn. */
   stopListening(): void;
   /** Whether the microphone is open right now. */
   listening(): boolean;
-  /** Types into a voice call — useful when saying an airport code out loud fails. */
+  /** Types instead of speaking — useful when saying an airport code out loud fails. */
   say(text: string): void;
   /** True while the agent is speaking. */
   speaking(): boolean;
@@ -198,10 +199,10 @@ export async function instantiateLive(options: {
 }
 
 /**
- * Opens a call. Resolves once the relay is connected, rejects if the
- * microphone is refused or the socket never opens.
+ * Opens the microphone and the relay behind it. Resolves once connected,
+ * rejects if the microphone is refused or the socket never opens.
  */
-export async function startCall(options: VoiceOptions): Promise<VoiceCall> {
+export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
   });
@@ -303,7 +304,7 @@ export async function startCall(options: VoiceOptions): Promise<VoiceCall> {
   mute.connect(capture.destination);
 
   return {
-    hangUp: () => {
+    close: () => {
       try {
         socket.send(JSON.stringify({ type: 'end' }));
       } catch {

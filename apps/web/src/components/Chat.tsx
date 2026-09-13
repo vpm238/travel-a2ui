@@ -274,31 +274,12 @@ export function Chat({ agent }: { agent: Agent }) {
         from what was instantiated. It is only ever on screen for the framework
         that has an agent to instantiate.
       */}
-      {agent.canSpeak && agent.live.status !== 'ready' ? (
-        <p className={`composer__live is-${agent.live.status}`}>
-          {agent.live.status === 'instantiating' ? (
-            <>
-              <span className="composer__liveDot" aria-hidden />
-              Instantiating the Gemini Live agent — binding the catalog, the skill and the tools…
-            </>
-          ) : agent.live.status === 'stale' ? (
-            <>
-              This deployment&rsquo;s catalog has changed since you instantiated. Initialise again
-              with your key to pick it up.{' '}
-              <button type="button" onClick={() => void agent.live.instantiate()}>
-                Re-initialise
-              </button>
-            </>
-          ) : agent.live.status === 'failed' ? (
-            <>
-              Could not instantiate: {agent.live.error}{' '}
-              <button type="button" onClick={() => void agent.live.instantiate()}>
-                Try again
-              </button>
-            </>
-          ) : (
-            <>Add your Gemini key to instantiate the Live agent.</>
-          )}
+      {agent.canSpeak && (agent.live.status === 'failed' || agent.voice.error) ? (
+        <p className="composer__live is-failed">
+          {agent.voice.error ?? agent.live.error}{' '}
+          <button type="button" onClick={() => void agent.voice.toggle()}>
+            Try again
+          </button>
         </p>
       ) : null}
 
@@ -315,19 +296,21 @@ export function Chat({ agent }: { agent: Agent }) {
         {agent.canSpeak ? (
           <button
             type="button"
-            className={`composer__call${agent.voice.listening ? ' is-live' : ''}${
+            className={`composer__mic${agent.voice.listening ? ' is-live' : ''}${
               agent.voice.speaking ? ' is-speaking' : ''
             }`}
-            onClick={() => void agent.voice.start()}
+            onClick={() => void agent.voice.toggle()}
             aria-pressed={agent.voice.listening}
-            disabled={agent.live.status !== 'ready'}
-            /* "End the call" was a lie about what this does, and it cost the
-               feature: pressing it after speaking hung up before the answer
-               arrived. It opens and closes the microphone over a session that
-               outlives both. */
+            /*
+              Never disabled behind a setup step. The Live API keeps no agent
+              object, so the first spoken turn needs a handshake — and that used
+              to be a banner plus a microphone you could not press until you had
+              pressed something else. A microphone you cannot press is not a
+              microphone. The tap does the handshake now.
+            */
             title={
-              agent.live.status !== 'ready'
-                ? 'Instantiate the Live agent first'
+              agent.live.status === 'instantiating'
+                ? 'Getting ready…'
                 : agent.voice.listening
                   ? 'Stop talking and let it answer'
                   : 'Talk to it'

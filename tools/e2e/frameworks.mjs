@@ -53,7 +53,7 @@ await page.addInitScript(() => {
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForSelector('.composer', { timeout: 20000 });
 
-const mics = () => page.locator('.composer__call').count();
+const mics = () => page.locator('.composer__mic').count();
 const chosen = async () =>
   (await page.locator('button:has-text("RUNTIME")').first().innerText())
     .replace(/\s+/g, ' ')
@@ -96,7 +96,7 @@ check(
 );
 
 /*
- * Instantiating the Live agent.
+ * Binding the Live agent, which the traveller should never have to think about.
  *
  * The key here is deliberately fake, so the handshake must fail — and that is
  * the assertion worth having. `ready` used to be sent as soon as the setup
@@ -104,15 +104,17 @@ check(
  * key at all "instantiated" successfully and the app recorded a receipt for a
  * session that did not exist. Nothing downstream could tell.
  *
- * What is asserted is only what holds with or without a route to Google: the
- * strip is on screen, the microphone is not usable until the agent it talks to
- * exists, and no receipt is written for a handshake that did not complete.
+ * What is *no longer* asserted is that the microphone stays disabled until the
+ * handshake lands. It used to be, and it was wrong: a microphone you cannot
+ * press is not a microphone, and the setup is the app's problem rather than a
+ * button somebody has to find first. Tapping it binds the agent and then
+ * listens. What has to stay true is the part about honesty — no receipt for a
+ * handshake that did not complete.
  */
-check('says it is instantiating the Live agent', await page.locator('.composer__live').count(), 1);
 check(
-  'and will not arm the microphone before the agent exists',
-  await page.locator('.composer__call').first().isEnabled(),
-  false,
+  'the microphone is there to be pressed, setup or no setup',
+  await page.locator('.composer__mic').first().isEnabled(),
+  true,
 );
 
 await page
