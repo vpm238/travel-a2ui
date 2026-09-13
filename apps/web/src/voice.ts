@@ -51,7 +51,7 @@ const fromBase64 = (value: string): Uint8Array => {
 };
 
 /** Float samples at `from` Hz → signed 16-bit little-endian at `INPUT_RATE`. */
-function toPcm16(samples: Float32Array, from: number): Uint8Array {
+export function toPcm16(samples: Float32Array, from: number): Uint8Array {
   const ratio = from / INPUT_RATE;
   const length = Math.floor(samples.length / ratio);
   const out = new DataView(new ArrayBuffer(length * 2));
@@ -64,12 +64,58 @@ function toPcm16(samples: Float32Array, from: number): Uint8Array {
   return new Uint8Array(out.buffer);
 }
 
-/** Signed 16-bit little-endian → float samples an AudioBuffer can hold. */
-function fromPcm16(bytes: Uint8Array): Float32Array<ArrayBuffer> {
+/**
+ * Signed 16-bit little-endian → float samples an AudioBuffer can hold.
+ *
+ * The length is in *samples*, and getting that wrong is quiet rather than
+ * loud. `new Float32Array(new ArrayBuffer(bytes.byteLength))` looks right and
+ * allocates a float per *byte pair of bytes* — four bytes each — so it holds
+ * half the samples the chunk contains, and the second half of every chunk was
+ * dropped on the floor. Nothing throws; the agent just sounds clipped and
+ * hurried, in a way that is easy to blame on the model.
+ */
+export function fromPcm16(bytes: Uint8Array): Float32Array<ArrayBuffer> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const out = new Float32Array(new ArrayBuffer(bytes.byteLength));
+  // Four bytes per float, one float per *sample* — and a sample is two bytes.
+  // Allocated through an ArrayBuffer rather than from a length so the type is
+  // the one `copyToChannel` accepts.
+  const samples = Math.floor(bytes.byteLength / 2);
+  const out = new Float32Array(new ArrayBuffer(samples * 4));
   for (let i = 0; i < out.length; i += 1) out[i] = view.getInt16(i * 2, true) / 0x8000;
   return out;
+}
+
+/**
+ * Both audio contexts, actually running.
+ *
+ * This is the bug that made speaking do nothing at all, and it is invisible in
+ * the code that causes it. `startVoice` awaits `getUserMedia` before it
+ * constructs either context — so by the time they are constructed the user
+ * gesture that opened the microphone has been spent, and Chrome's autoplay
+ * policy starts both of them **suspended**.
+ *
+ * A suspended capture context never runs its ScriptProcessor, so `audioprocess`
+ * never fires and not one audio frame is ever sent: the traveller speaks, stops,
+ * and the model is still waiting for a first byte. A suspended playback context
+ * would swallow the answer even if one arrived. Neither throws, neither logs,
+ * and the relay is in perfect health the whole time — which is exactly why this
+ * survived a round of fixes to the server.
+ *
+ * `resume()` rejects if the context is already closed, which is a race with
+ * hanging up rather than a failure worth surfacing.
+ */
+export async function wake(...contexts: AudioContext[]): Promise<void> {
+  await Promise.all(
+    contexts.map(async (context) => {
+      if (context.state === 'suspended') {
+        try {
+          await context.resume();
+        } catch {
+          /* closed while we were waking it */
+        }
+      }
+    }),
+  );
 }
 
 /**
@@ -235,6 +281,11 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
     }
   };
 
+  // Before anything is sent or played. See `wake`: both of these were
+  // constructed after an `await`, so they are born suspended and a suspended
+  // capture context never delivers a single sample.
+  await wake(capture, playback);
+
   await new Promise<void>((resolve, reject) => {
     socket.addEventListener('open', () => resolve(), { once: true });
     socket.addEventListener(
@@ -313,6 +364,10 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
       stop();
     },
     listen: () => {
+      // Again on every tap, not only at setup. A context is suspended again
+      // whenever the browser feels like it — a backgrounded tab is the common
+      // one — and it comes back as a microphone that is on and silent.
+      void wake(capture, playback);
       open = true;
     },
     stopListening: () => {
