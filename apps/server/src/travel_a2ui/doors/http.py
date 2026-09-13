@@ -448,6 +448,14 @@ def _renderer_origin(request: Request) -> str:
     it is not — a tunnel, a proxy, a preview URL that differs from the public
     one — and only over http(s), because anything else is a script source
     somebody put in a URL.
+
+    The forwarded scheme is read rather than trusted from the socket, and that
+    is not a detail. Cloud Run terminates TLS at its front end and speaks plain
+    HTTP to the container, so `request.base_url` says `http://` for a service
+    only ever reachable over `https://`. That origin is substituted into the
+    view's script tag and named in its CSP — so the host loads an https page
+    that asks for its renderer over http, the browser blocks it as mixed
+    content, and the frame is empty with nothing in any log to say why.
     """
     from urllib.parse import urlparse
 
@@ -456,7 +464,14 @@ def _renderer_origin(request: Request) -> str:
         parsed = urlparse(override)
         if parsed.scheme in ("http", "https") and parsed.netloc:
             return f"{parsed.scheme}://{parsed.netloc}"
-    return str(request.base_url).rstrip("/")
+
+    base = urlparse(str(request.base_url).rstrip("/"))
+    # Only the first entry: `x-forwarded-proto` is a list when more than one
+    # proxy is in the path, and the client-facing hop is the one that decides
+    # what the browser will allow.
+    forwarded = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip()
+    scheme = forwarded if forwarded in ("http", "https") else base.scheme
+    return f"{scheme}://{base.netloc}"
 
 
 @app.websocket("/api/voice")

@@ -521,6 +521,40 @@ class TestTheMcpEndpoint:
         domains = refused["result"]["resources"][0]["_meta"]["ui"]["csp"]["connectDomains"]
         assert all(domain.startswith("http") for domain in domains)
 
+    def test_the_view_is_told_the_scheme_the_browser_actually_used(
+        self, client: TestClient
+    ) -> None:
+        """Cloud Run speaks plain HTTP to the container. The browser does not.
+
+        Without this the CSP names `http://…` for a service only reachable over
+        `https://`, the view asks for its renderer over http from an https page,
+        and the browser blocks it as mixed content — an empty frame, and nothing
+        anywhere saying so.
+        """
+        read = {"jsonrpc": "2.0", "id": 1, "method": "resources/list"}
+
+        forwarded = client.post(
+            "/mcp", json=read, headers={"x-forwarded-proto": "https"}
+        ).json()
+        csp = forwarded["result"]["resources"][0]["_meta"]["ui"]["csp"]
+        assert csp["connectDomains"] == ["https://testserver"]
+
+        # Two proxies deep, the client-facing hop is the one that decides.
+        chained = client.post(
+            "/mcp", json=read, headers={"x-forwarded-proto": "https, http"}
+        ).json()
+        domains = chained["result"]["resources"][0]["_meta"]["ui"]["csp"]["connectDomains"]
+        assert domains == ["https://testserver"]
+
+    def test_a_nonsense_forwarded_scheme_is_ignored(self, client: TestClient) -> None:
+        """It is a header anyone can send, and it ends up in a script tag."""
+        read = {"jsonrpc": "2.0", "id": 1, "method": "resources/list"}
+        response = client.post(
+            "/mcp", json=read, headers={"x-forwarded-proto": "javascript:"}
+        ).json()
+        domains = response["result"]["resources"][0]["_meta"]["ui"]["csp"]["connectDomains"]
+        assert domains == ["http://testserver"]
+
     def test_meta_points_at_the_endpoint_that_exists(self, client: TestClient) -> None:
         """A plugin reads this to find the server; a wrong path is a dead install."""
         endpoint = client.get("/api/meta").json()["mcpEndpoint"]
