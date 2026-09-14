@@ -79,6 +79,17 @@ class WrongControl(Exception):
     """
 
 
+class MissingProperty(Exception):
+    """A component was written without a property the catalog requires.
+
+    Separate from a compile error because the compiler does not raise for it —
+    it emits the component with the property absent, and the catalog validator
+    refuses the whole message at the end of the turn. Separate from
+    `UnknownComponent` because the component is real and the mistake is in how
+    it was called, which is a different sentence to write back.
+    """
+
+
 class UnknownComponent(Exception):
     """The source names a component the catalog does not have.
 
@@ -117,6 +128,61 @@ def nearest_components(invented: Iterable[str], known: Iterable[str]) -> str:
         if close:
             said.append(f"`{name}` → did you mean {' or '.join(f'`{c}`' for c in close)}?")
     return " ".join(said)
+
+
+def required_properties(catalog_schema: dict[str, Any]) -> dict[str, tuple[str, ...]]:
+    """Per component, the properties the catalog will not validate without.
+
+    Pulled out of the schema once at import rather than read per turn, and kept
+    beside `nearest_components` because it exists for the same reason: to answer
+    a compile failure in the words the model needs to fix it.
+    """
+    out: dict[str, tuple[str, ...]] = {}
+    for name, component in (catalog_schema.get("components") or {}).items():
+        needed: list[str] = []
+        for sub in component.get("allOf", []):
+            if not isinstance(sub, dict):
+                continue
+            for prop in sub.get("required") or ():
+                # `component` is the discriminator, not something anyone passes.
+                if prop != "component" and prop not in needed:
+                    needed.append(prop)
+        if needed:
+            out[name] = tuple(needed)
+    return out
+
+
+def missing_properties(
+    messages: list[dict[str, Any]], required: dict[str, tuple[str, ...]]
+) -> list[str]:
+    """Components in `messages` that lack a property the catalog requires.
+
+    The validator already refuses these. What it does not do is say which
+    component or which property: a failure arrives as the whole message dumped
+    back with "is not valid under any of the given schemas", followed by the
+    schema alternatives it was not valid under. There is nothing in it to act
+    on, and the reader is a model with one repair turn to spend.
+
+    Worse, the validator runs over the finished message list, so the surface
+    fails *entire*. One date field written without its label, and the traveller
+    gets an empty screen — no error, no partial surface, nothing.
+
+    So when validation fails, this says what a person reading the source would
+    have said: which component, which property, what to pass.
+    """
+    said: list[str] = []
+    for message in messages:
+        for component in (message.get("updateComponents") or {}).get("components", []):
+            name = component.get("component")
+            absent = [p for p in required.get(name, ()) if p not in component]
+            if absent:
+                said.append(
+                    f"`{name}` is missing required {'properties' if len(absent) > 1 else 'property'} "
+                    f"{', '.join(f'`{p}`' for p in absent)}. "
+                    f"It takes {', '.join(required[name])} — pass them in that order, "
+                    "or by name."
+                )
+    return said
 
 
 def unknown_components(source: str, component_names: Iterable[str]) -> list[str]:
@@ -262,6 +328,8 @@ class ExpressStream:
     #: dashboard drawn on a turn that needed a date picker. Empty means the
     #: caller is not making that claim, and the check does not run.
     missing: tuple[str, ...] = ()
+    #: Per component, what the catalog requires — for explaining a validator no.
+    required: dict[str, tuple[str, ...]] = field(default_factory=dict)
     _buffer: str = ""
     _inside: bool = False
     _block_source: str = ""
@@ -368,7 +436,17 @@ class ExpressStream:
             # refers to components a few tokens away from existing, and calling
             # that an error would reject every surface mid-stream.
             if done and self.validator is not None:
-                self.validator.validate(messages)
+                try:
+                    self.validator.validate(messages)
+                except Exception as invalid:
+                    # The validator is right that this is broken and unhelpful
+                    # about why. If the reason is a property the catalog
+                    # requires, say so in those terms; otherwise its message is
+                    # still the best available.
+                    absent = missing_properties(messages, self.required)
+                    if absent:
+                        raise MissingProperty(" ".join(absent)) from invalid
+                    raise
             if done:
                 # And the question has to be askable. A date in a text box is a
                 # date the traveller can get wrong — see `controls.py`.

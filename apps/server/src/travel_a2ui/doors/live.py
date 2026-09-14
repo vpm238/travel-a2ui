@@ -713,10 +713,13 @@ async def _redraw_panels(
             trip=trip,
             today=today,
         )
-        from .interactions import _CATALOG
+        from .interactions import _CATALOG, REQUIRED_PROPERTIES
 
         stream = ExpressStream(
-            parser=_parser(surface_id), components=COMPONENT_NAMES, validator=_CATALOG.validator
+            parser=_parser(surface_id),
+            components=COMPONENT_NAMES,
+            validator=_CATALOG.validator,
+            required=REQUIRED_PROPERTIES,
         )
         drawn: list[dict[str, Any]] = []
         try:

@@ -439,8 +439,8 @@ TRAVEL_FUNCTIONS: dict[str, dict[str, Any]] = {
 }
 
 
-def _label_first(component: dict[str, Any]) -> dict[str, Any]:
-    """Moves `label` to the front of a component's properties.
+def _label_leads(component: dict[str, Any]) -> dict[str, Any]:
+    """Moves `label` to the front of a component's properties, and requires it.
 
     Declaration order *is* the positional argument order the model is taught —
     the module docstring says so — and `DateTimeInput` arrives from the basic
@@ -459,6 +459,26 @@ def _label_first(component: dict[str, Any]) -> dict[str, Any]:
     Reordering is safe on both sides: renderers read properties by name, and the
     compiler emits them by name. The only thing that changes is the order the
     model is taught to pass them in.
+
+    The `required` half is not optional, and leaving it out was its own bug. A
+    leading argument that may be omitted makes the *rest* of the positions
+    ambiguous, and nothing downstream can tell which reading was meant:
+
+        DateTimeInput($/trip/startDate)
+
+    is the natural way to write the one required property, and it compiled —
+    silently — to a component whose binding had landed on `label` and which had
+    no `value` at all. The compiler had no complaint, so the first objection
+    came from the whole-message validator at the end of the turn, as a schema
+    dump naming no component and no property. `validate` covers every message,
+    so the surface died entire: one date field, and nothing on the screen.
+
+    Every other label-first input in this catalog already requires its label —
+    `TextField`, `TravelerCounter`, `CheckBox`, `DateRangePicker` — which is
+    exactly why none of them has this hole. `DateTimeInput` was the one that led
+    with an optional argument. Requiring the label closes it, and a model that
+    omits it now gets a compile error that names the component and the property,
+    in time for the repair turn to fix it.
     """
     out = json.loads(json.dumps(component))
     for sub in out.get("allOf", []):
@@ -470,6 +490,10 @@ def _label_first(component: dict[str, Any]) -> dict[str, Any]:
             "label": props["label"],
             **{k: v for k, v in props.items() if k not in ("component", "label")},
         }
+        required = sub.get("required")
+        if isinstance(required, list) and "label" not in required:
+            # After `component`, so the order still reads as the signature does.
+            sub["required"] = [required[0], "label", *required[1:]]
     return out
 
 
@@ -486,7 +510,7 @@ def build() -> dict[str, Any]:
         "extends": basic["catalogId"],
         "components": {
             **basic["components"],
-            "DateTimeInput": _label_first(basic["components"]["DateTimeInput"]),
+            "DateTimeInput": _label_leads(basic["components"]["DateTimeInput"]),
             **TRAVEL_COMPONENTS,
         },
         "functions": _tag_as_client_side({**basic["functions"], **TRAVEL_FUNCTIONS}),

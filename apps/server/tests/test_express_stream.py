@@ -561,3 +561,76 @@ class TestTheNameItAlmostGot:
                 failures.append(event.message)
         assert failures, "an invented component compiled to nothing and said nothing"
         assert "DateTimeInput" in failures[0], "the error has to name the one that exists"
+
+
+class TestAPropertyTheCatalogRequires:
+    """A real component called wrongly, which the *compiler* accepts.
+
+    This is the failure that emptied the screen. `DateTimeInput` is label-first
+    like every other input in this catalog, so
+
+        DateTimeInput($/trip/startDate)
+
+    binds the path to `label` and leaves `value` unset — and compiles, because
+    the compiler checks the shape of the call rather than the catalog's
+    `required`. The validator refuses it at the end of the turn, over the whole
+    message list, so one date field took the entire surface down; and it refused
+    it with a schema dump that named neither the component nor the property.
+    """
+
+    def test_the_catalog_requires_the_label_it_asks_for_first(self) -> None:
+        """The reorder and the requirement go together, or positions are a guess."""
+        from travel_a2ui.doors.interactions import REQUIRED_PROPERTIES
+
+        assert REQUIRED_PROPERTIES["DateTimeInput"] == ("label", "value")
+        # Its siblings, which never had this hole, for the same reason.
+        assert "label" in REQUIRED_PROPERTIES["DateRangePicker"]
+        assert "label" in REQUIRED_PROPERTIES["TravelerCounter"]
+
+    def test_the_taught_form_draws(self, parser) -> None:
+        from travel_a2ui.doors.interactions import (
+            COMPONENT_NAMES,
+            REQUIRED_PROPERTIES,
+            _CATALOG,
+        )
+
+        stream = ExpressStream(
+            parser=parser,
+            components=COMPONENT_NAMES,
+            validator=_CATALOG.validator,
+            required=REQUIRED_PROPERTIES,
+        )
+        events = list(
+            stream.push(
+                '<a2ui>\nd = DateTimeInput("Depart", $/trip/startDate)\nroot = Column([d])\n</a2ui>'
+            )
+        )
+        assert not [e for e in events if isinstance(e, Failed)]
+
+    def test_the_omitted_label_is_explained_rather_than_dumped(self, parser) -> None:
+        from travel_a2ui.doors.interactions import (
+            COMPONENT_NAMES,
+            REQUIRED_PROPERTIES,
+            _CATALOG,
+        )
+
+        stream = ExpressStream(
+            parser=parser,
+            components=COMPONENT_NAMES,
+            validator=_CATALOG.validator,
+            required=REQUIRED_PROPERTIES,
+        )
+        failures = [
+            event.message
+            for event in stream.push(
+                "<a2ui>\nd = DateTimeInput($/trip/startDate)\nroot = Column([d])\n</a2ui>"
+            )
+            if isinstance(event, Failed)
+        ]
+        assert failures, "a component missing a required property drew nothing and said nothing"
+        message = failures[0]
+        assert "DateTimeInput" in message, "the error has to name the component"
+        assert "value" in message, "and the property it cannot be drawn without"
+        assert "label, value" in message, "and the order to pass them in"
+        # The thing this replaced: an unreadable dump of the whole message.
+        assert "is not valid under any of the given schemas" not in message

@@ -919,6 +919,7 @@
           },
           "required": [
             "component",
+            "label",
             "value"
           ]
         }

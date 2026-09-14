@@ -40,7 +40,14 @@ from a2ui.inference_formats.experimental.express.parser import ExpressParser  # 
 from a2ui.schema.catalog import A2uiCatalog, CatalogConfig  # noqa: E402
 
 from ..brain import trip as model  # noqa: E402
-from ..brain.express import ExpressStream, Failed, FenceGate, Text, Ui  # noqa: E402
+from ..brain.express import (  # noqa: E402
+    ExpressStream,
+    Failed,
+    FenceGate,
+    Text,
+    Ui,
+    required_properties,
+)
 from ..brain.promises import TYPED_NUDGE, promised  # noqa: E402
 from ..gemini import describe_api_error, stream_interaction, supported_level  # noqa: E402
 from ..brain.providers.fixture import FixtureProvider  # noqa: E402
@@ -91,6 +98,8 @@ def _catalog() -> A2uiCatalog:
 
 _CATALOG = _catalog()
 COMPONENT_NAMES = frozenset(_CATALOG.catalog_schema["components"])
+#: What each component cannot be drawn without, for explaining a validator no.
+REQUIRED_PROPERTIES = required_properties(_CATALOG.catalog_schema)
 
 
 def _parser(surface_id: str) -> ExpressParser:
@@ -550,6 +559,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             parser=_parser(request.surface_id),
             components=COMPONENT_NAMES,
             validator=_CATALOG.validator,
+            required=REQUIRED_PROPERTIES,
             missing=tuple(_still_owed(trip)),
         )
 
@@ -1010,7 +1020,10 @@ async def _rebuild_panels(
             today=today,
         )
         stream = ExpressStream(
-            parser=_parser(surface_id), components=COMPONENT_NAMES, validator=_CATALOG.validator
+            parser=_parser(surface_id),
+            components=COMPONENT_NAMES,
+            validator=_CATALOG.validator,
+            required=REQUIRED_PROPERTIES,
         )
 
         def drawn(events: Sequence[Any]) -> list[dict[str, Any]]:

@@ -312,7 +312,7 @@
     "surfaceId": "component-DateTimeInput",
     "name": "DateTimeInput",
     "description": "",
-    "express": "root = DateTimeInput(value=3)",
+    "express": "root = DateTimeInput(\"Madrid\", 3)",
     "messages": [
       {
         "version": "v0.9.1",
@@ -329,13 +329,14 @@
             {
               "id": "root",
               "component": "DateTimeInput",
+              "label": "Madrid",
               "value": 3
             }
           ]
         }
       }
     ],
-    "bytes": 297
+    "bytes": 314
   },
   {
     "id": "component-Divider",
