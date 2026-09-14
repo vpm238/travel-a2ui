@@ -412,14 +412,83 @@ class TestTheVoiceSocket:
         monkeypatch.setattr(http, "relay", fake_relay)
         http.sessions.save("voice-1", trip={"destination": "Madrid", "travelers": 2})
 
-        with client.websocket_connect("/api/voice") as socket:
-            socket.send_json({"type": "start", "apiKey": "k", "sessionId": "voice-1"})
+        # Driven the way the client drives it: the id is on the URL.
+        #
+        # This test used to put `sessionId` in the opening frame, which is the
+        # one place no client has ever sent it — so it agreed with the server's
+        # assumption instead of with `voice.ts`, and passed while the thing it
+        # describes was broken in production.
+        with client.websocket_connect("/api/voice?sessionId=voice-1") as socket:
+            socket.send_json({"type": "start", "apiKey": "k"})
             assert socket.receive_json()["type"] == "ready"
 
         assert seen["trip"]["destination"] == "Madrid"
         assert seen["contract"], "a call is bound to a contract it can be checked against"
         # And what the call changed is what the typed side reads back.
         assert http.sessions.get("voice-1").trip["travelers"] == 3
+
+    def test_the_opening_frame_can_still_name_the_session(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        """The query string is what clients use; the frame is still accepted."""
+        seen: dict[str, Any] = {}
+
+        async def fake_relay(session, send, incoming):  # noqa: ANN001, ANN202
+            seen["trip"] = dict(session.trip)
+            await send({"type": "ready", "model": "m", "contract": "c"})
+
+        monkeypatch.setattr(http, "relay", fake_relay)
+        http.sessions.save("voice-frame", trip={"destination": "Lisbon"})
+
+        with client.websocket_connect("/api/voice") as socket:
+            socket.send_json({"type": "start", "apiKey": "k", "sessionId": "voice-frame"})
+            assert socket.receive_json()["type"] == "ready"
+
+        assert seen["trip"]["destination"] == "Lisbon"
+
+    def test_a_reconnection_is_offered_the_conversation_it_left(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        """A Live session ends on Google's schedule, not the traveller's.
+
+        When it reaches its own time limit the API says `go_away`, the relay
+        ends and the browser's socket closes — nobody pressed anything. The
+        conversation lives inside that session and nowhere else, so the next
+        connection has to be offered a handle back into it or the traveller has
+        released the microphone and been met by a stranger.
+
+        The trip survives regardless, which is what made this hard to see: the
+        panel still said San Francisco while the agent asked where they were
+        flying from.
+        """
+        handles: list[str | None] = []
+
+        async def fake_relay(session, send, incoming):  # noqa: ANN001, ANN202
+            handles.append(session.resume)
+            await send({"type": "ready", "model": "m", "contract": "c"})
+            # What the API does partway through a session.
+            session.on_resume("handle-from-the-first-connection")
+
+        monkeypatch.setattr(http, "relay", fake_relay)
+
+        for _ in range(2):
+            with client.websocket_connect("/api/voice?sessionId=voice-resume") as socket:
+                socket.send_json({"type": "start", "apiKey": "k"})
+                assert socket.receive_json()["type"] == "ready"
+
+        assert handles[0] is None, "the first connection starts a conversation"
+        assert handles[1] == "handle-from-the-first-connection", (
+            "the second one picks it up rather than starting a stranger"
+        )
+
+    def test_a_handle_is_not_a_turn(self, client: TestClient) -> None:
+        """The API refreshes it as the session runs; counting each would age a
+        conversation out for the crime of being talked to."""
+        before = http.sessions.get("voice-age").turns
+        http.sessions.set_live_handle("voice-age", "h1")
+        http.sessions.set_live_handle("voice-age", "h2")
+        assert http.sessions.get("voice-age").turns == before
+        assert http.sessions.get("voice-age").live_handle == "h2"
 
     def test_the_key_arrives_in_the_opening_frame_and_is_not_stored(
         self, client: TestClient, monkeypatch

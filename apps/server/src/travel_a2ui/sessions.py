@@ -84,6 +84,24 @@ class Session:
     #: and a new conversation starts rather than continuing against a contract
     #: nobody is reading any more.
     setup: str | None = None
+    #: The handle that lets a Live conversation be picked up where it stopped.
+    #:
+    #: A Live session belongs to Google and has a lifetime of its own. When it
+    #: reaches the end of it the API sends `go_away`, the relay ends, and the
+    #: browser's socket closes with it — without anybody pressing anything. The
+    #: conversation lives inside that session and nowhere else, so reconnecting
+    #: without this starts a stranger who has never heard of the trip.
+    #:
+    #: That is what made stopping and restarting the microphone feel like a
+    #: reset. It is not a reset anyone asked for: the traveller stopped talking
+    #: for a moment, which is the most ordinary thing that can happen in a
+    #: conversation. The trip survived — it is kept here — but the conversation
+    #: did not, and an agent that still has the facts and has forgotten the
+    #: discussion is worse company than one that has forgotten both.
+    #:
+    #: `session_resumption_update` carries a fresh handle as the session runs;
+    #: the newest one is kept, and the next connection opens with it.
+    live_handle: str | None = None
     turns: int = 0
     #: How many inline surfaces this conversation has handed out.
     #:
@@ -196,6 +214,19 @@ class SessionStore:
         with self._lock:
             session = self._sessions.get(session_id) or Session(id=session_id)
             session.trip = {**session.trip, **patch}
+            session.updated_at = time.time()
+            self._sessions[session_id] = session
+            return session
+
+    def set_live_handle(self, session_id: str, handle: str | None) -> Session:
+        """Remembers where a Live conversation can be picked up from.
+
+        Not a turn: the handle is refreshed by the API as the session runs, and
+        counting each refresh would age a conversation out for talking.
+        """
+        with self._lock:
+            session = self._sessions.get(session_id) or Session(id=session_id)
+            session.live_handle = handle
             session.updated_at = time.time()
             self._sessions[session_id] = session
             return session

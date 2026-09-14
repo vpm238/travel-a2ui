@@ -469,7 +469,26 @@ async def voice(socket: WebSocket) -> None:
         await socket.close()
         return
 
-    session_id = str(opening.get("sessionId") or sessions.new_id())
+    # The query string first, because that is where the client puts it.
+    #
+    # This read the opening frame and only the opening frame, and no client has
+    # ever sent it there — `voice.ts` sets `?sessionId=` on the URL and opens
+    # with `{type, apiKey, client}`. So `opening.get("sessionId")` was always
+    # None and every voice socket minted a *fresh* conversation.
+    #
+    # Which is three reported bugs and one line. The trip a call built was
+    # written under an id nothing else read, so the panel beside the
+    # conversation stayed empty however much was decided out loud. The trip the
+    # typed conversation held was never handed to the call, so speaking after
+    # typing started from nothing. And a Live resumption handle had nowhere to
+    # live that the next connection would look, so releasing the microphone
+    # really did forget everything — not because a session ended, but because
+    # the next one was a different session by construction.
+    #
+    # The frame is still accepted, for a client that would rather send it there.
+    session_id = str(
+        socket.query_params.get("sessionId") or opening.get("sessionId") or sessions.new_id()
+    )
     stored = sessions.get(session_id)
 
     async def send(message: dict[str, Any]) -> None:
@@ -495,6 +514,13 @@ async def voice(socket: WebSocket) -> None:
         # Same session, one store — say "make it three of us" out loud and the
         # panel beside the conversation moves.
         on_trip=lambda value: sessions.patch_trip(session_id, value),
+        # Where to pick the conversation up, and where to record a fresh place
+        # to pick it up from. A Live session belongs to Google and ends on its
+        # own schedule; this is what makes that a reconnection rather than an
+        # amnesia, so that releasing the microphone stays the ordinary thing it
+        # looks like.
+        resume=stored.live_handle,
+        on_resume=lambda handle: sessions.set_live_handle(session_id, handle),
         # Same reading of "today" as the typed path: a call plans dates too.
         client_hints=opening.get("client") if isinstance(opening.get("client"), dict) else None,
     )

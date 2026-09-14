@@ -150,6 +150,7 @@ def setup_config(
     system_instruction: str,
     voice: str | None = None,
     language: str = DEFAULT_LANGUAGE,
+    resume: str | None = None,
 ) -> dict[str, Any]:
     """What a Live session is opened with.
 
@@ -189,6 +190,14 @@ def setup_config(
     if voice:
         speech["voice_config"] = {"prebuilt_voice_config": {"voice_name": voice}}
     config["speech_config"] = speech
+
+    # Declared on every connection, with or without a handle.
+    #
+    # Without this the API sends no `session_resumption_update` at all, so
+    # there is never a handle to reconnect with — and a session that reaches
+    # its own time limit takes the conversation with it. `handle=None` is a new
+    # conversation that *can* be resumed later; a handle is one being picked up.
+    config["session_resumption"] = {"handle": resume} if resume else {}
     return config
 
 
@@ -345,6 +354,14 @@ class VoiceSession:
     #: What the browser knows about when the traveller is. See `agent._today`.
     client_hints: dict[str, Any] | None = None
     skill: str = "express-modular"
+    #: Where to pick the conversation up from, if there is one to pick up.
+    #:
+    #: `None` starts a new one. Anything else is a handle the API gave us on a
+    #: previous connection, and opening with it means the model still knows what
+    #: was said before the microphone was last released.
+    resume: str | None = None
+    #: Called with each fresh handle, so the next connection has one to use.
+    on_resume: Any = None
     #: Injectable so a test can drive a whole call from a scripted session.
     client: Any = None
 
@@ -415,7 +432,8 @@ async def relay(
 
     try:
         async with genai.aio.live.connect(
-            model=voice_model, config=setup_config(system, session.voice)
+            model=voice_model,
+            config=setup_config(system, session.voice, resume=session.resume),
         ) as live:
             # `ready` is sent here and not a moment earlier. The Worker sent it
             # as soon as the setup frame had been *written*, which is a
@@ -637,16 +655,41 @@ async def relay(
                                 session, trip, today, announce, genai
                             )
 
+                    # A fresh handle, as the API issues them.
+                    #
+                    # Kept rather than announced: this is the server's business,
+                    # and a client that had to carry it would be a client that
+                    # could lose it. `resumable` is false while a turn is in
+                    # flight — a handle taken then would resume to a half-spoken
+                    # answer — so only a resumable one is worth keeping.
+                    update = getattr(frame, "session_resumption_update", None)
+                    if update is not None and getattr(update, "resumable", False):
+                        handle = getattr(update, "new_handle", None)
+                        if handle and handle != session.resume:
+                            session.resume = handle
+                            if session.on_resume:
+                                session.on_resume(handle)
+
                     if getattr(frame, "go_away", None):
-                        await announce(
-                            {
-                                "type": "error",
-                                "message": "The Live session is closing — start "
-                                "another when ready.",
-                            }
-                        )
-                        # Google said the session is ending. Asking it for
-                        # another turn would hang until the socket dropped.
+                        # Google's session reached its own time limit. That is
+                        # not the traveller's conversation ending — it is a
+                        # connection ending — and the difference is the whole
+                        # reason the handle above is kept.
+                        #
+                        # Ending the turn loop here closes the browser's socket,
+                        # and the next microphone press opens a new session. With
+                        # a handle, that new session is the same conversation
+                        # picked up where it stopped; without one it is a
+                        # stranger who has never heard of the trip, which is
+                        # what made releasing the microphone feel like a reset.
+                        if not session.resume:
+                            await announce(
+                                {
+                                    "type": "error",
+                                    "message": "The Live session is closing — start "
+                                    "another when ready.",
+                                }
+                            )
                         return False
 
                 return alive
