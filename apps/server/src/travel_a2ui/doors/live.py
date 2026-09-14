@@ -509,7 +509,14 @@ async def _redraw_panels(
     answer already arrived. A panel one turn stale is a much smaller problem
     than an error over a call that is going fine.
     """
-    from .interactions import CATALOG_ID, DEFAULT_MODEL, PANEL_REQUEST, COMPONENT_NAMES, _parser
+    from .interactions import (
+        CATALOG_ID,
+        COMPONENT_NAMES,
+        PANEL_EFFORT,
+        PANEL_MODEL,
+        PANEL_REQUEST,
+        _parser,
+    )
     from ..brain.express import ExpressStream, Ui
     from ..gemini import stream_interaction
     from ..brain.skills import build_system_prompt
@@ -533,12 +540,17 @@ async def _redraw_panels(
         try:
             async for event in stream_interaction(
                 api_key=session.api_key,
-                model=DEFAULT_MODEL,
+                # The same model and effort the typed door uses, from the same
+                # constants. These were `DEFAULT_MODEL`/`low` here and
+                # `FALLBACK_MODEL`/`minimal` there, off byte-identical prompts —
+                # so the sidebar changed character when you switched runtime,
+                # for no reason anybody chose.
+                model=PANEL_MODEL,
                 input=[
                     {"type": "user_input", "content": [{"type": "text", "text": PANEL_REQUEST}]}
                 ],
                 system_instruction=system,
-                thinking_level="low",
+                thinking_level=PANEL_EFFORT,
                 client=session.client,
             ):
                 if event["type"] == "text":

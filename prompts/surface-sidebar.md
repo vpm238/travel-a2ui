@@ -70,15 +70,37 @@ A hop's decision keys are scoped to the hop: `legs/1/travelers`, not
 `travelers`. Pass the row's own `key` through and a correction changes that hop
 rather than undoing the answer on another.
 
+### Do not draw the decisions with a template
+
+A template row is **one** component. It cannot hold a label and a Change button
+side by side, so a templated list of decisions can have rows or it can have
+Change — never both. Reach for `List(_template(…))` here and what you produce is
+a record of somebody's trip that they cannot correct: it looks right and every
+row is inert.
+
+So write the decision rows out, one per decision, each with its own button:
+
 ```
-decision  = Text($line)
-decisions = List(_template($/plan/decisions, decision))
-hop       = Text($line)
-hops      = List(_template($/plan/route, hop))
+d0t = Text("where you are going — Madrid")
+d0b = Button(Text("Change"), "borderless", Event("change", {field: "destination"}))
+d0  = Row([d0t, d0b], justify="spaceBetween", align="center")
+
+d1t = Text("when you are leaving — 12 Apr")
+d1b = Button(Text("Change"), "borderless", Event("change", {field: "startDate"}))
+d1  = Row([d1t, d1b], justify="spaceBetween", align="center")
+
+root = Column([head, d0, d1], align="stretch")
 ```
 
-A template row is one component and cannot declare children inline, which is why
-each row arrives as a single `line` rather than as parts to assemble.
+Read the rows out of `$/plan/decisions` and write one group per row, using that
+row's own `line` for the text and that row's own `key` for the field. There are
+rarely more than a dozen. The same for `$/plan/route`: the hop's `line` as a
+heading, then a group per entry in that hop's `decisions`, whose keys are
+already scoped — `legs/1/travelers`.
+
+`_template` is still the right tool where a row has **nothing to press**: a list
+of activities, a set of fares you have not offered an action on. The rule is
+simply that Change cannot live inside one.
 
 Draw both, every time you build the panel: the decisions, then the route. That
 is the traveler's answer to "what have I actually said, and what is left on each

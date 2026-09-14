@@ -100,7 +100,7 @@ def plan_rows(trip: dict[str, Any]) -> dict[str, Any]:
             continue
         if key in on_a_hop and hops:
             continue
-        text = _value_text(value)
+        text = _value_text(value, str(field.get("kind") or ""))
         decisions.append(
             {
                 "key": key,
@@ -132,8 +132,14 @@ def plan_rows(trip: dict[str, Any]) -> dict[str, Any]:
                 # Each one changeable on its own. The panel draws a Change
                 # button per row and the host answers it with `release`.
                 "decisions": [
-                    {**row, "value": _value_text(row["value"]),
-                     "line": f"{row['label']} \u2014 {_value_text(row['value'])}"}
+                    {
+                        **row,
+                        "value": _value_text(row["value"], _kind_of(row["key"])),
+                        "line": (
+                            f"{row['label']} \u2014 "
+                            f"{_value_text(row['value'], _kind_of(row['key']))}"
+                        ),
+                    }
                     for row in hop["decisions"]
                 ],
                 "wants": hop["wants"],
@@ -154,12 +160,30 @@ def plan_rows(trip: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _value_text(value: Any) -> str:
-    """A decided value as one short string, whatever kind it is."""
+def _kind_of(key: str) -> str:
+    """The trip model's kind for a decision key, hop-scoped or not.
+
+    `legs/1/flightPrice` is a `flightPrice`, and the panel should say `$412`
+    for it on hop two exactly as it does on hop one.
+    """
+    field = model.field_for(key.rsplit("/", 1)[-1])
+    return str((field or {}).get("kind") or "")
+
+
+def _value_text(value: Any, kind: str = "") -> str:
+    """A decided value as one short string, whatever kind it is.
+
+    `kind` comes from the trip model, and the one that matters is `money`: the
+    panel is where somebody checks what they agreed to, and "what that flight
+    costs — 412" is a number in no currency. Every price field is already
+    declared `money` in `data/trip-model.json`, so there is nothing to guess.
+    """
     if isinstance(value, bool):
         return "yes" if value else "no"
     if isinstance(value, list):
         return ", ".join(str(item) for item in value if item) or "—"
+    if kind == "money" and isinstance(value, (int, float)):
+        return f"${value:,.0f}"
     return str(value)
 
 

@@ -188,10 +188,18 @@ export interface Usage {
   turns: number;
 }
 
+/**
+ * What the traveller actually chooses.
+ *
+ * The model and the thinking effort used to be in here and are not any more.
+ * They were offered as a choice the app did not keep — the answer used what you
+ * picked and the panel beside it was hardcoded to the small model — and the
+ * stored default meant a first visit ran the *conversation* on Flash Lite while
+ * `/api/meta` said the default was Flash 3.8. Sending nothing lets the server
+ * decide, which it was always doing anyway for half the screen.
+ */
 export interface Prefs {
-  model: string;
   skill: SkillVariant;
-  effort: 'minimal' | 'low' | 'medium' | 'high';
 }
 
 const EMPTY_USAGE: Usage = {
@@ -342,7 +350,7 @@ export function useAgent() {
     } catch {
       /* fall through to defaults */
     }
-    return { model: 'gemini-3.5-flash-lite', skill: 'express-modular', effort: 'minimal' };
+    return { skill: 'express-modular' };
   });
 
   /**
@@ -421,7 +429,6 @@ export function useAgent() {
         setMeta(loaded);
         setPrefsState((current) => ({
           ...current,
-          model: current.model || loaded.defaultModel,
           skill: current.skill || loaded.defaultSkill,
         }));
       })
@@ -670,8 +677,8 @@ export function useAgent() {
             ...(action ? { action } : { message }),
             surface,
             skill: prefsRef.current.skill,
-            model: prefsRef.current.model,
-            effort: prefsRef.current.effort,
+            // No model and no effort: the server picks, and picks the same one
+            // for the answer and for the panel beside it.
             ...(options.surfaceId ? { surfaceId: options.surfaceId } : {}),
             ...(resumeRef.current ? { resume: resumeRef.current } : {}),
             ...((): object => {

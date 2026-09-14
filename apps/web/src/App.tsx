@@ -2,17 +2,26 @@
  * The shell.
  *
  * Four views, one per modality, over one conversation and one surface store —
- * so switching tabs does not switch context. The model and effort controls are
- * deliberately in the product rather than in a config file: switching models
- * mid-trip, on the same conversation, is the fastest way to see what a model
- * buys you — and on this app the difference is whether the agent remembers to
- * get you home.
+ * so switching tabs does not switch context.
  *
- * The skill picker that used to sit beside them is gone. Three generated skill
- * shapes were kept so they could be compared, they were compared
- * (`tools/eval/skills.py`), and one won; a picker with one option is a control
- * that asks a question with no answer. The line under the header still says
- * which skills are loaded.
+ * Three pickers used to sit in this header and none of them do now, for the
+ * same reason each time: a control is only worth its space if the answer it
+ * takes is the answer the app uses.
+ *
+ * - **Skill.** Three generated shapes were kept so they could be compared, they
+ *   were compared (`tools/eval/skills.py`), and one won. A picker with one
+ *   option asks a question with no answer.
+ * - **Model** and **Effort.** These governed the reply and not the record: the
+ *   panel was hardcoded to the small model with the picked one wired in as its
+ *   *fallback*, so choosing the better model changed half the screen. Worse,
+ *   the stored default meant a first visit ran the conversation on Flash Lite
+ *   while `/api/meta` advertised Flash 3.8.
+ *
+ * One model now, chosen server-side and named in `/api/meta`. The runtime
+ * picker stays, because Interactions and Live are genuinely different agents
+ * and the difference is the point.
+ *
+ * The line under the header still says which skills are loaded.
  */
 
 import { useEffect, useState } from 'react';
@@ -24,7 +33,6 @@ import { KeyGate } from './components/KeyGate.js';
 import { Protocol } from './components/Protocol.js';
 import { RuntimePicker } from './components/RuntimePicker.js';
 import { Sidebar } from './components/Sidebar.js';
-import { Select } from './components/bits.js';
 import { useAgent } from './useAgent.js';
 
 type View = 'chat' | 'home' | 'catalog' | 'protocol';
@@ -111,28 +119,23 @@ export default function App() {
             />
           ) : null}
 
-          {agent.meta ? (
-            <>
-              <Select
-                label="Model"
-                value={agent.prefs.model}
-                options={agent.meta.models.map((model) => ({ value: model.id, label: model.label }))}
-                onChange={(model) => agent.setPrefs({ model })}
-              />
-              <Select
-                label="Effort"
-                value={agent.prefs.effort}
-                options={[
-                  { value: 'minimal', label: 'Minimal' },
-                  { value: 'low', label: 'Low' },
-                  { value: 'medium', label: 'Medium' },
-                  { value: 'high', label: 'High' },
-                ]}
-                onChange={(effort) => agent.setPrefs({ effort })}
-              />
-            </>
-          ) : null}
+          {/*
+            No model picker, and no effort picker.
 
+            It was here to make "switch models mid-trip and watch the same
+            components come back" a thing anyone could try, which is a good
+            demo. What it actually offered was a choice the app did not keep:
+            the answer used what you picked, and the panel beside it was
+            hardcoded to the small model — with your choice wired in as the
+            *fallback*, so it was consulted only when the small one was busy.
+            Pick the better model and the record beside your conversation was
+            still drawn by the other one.
+
+            A control that governs some of the screen and not the rest is worse
+            than no control, because the part it misses is the part you are
+            looking at when you judge it. One model, chosen server-side, named
+            in `/api/meta` for anyone who wants to know which.
+          */}
           <button
             type="button"
             className="iconButton"

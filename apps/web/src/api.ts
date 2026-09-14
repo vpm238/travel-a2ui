@@ -145,8 +145,15 @@ export interface ChatRequest {
   surface: SurfaceKind;
   surfaceId?: string;
   skill: SkillVariant;
-  model: string;
-  effort?: 'minimal' | 'low' | 'medium' | 'high';
+  /**
+   * Deliberately no `model` and no `effort`.
+   *
+   * The server defaults both, and it is the only party that can pick one model
+   * for the whole screen. When the client chose, it chose for the reply and not
+   * for the panel beside it — which was hardcoded to the small model with the
+   * client's choice wired in as its *fallback*. Half a choice is worse than
+   * none. `/api/meta` still reports which model is answering.
+   */
   /**
    * What came back on the last turn, handed straight back.
    *

@@ -76,6 +76,7 @@ REFUSABLE = ("startDate", "endDate", "travelers", "legs")
 PANEL_REQUEST = "Redraw this surface for where the trip stands now. Only the surface — no prose."
 
 
+
 def _catalog() -> A2uiCatalog:
     config = CatalogConfig.from_path("travel", str(CATALOG_PATH))
     return A2uiCatalog.from_config(config, version="0.9.1")
@@ -138,6 +139,31 @@ DEFAULT_EFFORT = "low"
 #: answer than a smaller model's surface. So the turn degrades instead of dying,
 #: and the client is told which model actually answered.
 FALLBACK_MODEL = "gemini-3.5-flash-lite"
+
+
+#: Which model draws the panels, and how hard it thinks — for **every** door.
+#:
+#: Named once because it used to be named twice, differently: the typed door
+#: drew panels with Flash Lite at `minimal` and the Live door drew them with
+#: Flash 3.8 at `low`, off byte-identical prompts. Same brain, same brief, two
+#: different answers, and a traveller who switched runtimes saw the sidebar
+#: change character for no reason they could act on.
+#:
+#: Chosen on numbers. `tools/eval/panels.py`, one fixed trip with two hops and
+#: two party sizes, two passes of four and five runs, after the sidebar brief
+#: stopped asking for Change buttons inside a template:
+#:
+#:     flash-lite/minimal   3/4 then 5/5 drew   ·  5.8 then 12.4 Change  ·  ~3.1s
+#:     flash-3.8/low        4/4 then 5/5 drew   ·  8.0 then  9.6 Change  ·  ~5.6s
+#:
+#: Both are good now, which is the actual finding: the bug was the brief, not
+#: the model — before the fix this cell was 0.0 to 3.3 Change buttons on a
+#: sidebar whose only interaction is Change. Flash 3.8 is 9/9 across the two
+#: passes against 8/9, and the panel is the record of what somebody decided, so
+#: the two and a half seconds buys the run that does not come back thin. Worth
+#: re-running when either model moves; the small one may well win it back.
+PANEL_MODEL = DEFAULT_MODEL
+PANEL_EFFORT = "low"
 
 
 def _today(client: Any = None) -> str:
@@ -841,7 +867,7 @@ async def _rebuild_panels(
                 # host has already composed. That is the work Flash Lite is good
                 # at and quick at, and the thing it was measurably *not* good at
                 # is deciding what comes next, which is not asked of it here.
-                model=FALLBACK_MODEL,
+                model=PANEL_MODEL,
                 # Not chained to the conversation: a panel redraw is not
                 # something the traveller said, and threading it through
                 # `previous_interaction_id` would put "rebuild the panel" in the
@@ -850,8 +876,8 @@ async def _rebuild_panels(
                     {"type": "user_input", "content": [{"type": "text", "text": PANEL_REQUEST}]}
                 ],
                 system_instruction=system,
-                thinking_level=supported_level(FALLBACK_MODEL, "minimal"),
-                fallback_model=request.model,
+                thinking_level=supported_level(PANEL_MODEL, PANEL_EFFORT),
+                fallback_model=DEFAULT_MODEL,
                 client=request.client,
             ):
                 if event["type"] == "text":
