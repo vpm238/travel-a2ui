@@ -1,0 +1,146 @@
+"""When something is missing, does the turn draw the control for it?
+
+Written to check a reported failure — "what dates do you have in mind?", asked
+in prose with no surface — and it found a different one. When this fails it
+usually draws the *wrong* surface: stat tiles, a progress meter, a map. All of
+it compiles, none of it has anywhere to put a date, and it looks like a turn
+that worked. Which is why every run prints the components it drew.
+
+Three openings, each run N times: one hop, a party that differs on the way back,
+and a multi-city route where somebody joins partway. Scored on what was drawn,
+never on what was said. One run is an anecdote.
+
+Needs a key and spends tokens, so it is not in 
+> travel-a2ui@0.1.0 e2e
+> node tools/e2e/chat.mjs && node tools/e2e/interaction.mjs && node tools/e2e/frameworks.mjs
+
+Driving http://127.0.0.1:8787/.
+
+    python3 tools/eval/controls.py "$GEMINI_API_KEY" 6
+"""
+
+import asyncio
+import pathlib
+import sys
+from collections import defaultdict
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
+
+from travel_a2ui.doors.interactions import (  # noqa: E402
+    DEFAULT_MODEL,
+    TurnRequest,
+    run_turn,
+)
+
+KEY = sys.argv[1]
+RUNS = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+
+#: Each case: what is said, what the turn is missing, and what it has to draw.
+CASES = [
+    {
+        "name": "one hop, no dates",
+        "message": "plan me a trip from SFO to NYC",
+        "wants": {"DateRangePicker"},
+        "counters": 1,
+    },
+    {
+        "name": "party differs on the way back",
+        "message": "plan me a trip from SFO to NYC and on the way back I need 2 tickets",
+        "wants": {"DateRangePicker"},
+        "counters": 2,
+    },
+    {
+        "name": "multi-city, party grows in Chicago",
+        "message": (
+            "I want to fly SFO to Chicago, then on to New York, then home — "
+            "and my partner joins me in Chicago"
+        ),
+        "wants": {"DateRangePicker"},
+        "counters": 2,
+    },
+]
+
+
+def components_of(events: list[dict]) -> list[str]:
+    """Every component kind the turn actually drew."""
+    kinds: list[str] = []
+    for event in events:
+        if event.get("type") != "ui":
+            continue
+        for message in event.get("messages") or []:
+            for component in (message.get("updateComponents") or {}).get("components", []):
+                kind = component.get("component")
+                if kind:
+                    kinds.append(kind)
+    return kinds
+
+
+async def once(case: dict, n: int) -> dict:
+    events: list[dict] = []
+    said: list[str] = []
+    request = TurnRequest(
+        api_key=KEY,
+        model=DEFAULT_MODEL,
+        message=case["message"],
+        trip={},
+        surface="inline",
+        surface_id="inline-1",
+    )
+    async for event in run_turn(request):
+        events.append(event)
+        if event.get("type") == "text":
+            said.append(event.get("delta") or "")
+
+    kinds = components_of(events)
+    prose = "".join(said)
+    drew = bool(kinds)
+    has_wanted = case["wants"] <= set(kinds)
+    counters = kinds.count("TravelerCounter")
+    # A question with nothing drawn is the reported failure exactly.
+    asked_in_prose = "?" in prose and not drew
+
+    print(
+        f"  run {n}: drew={'yes' if drew else 'NO '} "
+        f"dates={'yes' if has_wanted else 'NO '} "
+        f"counters={counters}/{case['counters']} "
+        f"{'ASKED IN PROSE' if asked_in_prose else ''}"
+    )
+    if drew:
+        from collections import Counter
+        print(f"         drew: {dict(Counter(kinds))}")
+    else:
+        print(f"         > {prose.strip()[:150]}")
+    return {
+        "drew": drew,
+        "dates": has_wanted,
+        "counters_ok": counters >= case["counters"],
+        "prose": asked_in_prose,
+    }
+
+
+async def main() -> None:
+    totals: dict[str, list] = defaultdict(list)
+    for case in CASES:
+        print(f"\n{case['name']}  —  {case['message'][:70]}")
+        for n in range(RUNS):
+            totals[case["name"]].append(await once(case, n + 1))
+
+    print("\n" + "=" * 68)
+    for name, runs in totals.items():
+        drew = sum(r["drew"] for r in runs)
+        dates = sum(r["dates"] for r in runs)
+        counters = sum(r["counters_ok"] for r in runs)
+        prose = sum(r["prose"] for r in runs)
+        print(
+            f"{name:38} drew {drew}/{len(runs)}  dates {dates}/{len(runs)}  "
+            f"per-leg counters {counters}/{len(runs)}  asked in prose {prose}"
+        )
+    flat = [r for runs in totals.values() for r in runs]
+    print(
+        f"\noverall: drew {sum(r['drew'] for r in flat)}/{len(flat)}, "
+        f"right controls {sum(r['dates'] and r['counters_ok'] for r in flat)}/{len(flat)}"
+    )
+
+
+asyncio.run(main())

@@ -119,6 +119,35 @@ SURFACE = (
 )
 
 
+#: A trip with its boundaries settled, so a turn is not blocked on anything.
+#:
+#: `asks_nothing` rejects a surface drawn while the trip is waiting on route,
+#: dates or party that asks for none of them — which is right, and which every
+#: test using `SURFACE` would otherwise trip over, because `SURFACE` is a
+#: heading in a column and asks for nothing at all. A test about prose and
+#: Express coming out separately should not also be a test about that.
+SETTLED = {
+    "destination": "Madrid",
+    "origin": "JFK",
+    "startDate": "2027-04-12",
+    "endDate": "2027-04-19",
+    "travelers": 2,
+}
+
+
+#: A surface that asks for the boundaries — what a blocked turn owes.
+ASKING = (
+    f"{A2UI_OPEN}\n"
+    'surface("inline-1")\n'
+    'when = DateRangePicker("Travel dates", $/trip/startDate, $/trip/endDate)\n'
+    'who = TravelerCounter("Going out", $/trip/travelers)\n'
+    'lbl = Text("Search flights")\n'
+    'go = Button(lbl, "primary", Event("search", {startDate: $/trip/startDate}))\n'
+    "root = Column([when, who, go])\n"
+    f"{A2UI_CLOSE}"
+)
+
+
 async def collect(request: TurnRequest) -> list[dict[str, Any]]:
     return [event async for event in run_turn(request)]
 
@@ -593,7 +622,7 @@ def test_run_turn_collected_gathers_the_same_turn() -> None:
 
     model = FakeModel([(["Here. ", SURFACE], [])])
     out = asyncio.run(
-        run_turn_collected(base(message="hi", trip={"destination": "Madrid"}, client=model))
+        run_turn_collected(base(message="hi", trip=dict(SETTLED), client=model))
     )
     assert out["text"] == "Here."
     assert out["ui"]
@@ -879,7 +908,7 @@ def test_a_surface_written_as_json_never_reaches_the_traveller() -> None:
         '```json\n[{"call": "host:render", "surface": "inline-1", '
         '"components": [{"id": "picker", "type": "Form"}]}]\n```\n\nLet me know.'
     )
-    model = FakeModel([(list(misdrawn), []), (["Sorry — ", SURFACE], [])])
+    model = FakeModel([(list(misdrawn), []), (["Sorry — ", ASKING], [])])
     events = asyncio.run(collect(base(message="plan me a trip", client=model)))
 
     text = "".join(event["delta"] for event in events if event["type"] == "text")
@@ -910,3 +939,158 @@ def test_a_fence_is_not_retried_forever() -> None:
 
     assert len([event for event in events if event["type"] == "retry"]) == 1
     assert len(model.bodies) == 2, "one retry, not a loop"
+
+
+def test_a_turn_that_promises_and_draws_nothing_is_handed_back() -> None:
+    """"Let me record your multi-city route and get your travel dates."
+
+    Measured on a multi-city opening: four runs of five ended exactly there,
+    with no tool called and nothing drawn. The brief forbids it in bold and the
+    spoken brief forbids it by name, which is how we know wording is not what
+    closes this.
+    """
+    import asyncio
+
+    model = FakeModel([(["Let me set up your route and get your dates."], []), ([ASKING], [])])
+    events = asyncio.run(collect(base(message="plan me a trip to Madrid", client=model)))
+
+    retries = [event for event in events if event["type"] == "retry"]
+    assert retries, "the turn ended on a promise and nobody said anything"
+    assert "promised" in retries[0]["reason"]
+    assert [event for event in events if event["type"] == "ui"], "the second attempt drew"
+
+    told = model.bodies[-1]["input"][0]["content"][0]["text"]
+    assert "DateRangePicker" in told, "the nudge names the controls the turn needed"
+
+
+def test_a_turn_that_did_something_is_left_alone() -> None:
+    """The commonest sentence in a good turn starts with "Let me"…"""
+    import asyncio
+
+    model = FakeModel([(["Let me show you what I found. ", SURFACE], [])])
+    events = asyncio.run(collect(base(message="flights to Madrid", trip=dict(SETTLED), client=model)))
+
+    assert not [event for event in events if event["type"] == "retry"], (
+        "it drew a surface; there is nothing to correct"
+    )
+
+
+def test_let_me_know_is_not_a_promise() -> None:
+    """…and the commonest way to *end* one is an invitation, not an intention."""
+    import asyncio
+
+    model = FakeModel([(["Four nonstops. Let me know if you want the fares."], [])])
+    events = asyncio.run(collect(base(message="any nonstops?", client=model)))
+
+    assert not [event for event in events if event["type"] == "retry"], (
+        "a turn that answered the question was re-prodded over 'let me know'"
+    )
+
+
+def test_the_promise_nudge_fires_once() -> None:
+    """A model that answers a nudge with another promise will not stop at three."""
+    import asyncio
+
+    model = FakeModel([(["Let me get that."], []), (["Let me get that."], [])])
+    events = asyncio.run(collect(base(message="plan me a trip", client=model)))
+
+    assert len([event for event in events if event["type"] == "retry"]) == 1
+    assert len(model.bodies) == 2, "one retry, not a loop"
+
+
+def test_a_dashboard_drawn_on_a_blocked_turn_is_sent_back() -> None:
+    """The surface that looks most like success and helps least.
+
+    Told "plan me a trip from SFO to NYC", the model drew — in separate measured
+    runs — six StatTiles and a ProgressMeter, and a MapPreview with six buttons.
+    Both compiled. Both validated. Neither contained anywhere to put a date, so
+    the traveller had nothing to answer and the turn was spent. A progress meter
+    before anything is decided is a bar at zero.
+    """
+    import asyncio
+
+    dashboard = (
+        f"{A2UI_OPEN}\n"
+        'surface("inline-1")\n'
+        'head = Text("Your trip", variant="h3")\n'
+        't1 = StatTile("Booked", "0 of 5")\n'
+        "root = Column([head, t1])\n"
+        f"{A2UI_CLOSE}"
+    )
+    model = FakeModel([([dashboard], []), ([ASKING], [])])
+    events = asyncio.run(collect(base(message="plan me a trip to Madrid", client=model)))
+
+    retries = [event for event in events if event["type"] == "retry"]
+    assert retries, "a surface with nowhere to answer went out as if it helped"
+    assert "asks for nothing" in retries[0]["reason"]
+
+    told = model.bodies[-1]["input"][0]["content"][0]["text"]
+    assert "startDate" in told, "the retry has to name what the trip is waiting on"
+
+
+def test_a_surface_that_asks_for_one_missing_thing_is_fine() -> None:
+    """Progress is progress. Asking for the dates without the party is a turn."""
+    import asyncio
+
+    dates_only = (
+        f"{A2UI_OPEN}\n"
+        'surface("inline-1")\n'
+        'when = DateRangePicker("When?", $/trip/startDate, $/trip/endDate)\n'
+        "root = Column([when])\n"
+        f"{A2UI_CLOSE}"
+    )
+    model = FakeModel([([dates_only], [])])
+    events = asyncio.run(collect(base(message="plan me a trip", client=model)))
+
+    assert not [event for event in events if event["type"] == "retry"]
+    assert [event for event in events if event["type"] == "ui"]
+
+
+def test_a_settled_trip_may_draw_whatever_it_likes() -> None:
+    """Flight cards answer a question rather than posing one.
+
+    The check must not fire once the boundaries are set, or every result surface
+    in the app becomes an error.
+    """
+    import asyncio
+
+    model = FakeModel([([SURFACE], [])])
+    events = asyncio.run(
+        collect(
+            base(
+                message="show me the plan",
+                trip=dict(SETTLED),
+                shape=__import__(
+                    "travel_a2ui.brain.trip", fromlist=["decision_shape"]
+                ).decision_shape(SETTLED),
+                client=model,
+            )
+        )
+    )
+    assert not [event for event in events if event["type"] == "retry"]
+
+
+def test_a_guessed_date_is_still_owed_a_picker() -> None:
+    """The hole the first version of this check fell through.
+
+    `save_trip` takes an `assumed` list for values the model guessed, and its
+    contract says the question stays open. But `missing_for` reads a guessed
+    date as a date, so a turn could guess "next weekend means the 24th", save
+    it, and then draw a dashboard — with the check standing down, because on
+    paper nothing was missing.
+
+    That is the trip in the reported screenshot: dates of 24–27 September that
+    the traveller never gave, on a panel presented as settled.
+    """
+    from travel_a2ui.doors.interactions import _still_owed
+
+    guessed = {
+        "destination": "NYC",
+        "origin": "SFO",
+        "startDate": "2026-09-24",
+        "assumed": ["startDate"],
+    }
+    assert _still_owed(guessed) == ["startDate"]
+
+    given = {k: v for k, v in guessed.items() if k != "assumed"}
+    assert _still_owed(given) == [], "a date they actually gave is settled"

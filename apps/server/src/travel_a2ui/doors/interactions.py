@@ -41,6 +41,7 @@ from a2ui.schema.catalog import A2uiCatalog, CatalogConfig  # noqa: E402
 
 from ..brain import trip as model  # noqa: E402
 from ..brain.express import ExpressStream, Failed, FenceGate, Text, Ui  # noqa: E402
+from ..brain.promises import TYPED_NUDGE, promised  # noqa: E402
 from ..gemini import describe_api_error, stream_interaction, supported_level  # noqa: E402
 from ..brain.providers.fixture import FixtureProvider  # noqa: E402
 from ..brain.providers.types import TravelProvider  # noqa: E402
@@ -340,6 +341,29 @@ def describe_action(action: SurfaceAction) -> str:
     return f"[interface] {action.name} on {where} — context {said}"
 
 
+def _still_owed(trip: dict[str, Any]) -> list[str]:
+    """What the traveller has not actually told us yet.
+
+    Not the same as what is blank. `save_trip` takes an `assumed` list for
+    values the model guessed — "next weekend" becoming the 24th — and the
+    contract for it is explicit: they pre-fill the control and *the question
+    stays open*. So a guessed date is still owed a date picker.
+
+    This is what made the check stand down on the turn it was written for. The
+    model guessed a date, saved it marked assumed, `missing_for` then reported
+    nothing missing, and a surface with nowhere to answer sailed through while
+    the trip ran on a number nobody had agreed to.
+
+    `priceFlights` is the goal because its requirements are the boundaries —
+    route and dates — and they are what every trip is blocked on first.
+    """
+    owed = list(model.missing_for(trip, "priceFlights"))
+    assumed = trip.get("assumed")
+    if isinstance(assumed, list):
+        owed += [str(field) for field in assumed if str(field) not in owed]
+    return owed
+
+
 async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     """Runs one turn, yielding events as they happen.
 
@@ -491,15 +515,33 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     #: lines of JSON where an interface should have been.
     misdrawn: str | None = None
     retried_notation = False
+    #: Everything this turn has said, and whether it has done anything.
+    #:
+    #: A turn that announces an intention and then ends is the failure both
+    #: doors share and neither brief stops. Measured on the typed one: a
+    #: multi-city opening answered "Let me record your multi-city route and get
+    #: your travel dates" with nothing drawn in four runs of five.
+    spoken = ""
+    did_something = False
+    retried_promise = False
 
     for round_index in range(MAX_TOOL_ROUNDS):
         # A fresh splitter per round: each round is its own stream of prose and
         # Express, and a block left open at the end of one is not continued by
         # the next.
+        # What the trip is waiting on, so a surface that asks for none of it is
+        # caught before the traveller is left looking at one.
+        #
+        # `priceFlights` is the goal because it is the first thing every trip is
+        # blocked on and its requirements are the boundaries — route, dates,
+        # party. Once those are set this is empty and the check does not run,
+        # which is right: a flight list answers a question rather than posing
+        # one.
         stream = ExpressStream(
             parser=_parser(request.surface_id),
             components=COMPONENT_NAMES,
             validator=_CATALOG.validator,
+            missing=tuple(_still_owed(trip)),
         )
 
         # Fenced blocks never reach the transcript. This agent answers in
@@ -510,7 +552,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
 
         def rendered(events: Sequence[Any], source: str) -> list[dict[str, Any]]:
             """Splitter events, as events for the browser."""
-            nonlocal unreported, misdrawn
+            nonlocal unreported, misdrawn, spoken, did_something
             out: list[dict[str, Any]] = []
             for event in events:
                 if isinstance(event, Text):
@@ -520,9 +562,11 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                             misdrawn = block.source
                     if not said:
                         continue
+                    spoken += said
                     mark("firstWord")
                     out.append({"type": "text", "delta": said, "round": round_index})
                 elif isinstance(event, Ui):
+                    did_something = True
                     # The number that matters. Everything before this is a blank
                     # space where an interface should be.
                     mark("firstSurface")
@@ -670,8 +714,32 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             ]
             continue
 
+        # A turn that said what it was about to do, and did not do it.
+        #
+        # Last of the three retries, deliberately: a compile failure and a
+        # fenced block are both *attempts* at a surface and worth correcting
+        # first. This one fires when there was no attempt at all — no tool ran,
+        # nothing drew, and the traveller has a sentence and an empty space.
+        #
+        # Once. A model that answers the nudge with another promise will answer
+        # the third one the same way, and the traveller is waiting.
+        if (
+            not result.tool_calls
+            and not did_something
+            and promised(spoken)
+            and not retried_promise
+        ):
+            retried_promise = True
+            yield {"type": "retry", "reason": "the turn promised and drew nothing"}
+            turn_input = [
+                {"type": "user_input", "content": [{"type": "text", "text": TYPED_NUDGE}]}
+            ]
+            continue
+
         if not result.tool_calls:
             break
+
+        did_something = True
 
         # Every call this round answered in one go: the next request carries all
         # of their results, which is what keeps the model calling tools in

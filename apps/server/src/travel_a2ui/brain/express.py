@@ -174,6 +174,12 @@ class ExpressStream:
     #: the difference between the model finding out and the traveller finding
     #: out.
     validator: Any = None
+    #: What the trip is still waiting on, if the caller knows.
+    #:
+    #: Lets a finished block be checked for asking about *none* of it — a
+    #: dashboard drawn on a turn that needed a date picker. Empty means the
+    #: caller is not making that claim, and the check does not run.
+    missing: tuple[str, ...] = ()
     _buffer: str = ""
     _inside: bool = False
     _block_source: str = ""
@@ -279,11 +285,18 @@ class ExpressStream:
             if done:
                 # And the question has to be askable. A date in a text box is a
                 # date the traveller can get wrong — see `controls.py`.
-                from .controls import wrong_controls
+                from .controls import AsksNothing, asks_nothing, wrong_controls
 
                 wrong = wrong_controls(messages)
                 if wrong:
                     raise WrongControl(" ".join(wrong))
+
+                # And it has to ask for *something* the trip is waiting on.
+                # `wrong_controls` catches asking in the wrong control; this
+                # catches not asking at all.
+                empty = asks_nothing(messages, self.missing)
+                if empty:
+                    raise AsksNothing(empty)
         except Exception as error:  # noqa: BLE001 - any parse failure, same handling
             # Mid-stream failures are the normal case: half a constructor is not
             # valid Express. Only a failure on a finished block is news.

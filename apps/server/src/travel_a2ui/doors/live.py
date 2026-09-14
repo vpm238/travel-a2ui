@@ -23,6 +23,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from ..brain.promises import SPOKEN_NUDGE as _NUDGE, promised as _promised
 from ..brain.skills import _read
 from ..brain.tools import gemini_tools
 
@@ -291,44 +292,6 @@ def _without_the_list(name: str, result: Any) -> Any:
         "on screen, then say one sentence about what is there."
     )
     return kept
-
-
-#: Saying you are about to do the thing, instead of doing it.
-#:
-#: Deliberately narrow. This only decides whether a turn that called *nothing*
-#: gets handed back once, so a false positive costs one extra round and a false
-#: negative costs nothing that is not already broken. What it must not do is
-#: fire on an ordinary answer — "there are four nonstops" is a turn that did its
-#: job, and re-prodding it would talk over the traveller.
-_PROMISE = re.compile(
-    r"\b("
-    r"let me\b|i'?ll\s+(find|look|check|pull|search|get|see)|"
-    r"i'?m\s+(going to|about to|looking|finding|checking|searching|pulling)|"
-    r"one (moment|second)|just a (moment|second)|hold on|"
-    r"give me a (moment|second)|searching now|looking (that )?up"
-    r")",
-    re.IGNORECASE,
-)
-
-
-def _promised(said: str) -> bool:
-    """True when the turn announced an intention rather than acting on one."""
-    return bool(said.strip()) and bool(_PROMISE.search(said))
-
-
-#: Handed back to a turn that promised and called nothing.
-#:
-#: Phrased as the traveller, because that is the only role this channel has to
-#: speak in — and phrased as a fact about the screen rather than a scolding,
-#: since what needs to change is the next action, not the model's feelings
-#: about the last one.
-_NUDGE = (
-    "[system] You said you would look, and then called nothing — the screen in "
-    "front of me has not changed. Do it now in this turn: call the lookup, then "
-    "the tool that draws the result, then say one short sentence about what is "
-    "on screen. Do not say you are about to; there is no turn after this one to "
-    "do it in."
-)
 
 
 @dataclass

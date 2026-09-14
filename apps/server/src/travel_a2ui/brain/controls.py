@@ -149,3 +149,52 @@ def wrong_controls(messages: Iterable[dict[str, Any]]) -> list[str]:
                 )
 
     return said
+
+
+class AsksNothing(Exception):
+    """A surface drawn on a turn that needed to ask, which asks for nothing."""
+
+
+def asks_nothing(messages: Iterable[dict[str, Any]], missing: Iterable[str]) -> str | None:
+    """Why this surface leaves the traveller with no way forward, or None.
+
+    `wrong_controls` above catches a decision asked for in a control the answer
+    cannot be right in. This catches the turn before that: a surface drawn while
+    the trip is blocked, that does not ask for *any* of the things blocking it.
+
+    Measured on an opening turn, which is where it happens. Told "plan me a trip
+    from SFO to NYC", the model drew — in separate runs — six `StatTile`s and a
+    `ProgressMeter`, and a `MapPreview` with six buttons. Both are handsome, both
+    compiled, both validated, and neither contains anywhere to put a date. A
+    progress meter before anything is decided is a bar at zero.
+
+    Deliberately narrow, because most surfaces are not supposed to ask. Flight
+    cards answer a question rather than posing one, and a turn that asks for
+    *one* of three missing values is making progress. This fires only when the
+    surface asks for none of them.
+    """
+    wanted = {str(field) for field in missing}
+    if not wanted:
+        return None
+
+    asked: set[str] = set()
+    for message in messages:
+        update = message.get("updateComponents") or {}
+        for node in update.get("components") or []:
+            if not isinstance(node, dict):
+                continue
+            if str(node.get("component") or "") not in ASKING:
+                continue
+            for path in _bound_paths(node):
+                asked.add(path.rsplit("/", 1)[-1])
+
+    if asked & wanted:
+        return None
+
+    return (
+        f"That surface asks for nothing the trip is waiting on. Still needed: "
+        f"{', '.join(sorted(wanted))} — and nothing on screen is bound to any of "
+        "them, so the traveller has no way to answer and the turn is spent. "
+        "Draw the controls for the gaps, bound to `$/trip/…`, with one commit "
+        "button. Summaries, maps and stat tiles are for a trip that exists."
+    )
