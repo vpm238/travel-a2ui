@@ -141,6 +141,18 @@ export interface VoiceSession {
   stopListening(): void;
   /** Whether the microphone is open right now. */
   listening(): boolean;
+  /**
+   * Whether the socket behind it is still there.
+   *
+   * A session can die without anybody pressing anything: the relay ends when
+   * *either* side does, so an upstream session that reaches its own limit
+   * closes the browser's socket too. Everything above then still holds a
+   * `VoiceSession` object whose methods all succeed and do nothing — `listen`
+   * sets a flag, the microphone lights up, and `audioprocess` drops every
+   * sample on the floor because the socket is not open. A live-looking
+   * microphone that transmits nothing is the worst of the three states.
+   */
+  alive(): boolean;
   /** Types instead of speaking — useful when saying an airport code out loud fails. */
   say(text: string): void;
   /** True while the agent is speaking. */
@@ -153,6 +165,8 @@ export interface VoiceOptions {
   apiKey: string;
   onEvent: (event: VoiceEvent) => void;
   onSpeakingChange?: (speaking: boolean) => void;
+  /** The socket went away. Whoever holds this session should stop holding it. */
+  onClosed?: () => void;
 }
 
 /**
@@ -330,7 +344,12 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
 
   socket.addEventListener('close', () => {
     setSpeaking(false);
+    // The microphone cannot stay open over a socket that is gone. Leaving
+    // `open` true is what made the next tap *close* a dead microphone instead
+    // of opening a live one, so the button needed two presses to do nothing.
+    open = false;
     options.onEvent({ type: 'turn_end' });
+    options.onClosed?.();
   });
 
   // `createScriptProcessor` is deprecated in favour of an AudioWorklet, which
@@ -384,6 +403,7 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
       }
     },
     listening: () => open,
+    alive: () => socket.readyState === WebSocket.OPEN,
     say: (text: string) => {
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'text', text }));

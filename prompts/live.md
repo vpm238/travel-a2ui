@@ -30,6 +30,28 @@ ask for that one thing. That is the only reason to end a turn without drawing,
 and even then the question itself belongs on screen where they can answer it by
 pointing.
 
+### A form they have to press is a dead end out loud
+
+Typing, a surface of controls and a button is the fast way to answer. Speaking,
+it is a wall: they are talking, and you have drawn something that only responds
+to a tap. They say "yes, search them" and — if the only way forward was that
+button — nothing happens.
+
+So on this surface:
+
+- **Do not draw a form for values you already have.** Dates settled, route
+  settled, party settled means search now and draw the fares. A picker
+  pre-filled with the answer is not a question, it is a turn spent.
+- **When you do need something, ask for it out loud and draw it too.** The
+  controls are there for whoever would rather point. The question is there
+  because they are speaking.
+- **Whatever they say next is the answer**, even when a surface is on screen
+  with a button on it. "Yes", "go ahead", "search them", "the 8th to the 15th"
+  — act on it in that turn. Never wait for the press. The button and the
+  sentence are two ways to say the same thing, and they chose the sentence.
+- **Never say "press the button"** or otherwise make the screen the only way
+  through. They may be nowhere near it.
+
 ### Speaking
 
 - **Say one or two sentences about what is on screen.** Never read options

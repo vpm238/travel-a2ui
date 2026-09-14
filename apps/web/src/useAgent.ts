@@ -1011,7 +1011,16 @@ export function useAgent() {
    * microphone. Now the tap does it, and the button shows it is busy.
    */
   const toggleVoice = useCallback(async () => {
-    if (session) {
+    // A session whose socket has gone is not a session. It answers every method
+    // without complaint — `listen()` sets a flag and lights the microphone up —
+    // and sends nothing, because `audioprocess` checks the socket and gives up.
+    // Holding one turned the microphone into a button that visibly did
+    // something and audibly did not. Drop it and open a fresh one below.
+    if (session && !session.alive()) {
+      sessionRef.current = null;
+      setSession(null);
+      setListening(false);
+    } else if (session) {
       if (session.listening()) {
         session.stopListening();
         setListening(false);
@@ -1037,6 +1046,15 @@ export function useAgent() {
         sessionId,
         apiKey: keyRef.current,
         onSpeakingChange: setAgentSpeaking,
+        // The relay ends when either side does, so an upstream session that
+        // reaches its own limit takes this socket with it — without anybody
+        // pressing anything. Let go of it here rather than waiting for the next
+        // tap to notice.
+        onClosed: () => {
+          sessionRef.current = null;
+          setSession(null);
+          setListening(false);
+        },
         onEvent: (event) => {
           switch (event.type) {
             case 'ui':

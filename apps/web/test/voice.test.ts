@@ -8,7 +8,7 @@
  * the traveller was doing.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { fromPcm16, toPcm16, wake } from '../src/voice.js';
 
@@ -133,5 +133,127 @@ describe('waking the audio contexts', () => {
     const good = fake('suspended');
     await wake(as(broken), as(good));
     expect(good.state).toBe('running');
+  });
+});
+
+describe('a session whose socket has gone', () => {
+  /**
+   * The microphone that looked live and transmitted nothing.
+   *
+   * The relay ends when *either* side does, so an upstream Live session that
+   * reaches its own limit closes the browser's socket with it — without anybody
+   * pressing anything. Everything above still held a `VoiceSession` whose
+   * methods all succeeded: `listen()` set a flag, the button lit up, and
+   * `audioprocess` dropped every sample because the socket was not open.
+   *
+   * Three states, and this was the worst of them: not "off", not "on", but "on
+   * and deaf". The button appeared to work and the model never answered.
+   */
+  const sockets: FakeSocket[] = [];
+
+  class FakeSocket {
+    static readonly OPEN = 1;
+    static readonly CLOSED = 3;
+    readyState = FakeSocket.OPEN;
+    sent: string[] = [];
+    private readonly listeners: Record<string, ((event: unknown) => void)[]> = {};
+
+    constructor() {
+      sockets.push(this);
+    }
+
+    addEventListener(type: string, handler: (event: unknown) => void) {
+      (this.listeners[type] ??= []).push(handler);
+      // `startVoice` awaits `getUserMedia` and `wake` before it listens for
+      // `open`, so a fake that fires once, early, is never heard — the real
+      // socket is still connecting at that point. Replay it instead.
+      if (type === 'open' && this.readyState === FakeSocket.OPEN) {
+        queueMicrotask(() => handler({}));
+      }
+    }
+
+    send(data: string) {
+      this.sent.push(data);
+    }
+
+    close() {
+      this.readyState = FakeSocket.CLOSED;
+      this.fire('close', {});
+    }
+
+    fire(type: string, event: unknown) {
+      for (const handler of this.listeners[type] ?? []) handler(event);
+    }
+  }
+
+  function fakeAudioContext() {
+    const node = () => ({ connect: () => {} });
+    return class {
+      state = 'running';
+      sampleRate = 16000;
+      currentTime = 0;
+      destination = {};
+      resume = async () => {};
+      close = async () => {};
+      createMediaStreamSource = () => node();
+      createScriptProcessor = () => ({ ...node(), addEventListener: () => {} });
+      createGain = () => ({ ...node(), gain: { value: 1 } });
+      createBuffer = () => ({ copyToChannel: () => {}, duration: 0 });
+      createBufferSource = () => ({ ...node(), start: () => {}, addEventListener: () => {} });
+    };
+  }
+
+  async function open(onClosed?: () => void) {
+    sockets.length = 0;
+    // `navigator` is getter-only on the global in Node, so it cannot simply be
+    // assigned. `stubGlobal` defines over it and `unstubAllGlobals` puts it back.
+    vi.stubGlobal('WebSocket', FakeSocket);
+    vi.stubGlobal('AudioContext', fakeAudioContext());
+    vi.stubGlobal('navigator', {
+      mediaDevices: { getUserMedia: async () => ({ getTracks: () => [] }) },
+    });
+    vi.stubGlobal('window', { location: { origin: 'http://localhost' } });
+    const { startVoice } = await import('../src/voice.js');
+    return startVoice({
+      origin: 'http://localhost',
+      sessionId: 's1',
+      apiKey: 'k',
+      onEvent: () => {},
+      ...(onClosed ? { onClosed } : {}),
+    });
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('reports itself dead once the socket closes', async () => {
+    const session = await open();
+    expect(session.alive()).toBe(true);
+
+    sockets[sockets.length - 1]!.close();
+    expect(session.alive()).toBe(false);
+  });
+
+  it('does not keep claiming the microphone is open', async () => {
+    const session = await open();
+    session.listen();
+    expect(session.listening()).toBe(true);
+
+    // Nobody pressed anything. The upstream session ended.
+    sockets[sockets.length - 1]!.close();
+
+    // The thing that made the button need two presses to do nothing: `open`
+    // stayed true, so the next tap read as "stop" on a microphone that was
+    // already deaf.
+    expect(session.listening()).toBe(false);
+  });
+
+  it('tells its owner to let go', async () => {
+    let told = false;
+    await open(() => {
+      told = true;
+    });
+
+    sockets[sockets.length - 1]!.close();
+    expect(told).toBe(true);
   });
 });

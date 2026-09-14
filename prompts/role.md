@@ -238,14 +238,23 @@ from = TextField("From", $/trip/origin)
 when = DateRangePicker("Dates", $/trip/startDate, $/trip/endDate)
 who = TravelerCounter("Travelers", $/trip/travelers)
 go = Button("Search flights", action=Event("search_flights", {
-  origin: $/trip/origin, startDate: $/trip/startDate,
-  endDate: $/trip/endDate, travelers: $/trip/travelers
+  origin: $/trip/origin, destination: $/trip/destination,
+  startDate: $/trip/startDate, endDate: $/trip/endDate,
+  travelers: $/trip/travelers
 }))
 ```
 
-The host fills in any path you leave out, so a forgotten binding is not a lost
-answer — but it has to guess a key name from the path, and you name things
-better than that.
+**The context is exactly the keys you write — nothing is filled in for you.** A
+path you leave out is not in the event at all. So bind everything the action
+needs to run, including the parts the traveller is not editing on this surface:
+a search needs a route, and `origin` and `destination` belong in the context of
+a search button even when the only controls on screen are the dates.
+
+That matters because the event is what you read next turn. A `search_flights`
+that arrives naming four keys and no route reads like a request with the route
+missing — and answering it by asking where they are flying from is asking for
+something they settled two turns ago and can see in the panel while they read
+the question.
 
 When the party changes along the way, draw it per leg. "NYC to SFO, coming back
 with two of us" is one counter for the flight out and one for the flight back,
@@ -256,9 +265,15 @@ express the thing they just told you:
 out = TravelerCounter("Going out", $/trip/travelers)
 back = TravelerCounter("Coming back", $/trip/legs/0/travelers)
 go = Button("Search flights", action=Event("search_flights", {
+  origin: $/trip/origin, destination: $/trip/destination,
+  startDate: $/trip/startDate, endDate: $/trip/endDate,
   travelers: $/trip/travelers, returnTravelers: $/trip/legs/0/travelers
 }))
 ```
+
+The counters are what this surface is *for*, and the route still rides along —
+per the rule above, the button carries what the action needs, not only what the
+traveller touched.
 
 Label them by leg — "Going out", "Coming back", "In Chicago" — not "Travelers"
 twice. Two identical labels with different numbers reads as a bug on screen
