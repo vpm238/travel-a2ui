@@ -1294,3 +1294,49 @@ def test_a_surface_already_on_screen_still_blocks_the_restart() -> None:
     assert not [e for e in events if e["type"] == "restart"], "it drew — a rerun would draw twice"
     assert FALLBACK_MODEL not in client.asked, "and the standby was never asked"
     assert [e for e in events if e["type"] == "error"], "the failure is reported instead"
+
+
+class TestATurnCutShortAfterItDrew:
+    """Two turns end at the same line and are not the same turn.
+
+    One drew nothing, and the model being busy is the whole story. The other
+    drew the form, filled it in, and then lost the stream — and got the same
+    "currently experiencing high demand" banner over the top of a surface that
+    works. Reported as "I get an error in that UI every time": the form was
+    there and the banner said it was broken.
+    """
+
+    def _run(self, client):  # noqa: ANN001, ANN202
+        import asyncio
+
+        return asyncio.run(
+            collect(
+                TurnRequest(
+                    api_key="k",
+                    model="gemini-3.8-flash",
+                    message="hello",
+                    provider=FixtureProvider(),
+                    client=client,
+                )
+            )
+        )
+
+    def test_it_says_the_surface_still_works(self) -> None:
+        drawn = f'{A2UI_OPEN}\nt = Text("Drawn")\nroot = Column([t])\n{A2UI_CLOSE}\nand then'
+        client = TestTheModelDropsTheStreamMidSentence.Drops([drawn], [(["ignored"], [])])
+        events = self._run(client)
+
+        errors = [e for e in events if e["type"] == "error"]
+        assert errors, "the failure is still reported, not swallowed"
+        message = errors[0]["message"]
+        assert "still works" in message, "it has to say the form below is usable"
+        assert "high demand" in message, "and still say what actually happened"
+
+    def test_a_turn_that_drew_nothing_says_only_what_happened(self) -> None:
+        """No surface, so there is nothing to reassure anybody about."""
+        client = TestABusyModelDegradesRatherThanDies.Busy(9, 503, [(["Hi."], [])])
+        events = self._run(client)
+
+        errors = [e for e in events if e["type"] == "error"]
+        assert errors
+        assert "still works" not in errors[0]["message"]

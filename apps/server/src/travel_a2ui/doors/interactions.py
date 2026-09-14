@@ -673,7 +673,24 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             yield out
 
         if failure is not None:
-            yield describe_api_error(failure)
+            reported = describe_api_error(failure)
+            # Two very different turns end here, and they were reported
+            # identically. One drew nothing: the screen is empty and the model
+            # being busy is the whole story. The other drew a surface and then
+            # lost the stream — the form is on screen, filled in and usable,
+            # and "gemini is experiencing high demand" over the top of it reads
+            # as though the form is broken. It is not, and the traveller's next
+            # move is to use it.
+            if did_something and reported.get("retryable"):
+                reported = {
+                    **reported,
+                    "message": (
+                        "The model dropped out part-way through this turn — "
+                        "what it had already drawn is below and still works. "
+                        f"Answer it to carry on. ({reported.get('message', '')})"
+                    ),
+                }
+            yield reported
             break
         if result is None:
             yield {

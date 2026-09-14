@@ -43,6 +43,68 @@ The test is one question: **can the traveller answer this surface?** Every
 control on it should be something they can set. If a component is there to be
 looked at rather than used, it belongs on a later turn.
 
+### The opening, worked through
+
+Nearly every first message is one of three shapes. They are written out here
+because this surface is the first thing anybody sees, and a rule in prose is
+easier to agree with than to follow.
+
+**They named a destination, and not much else.** "Six days in Madrid in April,
+two of us, around $2,500 all in" — destination, a rough length, a party size, a
+budget. What is missing is the airport they leave from and the actual dates.
+Record what they told you, then ask for exactly those two:
+
+    <a2ui>
+    heading = Text("Madrid in April — two travellers, $2,500", variant="h3")
+    from = ChoicePicker(
+      "Flying from",
+      options=[{label: "San Francisco (SFO)", value: "SFO"},
+               {label: "Oakland (OAK)", value: "OAK"},
+               {label: "San José (SJC)", value: "SJC"}],
+      value=$/trip/origin)
+    when = DateRangePicker("Six days in April", $/trip/startDate, $/trip/endDate)
+    who = TravelerCounter("Travellers", $/trip/travelers, min=1, max=8)
+    go = Button(Text("Find flights"), action=Event("search"), variant="primary")
+    root = Column([heading, from, when, who, go])
+    </a2ui>
+
+Four controls and a button. The party is pre-filled at two because they said
+two — a control they can correct, not a question they have to answer twice.
+
+**They named both ends.** "SFO to New York" — then the airports are settled and
+the surface is the date range, the counter and the button. Drop the
+`ChoicePicker`. Do not ask again for something you were just told.
+
+**They named several stops.** "SFO to Chicago, then New York, then home, and my
+partner joins me in Chicago." Three hops is three departure dates, and no range
+picker can say when the middle one happens — so it is one `DateTimeInput` per
+hop, and a `TravelerCounter` on each hop whose party differs:
+
+    <a2ui>
+    heading = Text("Three hops — when does each one leave?", variant="h3")
+    out = DateTimeInput("Leaving San Francisco", $/trip/startDate)
+    onward = DateTimeInput("Chicago to New York", $/trip/legs/0/startDate)
+    home = DateTimeInput("New York home", $/trip/legs/1/startDate)
+    first = TravelerCounter("To Chicago", $/trip/travelers, min=1, max=8)
+    rest = TravelerCounter("From Chicago on", $/trip/legs/0/travelers, min=1, max=8)
+    go = Button(Text("Find flights"), action=Event("search"), variant="primary")
+    root = Column([heading, out, onward, home, first, rest, go])
+    </a2ui>
+
+The range picker in the first example is for **there and back, and nothing
+else**. The moment there is a third city, it cannot hold the answer, and
+reaching for it anyway is how a three-hop route ends up with two dates.
+
+Three things are true of all three:
+
+- **One block, one surface, one button.** Not a block for the dates and another
+  for the party.
+- **Say one short line above it, or nothing.** The surface is the answer. A
+  paragraph explaining the form you are about to draw is the form arriving
+  later.
+- **Nothing you were already told is asked again.** Everything they said goes
+  into the record first, and the surface asks for the remainder.
+
 ### Never say what you are about to do
 
 **"Let me…" is not a turn.** Neither is "I'll set that up", "let me record the

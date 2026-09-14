@@ -17,8 +17,20 @@ the floor for telling an improvement from a lucky sample.
 
 Where it stands, measured at twelve:
 
-    drew a surface           31/36  (86%)
-    drew the right controls  23/36  (64%)
+    drew a surface           35/36  (97%)
+    drew the right controls  25/36  (69%)
+
+The last move was worked examples in `flow.md` — the opening surface written
+out as Express rather than described. The first attempt wrote out only the
+there-and-back case and measured *worse* overall (28/36, 19/36), and the damage
+was where you would expect once you see it: multi-city fell 10/12 → 6/12,
+pulled toward the range picker the one concrete example used. Giving multi-city
+its own block, with a `DateTimeInput` per hop, is what produced the numbers
+above. A concrete example outweighs a paragraph of rule, in both directions.
+
+Caveat on `drew`: Flash 3.8's capacity varied a lot across these samples — some
+runs lost half their turns to "currently experiencing high demand" — so part of
+31/36 → 35/36 is the weather, not the prompt.
 
 From 30/36 and 17/36 (47%), after two host bugs that this eval had been
 blaming on the model:

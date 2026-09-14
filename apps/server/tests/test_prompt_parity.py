@@ -154,3 +154,50 @@ class TestThePromptOnlyNamesComponentsTheModelHas:
             f"{brief}.md recommends {offenders}, which pruning removes from the "
             "catalog the model is given"
         )
+
+
+def test_every_example_in_the_prompts_compiles() -> None:
+    """A worked example is taught as fact, so it has to be true.
+
+    The opening surface is written out in `flow.md` because the rules above it
+    were easier to agree with than to follow. That only helps if the block is
+    valid — an example that does not compile teaches the model to write
+    something this app rejects, and it would be believed precisely because it
+    is an example.
+    """
+    import re
+
+    from travel_a2ui.brain.express import ExpressStream, Failed
+    from travel_a2ui.doors.interactions import (
+        COMPONENT_NAMES,
+        REQUIRED_PROPERTIES,
+        _CATALOG,
+        _parser,
+    )
+
+    prompts = sorted((ROOT / "prompts").glob("*.md"))
+    assert prompts, "no prompts found — this test would pass vacuously"
+
+    examples = 0
+    for path in prompts:
+        for block in re.findall(r"<a2ui>\n(.*?)\n\s*</a2ui>", path.read_text("utf-8"), re.S):
+            examples += 1
+            # The prompts indent examples for readability; the model is shown
+            # them the same way, and the parser is what has to accept them.
+            source = "\n".join(
+                line[4:] if line.startswith("    ") else line for line in block.split("\n")
+            )
+            stream = ExpressStream(
+                parser=_parser("inline-1"),
+                components=COMPONENT_NAMES,
+                validator=_CATALOG.validator,
+                required=REQUIRED_PROPERTIES,
+            )
+            failures = [
+                event.message
+                for event in stream.push(f"<a2ui>\n{source}\n</a2ui>")
+                if isinstance(event, Failed)
+            ]
+            assert not failures, f"{path.name}: taught example does not compile — {failures[0]}"
+
+    assert examples, "no worked examples found in the prompts"
