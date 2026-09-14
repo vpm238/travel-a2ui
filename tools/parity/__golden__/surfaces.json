@@ -67,7 +67,7 @@
         "destination": "Madrid",
         "origin": "JFK"
       },
-      "error": "Cannot price flights without when you are leaving. Ask the traveler — draw the controls for all of it in one surface with render_a2ui_express, bound to $/trip/startDate with a single commit button — or pass the values as arguments. For a deliberately rough figure, call again with flexible: true and say on screen that it is indicative."
+      "error": "Cannot price flights without when you are leaving. Ask the traveler — draw the controls for all of it in one surface, bound to $/trip/startDate with a single commit button — or pass the values as arguments. For a deliberately rough figure, call again with flexible: true and say on screen that it is indicative."
     },
     "flights: no date, explicitly rough": {
       "tool": "show_flight_options",

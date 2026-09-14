@@ -49,12 +49,23 @@ class NeedsInput(Exception):
 
     def __init__(self, missing: list[str], what: str) -> None:
         bound = ", ".join(f"${model.binding_for(key)}" for key in missing)
+        # Deliberately does not name a tool.
+        #
+        # It used to say "with render_a2ui_express", and that tool exists on no
+        # door: the typed path writes Express inline in an `<a2ui>` block and
+        # never had it, the spoken path calls `show_*` and had it removed with
+        # MCP, and MCP is gone. So the one message whose whole job is to tell a
+        # model how to recover was telling it to call something that is not
+        # there — a refusal the caller cannot act on is a dead end with extra
+        # steps.
+        #
+        # How a door draws is the door's business and each one already knows.
+        # What this has to say is *what* to draw and what to bind it to.
         super().__init__(
             f"Cannot {what} without {model.ask_for(missing)}. Ask the traveler — draw the "
-            f"controls for all of it in one surface with render_a2ui_express, bound to "
-            f"{bound} with a single commit button — or pass the values as arguments. For a "
-            "deliberately rough figure, call again with flexible: true and say on screen "
-            "that it is indicative."
+            f"controls for all of it in one surface, bound to {bound} with a single commit "
+            "button — or pass the values as arguments. For a deliberately rough figure, "
+            "call again with flexible: true and say on screen that it is indicative."
         )
 
 

@@ -323,3 +323,64 @@ class TestNothingIsPromisedThatCannotBeDrawn:
         assert not undrawable, f"the catalog offers {undrawable} and nothing renders them"
 
 
+
+
+class TestARefusalCanBeActedOn:
+    """A refusal that names a tool nobody has is a dead end with extra steps.
+
+    `NeedsInput` is the message a door hands back when the model asked for a
+    price without saying when — the whole point of it is to tell the model how
+    to recover. It said "draw the controls … with render_a2ui_express", and that
+    tool exists on no door: the typed path writes Express inline in an `<a2ui>`
+    block and never had it, the spoken path calls `show_*` and lost it with MCP,
+    and MCP is gone.
+
+    Nothing caught it because nothing reads these strings. This does.
+    """
+
+    def tools_any_door_offers(self) -> set[str]:
+        from travel_a2ui.brain.tools import gemini_tools
+        from travel_a2ui.doors.live import voice_tools
+
+        return {tool["name"] for tool in gemini_tools()} | {
+            tool["name"] for tool in voice_tools()
+        }
+
+    def refusals(self) -> list[str]:
+        """Every message the brain hands back instead of a surface."""
+        import asyncio
+
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
+        from travel_a2ui.brain.surfaces import build_surface
+
+        provider = FixtureProvider()
+        said: list[str] = []
+        for args in (
+            {"destination": "Madrid", "origin": "JFK"},  # no date
+            {"destination": "Madrid", "date": "2027-04-12"},  # no origin
+            {"destination": "Madrid"},  # neither
+        ):
+            try:
+                asyncio.run(
+                    build_surface("show_flight_options", args, provider, "2026-09-14")
+                )
+            except Exception as error:  # noqa: BLE001 - the message is the subject
+                said.append(str(error))
+        assert said, "these arguments are supposed to be refused"
+        return said
+
+    def test_no_refusal_names_a_tool_that_does_not_exist(self) -> None:
+        import re
+
+        offered = self.tools_any_door_offers()
+        for message in self.refusals():
+            # Anything shaped like one of our tool names: lower_snake_case with
+            # a verb in front. Narrow enough not to catch ordinary prose.
+            for word in re.findall(r"\b(?:show|render|search|get|save|release|share)_\w+", message):
+                assert word in offered, f"refusal names {word!r}, which no door offers"
+
+    def test_a_refusal_still_says_what_to_do(self) -> None:
+        """Dropping the tool name must not drop the instruction with it."""
+        for message in self.refusals():
+            assert "draw the" in message, f"no recovery in: {message[:120]}"
+            assert "$/trip/" in message, "and it has to name what to bind"
