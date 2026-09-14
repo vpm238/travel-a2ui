@@ -193,6 +193,18 @@ class Ui:
     block_index: int
     messages: list[A2uiMessage]
     done: bool
+    #: A complaint about a surface that is nonetheless valid.
+    #:
+    #: A compile error produces no surface, so rejecting it costs nothing. A
+    #: surface that asks for none of what the trip is waiting on is different:
+    #: it compiles, it renders, and it is merely unhelpful. Rejecting *that*
+    #: turned a useless dashboard into an empty screen whenever the retry did
+    #: not recover — measured over 36 openings, drawing fell from 60% to 47%
+    #: when the check was added, which is the check making the product worse.
+    #:
+    #: So it is drawn, and the complaint rides along for the door to act on. A
+    #: correction must never leave the screen emptier than it found it.
+    incomplete: str | None = None
     type: Literal["ui"] = "ui"
 
 
@@ -337,6 +349,7 @@ class ExpressStream:
             return None
         self._last_emitted = source
 
+        incomplete: str | None = None
         try:
             # Before the SDK, because the SDK will not object: an invented
             # component compiles to nothing at all rather than to an error.
@@ -359,7 +372,7 @@ class ExpressStream:
             if done:
                 # And the question has to be askable. A date in a text box is a
                 # date the traveller can get wrong — see `controls.py`.
-                from .controls import AsksNothing, asks_nothing, wrong_controls
+                from .controls import asks_nothing, wrong_controls
 
                 wrong = wrong_controls(messages)
                 if wrong:
@@ -368,9 +381,8 @@ class ExpressStream:
                 # And it has to ask for *something* the trip is waiting on.
                 # `wrong_controls` catches asking in the wrong control; this
                 # catches not asking at all.
-                empty = asks_nothing(messages, self.missing)
-                if empty:
-                    raise AsksNothing(empty)
+                # Not raised. See `Ui.incomplete`.
+                incomplete = asks_nothing(messages, self.missing)
         except Exception as error:  # noqa: BLE001 - any parse failure, same handling
             # Mid-stream failures are the normal case: half a constructor is not
             # valid Express. Only a failure on a finished block is news.
@@ -378,7 +390,12 @@ class ExpressStream:
                 return None
             return Failed(block_index=self._block_index, message=str(error), source=source)
 
-        return Ui(block_index=self._block_index, messages=messages, done=done)
+        return Ui(
+            block_index=self._block_index,
+            messages=messages,
+            done=done,
+            incomplete=incomplete if done else None,
+        )
 
 
 # --------------------------------------------------------------------------

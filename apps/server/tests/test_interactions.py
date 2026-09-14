@@ -567,7 +567,7 @@ class TestFailures:
         import asyncio
 
         broken = f'{A2UI_OPEN}\nroot = NoSuchComponent("x")\n{A2UI_CLOSE}'
-        model = FakeModel([([broken], []), ([SURFACE], [])])
+        model = FakeModel([([broken], []), ([ASKING], [])])
         events = asyncio.run(collect(base(message="hi", client=model)))
 
         assert any(event["type"] == "ui_error" for event in events)
@@ -593,7 +593,7 @@ class TestFailures:
         model = FakeModel(
             [
                 ([broken], [ToolCall(id="c1", name="get_destination", args={"destination": "Madrid"})]),
-                ([SURFACE], []),
+                ([ASKING], []),
             ]
         )
         events = asyncio.run(collect(base(message="hi", client=model)))
@@ -1026,6 +1026,14 @@ def test_a_dashboard_drawn_on_a_blocked_turn_is_sent_back() -> None:
 
     told = model.bodies[-1]["input"][0]["content"][0]["text"]
     assert "startDate" in told, "the retry has to name what the trip is waiting on"
+
+    # And it was *drawn*, not swallowed. Rejecting it outright turned a useless
+    # dashboard into an empty screen whenever the retry did not recover —
+    # measured over 36 openings, drawing fell from 60% to 47% when this check
+    # rejected rather than annotated. A correction must never leave the screen
+    # emptier than it found it.
+    drawn = [event for event in events if event["type"] == "ui"]
+    assert len(drawn) >= 2, "the first surface never reached the traveller"
 
 
 def test_a_surface_that_asks_for_one_missing_thing_is_fine() -> None:

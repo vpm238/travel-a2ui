@@ -524,6 +524,9 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     spoken = ""
     did_something = False
     retried_promise = False
+    #: A surface that drew but left the traveller nothing to answer.
+    thin: str | None = None
+    retried_thin = False
 
     for round_index in range(MAX_TOOL_ROUNDS):
         # A fresh splitter per round: each round is its own stream of prose and
@@ -552,7 +555,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
 
         def rendered(events: Sequence[Any], source: str) -> list[dict[str, Any]]:
             """Splitter events, as events for the browser."""
-            nonlocal unreported, misdrawn, spoken, did_something
+            nonlocal unreported, misdrawn, spoken, did_something, thin
             out: list[dict[str, Any]] = []
             for event in events:
                 if isinstance(event, Text):
@@ -567,6 +570,12 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                     out.append({"type": "text", "delta": said, "round": round_index})
                 elif isinstance(event, Ui):
                     did_something = True
+                    # Drawn either way. A surface that asks for none of what the
+                    # trip is waiting on is unhelpful, not invalid, and putting
+                    # nothing on screen instead is worse for the traveller than
+                    # putting the wrong thing there.
+                    if event.incomplete and thin is None:
+                        thin = event.incomplete
                     # The number that matters. Everything before this is a blank
                     # space where an interface should be.
                     mark("firstSurface")
@@ -707,6 +716,31 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                                 f"{failure['express'][:4000]}\n\n"
                                 "Write the whole block again, corrected. Do not repeat the "
                                 "prose — only the <a2ui> block."
+                            ),
+                        }
+                    ],
+                }
+            ]
+            continue
+
+        # Drew, but left nothing to answer. Ask for the controls, once.
+        #
+        # The surface is already on screen, so this is a replacement rather than
+        # a rescue, and it is worth exactly one round: a second dashboard is a
+        # traveller watching the same nothing twice.
+        if not result.tool_calls and thin and not retried_thin:
+            retried_thin = True
+            complaint, thin = thin, None
+            yield {"type": "retry", "reason": "the surface asks for nothing"}
+            turn_input = [
+                {
+                    "type": "user_input",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                f"{complaint}\n\nDraw it again into the same surface, "
+                                "with those controls on it. Only the <a2ui> block."
                             ),
                         }
                     ],
