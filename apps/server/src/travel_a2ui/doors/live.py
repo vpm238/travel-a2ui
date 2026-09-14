@@ -27,10 +27,17 @@ from ..brain.skills import _read
 from ..brain.tools import gemini_tools
 
 _ROOT = ROOT
-_MCP = json.loads((_ROOT / "data" / "mcp-tools.json").read_text("utf-8"))
 
-MCP_TOOLS: list[dict[str, Any]] = _MCP["tools"]
-A2UI_MIME: str = _MCP["a2uiMimeType"]
+#: The six layouts a session can ask for by name, with their argument schemas.
+#:
+#: These were written as MCP tool declarations and outlived MCP. A spoken
+#: session cannot write Express — its replies are audio, so a notation in one is
+#: read aloud rather than compiled — which leaves calling a tool as the only way
+#: it can reach the screen at all. That is what these are for now, and the file
+#: is named for that rather than for the protocol they were first written in.
+SURFACE_TOOLS: list[dict[str, Any]] = json.loads(
+    (_ROOT / "data" / "surface-tools.json").read_text("utf-8")
+)["tools"]
 
 
 #: The model a Live session runs on.
@@ -71,10 +78,13 @@ VOICE_BRIEF = _read("prompts", "live.md").strip()
 def voice_tools() -> list[dict[str, Any]]:
     """Everything a Live session may call.
 
-    The `show_*` surface tools first, then the data tools. `get_destination`
-    and the pricing tools stay in the list even though the surface tools
-    already price: the overlap is intentional and cheap, and a voice agent
-    that can look something up without drawing it is better at conversation.
+    The `show_*` surface tools first, then the data tools. The overlap between
+    them — both can price a flight — was called intentional and cheap, and it is
+    neither: given a tool that returns fares and a tool that draws them, the
+    model takes the one that returns them and reads them out. The lookups stay,
+    because a voice agent that can answer "is there a nonstop" without redrawing
+    the screen is better at conversation, but their results no longer carry the
+    rows. See `_without_the_list`.
     """
     surfaces = [
         {
@@ -82,8 +92,7 @@ def voice_tools() -> list[dict[str, Any]]:
             "description": tool["description"],
             "parameters": tool["inputSchema"],
         }
-        for tool in MCP_TOOLS
-        if tool["name"].startswith("show_")
+        for tool in SURFACE_TOOLS
     ]
     data = [
         {

@@ -114,18 +114,6 @@ jobs:
           python3 -m pip install --quiet pytest
           python3 -m pytest tools/tests -q
 
-      # Before the server tests, not after, and the reason is a test that was
-      # red in CI and green on every laptop for a week.
-      #
-      # The MCP app is served as one self-contained page: the renderer bundle
-      # inlined into a `<script>`, built by `-w @travel-a2ui/mcp-view` into
-      # `apps/web/dist/mcp-view/`. `app_template` composes a perfectly
-      # well-formed page when that build output is missing — with an empty
-      # script — which renders a blank frame inside the host and reports no
-      # error anywhere, so there is a test that asserts the script is actually
-      # there. Run the Python tests before the build and that test is asserting
-      # something CI has not made yet, while every working copy has a `dist/`
-      # lying around from the last local build and passes.
       - name: Build
         run: npm run build
 
@@ -148,9 +136,6 @@ jobs:
       #             editing sends nothing, committing sends everything once,
       #             answered surfaces go grey and inert, and what you set on
       #             one card is pre-filled on the next.
-      #   mcp.mjs   a real JSON-RPC tool call, rendered inside a sandboxed
-      #             iframe the way an MCP host renders it, plus a layout
-      #             composed on the fly from the component reference.
       - name: End-to-end
         run: |
           npx playwright install --with-deps chromium
@@ -172,7 +157,6 @@ jobs:
           node tools/e2e/chat.mjs
           node tools/e2e/interaction.mjs
           node tools/e2e/frameworks.mjs
-          node tools/e2e/mcp.mjs
         env:
           # Let Playwright use the browser it just installed.
           CHROMIUM_PATH: ''

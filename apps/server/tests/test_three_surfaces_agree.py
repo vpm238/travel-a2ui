@@ -1,9 +1,10 @@
-"""The three ways in have to behave like one agent.
+"""The two ways in have to behave like one agent.
 
-There are three front doors — the Interactions API for typed turns, the Live API
-for calls, and MCP for Claude — and one agent behind them. Keeping that true has
-been done by remembering, and remembering does not work. In a single afternoon
-the same class of bug was fixed three separate times:
+There are two front doors — the Interactions API for typed turns and the Live
+API for calls — and one agent behind them. (There were three: an MCP door for
+Claude, removed along with the plugin.) Keeping that true has been done by
+remembering, and remembering does not work. In a single afternoon the same class
+of bug was fixed three separate times:
 
   * Inline surfaces collided, so a new card overwrote the last. Fixed for typed
     turns; found again weeks later in live, where surfaces were keyed by *what*
@@ -13,17 +14,17 @@ the same class of bug was fixed three separate times:
     passed to a call, so voice asked people to say an airport code out loud —
     the exact question the hint exists to avoid.
   * Invented component names were caught by the streaming compiler and not by
-    the tool, and the tool is what MCP hosts and voice calls both go through, so
-    a typo became a grey box and a success reported to the model.
+    the tool, and the tool is what a voice call goes through, so a typo became a
+    grey box and a success reported to the model.
 
 None of those looked like a bug from inside the path that had it. Each was a
 thing one door did and another did not, and the only way to see it was to put
 them side by side — which is what this file does.
 
-It asserts *agreement*, not implementation. Where the three genuinely differ —
-Live takes a different tool shape, MCP has no conversation to hold state in —
-the difference is named here as a fact, so that changing it has to be deliberate
-rather than accidental.
+It asserts *agreement*, not implementation. Where the two genuinely differ —
+Live takes a different tool shape, because its replies are audio and a function
+call is the only way it can reach a screen — the difference is named here as a
+fact, so that changing it has to be deliberate rather than accidental.
 """
 
 from __future__ import annotations
@@ -43,35 +44,13 @@ class TestOneVocabulary:
 
         assert CATALOG_ID == CATALOG_JSON["$id"]
 
-    def test_every_door_offers_the_same_surface_tools(self) -> None:
-        """A tool Claude can call and a call cannot is a different agent."""
-        from travel_a2ui.doors.live import MCP_TOOLS, voice_tools
+    def test_a_call_is_offered_every_declared_surface(self) -> None:
+        """A layout that is declared and unreachable is a layout that does not exist."""
+        from travel_a2ui.doors.live import SURFACE_TOOLS, voice_tools
 
-        plugin = {tool["name"] for tool in MCP_TOOLS if tool["name"].startswith("show_")}
+        declared = {tool["name"] for tool in SURFACE_TOOLS}
         spoken = {tool["name"] for tool in voice_tools() if tool["name"].startswith("show_")}
-        assert plugin == spoken, f"only one door has {plugin ^ spoken}"
-
-    def test_every_door_can_reach_the_data(self) -> None:
-        """The thesis, asserted on the door where it used to be false.
-
-        `tools.py` opens by saying tools return data and the skill turns data
-        into UI, "because a tool returning pre-rendered cards moves that
-        decision into this file, where it would be frozen and wrong half the
-        time". MCP exposed six pre-rendered cards and no way to reach a flight,
-        so Claude was the one caller for whom that paragraph was untrue — it
-        could pick from six layouts or write Express blind.
-        """
-        from travel_a2ui.brain.tools import gemini_tools, mcp_data_tools
-
-        typed = {tool["name"] for tool in gemini_tools()}
-        plugin = {tool["name"] for tool in mcp_data_tools()}
-        assert not typed - plugin, f"Claude cannot {sorted(typed - plugin)}"
-
-        # One asymmetry, and it is a saving rather than a gap: this app writes
-        # the whole trip into Gemini's system prompt under "The trip so far", so
-        # `get_trip` would cost it a round to read back something already on the
-        # screen in front of it. Claude has no such prompt and needs the tool.
-        assert plugin - typed == {"get_trip"}
+        assert declared == spoken, f"only one side has {declared ^ spoken}"
 
     def test_the_typed_path_and_a_call_share_the_data_tools(self) -> None:
         from travel_a2ui.brain.tools import gemini_tools
@@ -237,15 +216,29 @@ class TestOneImplementationNotThree:
             # per-turn surface id and a departure hint that voice did not.
             assert "for surface_id in STANDING_SURFACES:\n            updates" not in source
 
-    def test_a_surface_is_compiled_by_one_function(self) -> None:
+    def test_no_door_compiles_a_surface_itself(self) -> None:
+        """`compile_surface` validates as well as compiles, and that is the point.
+
+        A door that reaches past it to the parser gets Express turned into
+        messages without the catalog's validator ever seeing them — and the
+        validator is what catches a `Column([header, footer])` whose `footer`
+        was never defined. That compiles cleanly and renders as a box with a
+        hole in it.
+
+        Two doors, two ways of getting there: `live` builds a whole surface and
+        hands it to `compile_surface`; `interactions` streams, so it compiles
+        block by block through `ExpressStream` and runs the same validator on
+        each finished one. Neither may open-code the third way.
+        """
         import inspect
 
-        from travel_a2ui.doors import plugin, live
+        from travel_a2ui.doors import interactions, live
 
-        for module in (plugin, live):
-            source = inspect.getsource(module)
-            assert "compile_surface(" in source, f"{module.__name__} compiles its own"
-            assert ".compile(surface.express" not in source
+        assert "compile_surface(" in inspect.getsource(live)
+        for module in (interactions, live):
+            assert ".compile(surface.express" not in inspect.getsource(module), (
+                f"{module.__name__} compiles a built surface without validating it"
+            )
 
     def test_the_two_halves_of_drawing_stay_together(self) -> None:
         """`build_surface` validates; `compile_surface` emits. Both or neither.
@@ -330,48 +323,3 @@ class TestNothingIsPromisedThatCannotBeDrawn:
         assert not undrawable, f"the catalog offers {undrawable} and nothing renders them"
 
 
-class TestThePluginTeachesToolsThatExist:
-    """A plugin skill is a contract with a host that cannot check it.
-
-    The skill named six `show_*` tools with a table of what each one drew.
-    Those stopped being listed the day the plugin was changed to compose
-    instead of picking from a menu — and nothing anywhere noticed, because a
-    SKILL.md is prose until a host reads it. Somebody installing the plugin got
-    an agent confidently calling six tools the server does not offer.
-    """
-
-    def _skill(self) -> str:
-        import pathlib
-
-        root = pathlib.Path(__file__).resolve().parents[3]
-        return (
-            root / "plugins" / "travel-a2ui" / "skills" / "travel-a2ui" / "SKILL.md"
-        ).read_text("utf-8")
-
-    def test_every_tool_the_skill_names_is_one_the_server_lists(self) -> None:
-        import re
-
-        from travel_a2ui.doors.plugin import TOOLS
-        from travel_a2ui.brain.tools import mcp_data_tools
-
-        listed = {t["name"] for t in TOOLS if not t["name"].startswith("show_")}
-        listed |= {t["name"] for t in mcp_data_tools()}
-
-        # Backticked names in the skill's tool table.
-        named = set(re.findall(r"`([a-z_]+)`", self._skill()))
-        # Only judge names that look like tools of ours, not prose in backticks.
-        named = {n for n in named if "_" in n}
-        unlisted = {
-            n
-            for n in named
-            if n not in listed and (n.startswith("show_") or n.startswith("get_") or n.startswith("search_"))
-        }
-        assert not unlisted, f"the skill teaches tools nobody serves: {sorted(unlisted)}"
-
-    def test_the_data_tools_are_all_taught(self) -> None:
-        """The other direction: a tool nobody is told about is a tool nobody calls."""
-        from travel_a2ui.brain.tools import mcp_data_tools
-
-        skill = self._skill()
-        missing = [t["name"] for t in mcp_data_tools() if t["name"] not in skill]
-        assert not missing, f"served but never mentioned: {missing}"

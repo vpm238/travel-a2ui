@@ -12,8 +12,6 @@ __pycache__/
 # Provisioned managed-agent ids — per checkout, not per repo.
 backends/*/.agent.json
 
-# Staged by the mcp-view build so the web app ships the renderer.
-apps/web/public/mcp-view/
 
 # Flutter build output and local tool state. The web bundle is built in the
 # image, not committed — a `build/` in git is a second copy of the app that is

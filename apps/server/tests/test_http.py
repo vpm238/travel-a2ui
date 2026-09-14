@@ -45,7 +45,6 @@ class TestWhatTheClientsConfigureThemselvesFrom:
             "destinations",
             "provenance",
             "contract",
-            "mcpEndpoint",
             "keyProvided",
             "backends",
         ):
@@ -438,127 +437,6 @@ class TestTheVoiceSocket:
 
         assert seen["key"] == "the-voice-key"
         assert "the-voice-key" not in json.dumps(http.sessions.get("voice-2").as_dict())
-
-
-class TestTheMcpEndpoint:
-    """Over HTTP, which is how a host actually reaches it."""
-
-    def test_a_get_declines_the_sse_channel(self, client: TestClient) -> None:
-        response = client.get("/mcp")
-        assert response.status_code == 405
-        assert response.headers["allow"] == "POST"
-
-    def test_a_handshake_over_http(self, client: TestClient) -> None:
-        response = client.post(
-            "/mcp",
-            json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
-        )
-        assert response.status_code == 200
-        assert response.json()["result"]["serverInfo"]["name"] == "travel-a2ui"
-
-    def test_a_notification_gets_202_and_an_empty_body(self, client: TestClient) -> None:
-        response = client.post("/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"})
-        assert response.status_code == 202
-        assert response.content == b""
-
-    def test_a_body_that_is_not_json_is_a_parse_error(self, client: TestClient) -> None:
-        response = client.post(
-            "/mcp", content=b"{not json", headers={"content-type": "application/json"}
-        )
-        assert response.status_code == 400
-        assert response.json()["error"]["code"] == -32700
-
-    def test_the_view_is_chosen_at_install_time(self, client: TestClient) -> None:
-        call = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "tools/call",
-            "params": {
-                "name": "show_flight_options",
-                "arguments": {"destination": "Madrid", "origin": "JFK", "date": "2099-04-12"},
-            },
-        }
-        app_view = client.post("/mcp", json=call).json()["result"]
-        legacy = client.post("/mcp?view=legacy", json=call).json()["result"]
-
-        def mimes(result: dict) -> set[str]:
-            return {
-                part["resource"]["mimeType"]
-                for part in result["content"]
-                if part["type"] == "resource"
-            }
-
-        assert "application/vnd.a2ui+json" in mimes(app_view)
-        assert "text/html" in mimes(legacy)
-
-    def test_an_old_view_spelling_still_works(self, client: TestClient) -> None:
-        """Rather than breaking an install that is already out there."""
-        response = client.post(
-            "/mcp?view=html",
-            json={
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "tools/call",
-                "params": {"name": "show_price_summary", "arguments": {"destination": "Madrid"}},
-            },
-        )
-        mimes = {
-            part["resource"]["mimeType"]
-            for part in response.json()["result"]["content"]
-            if part["type"] == "resource"
-        }
-        assert "text/html" in mimes
-
-    def test_an_origin_override_is_honoured_only_over_http(self, client: TestClient) -> None:
-        """Anything else is a script source somebody put in a URL."""
-        read = {"jsonrpc": "2.0", "id": 1, "method": "resources/list"}
-
-        allowed = client.post("/mcp?origin=https://tunnel.example", json=read).json()
-        csp = allowed["result"]["resources"][0]["_meta"]["ui"]["csp"]
-        assert csp["connectDomains"] == ["https://tunnel.example"]
-
-        refused = client.post("/mcp?origin=javascript:alert(1)", json=read).json()
-        domains = refused["result"]["resources"][0]["_meta"]["ui"]["csp"]["connectDomains"]
-        assert all(domain.startswith("http") for domain in domains)
-
-    def test_the_view_is_told_the_scheme_the_browser_actually_used(
-        self, client: TestClient
-    ) -> None:
-        """Cloud Run speaks plain HTTP to the container. The browser does not.
-
-        Without this the CSP names `http://…` for a service only reachable over
-        `https://`, the view asks for its renderer over http from an https page,
-        and the browser blocks it as mixed content — an empty frame, and nothing
-        anywhere saying so.
-        """
-        read = {"jsonrpc": "2.0", "id": 1, "method": "resources/list"}
-
-        forwarded = client.post(
-            "/mcp", json=read, headers={"x-forwarded-proto": "https"}
-        ).json()
-        csp = forwarded["result"]["resources"][0]["_meta"]["ui"]["csp"]
-        assert csp["connectDomains"] == ["https://testserver"]
-
-        # Two proxies deep, the client-facing hop is the one that decides.
-        chained = client.post(
-            "/mcp", json=read, headers={"x-forwarded-proto": "https, http"}
-        ).json()
-        domains = chained["result"]["resources"][0]["_meta"]["ui"]["csp"]["connectDomains"]
-        assert domains == ["https://testserver"]
-
-    def test_a_nonsense_forwarded_scheme_is_ignored(self, client: TestClient) -> None:
-        """It is a header anyone can send, and it ends up in a script tag."""
-        read = {"jsonrpc": "2.0", "id": 1, "method": "resources/list"}
-        response = client.post(
-            "/mcp", json=read, headers={"x-forwarded-proto": "javascript:"}
-        ).json()
-        domains = response["result"]["resources"][0]["_meta"]["ui"]["csp"]["connectDomains"]
-        assert domains == ["http://testserver"]
-
-    def test_meta_points_at_the_endpoint_that_exists(self, client: TestClient) -> None:
-        """A plugin reads this to find the server; a wrong path is a dead install."""
-        endpoint = client.get("/api/meta").json()["mcpEndpoint"]
-        assert client.get(endpoint).status_code == 405, "reachable, and declines GET"
 
 
 class TestEachInlineCardIsItsOwnSurface:

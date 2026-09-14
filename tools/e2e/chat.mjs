@@ -2,9 +2,9 @@
 /**
  * End-to-end check of the inline modality, with a scripted model.
  *
- * The unit tests cover the compiler, the store and the agent loop; the MCP
- * console proves the renderer. What none of them touch is the path a person
- * actually takes: type a message, watch a surface appear under the reply, click
+ * The unit tests cover the compiler, the store and the agent loop; the gallery
+ * proves the renderer. What none of them touch is the path a person actually
+ * takes: type a message, watch a surface appear under the reply, click
  * something in it, and have that click become the next turn.
  *
  * So this drives the real app in a real browser and intercepts `/api/chat`,

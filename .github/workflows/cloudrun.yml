@@ -1,7 +1,7 @@
 name: travel-a2ui Cloud Run
 
 # Deploys the Python server — which also serves the built React client, the
-# Flutter client and the MCP endpoint — to a single Cloud Run service.
+# Flutter client — to a single Cloud Run service.
 #
 # One service, not two. Splitting the front end from the API would buy nothing
 # here (no independent scaling, no separate release cadence, no second team)

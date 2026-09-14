@@ -17,7 +17,6 @@ export default defineConfig({
     // both, so there is no "is this dev?" branch in application code.
     proxy: {
       '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
-      '/mcp': { target: 'http://127.0.0.1:8000', changeOrigin: true },
     },
   },
 });

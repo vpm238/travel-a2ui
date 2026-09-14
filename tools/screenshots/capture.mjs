@@ -3,8 +3,8 @@
  * The README's pictures, taken from the running app.
  *
  * Rewritten, because the version before it could not run at all: it drove a
- * server on port 8787 that no longer exists and clicked an "MCP" tab that was
- * removed from the app months of decisions ago. Nothing failed loudly — the
+ * server on port 8787 that no longer exists and clicked a tab that was removed
+ * from the app months of decisions ago. Nothing failed loudly — the
  * command simply errored out — so the screenshots in the README quietly stopped
  * being of this product. They were eleven days stale and predated a visual
  * pass, the per-party pricing, the rebuilt stay cards and a header that has

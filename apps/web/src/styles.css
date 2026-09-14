@@ -294,7 +294,6 @@ a {
 }
 
 .main--home,
-.main--mcp,
 .main--catalog,
 .main--protocol {
   overflow-y: auto;
@@ -569,7 +568,6 @@ a {
 /* -------------------------------------------------------------------- home */
 
 .home,
-.mcp,
 .catalog,
 .protocol {
   max-width: 1080px;
@@ -581,7 +579,6 @@ a {
 }
 
 .home__head,
-.mcp__head,
 .catalog__head,
 .protocol__head {
   display: flex;
@@ -592,7 +589,6 @@ a {
 }
 
 .home__head h2,
-.mcp__head h2,
 .catalog__head h2,
 .protocol__head h2 {
   margin: 0;
@@ -602,7 +598,6 @@ a {
 }
 
 .home__head p,
-.mcp__head p,
 .catalog__head p,
 .protocol__head p {
   margin: 3px 0 0;
@@ -647,35 +642,6 @@ a {
   border-color: var(--tv-accent);
   box-shadow: 0 0 0 3px var(--tv-accent-soft);
 }
-
-/* --------------------------------------------------------------------- mcp */
-
-.mcp__endpoint {
-  font-family: var(--tv-font-mono);
-  font-size: 0.74rem;
-  background: var(--tv-surface-2);
-  border: 1px solid var(--tv-line);
-  border-radius: 8px;
-  padding: 5px 10px;
-  color: var(--tv-ink-muted);
-  white-space: nowrap;
-}
-
-.mcp__grid {
-  display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-}
-
-@media (max-width: 860px) {
-  .mcp__grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.mcp__controls h3,
-.mcp__result h3,
 .protocol__pane h3 {
   margin: 0 0 10px;
   font-size: 0.7rem;
@@ -686,108 +652,11 @@ a {
   align-items: baseline;
   gap: 10px;
 }
-
-.mcp__tools {
-  list-style: none;
-  margin: 0 0 16px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.mcp__tools button {
-  width: 100%;
-  text-align: left;
-  appearance: none;
-  font: inherit;
-  background: var(--tv-surface);
-  color: var(--tv-ink);
-  border: 1px solid var(--tv-line);
-  border-radius: var(--tv-radius-sm);
-  padding: 9px 13px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.mcp__tools button:hover {
-  border-color: var(--tv-accent-line);
-}
-
-.mcp__tools button.is-active {
-  border-color: var(--tv-accent);
-  background: var(--tv-accent-soft);
-}
-
-.mcp__tools strong {
-  font-size: 0.88rem;
-  font-weight: 620;
-}
-
-.mcp__tools span {
-  font-size: 0.76rem;
-  color: var(--tv-ink-muted);
-}
-
-.mcp__args {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-
-.mcp__args span {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--tv-ink-faint);
-}
-
-.mcp__args textarea {
-  font-family: var(--tv-font-mono);
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: var(--tv-ink);
-  background: var(--tv-surface);
-  border: 1px solid var(--tv-line-strong);
-  border-radius: var(--tv-radius-sm);
-  padding: 11px 13px;
-  resize: vertical;
-}
-
-.mcp__args textarea:focus {
-  outline: none;
-  border-color: var(--tv-accent);
-}
-
-.mcp__error {
-  color: var(--tv-critical);
-  font-size: 0.84rem;
-  margin: 12px 0 0;
-}
-
-.mcp__summary {
-  margin: 0 0 14px;
-  font-size: 0.9rem;
-  color: var(--tv-ink-muted);
-}
-
-.mcp__hint,
 .protocol__hint {
   color: var(--tv-ink-muted);
   font-size: 0.86rem;
   margin: 0;
   text-wrap: pretty;
-}
-
-.mcp__surface {
-  border: 1px solid var(--tv-line);
-  border-radius: var(--tv-radius);
-  padding: 20px;
-  background: var(--tv-surface);
-  margin-bottom: 14px;
 }
 
 /* ---------------------------------------------------------------- protocol */

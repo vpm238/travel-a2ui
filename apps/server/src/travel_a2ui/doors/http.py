@@ -1,9 +1,8 @@
-"""The HTTP surface: one service, three front ends and an agent behind them.
+"""The HTTP surface: one service, two front ends and an agent behind them.
 
     /               the React client
     /flutter        the Flutter web client
     /api/*          the agent, the session and the catalog
-    /mcp            the same agent, for Claude and other MCP hosts
 
 One Cloud Run service rather than two, and that is a decision worth stating.
 Splitting the front end from the API would buy nothing here — there is no
@@ -43,7 +42,6 @@ from .interactions import (
 )
 from ..brain.contract import INSTANTIATION_MAX_AGE_MS, contract_stamp
 from ..brain.providers.fixture import FixtureProvider
-from . import plugin
 from ..sessions import SessionStore
 from ..brain import host_actions
 from ..brain import trip as model
@@ -177,7 +175,6 @@ async def meta() -> JSONResponse:
             # from a live deployment without guessing from the prices.
             "provenance": provider.provenance.as_dict(),
             "contract": {"stamp": contract_stamp(), "maxAgeMs": INSTANTIATION_MAX_AGE_MS},
-            "mcpEndpoint": "/mcp",
             # True when the deployment carries its own key and the UI need not ask.
             "keyProvided": bool(os.environ.get("GEMINI_API_KEY")),
             "runtime": "python",
@@ -435,81 +432,6 @@ def _resumed(body: dict[str, Any], key: str) -> Any:
     return value if isinstance(value, str) and value else None
 
 
-@app.get("/mcp")
-async def mcp_get() -> JSONResponse:
-    """Streamable HTTP lets a server decline the SSE channel.
-
-    This one is stateless — every POST is self-contained — so there is nothing
-    to push and nothing to keep open.
-    """
-    return JSONResponse(
-        {"error": "This MCP server is stateless: POST JSON-RPC to this endpoint."},
-        status_code=405,
-        headers={"allow": "POST"},
-    )
-
-
-@app.post("/mcp")
-async def mcp_post(request: Request) -> Response:
-    """The MCP endpoint: these surfaces, inside somebody else's agent."""
-    try:
-        payload = await request.json()
-    except Exception:  # noqa: BLE001 - a parse error has its own JSON-RPC code
-        return JSONResponse(
-            plugin.err(None, -32700, "Parse error: body is not JSON"), status_code=400
-        )
-
-    context = plugin.RenderContext(
-        # Chosen once, at install time, by whoever knows what their host renders.
-        view=request.query_params.get("view") or "",
-        origin=_renderer_origin(request),
-        # The provider travels with the request because the endpoint is
-        # stateless: without it an MCP call would answer from fixtures on a
-        # deployment configured for live inventory, and answer *differently*
-        # from the same tool called through the web app.
-        provider=provider,
-    )
-    context.view = plugin._view_of(context.view or None)
-
-    body, status = await plugin.handle(payload, context)
-    if body is None:
-        return Response(status_code=status)
-    return JSONResponse(body, status_code=status, headers={"cache-control": "no-store"})
-
-
-def _renderer_origin(request: Request) -> str:
-    """Where the view should load the renderer from.
-
-    Normally the origin the host just called. `?origin=` covers the case where
-    it is not — a tunnel, a proxy, a preview URL that differs from the public
-    one — and only over http(s), because anything else is a script source
-    somebody put in a URL.
-
-    The forwarded scheme is read rather than trusted from the socket, and that
-    is not a detail. Cloud Run terminates TLS at its front end and speaks plain
-    HTTP to the container, so `request.base_url` says `http://` for a service
-    only ever reachable over `https://`. That origin is substituted into the
-    view's script tag and named in its CSP — so the host loads an https page
-    that asks for its renderer over http, the browser blocks it as mixed
-    content, and the frame is empty with nothing in any log to say why.
-    """
-    from urllib.parse import urlparse
-
-    override = request.query_params.get("origin")
-    if override:
-        parsed = urlparse(override)
-        if parsed.scheme in ("http", "https") and parsed.netloc:
-            return f"{parsed.scheme}://{parsed.netloc}"
-
-    base = urlparse(str(request.base_url).rstrip("/"))
-    # Only the first entry: `x-forwarded-proto` is a list when more than one
-    # proxy is in the path, and the client-facing hop is the one that decides
-    # what the browser will allow.
-    forwarded = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip()
-    scheme = forwarded if forwarded in ("http", "https") else base.scheme
-    return f"{scheme}://{base.netloc}"
-
-
 @app.websocket("/api/voice")
 async def voice(socket: WebSocket) -> None:
     """One voice call, relayed.
@@ -607,15 +529,6 @@ async def healthz() -> JSONResponse:
     return JSONResponse({"ok": True, "sessions": len(sessions)})
 
 
-class _AnyOrigin(StaticFiles):
-    """Static files any page may read. See `mount_clients`."""
-
-    async def get_response(self, path: str, scope: Any) -> Any:  # noqa: ANN401
-        response = await super().get_response(path, scope)
-        response.headers["access-control-allow-origin"] = "*"
-        return response
-
-
 def mount_clients() -> None:
     """Serves the built front ends, when they have been built.
 
@@ -627,32 +540,6 @@ def mount_clients() -> None:
         app.mount("/flutter", StaticFiles(directory=FLUTTER_DIST, html=True), name="flutter")
 
     if WEB_DIST.is_dir():
-        # `/mcp-view/` before `/`, and with a permissive origin, because that
-        # bundle is loaded by somebody else's page.
-        #
-        # The MCP view is a one-kilobyte shell that links the renderer from this
-        # deployment, and an MCP host runs that shell in a sandboxed frame with
-        # a *null* origin. A null origin matches nothing, so the fetch needs
-        # `access-control-allow-origin: *` or the frame renders an empty box and
-        # says nothing about why — which is exactly what the end-to-end test has
-        # been reporting, red, since the day the Python server took over from
-        # the Worker that used to set this header.
-        #
-        # Scoped to this one directory. The app itself is same-origin and has no
-        # business being readable from anywhere.
-        #
-        # Guarded like every other mount here, because `StaticFiles` raises on a
-        # missing directory *at import time* rather than serving 404s. Mounting
-        # it unguarded took the whole server down with
-        # `RuntimeError: Directory '…/mcp-view' does not exist` — caught by the
-        # Dockerfile's import check rather than by Cloud Run, which is the one
-        # thing that went right about it.
-        if (WEB_DIST / "mcp-view").is_dir():
-            app.mount(
-                "/mcp-view",
-                _AnyOrigin(directory=WEB_DIST / "mcp-view"),
-                name="mcp-view",
-            )
         app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
 
         @app.exception_handler(404)
@@ -661,7 +548,7 @@ def mount_clients() -> None:
             # is not an API path is a route the client knows about and the
             # server does not. An API path stays a 404, or a typo in a fetch
             # silently returns HTML and fails somewhere much less obvious.
-            if request.url.path.startswith(("/api/", "/mcp", "/healthz")):
+            if request.url.path.startswith(("/api/", "/healthz")):
                 return _no_store({"error": f"No route for {request.url.path}"}, 404)
             return FileResponse(WEB_DIST / "index.html")
 

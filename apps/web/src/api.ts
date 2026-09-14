@@ -113,7 +113,6 @@ export interface Meta {
   models: ModelOption[];
   surfaces: SurfaceKind[];
   skills: SkillInfo[];
-  mcpEndpoint: string;
   keyProvided: boolean;
   /** Which agent runtimes this deployment knows about. */
   backends?: BackendOption[];

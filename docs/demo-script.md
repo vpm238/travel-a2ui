@@ -5,7 +5,6 @@ should see if it is working — so a reviewer can check it rather than take a
 screenshot's word for it.
 
 Flows 1–5 need the web app and a Gemini key. Flow 6 needs nothing at all.
-Flow 7 runs inside Claude.
 
 ```bash
 npm run setup
@@ -177,13 +176,6 @@ move to the next step rather than asking about flights again.
 **The job.** Seeing A2UI render with nothing in the path. Good for a reviewer
 who has no key, and the fastest way to prove the renderer is real.
 
-There used to be an MCP console here — a tool picker with the JSON-RPC request
-and response beside it. It went when the plugin stopped offering finished
-layouts: the tools it demonstrated were six `show_*` calls that each returned a
-card, and the whole point of the change was that a capable host composes its own
-surfaces instead of picking from a menu. A console for calling data tools by
-hand is a debugging aid, not a demo, and `curl` already does it.
-
 **Click the Catalog tab.** Every component the agent can draw, with the exact
 positional signature the model is given. Anything with a schema but no React
 renderer is flagged in red — the gap is visible rather than discovered later.
@@ -199,31 +191,6 @@ Every surface there was compiled at build time from the catalog's own examples
 by the real compiler, and every interaction is logged as the agent would receive
 it.
 
-## Flow 7 · The same three flows, inside Claude
-
-**The job.** The interface layer travelling to a host that is not ours.
-
-Install per [install-in-claude.md](install-in-claude.md), then:
-
-> Use the travel tools to show me flights to Madrid.
-
-You should get flight cards, not a bulleted list.
-
-> Show me flights to Lisbon in the sidebar.
-
-Same tool, `surface: "sidebar"` — three flights instead of four, and the panel
-replaces itself rather than stacking.
-
-> Read the A2UI component reference and compose me a pre-flight checklist: what
-> the trip costs, how much of my $2,600 budget it uses, a visa checkbox, and how
-> it splits between two people.
-
-Claude calls `get_a2ui_component_reference`, writes A2UI Express, and sends it
-to `render_a2ui_express`. This is flow 4, in someone else's app, with the same
-components.
-
----
-
 ## The automated versions
 
 Everything above has a scripted equivalent that needs no key and costs nothing.
@@ -232,7 +199,6 @@ Everything above has a scripted equivalent that needs no key and costs nothing.
 uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src   # in another terminal
 
 node tools/e2e/chat.mjs   # flow 1, 14 assertions
-node tools/e2e/mcp.mjs    # flows 4 + 6, 24 assertions
 npm run e2e               # both
 ```
 
@@ -242,17 +208,10 @@ sequence a live turn produces — including the partial `ui` events from a
 constructor split mid-stream. It then clicks a flight and asserts the click
 became the next turn.
 
-`mcp.mjs` speaks real JSON-RPC to a running server, takes the HTML out of a tool
-result, and renders it inside a `sandbox="allow-scripts"` iframe — the strictest
-thing a host does. It asserts the cards draw, the stylesheet crossed the origin,
-the surface reported its height, clicking posted the intent a host forwards to
-its model, and that a layout composed from the component reference draws every
-kind it asked for.
-
-To point either at a deployment instead of localhost:
+To point one at a deployment instead of localhost:
 
 ```bash
-BASE_URL=https://travel-a2ui-vy7stnte2a-uc.a.run.app node tools/e2e/mcp.mjs
+BASE_URL=https://travel-a2ui-vy7stnte2a-uc.a.run.app node tools/e2e/chat.mjs
 ```
 
 And to regenerate the README's screenshots from the same runs:

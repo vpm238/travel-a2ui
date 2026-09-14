@@ -94,8 +94,8 @@ flight numbers, no "the second one — no, sorry, the third".
 we leave a day later?"* works at any point.
 
 And because the agent sends a *description* rather than pixels, the same answer
-draws in a web app, in a Flutter app, or inside Claude. None of them knows
-anything about travel.
+draws in a web app or in a Flutter app. Neither of them knows anything about
+travel.
 
 ---
 
@@ -129,28 +129,17 @@ on the server. ([Why `#key=` and not `?key=`.](#the-key))
 use, with the real renderer. It is the fastest way to see A2UI render with
 nothing else in the path.
 
-**Other ways in:** the same agent drawn by
-[Flutter](https://travel-a2ui-vy7stnte2a-uc.a.run.app/flutter), or installed
-**inside Claude**, where Claude becomes the model and there is no key at all:
-
-```
-/plugin marketplace add vpm238/travel-a2ui
-/plugin install travel-a2ui@travel-a2ui
-```
-
-That is the plugin — the MCP server *and* the skill that tells Claude when to
-draw rather than describe. [docs/install-in-claude.md](docs/install-in-claude.md)
-covers the rest, including claude.ai and Claude Desktop.
+**Other ways in:** the same agent, the same catalog and the same surfaces drawn
+by the [Flutter client](https://travel-a2ui-vy7stnte2a-uc.a.run.app/flutter) —
+a second renderer of the same messages, which is the clearest demonstration that
+the agent is describing an interface rather than emitting one.
 
 <p align="center">
-  <img src="docs/screenshots/02-panel-light.png" alt="The trip record, each decision with a Change button" width="320">
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/06-mcp-view.png" alt="The same components rendered inside an MCP host" width="420">
+  <img src="docs/screenshots/02-panel-light.png" alt="The trip record, each decision with a Change button" width="420">
 </p>
 
 <p align="center">
-  <sub>Left: the record of what you have decided, each row re-openable. Right: the same
-  components, drawn inside Claude.</sub>
+  <sub>The record of what you have decided, each row re-openable.</sub>
 </p>
 
 ---
@@ -164,7 +153,7 @@ pip install -e ./apps/server
 uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src
 ```
 
-Open `http://127.0.0.1:8080`. One server serves the API, the MCP endpoint and
+Open `http://127.0.0.1:8080`. One server serves the API and
 both clients from one origin.
 
 **Nothing here is coupled to travel except the names.** The fastest way to see
@@ -234,8 +223,8 @@ to which data. That description travels over the network and *your* device draws
 it, using components your device already has.
 
 That one decision is what makes everything else possible: the same answer can be
-drawn by a web page, a phone app, or Claude, because each of them knows how to
-draw the bricks and none of them needs to know anything about travel.
+drawn by a web page or a phone app, because each of them knows how to draw the
+bricks and neither needs to know anything about travel.
 
 **The language it writes is A2UI.** [A2UI](https://a2ui.org) is an open protocol
 for exactly this — agents that reply with interfaces. It defines the message
@@ -336,12 +325,12 @@ that plays journeys could see it.
 ### The shape of the system
 
 ```
-   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-   │  React web   │   │ Flutter web  │   │ Claude, via  │
-   │    client    │   │    client    │   │  MCP plugin  │
-   └──────┬───────┘   └──────┬───────┘   └──────┬───────┘
-          │                  │                  │
-          └──────────────────┼──────────────────┘
+            ┌──────────────┐   ┌──────────────┐
+            │  React web   │   │ Flutter web  │
+            │    client    │   │    client    │
+            └──────┬───────┘   └──────┬───────┘
+                   │                  │
+                   └────────┬─────────┘
                              │   A2UI messages — the same ones,
                              │   whichever is on the other end
                     ┌────────┴─────────┐
@@ -383,7 +372,6 @@ Start wherever matches what you want:
 | See every component, drawn | **[docs/catalog.md](docs/catalog.md)** — each one pictured beside the line of Express that made it |
 | Understand the flows and the edge cases | **[docs/user-flows.md](docs/user-flows.md)** — including which rules are enforced in code rather than asked of the model |
 | Understand how it is built | **[docs/architecture.md](docs/architecture.md)** — the long version, decision by decision |
-| Use it inside Claude | **[docs/install-in-claude.md](docs/install-in-claude.md)** — the plugin, and what it carries |
 | Deploy it | **[docs/deploying.md](docs/deploying.md)** — Cloud Run, and the one setting not to change |
 
 ---
@@ -393,7 +381,7 @@ Start wherever matches what you want:
 This is everything around it.
 
 One server. It is Python, it is two packages — `brain/` and `doors/` — and it
-serves the API, the MCP endpoint and the built clients from one origin.
+serves the API and the built clients from one origin.
 
 ### Developing against it
 
@@ -436,7 +424,7 @@ with nothing else in the path.
 
 ### Deploy it
 
-One server, serving the API, the MCP endpoint and both built clients from one
+One server, serving the API and both built clients from one
 origin — one deploy, one URL, no CORS to configure.
 
 **Cloud Run** builds from the `Dockerfile` at the repository
@@ -454,7 +442,7 @@ from the Actions tab with four settings in place:
 Every push to `main` deploys. The live service is
 [travel-a2ui-vy7stnte2a-uc.a.run.app](https://travel-a2ui-vy7stnte2a-uc.a.run.app),
 and it serves all of it: the React client at `/`, the Flutter client at
-`/flutter`, the agent API, and the MCP endpoint at `/mcp`.
+`/flutter`, and the agent API.
 
 **[docs/deploying.md](docs/deploying.md)** has the one-time setup for both
 targets — including the `gcloud` commands that create the Workload Identity
@@ -511,8 +499,8 @@ component you add documents itself.
 **Change the tools.** `data/tools.json` is one array of
 `{name, description, input_schema}`, and `brain/tools.py` is one `switch` over
 it. The contracts are provider-neutral on purpose: `gemini_tools()` is a
-six-line adapter and `mcp_data_tools()` is another, so a second protocol costs
-six lines rather than a second copy of the schemas.
+six-line adapter over it, so a second provider costs six lines rather than a
+second copy of the schemas.
 
 **Then the parts you should not need to touch**: the compiler, the renderer, the
 streaming split, the commit binding, the panel plumbing. Those are the A2UI
@@ -530,7 +518,8 @@ moment a date moves.
 
 Not three screens — three *placements*, each answering a different question, and
 each composing the same data differently. They are properties of where an answer
-goes, not of this codebase, which is why they survive the trip into an MCP host.
+goes, not of this codebase, which is why they survive the trip into a second
+renderer unchanged.
 
 ### 1 · Inline — attached to the message being answered
 
@@ -582,12 +571,10 @@ Read first, and not in reply to anything.
 | Sidebar | `apps/web/src/components/Sidebar.tsx` | the agent, singular — writing to it again rebuilds it |
 | Home | `apps/web/src/components/Home.tsx` | the agent, singular, regenerated when the trip or the day changes |
 
-**They are placements, not screens**, which is why they survive the trip into
-someone else's chat app: an MCP host draws whatever surface the tool result
-names, and a surface that replaces itself behaves like a panel wherever it lands.
-A plugin installed in Claude gets the same product, not a subset of it — see
-[the MCP section](#the-mcp-app-the-same-ui-inside-claude) for how the model
-composes them there.
+**They are placements, not screens.** A surface that replaces itself behaves
+like a panel wherever it lands, and one keyed to the message it answers behaves
+like a card — which is why the Flutter client gets the same three without being
+told what any of them mean.
 
 <p align="center">
   <img src="docs/screenshots/03-home-light.png" alt="A trip dashboard generated for today" width="820">
@@ -634,10 +621,11 @@ closes, over a session that outlives both, and stopping talking ends a *sentence
 It used to end the conversation, which is exactly why speaking and then stopping
 appeared to do nothing: the session was torn down before the answer could arrive.
 
-The model is handed the six server-composed builders — the ones the MCP endpoint
-deliberately withholds — and told to draw rather than read a list aloud. The
-trade is the right way round here: mid-sentence, a model composing Express would
-be paying latency a spoken turn does not have. A live turn:
+The model is handed the six server-composed builders and told to draw rather
+than read a list aloud. That is not a shortcut here, it is the only route: a
+spoken reply *is* audio, so Express written into one is read out rather than
+compiled, and calling a named tool is the only way the session can reach a
+screen. A live turn:
 
 ```
 TOOL    save_trip {travelers: 2, startDate: 2027-04-12, …}
@@ -695,11 +683,11 @@ prompts/*.md   ─────────►│    tools    what it can call   
                                           │
               ┌───────────────┬───────────┴───────────┬──────────────┐
               ▼               ▼                       ▼              ▼
-      doors/interactions  doors/live            doors/plugin    doors/http
-      Gemini              Gemini Live           MCP, for        mounts the
-      Interactions API    API, spoken           Claude and      other three
-      typed, over SSE     over a socket         other hosts     and serves
-              │               │                       │         the clients
+      doors/interactions  doors/live            doors/http
+      Gemini              Gemini Live           mounts the
+      Interactions API    API, spoken           other two and
+      typed, over SSE     over a socket         serves the clients
+              │               │                       │
               └───────────────┴───────────┬───────────┘
                                           ▼
                                  A2UI JSON messages
@@ -715,9 +703,9 @@ record, the passes a surface goes through. It has no idea which door a request
 came through, and nothing in it imports a transport.
 
 The **doors** hold transport and nothing else. `interactions` is the reference
-one; `live` is the same brain over a bidirectional audio socket; `plugin` is the
-same brain answering MCP, where every call is self-contained; `http` mounts the
-other three. When a door starts wanting to know what a trip is, that knowledge
+one; `live` is the same brain over a bidirectional audio socket; `http` mounts
+both and serves the clients. When a door starts wanting to know what a trip is,
+that knowledge
 belongs in the brain and the door should be asking for it.
 
 The **renderers** draw A2UI, send actions back, and wait for the next A2UI.
@@ -854,107 +842,6 @@ python3 scripts/gen_parity.py          # regenerate the goldens
 npx vitest run packages/express        # 64 tests, including all 20 parity cases
 ```
 
----
-
-## The MCP app: the same UI, inside Claude
-
-`POST /mcp` is a stateless Streamable-HTTP MCP server whose tools return
-interfaces rather than text. It is the fourth modality and the one that reaches
-furthest: the three flows above, drawn by the same React components, inside
-someone else's chat app.
-
-**[docs/install-in-claude.md](docs/install-in-claude.md)** is the step-by-step —
-Claude Code, Claude Desktop, and claude.ai. The short version:
-
-```bash
-claude mcp add --transport http travel-a2ui https://travel-a2ui-vy7stnte2a-uc.a.run.app/mcp
-```
-
-### What comes back from a tool call
-
-Three things, so that nothing degrades to nothing:
-
-| Part | For | Size |
-| --- | --- | --- |
-| a plain-text summary | the model, and any host that can't draw | a line |
-| `application/vnd.a2ui+json` | a host with its own A2UI renderer | ~2–6 kB |
-| a `text/html` shell | every other host, rendered in an iframe | **~450 B** |
-
-The shell is not the renderer. It is the payload inlined, plus a `<script src>`
-pointing back at the deployment the host just called — so the 220 kB React
-bundle is fetched once and cached, instead of riding along on every tool call
-and eating the host's result budget each time. The origin comes from the request
-itself, so a production deploy, a preview and a local server each serve their own
-with nothing configured (`?origin=` overrides it, for a tunnel or a proxy).
-
-Two things about that origin, both of which produced an empty frame and no error
-anywhere. The host loads the shell into a **null-origin** sandbox, so the bundle
-needs `access-control-allow-origin: *` or the fetch never completes. And the
-scheme has to come from `x-forwarded-proto` rather than from the socket: Cloud Run
-terminates TLS at its front end and speaks plain HTTP to the container, so the
-obvious `request.base_url` writes `http://` into a page the host loaded over
-`https://`, and the browser blocks it as mixed content.
-
-A host that renders A2UI natively can drop the HTML with `POST /mcp?view=payload`;
-an HTML-only host can drop the payload with `?view=html`.
-
-### Composed on the fly, not a menu of cards
-
-Eleven tools are listed, and what is *missing* from the list is the design
-decision:
-
-- **Nine data tools** — `search_flights`, `search_hotels`, `get_destination`,
-  `get_weather`, `estimate_cost`, `save_trip`, `release_decision`, `get_trip`,
-  `share_plan`. The same nine the agent uses, read from the same
-  `data/tools.json`. They return facts, not layouts.
-- **`get_a2ui_component_reference` → `render_a2ui_express`** — the actual
-  capability. The first returns the generated output contract: the grammar, the
-  streaming rules, and the positional signature of all 40-odd components. The
-  model reads it once, writes A2UI Express for the layout *this* conversation
-  needs, and the second compiles it and hands back a surface drawn by the same
-  React components the web app uses. Compile errors name exactly what was wrong —
-  including an invented component name, with the list of real ones — so a second
-  attempt can fix it.
-
-The six server-composed layouts (`show_flight_options`, `show_hotel_options`,
-`show_trip_controls`, `show_itinerary`, `show_trip_dashboard`,
-`show_price_summary`) still exist and are still used — the voice relay calls them
-directly, where a model composing Express mid-sentence would be paying latency it
-does not have. **They are deliberately not offered here**, and that was a
-behavioural finding rather than a preference: given both paths, a capable host
-takes the one-call path every single time, because it is one call. The generative
-path then never runs, and a demo whose entire thesis is that a model composes
-interfaces spends its life picking from a menu of six. Hand an agent what an
-agent needs — data, a vocabulary, a compiler — and nothing that does the thinking
-for it.
-
-The reference is a *tool* and not only a prompt on purpose: hosts surface MCP
-prompts as something the user must invoke by hand, so a model that can only read
-prompts can never learn the vocabulary mid-conversation. As a tool it can.
-
-<p align="center">
-  <img src="docs/screenshots/06-mcp-view.png" width="46%" alt="A flight picker rendered from an MCP tool result">
-  <img src="docs/screenshots/06-mcp-view-composed.png" width="46%" alt="A layout composed on the fly from catalog components">
-</p>
-
-Left: `show_flight_options`. Right: a pre-flight card — price summary, budget
-meter, checkbox, expense split — that no tool hard-codes; the model wrote it as
-Express and `render_a2ui_express` compiled it. Both are screenshots from
-`tools/e2e/mcp.mjs`, taken inside a `sandbox="allow-scripts"` iframe, which is
-the strictest thing a host does.
-
-Calling it directly:
-
-```bash
-curl -s localhost:8080/mcp -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
-        "name":"render_a2ui_express","arguments":{
-          "surfaceId":"demo",
-          "source":"surface(\"demo\")\nh = Text(\"Hello\", variant=\"h3\")\nroot = Column([h])"}}}' | jq
-```
-
----
-
 ## Layout
 
 ```
@@ -967,7 +854,6 @@ travel-a2ui/
 ├── apps/
 │   ├── server/                 ★ the whole backend: brain/ and doors/
 │   ├── web/                    React client: the three flows, the catalog and the wire inspector
-│   ├── mcp-view/               the renderer as one bundle an MCP host loads into its frame
 │   └── gallery/                every component drawn on its own, with the Express that made it
 ├── renderers/
 │   ├── react/                  React host for both catalogs, and the design system
@@ -979,7 +865,6 @@ travel-a2ui/
 │   ├── e2e/                    a whole browser turn against a scripted model
 │   ├── eval/                   the flows graded against a real model, mechanically
 │   └── screenshots/            the README's pictures and docs/catalog.md, reproducibly
-├── plugins/                    the Claude plugin: skills and an MCP endpoint
 ├── scripts/                    setup, generation, parity, and repo extraction
 ├── docs/
 │   ├── catalog.md              every component, pictured — generated, never written
@@ -1067,9 +952,6 @@ a faithful port was the thing that surfaced them.
   before the turn ends, that the skeleton goes out before the tool runs and the
   fill after it, that a value the traveller set reaches the trip without the
   model being asked, and that parallel tool results come back in one message.
-- **MCP** — driven as a protocol, not as functions: handshake, batches,
-  notification semantics, error codes, the three flows, and that the shipped
-  HTML view fetches nothing.
 - **The host** — data binding, list templates, client-side checks, and that a
   re-sent component replaces rather than duplicates.
 - **The skills** — that the model-facing fields leak no implementation detail,

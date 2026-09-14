@@ -82,7 +82,8 @@ def gemini_tools() -> list[dict[str, Any]]:
     start again. A traced turn spent one of its three rounds, about eight
     seconds, reading back something it was already looking at.
 
-    It still exists for MCP, where it is the only way a host can see the trip.
+    It still exists as a tool, and `run_tool` still answers it: a caller that
+    does not get the trip in a prompt has no other way to see it.
     """
     return [
         {
@@ -107,56 +108,14 @@ GROUNDING = os.environ.get("GROUNDING", "on").strip().lower() not in {"off", "0"
 
 #: Tools a host model may call for data rather than for a surface.
 #:
-#: Named as a set rather than "everything not `show_`" because the two lists are
-#: read by different doors and a tool that quietly became callable over MCP
-#: because of how its name was spelled would be a change nobody decided to make.
+#: Named as a set rather than "everything not `show_`" because a tool that
+#: quietly became callable because of how its name was spelled would be a change
+#: nobody decided to make.
 DATA_TOOL_NAMES = frozenset(tool["name"] for tool in TOOLS)
 
 
 def is_data_tool(name: str) -> bool:
     return name in DATA_TOOL_NAMES
-
-
-def mcp_data_tools() -> list[dict[str, Any]]:
-    """The data tools in MCP's shape.
-
-    Same contracts as the Gemini declarations — `data/tools.json` is the one
-    source — re-keyed from `parameters` to `inputSchema`, which is the only
-    thing the two protocols disagree about.
-    """
-    #: What the host carries between calls, since the server carries nothing.
-    #:
-    #: MCP is stateless: every POST is self-contained and any instance may
-    #: answer it, so there is no session to keep a trip in. The host is the only
-    #: party present for the whole conversation, so it holds the trip and hands
-    #: it back — the same arrangement the web client uses for its resume
-    #: receipt, for the same reason.
-    #:
-    #: Without this the trip could not travel at all. `save_trip` would record a
-    #: departure airport, return it, and be asked for it again on the next call
-    #: because nothing had anywhere to put it.
-    carried = {
-        "type": "object",
-        "description": (
-            "The trip so far, exactly as the last call returned it. Pass it back "
-            "on every call: this server keeps nothing between calls, so a trip "
-            "you do not carry is a trip it has never heard of."
-        ),
-        "additionalProperties": True,
-    }
-
-    return [
-        {
-            "name": tool["name"],
-            "title": tool["name"].replace("_", " ").capitalize(),
-            "description": tool["description"],
-            "inputSchema": {
-                **tool["input_schema"],
-                "properties": {**tool["input_schema"].get("properties", {}), "trip": carried},
-            },
-        }
-        for tool in TOOLS
-    ]
 
 
 def grounding_tools() -> list[dict[str, Any]]:

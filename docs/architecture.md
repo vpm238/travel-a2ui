@@ -94,22 +94,22 @@ around them.
  ══════════╪═════════════════════════╪═════════════════════════╪════════
            │      consumed, never reimplemented, by            │
  ┌─────────▼───────────────┬─────────▼──────────┬──────────────▼────────┐
- │ apps/server/…/brain     │ apps/web           │ apps/mcp-view         │
- │ skills, tools, the trip │ the React client   │ the same renderer,    │
- │ record, surface passes  │ (3 flows)          │ for an MCP host       │
+ │ apps/server/…/brain     │ apps/web           │ renderers/flutter     │
+ │ skills, tools, the trip │ the React client   │ the second client,    │
+ │ record, surface passes  │ (3 flows)          │ the same messages     │
  ├─────────────────────────┼────────────────────┼───────────────────────┤
- │ apps/server/…/doors     │ renderers/flutter  │ apps/gallery          │
- │ interactions · live ·   │ the second client  │ static showcase       │
- │ plugin · http           │                    │                       │
+ │ apps/server/…/doors     │ apps/gallery       │                       │
+ │ interactions · live ·   │ static showcase    │                       │
+ │ http                    │                    │                       │
  └─────────────────────────┴────────────────────┴───────────────────────┘
 ```
 
-**One brain, four doors, two renderers.** The server is two packages and the
+**One brain, three doors, two renderers.** The server is two packages and the
 split is load-bearing. `brain/` holds every decision worth making — the skills
 the model is given, the tools it may call, the record a trip is kept in, the
 passes every surface goes through — and imports no transport. `doors/` holds
-transport and nothing else: the Interactions API, the Live API, MCP, and the
-HTTP app that mounts them. The same conversation can be had through any of
+transport and nothing else: the Interactions API, the Live API, and the HTTP
+app that mounts them. The same conversation can be had through any of
 them, which is only true because none of them knows anything the others do not.
 
 The rule that keeps it that way: when a door starts wanting to know what a trip
@@ -142,103 +142,10 @@ wants. It is shared by the agent, the tools, the prompt and the panels. See
 
 ---
 
-## 2 · Where this sits in the A2UI × MCP Apps design space
-
-Google's [A2UI and MCP Apps](https://developers.googleblog.com/a2ui-and-mcp-apps/)
-post enumerates three ways to combine the two. This project deliberately ships
-**patterns 1 and 3 in the same tool result**, and deliberately does not ship
-pattern 2.
-
-| | Pattern | Here? |
-| --- | --- | --- |
-| 1 | **A2UI over MCP** — the tool returns an A2UI payload and the *host* renders it with its own design system, no iframe | ✅ the `application/vnd.a2ui+json` resource |
-| 2 | **MCP Apps inside A2UI components** — a native surface embeds someone else's iframe for one state-heavy module | ❌ nothing here needs it |
-| 3 | **A2UI inside an MCP App** — the app bundle carries its own A2UI renderer and draws payloads inside its sandbox | ✅ the `ui://` app template |
-
-A single `tools/call` result carries a text summary, the pattern-1 payload, and
-the pattern-3 shell. A host takes whichever it understands and ignores the rest;
-a host that understands neither still gets a usable sentence. `?view=payload`
-and `?view=html` drop one or the other for a host that knows what it wants.
-
-Pattern 3 is the one that does the work today, because almost no host renders
-A2UI natively yet. Pattern 1 is the one worth having, because the moment a host
-does, the same server gets better without redeploying: the payload was always
-there.
-
-### Pattern 3, and the mistake that made it render nothing
-
-The first implementation returned a `text/html` resource in every tool result
-and assumed the host would draw it. It did not, and the plugin ran the tools and
-showed a blank panel.
-
-A host does not look inside a tool result for HTML. It looks for a `ui://`
-resource declared in `resources/list` with `mimeType: "text/html;profile=mcp-app"`,
-reads it **once per conversation** as a template, and then forwards each tool
-result to that template over a postMessage bridge. The template is an MCP client
-in its own right: it sends `ui/initialize`, waits for the host's capabilities and
-theme, sends `ui/notifications/initialized`, and only then receives
-`ui/notifications/tool-result` — which is where the surface is, under
-`structuredContent`. A view that renders before that handshake shows nothing,
-because nothing has arrived yet.
-
-Three things have to line up, and the absence of any one of them looks identical
-from the outside:
-
-| | Here |
-| --- | --- |
-| the template | `ui://travel-a2ui/surface`, with its CSP in `_meta.ui` |
-| the link | every tool carries `_meta.ui.resourceUri` naming it |
-| the surface | `structuredContent`, which is what the host forwards |
-
-Because the template is fetched once rather than per call, it has the whole
-renderer **inlined** — which is what makes `resourceDomains: []` possible, and a
-view that fetches nothing cannot be broken by a content policy. That also
-resolves the tension that produced the shell: the objection was 230 kB *per tool
-call*, and a template is not per call.
-
-`tools/e2e/mcp.mjs` plays the host's side of that handshake in a real
-`sandbox="allow-scripts"` iframe, in the right order, so the failure cannot come
-back quietly.
-
-### The legacy shell, in detail
-
-`?view=legacy` returns the older MCP-UI shape for a host that reads those: a
-`text/html` resource per tool result, about 450 bytes, with the payload inlined:
-
-```html
-<link rel="stylesheet" href="__ORIGIN__/mcp-view/app.css">
-<script id="a2ui-payload" type="application/json">__A2UI_PAYLOAD__</script>
-<div id="root"></div>
-<script src="__ORIGIN__/mcp-view/app.js" defer></script>
-```
-
-- `__A2UI_PAYLOAD__` is substituted per call. It is the only part that varies,
-  it is small, and inlining it means no second round trip before the first
-  paint. `</script` is escaped inside it; that is the whole of the injection
-  story, and it is why the payload lives in a JSON script block rather than in
-  a JS string literal.
-- `__ORIGIN__` is substituted from the URL the host just called, so production,
-  a preview and a local server each serve their own renderer with nothing
-  configured. The scheme comes from `x-forwarded-proto`, not from the socket:
-  behind a TLS terminator the obvious `request.base_url` writes `http://` into a
-  page the host loaded over `https://`, and the browser blocks it as mixed
-  content. `?origin=` overrides it for a tunnel or a proxy, and non-http(s)
-  values are rejected.
-- The bundle is a **classic script, not a module**. The frame has an opaque
-  origin, and a module script is fetched in CORS mode; a classic one is not.
-  `/mcp-view/*` is still served with `access-control-allow-origin: *` for the
-  stylesheet and for any host that adds `crossorigin`.
-
-`tools/e2e/mcp.mjs` renders a real tool result inside a real
-`sandbox="allow-scripts"` iframe and asserts the cards draw, so this is checked
-rather than assumed.
-
----
-
-## 3 · The three flows
+## 2 · The three flows
 
 They are properties of *where an answer goes*, not of this codebase, which is
-why the same three exist in the web app and in the MCP server.
+why the same three exist in the React client and in the Flutter one.
 
 | Flow | Surface id | Lifetime | What it composes |
 | --- | --- | --- | --- |
@@ -247,17 +154,14 @@ why the same three exist in the web app and in the MCP server.
 | **home** | `home` (singular) | replaced on every write | where the trip stands today, read first, not in reply to anything |
 
 Singular ids are what make a panel a panel rather than a feed: writing to
-`sidebar` again replaces it. The MCP tools take `surface` as an argument and
-`limitFor()` narrows the content accordingly — four flights inline, three in a
-sidebar, two on a home screen — because the same six flights that read well
+`sidebar` again replaces it. The surface builders take `surface` as an argument
+and `limitFor()` narrows the content accordingly — four flights inline, three in
+a sidebar, two on a home screen — because the same six flights that read well
 inline read as a wall in a 340 px column.
-
-A fourth modality, the MCP app, carries all three rather than being a fourth
-kind of layout.
 
 ---
 
-## 4 · The interaction model
+## 3 · The interaction model
 
 Three rules, and every one of them was learned by getting it wrong first.
 
@@ -518,7 +422,7 @@ moves.
 
 ---
 
-## 5 · What the agent may not assume
+## 4 · What the agent may not assume
 
 An agent that invents an input produces a real-looking answer to a question
 nobody asked. The two that came up:
@@ -551,7 +455,7 @@ party size — in its heading. `LHR → Madrid · 12–19 Apr · 3 travellers`, 
 
 ---
 
-## 6 · A turn, end to end
+## 5 · A turn, end to end
 
 ### The first one is the slow one, and that is fixable
 
@@ -696,45 +600,7 @@ session each reload leaves behind goes away instead of accumulating.
 
 ---
 
-## 7 · The MCP server
-
-Stateless Streamable HTTP: every POST is self-contained, so there is no session
-affinity to arrange and no state to lose between calls.
-
-Eleven tools, in two groups:
-
-- **Nine data tools** — the same ones the agent uses, read from the same
-  `data/tools.json`. They return facts: fares, rooms, a destination guide, a
-  forecast, an estimate, and the trip record itself.
-- **`get_a2ui_component_reference` → `render_a2ui_express`** — the vocabulary and
-  the compiler. The first returns the generated output contract — grammar,
-  streaming rules, every positional signature. The model reads it once, writes
-  Express for the layout this conversation actually needs, and the second
-  compiles it.
-
-**The six `show_*` builders are not listed here, on purpose.** They exist and are
-still used — the Live relay calls `build_surface` directly, where a model
-composing Express mid-sentence would be paying latency it does not have — but
-offering them to a host that is itself a capable model was self-defeating in a
-way that only shows up in behaviour: given both, the host takes the one-call path
-every time, because it is one call. The generative path then never runs, and a
-demo whose entire thesis is that a model composes interfaces spends its life
-picking from a menu of six. Hand an agent data, a vocabulary and a compiler, and
-nothing that does the thinking for it.
-
-The reference is exposed as a **tool** and not only as an MCP prompt because
-hosts surface prompts to the *user*, as something to invoke by hand. A model that
-can only read prompts can never learn the vocabulary mid-conversation. As a tool
-it can.
-
-A compile failure is returned as an `isError` result naming what was wrong —
-including an invented component name, with the list of real ones — because the
-host's model is the one who can fix it and a generic failure gives it nothing to
-act on.
-
----
-
-## 8 · Where the API key lives
+## 6 · Where the API key lives
 
 Nowhere on the server. The browser holds it, sends it in `x-goog-api-key` on
 each request, and the server passes it to the SDK and forgets it. It is never
@@ -749,12 +615,9 @@ it and to rotate it.
 For a shared deployment that does not want to ask, a `GEMINI_API_KEY` in the
 environment is used when the header is absent.
 
-Inside Claude, none of this applies: Claude is already the model, so the MCP
-server holds no credentials at all — which is also why it holds no trip data.
-
 ---
 
-## 9 · Testing, and what is simulated
+## 7 · Testing, and what is simulated
 
 | Layer | How |
 | --- | --- |
@@ -762,12 +625,10 @@ server holds no credentials at all — which is also why it holds no trip data.
 | Compiler | 20 golden cases byte-checked against the reference Python compiler |
 | Skill generator | output byte-identical to the reference generator |
 | Renderer store | bindings, checks, templates, surface lifecycle |
-| MCP server | real JSON-RPC through the handler, not unit calls into helpers |
 | Agent loop | scripted model output through the real stream splitter, asserting *order*: that a surface paints before the turn ends, the skeleton goes out before the tool and the fill after it |
 | Web app | `tools/e2e/chat.mjs` — a real browser, a real turn, 14 assertions |
 | The agent itself | `tools/eval/live.mjs` — 10 scenarios against the real model, graded mechanically off the event stream. Not in CI; it costs about $2 a run |
 | Interaction model | `tools/e2e/interaction.mjs` — editing sends nothing, committing sends everything as an A2UI action, spent surfaces go inert, the panel stays read-only and holds no React, 21 assertions |
-| MCP app | `tools/e2e/mcp.mjs` — a live server, a sandboxed iframe, 24 assertions |
 | Data providers | the contract, and each of the four ways the code it replaced answered a question it could not answer |
 | Two implementations | six golden files, described below |
 | Freshness | `npm run check` fails if the catalog, the fixtures, the examples, the skills or any golden drifts |
@@ -820,7 +681,8 @@ carries a latitude, a longitude and a region, so a fare is a floor plus a rate
 per great-circle kilometre, a flight time is taxi and climb plus cruise, and a
 connection is a hub that is actually on the way.
 
-None of that was true until somebody drove the plugin and looked. The fare was
+None of that was true until somebody drove the tools against a real route and
+looked. The fare was
 `280 + random() * 260` whatever the route — San Francisco to New York priced the
 same as San Francisco to Sydney, while this paragraph claimed otherwise. Every
 nonstop anywhere took between seven and nine and a half hours. And the
@@ -857,5 +719,5 @@ which; a place the provider cannot identify is a refusal that names the cities i
 does know. A rough question may be answered without a departure city, but the
 provider has to name the one it sampled from.
 
-**Real:** the model, the protocol, the compiler, the renderer, the MCP
-transport, and every screenshot in the README.
+**Real:** the model, the protocol, the compiler, the renderer, and every
+screenshot in the README.

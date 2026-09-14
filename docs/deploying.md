@@ -1,6 +1,6 @@
 # Deploying
 
-One server, one target. It serves the API, the MCP endpoint and the built web
+One server, one target. It serves the API and the built web
 client from a single origin — one deploy, one URL, nothing to configure for
 cross-origin requests.
 

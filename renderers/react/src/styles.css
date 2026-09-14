@@ -70,9 +70,8 @@
    * IBM Plex Mono carries the codes, times and prices, where a tabular figure
    * matters more than a pretty one.
    *
-   * Every stack ends somewhere real: the MCP app template declares
-   * `resourceDomains: []` and fetches nothing, so inside a host it renders on
-   * the fallbacks and has to look deliberate there too.
+   * Every stack ends somewhere real: a client that cannot reach the font host
+   * renders on the fallbacks, and has to look deliberate there too.
    */
   --tv-font: 'Public Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI',
     Roboto, 'Helvetica Neue', Arial, sans-serif;

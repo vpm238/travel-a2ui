@@ -73,19 +73,19 @@ cat <<'DONE'
 
 Ready.
 
-  npm run dev:worker        the app, the API and the MCP endpoint on :8787
+  uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src
 
-Open http://127.0.0.1:8787 and paste an Anthropic API key when asked, or skip
-the form entirely:
+Open http://127.0.0.1:8080 and paste a Gemini API key when asked, or skip the
+form entirely:
 
-  http://127.0.0.1:8787/#key=sk-ant-...
+  http://127.0.0.1:8080/#key=...
 
-The MCP tab needs no key at all — those tools compose surfaces from the catalog
-without a model in the path, so it is the fastest way to see A2UI render.
+The Catalog tab needs no key at all — it draws every component with the real
+renderer and no model in the path, so it is the fastest way to see A2UI render.
 
 Other things you can do:
 
-  npm run dev:web           Vite with hot reload, proxying to :8787
+  npm run dev:web           Vite with hot reload, proxying to :8080
   npm run e2e               drive a whole turn in a browser, with a scripted model
   npm run screenshots       regenerate docs/screenshots
   npm run deploy            ship it to Cloudflare

@@ -1,5 +1,4 @@
 {
-  "a2uiMimeType": "application/vnd.a2ui+json",
   "tools": [
     {
       "name": "show_flight_options",
@@ -222,58 +221,6 @@
         "required": [
           "destination"
         ]
-      }
-    },
-    {
-      "name": "get_a2ui_component_reference",
-      "title": "Read the component catalog",
-      "description": "Returns the full A2UI Express output contract: the grammar, the streaming rules, and the positional signature of every component and function in the travel catalog — flight and hotel cards, itinerary days, maps, price summaries, stat tiles, sliders, pickers, and the layout primitives. Call this once before render_a2ui_express, then compose whatever interface the conversation actually needs. Costs one call and makes every layout possible rather than the six this server hard-codes.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {},
-        "required": []
-      }
-    },
-    {
-      "name": "render_a2ui_express",
-      "title": "Compose a custom interface",
-      "description": "Compiles A2UI Express you have written into a live interface, rendered by the same React component library as every other tool here. This is the general case and the other tools are shortcuts: use it whenever the layout you want is not one of them — a comparison table of three hotels next to a budget meter, a packing checklist, a single decision card. Call get_a2ui_component_reference first for the grammar and the signatures. Compile errors come back naming exactly what was wrong, so a second attempt can fix it.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "type": "string",
-            "description": "A2UI Express source. Declare components in order and finish with `root = …`; sentinel tags are optional, the compiler strips them."
-          },
-          "surfaceId": {
-            "type": "string",
-            "description": "Surface id to draw into. Defaults to \"mcp\"."
-          }
-        },
-        "required": [
-          "source"
-        ]
-      }
-    },
-    {
-      "name": "export_a2ui_app",
-      "description": "Compiles A2UI Express into a **standalone HTML page** with the renderer baked into it — the same React components every other tool here draws with, and nothing to fetch. Use it when your host can show generated HTML but does not render MCP Apps: write the result to a file and open or publish it, and the interface appears. Sandboxed HTML usually may only load scripts from a short list of CDNs, so a page that *links* this renderer draws nothing; this one carries it. The page is about 250 kB, which is the renderer — prefer render_a2ui_express when the host draws MCP Apps itself.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "type": "string",
-            "description": "A2UI Express source, exactly as render_a2ui_express takes it."
-          },
-          "surfaceId": {
-            "type": "string",
-            "description": "Surface id to draw into. Defaults to \"mcp\"."
-          }
-        },
-        "required": [
-          "source"
-        ],
-        "additionalProperties": false
       }
     }
   ]

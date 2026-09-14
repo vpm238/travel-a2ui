@@ -3,7 +3,7 @@
  *
  * Every surface here was compiled at build time from the catalog's own examples
  * by the same compiler the agent's output goes through, and rendered by the same
- * React components the app and the MCP plugin use. So it is not a mockup of the
+ * React components the app itself uses. So it is not a mockup of the
  * product — it is the product's renderer, with a fixed set of inputs instead of
  * a live model.
  *
@@ -232,7 +232,7 @@ function Gallery() {
       <footer className="gallery__foot">
         <span>
           A2UI v0.9.1 · {SURFACES.length} surfaces · {COMPONENTS.length} components · the same
-          renderer the app and the MCP plugin use
+          renderer the app itself uses
         </span>
       </footer>
     </div>

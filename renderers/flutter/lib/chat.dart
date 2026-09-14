@@ -261,7 +261,7 @@ class _ChatScreenState extends State<ChatScreen> {
   /// `v0.9.1` — the spec revision the catalog is written against. The core
   /// rejects anything else outright, so without this every message raises and
   /// nothing renders at all. Normalised here rather than on the wire: the
-  /// React client and every MCP payload already carry `v0.9.1`, and changing
+  /// React client and every payload the server sends already carry `v0.9.1`, and changing
   /// what the server emits to suit one client's dependency is the wrong way
   /// round. Delete this when the core accepts the patch revision.
   Map<String, dynamic> _readable(Map<String, dynamic> message) {

@@ -187,18 +187,6 @@ who only wanted a fare. There is no sequence to force — the agent decides each
 turn what is worth asking next from what is now known, and something ruled out
 is something finished.
 
-## Flow 10 · Inside Claude
-
-The same three placements travel to an MCP host, because they are properties of
-where an answer goes rather than of this codebase. What does not travel is the
-runtime picker — inside Claude, Claude *is* the runtime — and the panel's
-read-only rule, because the host owns its own layout.
-
-The pricing rules do travel: the MCP tools refuse to price a trip nobody has
-described, in the same words, and name the `$/trip/…` paths to bind.
-
----
-
 ## Where each rule actually lives
 
 The honest version, since a rule in a prompt is a request and a rule in the host
