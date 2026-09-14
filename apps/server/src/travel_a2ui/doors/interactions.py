@@ -632,6 +632,9 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 thinking_level=request.effort,
                 previous_interaction_id=previous_interaction_id,
                 fallback_model=FALLBACK_MODEL,
+                # So a dropped stream can be restarted while the screen is
+                # still empty. A half-written block is not a drawn surface.
+                has_drawn=lambda: did_something,
                 client=request.client,
             ):
                 if event["type"] == "text":

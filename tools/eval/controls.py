@@ -17,11 +17,25 @@ the floor for telling an improvement from a lucky sample.
 
 Where it stands, measured at twelve:
 
-    drew a surface           30/36  (83%)
-    drew the right controls  17/36  (47%)
+    drew a surface           31/36  (86%)
+    drew the right controls  23/36  (64%)
 
-47% is not reliable and should not be described as such. The failures that
-remain still draw a dashboard with nowhere to put a date.
+From 30/36 and 17/36 (47%), after two host bugs that this eval had been
+blaming on the model:
+
+  - `DateTimeInput` led with an optional `label`, so the natural one-argument
+    call bound the path to the label, left `value` unset, and failed
+    whole-message validation — taking the entire surface with it.
+  - A capacity failure arriving *mid-stream* went past the retry and the
+    fallback, both of which only guard the opening call. Of eight blank turns
+    re-run with the failure printed, six were this.
+
+64% is better and still not reliable, and should not be described as such. The
+failures that remain are the original complaint: a dashboard drawn with
+nowhere to put a date.
+
+Read the two numbers as separate samples of the same size, not as a controlled
+comparison — the variance that burned an afternoon here is still there.
 
 Needs a key and spends tokens, so it is not part of the end-to-end suite.
 

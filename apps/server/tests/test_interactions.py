@@ -1256,3 +1256,41 @@ class TestTheModelDropsTheStreamMidSentence:
 
         assert client.asked == ["gemini-3.8-flash"], "asked once — the tool already ran"
         assert [e for e in events if e["type"] == "error"], "and the failure is reported, not hidden"
+
+
+def test_a_block_begun_but_never_drawn_does_not_block_the_restart() -> None:
+    """The refusal that cost three turns in four.
+
+    `_standby` has to know whether a surface reached the screen. Asked to guess
+    from the text, it treated a turn that had *started* writing `<a2ui` as one
+    that had drawn — but a stream that drops part-way through a block leaves a
+    fragment that never compiled and never painted. Traced against the real
+    API, that was three of every four refusals, each one a turn that could have
+    finished on the standby and instead ended blank.
+    """
+    client = TestTheModelDropsTheStreamMidSentence.Drops(
+        ["Here you go.\n<a2ui>\nd = Date"],
+        [([f"{A2UI_OPEN}\nt = Text(\"Hi\")\nroot = Column([t])\n{A2UI_CLOSE}"], [])],
+    )
+    events = TestTheModelDropsTheStreamMidSentence._run(
+        TestTheModelDropsTheStreamMidSentence(), client
+    )
+
+    assert [e for e in events if e["type"] == "restart"], "an unfinished block is not a surface"
+    assert client.asked[:2] == ["gemini-3.8-flash", FALLBACK_MODEL], "it went to the standby"
+    assert [e for e in events if e["type"] == "ui"], "and the standby finished the job"
+
+
+def test_a_surface_already_on_screen_still_blocks_the_restart() -> None:
+    """The other half of the same rule: a drawn surface is not repeated."""
+    client = TestTheModelDropsTheStreamMidSentence.Drops(
+        [f"{A2UI_OPEN}\nt = Text(\"Drawn\")\nroot = Column([t])\n{A2UI_CLOSE}\nand then"],
+        [(["Here you go."], [])],
+    )
+    events = TestTheModelDropsTheStreamMidSentence._run(
+        TestTheModelDropsTheStreamMidSentence(), client
+    )
+
+    assert not [e for e in events if e["type"] == "restart"], "it drew — a rerun would draw twice"
+    assert FALLBACK_MODEL not in client.asked, "and the standby was never asked"
+    assert [e for e in events if e["type"] == "error"], "the failure is reported instead"

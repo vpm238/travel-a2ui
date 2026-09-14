@@ -30,7 +30,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Sequence
+from typing import Any, AsyncIterator, Callable, Sequence
 
 from google.genai import Client
 
@@ -235,6 +235,8 @@ async def stream_interaction(
     previous_interaction_id: str | None = None,
     #: Where to go when the model asked for is busy. See `_open`.
     fallback_model: str | None = None,
+    #: Whether a surface has reached the screen yet. See `_standby`.
+    has_drawn: Callable[[], bool] | None = None,
     client: Any | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """One model turn, streamed.
@@ -365,7 +367,7 @@ async def stream_interaction(
                     )
             break
         except GeminiError as dropped:
-            standby = _standby(dropped, result, served_by, model, fallback_model)
+            standby = _standby(dropped, result, served_by, model, fallback_model, has_drawn)
             if standby is None:
                 raise
             # The prose already on screen belongs to a turn being abandoned,
@@ -405,6 +407,7 @@ def _standby(
     served_by: str | None,
     model: str,
     fallback_model: str | None,
+    has_drawn: Callable[[], bool] | None = None,
 ) -> str | None:
     """The model to finish this turn on, if starting it over is still safe.
 
@@ -424,9 +427,18 @@ def _standby(
 
     - **No tool calls.** `save_trip` has already changed the trip; the rest have
       spent a lookup. A restart would replay them.
-    - **Nothing drawn.** Once an `<a2ui` block has begun, the surface is being
-      compiled and painted as it streams. A restart would leave the first half
-      of one surface underneath the whole of another.
+    - **Nothing drawn.** A surface is compiled and painted as it streams, so
+      restarting after one has appeared would leave the first half of it under
+      the whole of another.
+
+      Whether anything was drawn is the caller's to answer, and `has_drawn` is
+      how it does. Guessing at it from the text — "does `<a2ui` appear yet" —
+      was measurably too strict: a block that has *begun* has not been drawn,
+      and a stream that drops part-way through writing one leaves a fragment
+      that never compiled and never reached the screen. Traced against the real
+      API, three of four refusals were exactly that, every one of them a turn
+      that could have been finished on the standby and instead ended blank. The
+      text check stays as the answer for a caller that does not say.
     - **A standby that is actually different.** Falling back to the model that
       just dropped the stream is a second wait for the same answer.
 
@@ -440,7 +452,8 @@ def _standby(
         return None
     if result.tool_calls:
         return None
-    if "<a2ui" in result.text.lower():
+    drawn = has_drawn() if has_drawn is not None else "<a2ui" in result.text.lower()
+    if drawn:
         return None
     return standby
 
