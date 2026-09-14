@@ -8,16 +8,26 @@ that worked. Which is why every run prints the components it drew.
 
 Three openings, each run N times: one hop, a party that differs on the way back,
 and a multi-city route where somebody joins partway. Scored on what was drawn,
-never on what was said. One run is an anecdote.
+never on what was said.
 
-Needs a key and spends tokens, so it is not in 
-> travel-a2ui@0.1.0 e2e
-> node tools/e2e/chat.mjs && node tools/e2e/interaction.mjs && node tools/e2e/frameworks.mjs
+**Use twelve runs or more.** At six the variance swamps the effect: the same
+code scored 67% on one eighteen-run sample and 17% on a thirty-six-run one, and
+an afternoon went into tuning against the first of those. Twelve per scenario is
+the floor for telling an improvement from a lucky sample.
 
-Driving http://127.0.0.1:8787/.
+Where it stands, measured at twelve:
 
-    python3 tools/eval/controls.py "$GEMINI_API_KEY" 6
+    drew a surface           30/36  (83%)
+    drew the right controls  17/36  (47%)
+
+47% is not reliable and should not be described as such. The failures that
+remain still draw a dashboard with nowhere to put a date.
+
+Needs a key and spends tokens, so it is not part of the end-to-end suite.
+
+    python3 tools/eval/controls.py "$GEMINI_API_KEY" 12
 """
+
 
 import asyncio
 import pathlib
