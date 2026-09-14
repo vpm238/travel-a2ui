@@ -909,5 +909,20 @@ def decision_shape(trip: Trip) -> str:
             trip.get("selectedFlight") or "",
             trip.get("selectedHotel") or "",
             ">".join(leg.get("destination", "") for leg in (trip.get("legs") or [])),
+            # Who is on which hop, once they stop being the same number.
+            #
+            # This is the definition of "needing different controls": one
+            # TravelerCounter can express a party, and cannot express a party
+            # that changes along the way — that wants one per leg, labelled by
+            # leg. The rest of this fingerprint watches leg *destinations*, so a
+            # round trip stated up front already has its legs and adding "two of
+            # us coming back" moved nothing in it.
+            #
+            # The panel therefore kept the single counter it was built with, and
+            # went on showing "Travellers 1" for a trip that was one out and two
+            # back. Nothing was lost — the trip had it, and the return fares were
+            # priced for two — but the one surface whose job is showing what has
+            # been decided was the one place it did not appear.
+            "split" if party_varies(trip) else "",
         ]
     )

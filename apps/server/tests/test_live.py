@@ -248,8 +248,29 @@ class TestOpeningTheSession:
     def test_both_transcripts_are_on(self) -> None:
         # What they said is the only way to show a caller they were heard.
         config = setup_config("SYSTEM")
-        assert config["input_audio_transcription"] == {}
         assert config["output_audio_transcription"] == {}
+
+        # And it has to be heard in the language they spoke. Left to detect per
+        # utterance, English in an accent it was unsure of came back
+        # transliterated — "plan me a trip from San Francisco" rendered as
+        # "प्लांट मी अ ट्रिप फ्रॉम सन फ्रांसिस्को", the same sounds in another
+        # script. The model understood it, so nothing downstream complained;
+        # the traveller just could not read their own sentence back.
+        #
+        # Naming the language is what turns detection off — the `language_auto`
+        # flag that used to say so is deprecated, and is a nested object rather
+        # than the boolean it reads like, so setting it False is rejected by the
+        # setup frame and takes the whole session with it.
+        assert config["input_audio_transcription"] == {"language_codes": ["en-US"]}
+        assert config["speech_config"]["language_code"] == "en-US"
+
+    def test_a_voice_and_a_language_coexist(self) -> None:
+        """`speech_config` carries both; setting one used to drop the other."""
+        config = setup_config("SYSTEM", voice="Puck")
+        assert config["speech_config"]["language_code"] == "en-US"
+        assert config["speech_config"]["voice_config"] == {
+            "prebuilt_voice_config": {"voice_name": "Puck"}
+        }
 
     def test_the_voice_brief_is_appended_and_does_not_replace_the_prompt(self) -> None:
         config = setup_config("THE ORDINARY PROMPT")

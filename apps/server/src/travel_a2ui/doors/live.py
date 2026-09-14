@@ -120,7 +120,28 @@ def live_schema(schema: Any) -> Any:
 # --------------------------------------------------------------------------
 
 
-def setup_config(system_instruction: str, voice: str | None = None) -> dict[str, Any]:
+#: What the session speaks and, more to the point, what it transcribes as.
+#:
+#: Left unset, the transcriber detects the language per utterance — and English
+#: spoken in an accent it is unsure of comes back transliterated into whatever
+#: script it landed on. A traveller saying "plan me a trip from San Francisco to
+#: New York" watched their own words appear as
+#: "प्लांट मी अ ट्रिप फ्रॉम सन फ्रांसिस्को टू न्यूयॉर्क सिटी": not a translation,
+#: the same English sounds in Devanagari. The model still understood it, which
+#: is why nothing downstream complained, but the transcript is the only proof a
+#: caller has that they were heard — and that one says they were not.
+#:
+#: So the language is pinned rather than guessed. An override belongs here when
+#: this app is offered in a second language; until it is, guessing buys nothing
+#: and costs the transcript.
+DEFAULT_LANGUAGE = "en-US"
+
+
+def setup_config(
+    system_instruction: str,
+    voice: str | None = None,
+    language: str = DEFAULT_LANGUAGE,
+) -> dict[str, Any]:
     """What a Live session is opened with.
 
     The schemas go through `live_schema` because the Live API takes a subset of
@@ -147,13 +168,18 @@ def setup_config(system_instruction: str, voice: str | None = None) -> dict[str,
                 ]
             }
         ],
-        "input_audio_transcription": {},
+        # Naming the language *is* how auto-detection is turned off: the SDK
+        # documents detection as the default "when language_codes is omitted",
+        # and the `language_auto` flag that used to say so is deprecated — and
+        # is a nested object rather than the boolean it reads like, so setting
+        # it to False is rejected outright by the setup frame.
+        "input_audio_transcription": {"language_codes": [language]},
         "output_audio_transcription": {},
     }
+    speech: dict[str, Any] = {"language_code": language}
     if voice:
-        config["speech_config"] = {
-            "voice_config": {"prebuilt_voice_config": {"voice_name": voice}}
-        }
+        speech["voice_config"] = {"prebuilt_voice_config": {"voice_name": voice}}
+    config["speech_config"] = speech
     return config
 
 
@@ -188,7 +214,103 @@ async def run_voice_tool(
             return {"response": {"shown": False, "error": str(error)}}
 
     result, is_error = await run_tool(name, args, context)
-    return {"response": {"error": result} if is_error else result}
+    if is_error:
+        return {"response": {"error": result}}
+    return {"response": _without_the_list(name, result)}
+
+
+#: Lookups whose answer is a list, and the tool that puts that list on screen.
+#:
+#: Both are offered in a call and the overlap was called intentional and cheap.
+#: It is neither. Given a tool that returns fares and a tool that draws them,
+#: the model takes the one that returns them — it is one call and it answers the
+#: question — and then does the only thing you can do with a list you are
+#: holding out loud, which is read it.
+#:
+#: That is not a hypothesis. A traveller asked for San Francisco to New York and
+#: got "options range from $249 to $306… the return starts at $460 and goes up
+#: to $632. You can see the options here for both legs", with nothing on screen
+#: at all. Four fares recited down a phone line, and a sentence that was not
+#: true.
+_DRAWN_BY = {
+    "search_flights": "show_flight_options",
+    "search_hotels": "show_hotel_options",
+}
+
+
+def _without_the_list(name: str, result: Any) -> Any:
+    """The same answer, minus the part that can be read aloud.
+
+    The model still learns what it needs to *speak* one sentence — how many
+    there are and what the cheapest is — and is told, in the result itself,
+    which tool puts them where the traveller can see them. What it does not get
+    is twelve rows of fares, because a list in context is a list read out.
+
+    This is not composition moving to the server: the model still chooses the
+    tool, the surface and the layout. It just cannot narrate a table it was
+    never handed.
+    """
+    drawer = _DRAWN_BY.get(name)
+    if not drawer or not isinstance(result, dict):
+        return result
+
+    items = result.get("items")
+    if not isinstance(items, list) or not items:
+        return result
+
+    cheapest = min(
+        (item for item in items if isinstance(item, dict) and item.get("price")),
+        key=lambda item: item.get("priceValue") or float("inf"),
+        default=None,
+    )
+    kept = {key: value for key, value in result.items() if key != "items"}
+    kept["found"] = len(items)
+    if cheapest:
+        kept["cheapest"] = cheapest.get("price")
+    kept["note"] = (
+        f"The {len(items)} results are deliberately not in this response — reading "
+        f"them aloud is what this mode exists to avoid. Call `{drawer}` to put them "
+        "on screen, then say one sentence about what is there."
+    )
+    return kept
+
+
+#: Saying you are about to do the thing, instead of doing it.
+#:
+#: Deliberately narrow. This only decides whether a turn that called *nothing*
+#: gets handed back once, so a false positive costs one extra round and a false
+#: negative costs nothing that is not already broken. What it must not do is
+#: fire on an ordinary answer — "there are four nonstops" is a turn that did its
+#: job, and re-prodding it would talk over the traveller.
+_PROMISE = re.compile(
+    r"\b("
+    r"let me\b|i'?ll\s+(find|look|check|pull|search|get|see)|"
+    r"i'?m\s+(going to|about to|looking|finding|checking|searching|pulling)|"
+    r"one (moment|second)|just a (moment|second)|hold on|"
+    r"give me a (moment|second)|searching now|looking (that )?up"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _promised(said: str) -> bool:
+    """True when the turn announced an intention rather than acting on one."""
+    return bool(said.strip()) and bool(_PROMISE.search(said))
+
+
+#: Handed back to a turn that promised and called nothing.
+#:
+#: Phrased as the traveller, because that is the only role this channel has to
+#: speak in — and phrased as a fact about the screen rather than a scolding,
+#: since what needs to change is the next action, not the model's feelings
+#: about the last one.
+_NUDGE = (
+    "[system] You said you would look, and then called nothing — the screen in "
+    "front of me has not changed. Do it now in this turn: call the lookup, then "
+    "the tool that draws the result, then say one short sentence about what is "
+    "on screen. Do not say you are about to; there is no turn after this one to "
+    "do it in."
+)
 
 
 @dataclass
@@ -364,6 +486,13 @@ async def relay(
                 nonlocal drawings
                 nonlocal shape
                 alive = False
+                # Per turn, not per session: what this turn said and whether it
+                # did anything. Reset on every `turn_complete` below, because a
+                # turn that already earned its nudge must not spend the next
+                # turn's one too.
+                spoken_this_turn = ""
+                called_this_turn = False
+                nudged = False
                 async for frame in live.receive():
                     alive = True
                     content = getattr(frame, "server_content", None)
@@ -386,6 +515,7 @@ async def relay(
                             # record readable and makes the mistake obvious in
                             # a way that a wall of Express does not.
                             said = _without_markup(spoken.text)
+                            spoken_this_turn += said
                             if said:
                                 await announce(
                                     {"type": "transcript", "text": said, "who": "agent"}
@@ -396,11 +526,42 @@ async def relay(
                                 {"type": "transcript", "text": heard.text, "who": "you"}
                             )
                         if getattr(content, "turn_complete", False):
+                            # A turn that promised and did nothing is not over.
+                            #
+                            # Measured, not guessed: asked for flights six
+                            # times, this said "Let me find some flights for
+                            # you" and ended the turn five times — the exact
+                            # sentence the brief forbids by name, in a brief
+                            # that says drawing is not optional in bold. The
+                            # traveller hears a promise, watches an unchanged
+                            # screen, and concludes the app is broken.
+                            #
+                            # No amount of further wording fixes a 5-in-6
+                            # instruction-following gap, so the turn is handed
+                            # back once with what it actually did. Once, and
+                            # only when nothing was called and nothing drawn:
+                            # a nudge that can itself be ignored must not be
+                            # able to loop.
+                            if _promised(spoken_this_turn) and not called_this_turn:
+                                if not nudged:
+                                    nudged = True
+                                    await live.send_client_content(
+                                        turns={
+                                            "role": "user",
+                                            "parts": [{"text": _NUDGE}],
+                                        },
+                                        turn_complete=True,
+                                    )
+                                    continue
                             await announce({"type": "turn_end"})
+                            spoken_this_turn = ""
+                            called_this_turn = False
+                            nudged = False
 
                     call = getattr(frame, "tool_call", None)
                     calls = getattr(call, "function_calls", None) or []
                     if calls:
+                        called_this_turn = True
                         responses = []
                         for function in calls:
                             args = dict(getattr(function, "args", None) or {})

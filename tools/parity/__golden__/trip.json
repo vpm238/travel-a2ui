@@ -401,7 +401,7 @@
       "basisOf": "",
       "stops": [],
       "partyVaries": false,
-      "decisionShape": "||||",
+      "decisionShape": "|||||",
       "journey": []
     },
     "destination only": {
@@ -458,7 +458,7 @@
         }
       ],
       "partyVaries": false,
-      "decisionShape": "destination|Madrid|||",
+      "decisionShape": "destination|Madrid||||",
       "journey": [
         {
           "hop": 0,
@@ -538,7 +538,7 @@
         }
       ],
       "partyVaries": false,
-      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid|||",
+      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid||||",
       "journey": [
         {
           "hop": 0,
@@ -637,7 +637,7 @@
         }
       ],
       "partyVaries": false,
-      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid|||",
+      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid||||",
       "journey": [
         {
           "hop": 0,
@@ -734,7 +734,7 @@
         }
       ],
       "partyVaries": false,
-      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid|||",
+      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid||||",
       "journey": [
         {
           "hop": 0,
@@ -833,7 +833,7 @@
         }
       ],
       "partyVaries": false,
-      "decisionShape": "destination,origin,travelers|Madrid|||",
+      "decisionShape": "destination,origin,travelers|Madrid||||",
       "journey": [
         {
           "hop": 0,
@@ -947,7 +947,7 @@
         }
       ],
       "partyVaries": false,
-      "decisionShape": "destination,origin,startDate,endDate,travelers,selectedFlight,selectedHotel|Madrid|IB426|h_MAD_1|",
+      "decisionShape": "destination,origin,startDate,endDate,travelers,selectedFlight,selectedHotel|Madrid|IB426|h_MAD_1||",
       "journey": [
         {
           "hop": 0,
@@ -1090,7 +1090,7 @@
         }
       ],
       "partyVaries": true,
-      "decisionShape": "destination,origin,startDate,endDate,travelers,legs|Chicago|||New York>SFO",
+      "decisionShape": "destination,origin,startDate,endDate,travelers,legs|Chicago|||New York>SFO|split",
       "journey": [
         {
           "hop": 0,
@@ -1219,7 +1219,7 @@
         }
       ],
       "partyVaries": false,
-      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid|||",
+      "decisionShape": "destination,origin,startDate,endDate,travelers|Madrid||||",
       "journey": [
         {
           "hop": 0,
