@@ -477,18 +477,30 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
 
     # The prompt in two halves, and only one of them goes on the wire.
     #
-    # The Interactions API is stateful: `previous_interaction_id` carries the
-    # whole prior context on Google's side. Measured on a 5,411-token system
-    # instruction, a follow-up that omitted it cost 44 input tokens instead of
-    # 5,411 — and `total_cached_tokens` was 0 throughout, so nothing was quietly
-    # caching this for us. Re-sending the catalog, the rules and the component
-    # signatures on every round of every turn was paying full price, repeatedly,
-    # for thirteen thousand tokens the model was already looking at.
+    # The prompt is still split in two, and the split still earns its keep: the
+    # volatile half — the surface to draw into, the trip so far — has to ride in
+    # with the message anyway, because a model told ten turns ago to draw into
+    # `inline-1` would still be drawing into `inline-1`.
     #
-    # So the stable half is the setup, sent once when a conversation starts, and
-    # the volatile half — today, the surface to draw into, the trip so far —
-    # rides in with the message, which it has to anyway: a model told ten turns
-    # ago to draw into `inline-1` would still be drawing into `inline-1`.
+    # What changed is that the stable half is now sent every turn, resumed or
+    # not. It used to be sent only when a conversation started, on the reasoning
+    # that `previous_interaction_id` carries the prior context on Google's side
+    # — measured at the time as 44 input tokens for a follow-up instead of
+    # 5,411, with `total_cached_tokens` at 0 throughout.
+    #
+    # That measured the bill and not the behaviour, and the behaviour was that
+    # the model stopped drawing. Measured on the opening turn, four warmed turns
+    # in four drew no surface at all — four and five rounds of tool calls and
+    # nothing on screen — against four cold turns in four that drew. Re-send the
+    # stable half and the same warmed turn draws three times in three. Whatever
+    # the chain carries, it is not the rules: a resumed turn had no catalog, no
+    # component signatures and no instruction to answer in a surface, so it did
+    # the only thing left and called tools.
+    #
+    # The saving it was after has since arrived for free. The same turns now
+    # report 32,184 cached of 40,135 input — implicit caching covers the stable
+    # half, so correctness costs nothing here. Warming is still worth doing; it
+    # starts the conversation, not the rulebook.
     stable, volatile = build_prompt_parts(
         variant=request.skill,
         surface=request.surface,
@@ -506,7 +518,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     setup = hashlib.sha256(stable.encode("utf-8")).hexdigest()[:16]
     if request.setup and request.setup != setup:
         previous_interaction_id = None
-    system: str | None = stable if not previous_interaction_id else None
+    system: str | None = stable
 
     turn_input: list[dict[str, Any]] = [
         {
@@ -939,44 +951,46 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         #
         # The repair branch above only runs when the model has stopped calling
         # tools, so a round that drew something broken *and* looked something up
-        # — the common shape of a first turn — went back to the model with the
-        # tool results and not a word about the surface. The traveller got a
-        # turn with a gap in it and the model never found out.
+        # — the common shape of a first turn, which saves the trip before it
+        # draws — went back to the model with the tool results and not a word
+        # about the surface. The traveller got a turn with a gap in it and the
+        # model never found out.
         #
-        # The compiler's own message goes back as another result, which is the
-        # same channel the lookups came home on: the model is already reading
-        # this list to decide what to do next.
+        # This used to be smuggled in as another `function_result`, named
+        # `render_a2ui_express` with a `call_id` of `compile-<round>`. Both were
+        # fictions: the model never made that call, and no door has offered that
+        # tool since the MCP handler was removed. A result answering a call that
+        # was never placed is not a channel, it is a message in a bottle, and
+        # "the retries are weak" is what that looks like from the outside.
+        #
+        # It goes as a user turn instead, after the results, which is the same
+        # way every other correction in this file reaches the model.
+        repair: list[dict[str, Any]] = []
         if unreported and not retried_compile:
             retried_compile = True
             yield {"type": "retry", "reason": unreported["message"]}
-            results.append(
+            repair = [
                 {
-                    "type": "function_result",
-                    "name": "render_a2ui_express",
-                    "call_id": f"compile-{round_index}",
-                    "result": [
+                    "type": "user_input",
+                    "content": [
                         {
                             "type": "text",
-                            "text": json.dumps(
-                                {
-                                    "ok": False,
-                                    "error": unreported["message"],
-                                    "block": unreported["express"][:4000],
-                                    "next": (
-                                        "Nothing was drawn. Write the whole A2UI block "
-                                        "again, corrected, in your next reply. Do not "
-                                        "repeat the prose."
-                                    ),
-                                },
-                                ensure_ascii=False,
+                            "text": (
+                                "Your A2UI block did not compile, so nothing was drawn "
+                                "and the traveler is looking at a gap.\n\n"
+                                f"{unreported['message']}\n\nThe block was:\n\n"
+                                f"{unreported['express'][:4000]}\n\n"
+                                "Answer the lookups above, then write the whole block "
+                                "again, corrected. Do not repeat the prose — only the "
+                                "<a2ui> block."
                             ),
                         }
                     ],
                 }
-            )
+            ]
             unreported = None
 
-        turn_input = results
+        turn_input = [*results, *repair]
         yield {"type": "trip", "trip": dict(trip)}
 
         if round_index == MAX_TOOL_ROUNDS - 1:

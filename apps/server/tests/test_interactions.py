@@ -621,11 +621,14 @@ class TestFailures:
         own, and the model was never told — so the traveller got a turn with a
         gap in it and nothing ever tried again.
 
-        The complaint goes back as another function result, which is the list
-        the model is already reading to decide what to do next.
+        The complaint used to go back as another function result, named
+        `render_a2ui_express` with a fabricated `call_id`. Both were fictions —
+        the model never placed that call, and no door has offered that tool
+        since the MCP handler was removed — so the repair was a result
+        answering nothing. It goes as a user turn now, after the results, the
+        same way every other correction in this app reaches the model.
         """
         import asyncio
-        import json
 
         broken = f'{A2UI_OPEN}\nroot = NoSuchComponent("x")\n{A2UI_CLOSE}'
         model = FakeModel(
@@ -639,19 +642,24 @@ class TestFailures:
         assert any(event["type"] == "retry" for event in events)
         assert len(model.bodies) == 2
         sent = model.bodies[1]["input"]
+
+        assert any(
+            entry.get("type") == "function_result" and entry.get("name") == "get_destination"
+            for entry in sent
+        ), "the lookup still comes home"
+
         complaint = next(
-            (
-                entry
-                for entry in sent
-                if entry.get("name") == "render_a2ui_express"
-            ),
-            None,
+            (entry for entry in sent if entry.get("type") == "user_input"), None
         )
         assert complaint, "the model was told what the lookup found and nothing else"
-        said = json.loads(complaint["result"][0]["text"])
-        assert said["ok"] is False
-        assert "NoSuchComponent" in said["error"]
-        assert "NoSuchComponent" in said["block"]
+        text = complaint["content"][0]["text"]
+        assert "did not compile" in text
+        assert "NoSuchComponent" in text, "the compiler's own words"
+        assert "root = NoSuchComponent" in text, "and the block it wrote"
+
+        assert not [
+            entry for entry in sent if entry.get("name") == "render_a2ui_express"
+        ], "no results for calls the model never placed"
 
 
 def test_run_turn_collected_gathers_the_same_turn() -> None:
@@ -698,15 +706,24 @@ class TestWhatDayItIs:
         assert _today(None) == here
 
 
-class TestTheSetupIsSentOnce:
-    """The Interactions API is stateful, and this app was paying as if it were not.
+class TestTheSetupIsSentEveryTurn:
+    """It used to be sent once, and that stopped the model drawing.
 
-    Measured against the real API on a 5,411-token system instruction: a
+    The reasoning was sound about the bill and wrong about the behaviour. A
     follow-up carrying `previous_interaction_id` and no `system_instruction`
-    cost 44 input tokens instead of 5,411, with `total_cached_tokens` at 0
-    throughout — so nothing was quietly caching it either. This app's stable
-    half is about thirteen thousand tokens, and it was going out on every round
-    of every turn.
+    did cost 44 input tokens instead of 5,411 — but measured on the opening
+    turn, four warmed turns in four drew no surface at all, four and five
+    rounds of tool calls and nothing on screen, against four cold turns in four
+    that drew. Re-send the stable half and the same warmed turn draws three in
+    three.
+
+    Whatever the chain carries, it is not the rules: a resumed turn had no
+    catalog, no component signatures and no instruction to answer in a surface,
+    so it did the only thing left to it and called tools.
+
+    The saving has since arrived for free — the same turns report 32,184 cached
+    of 40,135 input, so implicit caching covers the stable half and correctness
+    costs nothing.
     """
 
     def test_a_fresh_conversation_sends_the_setup(self) -> None:
@@ -716,13 +733,14 @@ class TestTheSetupIsSentOnce:
         asyncio.run(collect(base(message="hi", client=model)))
         assert model.bodies[0]["system_instruction"].startswith("You are a travel agent")
 
-    def test_a_continued_conversation_does_not(self) -> None:
+    def test_a_continued_conversation_sends_it_too(self) -> None:
+        """The chain carries the conversation; it does not carry the rulebook."""
         import asyncio
 
         model = FakeModel([([], [])])
         asyncio.run(collect(base(message="hi", interaction_id="int_1", client=model)))
-        assert "system_instruction" not in model.bodies[0]
-        assert model.bodies[0]["previous_interaction_id"] == "int_1"
+        assert model.bodies[0]["system_instruction"].startswith("You are a travel agent")
+        assert model.bodies[0]["previous_interaction_id"] == "int_1", "still resumed"
 
     def test_what_changes_every_turn_still_arrives_every_turn(self) -> None:
         """The half that is not sent is the half that never changes.
@@ -793,8 +811,9 @@ class TestTheSetupIsSentOnce:
         asyncio.run(
             collect(base(message="hi", interaction_id="int_1", setup=setup, client=model))
         )
-        assert model.bodies[0]["previous_interaction_id"] == "int_1"
-        assert "system_instruction" not in model.bodies[0]
+        assert model.bodies[0]["previous_interaction_id"] == "int_1", "the chain holds"
+        # And the rules go with it: see this class's docstring for why.
+        assert model.bodies[0]["system_instruction"].startswith("You are a travel agent")
 
 
 class TestWhatTheHostAlreadyDrew:
