@@ -47,7 +47,13 @@ from ..brain.providers.fixture import FixtureProvider  # noqa: E402
 from ..brain.providers.types import TravelProvider  # noqa: E402
 from ..brain.skeleton import pending_surface_for  # noqa: E402
 from ..brain.skills import build_prompt_parts, build_system_prompt  # noqa: E402
-from ..brain.surface import STANDING_SURFACES, finish, panel_events, trip_updates  # noqa: E402
+from ..brain.surface import (
+    REBUILT_IN_A_TURN,
+    STANDING_SURFACES,
+    finish,
+    panel_events,
+    trip_updates,
+)  # noqa: E402
 from ..brain.tools import ToolContext, gemini_tools, grounding_tools, run_tool  # noqa: E402
 
 _ROOT = ROOT
@@ -1063,10 +1069,10 @@ async def _rebuild_panels(
     # pulling from one script would interleave into nonsense — so tests, which
     # pass a client, keep the sequential path.
     if request.client is not None:
-        drawn_panels = [await one(surface_id) for surface_id in STANDING_SURFACES]
+        drawn_panels = [await one(surface_id) for surface_id in REBUILT_IN_A_TURN]
     else:
         drawn_panels = list(
-            await asyncio.gather(*(one(surface_id) for surface_id in STANDING_SURFACES))
+            await asyncio.gather(*(one(surface_id) for surface_id in REBUILT_IN_A_TURN))
         )
 
     for panel in drawn_panels:

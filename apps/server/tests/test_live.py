@@ -418,10 +418,14 @@ class TestThePanel:
         assert "/plan" in paths, "the checklist moves without asking the model"
         assert "/trip/travelers" in paths
 
-    def test_a_changed_shape_redraws_the_panels_through_the_typed_api(self) -> None:
+    def test_a_changed_shape_redraws_the_sidebar_through_the_typed_api(self) -> None:
         """One model turn, and not the Live one.
 
         Asking the Live model for a panel would make it *say* the panel.
+
+        One panel, not two: the home screen left the turn loop — it is a summary
+        of a trip, and a call is where the trip is still being decided. It is
+        built when somebody asks for it. See `surface.py`.
         """
         surface = (
             "<a2ui>\nsurface(\"sidebar\")\n"
@@ -433,7 +437,7 @@ class TestThePanel:
             trip={"destination": "Madrid", "origin": "JFK"},
             interactions=[[surface], [surface]],
         )
-        assert len(client.interaction_bodies) == 2, "the sidebar and the home screen"
+        assert len(client.interaction_bodies) == 1, "the sidebar, and nothing else"
         assert "Redraw this surface" in client.interaction_bodies[0]["input"][0]["content"][0]["text"]
 
     def test_an_unchanged_shape_costs_no_model_turn(self) -> None:

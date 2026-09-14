@@ -348,7 +348,13 @@ async def relay(
     from ..brain import trip as model
     from .interactions import CATALOG_ID, _parser, _today
     from ..brain.skills import build_system_prompt
-    from ..brain.surface import STANDING_SURFACES, finish, panel_events, trip_updates
+    from ..brain.surface import (
+    REBUILT_IN_A_TURN,
+    STANDING_SURFACES,
+    finish,
+    panel_events,
+    trip_updates,
+)
     from ..brain.tools import ToolContext
 
     today = _today(session.client_hints)
@@ -696,9 +702,9 @@ async def _redraw_panels(
     from ..brain.express import ExpressStream, Ui
     from ..gemini import stream_interaction
     from ..brain.skills import build_system_prompt
-    from ..brain.surface import STANDING_SURFACES, finish
+    from ..brain.surface import REBUILT_IN_A_TURN, finish
 
-    for surface_id in STANDING_SURFACES:
+    for surface_id in REBUILT_IN_A_TURN:
         system = build_system_prompt(
             variant=session.skill,
             surface=surface_id,

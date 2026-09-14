@@ -28,7 +28,26 @@ A2uiMessage = dict[str, Any]
 VERSION = "v0.9.1"
 
 #: The surfaces that show current state rather than a moment in the past.
+#:
+#: Both stay live: a value the traveller sets anywhere reaches them as an
+#: `updateDataModel`, with no model in the path, so a built home screen keeps up
+#: with the trip without costing a turn.
 STANDING_SURFACES = ("sidebar", "home")
+
+#: The ones a chat turn may rebuild, which is not the same list.
+#:
+#: A home screen is a summary of a trip, and a chat turn is where a trip is
+#: still being decided — so rebuilding it mid-conversation composes a dashboard
+#: of a thing that does not exist yet. It also cost a second model call on every
+#: shape change, in parallel with the sidebar and for nobody: the traveller is
+#: looking at the conversation.
+#:
+#: Worse than the latency, it put `StatTile`, `ProgressMeter` and `MapPreview`
+#: in front of the model on turns that needed a date picker, and measurably that
+#: is what it reached for. The home screen is built when somebody asks for it,
+#: from the transcript and the trip, which is the only point at which there is
+#: anything to summarise.
+REBUILT_IN_A_TURN = ("sidebar",)
 
 #: How a plan step reads on screen.
 _STAGE_LABELS = {

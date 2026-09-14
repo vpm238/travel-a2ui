@@ -444,7 +444,19 @@ class TestThePanel:
         )
         assert len(model.bodies) == 1, "the turn itself, and no panel rebuild"
 
-    def test_a_changed_shape_redraws_both_panels(self) -> None:
+    def test_a_changed_shape_redraws_the_sidebar_and_not_the_home_screen(self) -> None:
+        """A chat turn rebuilds one panel, not two.
+
+        The home screen used to be rebuilt beside the sidebar on every shape
+        change — a second model call, in parallel, for a surface the traveller
+        is not looking at while they are in the conversation. And it is a
+        *summary*: rebuilding it mid-conversation means composing a dashboard of
+        a trip that is still being decided, which is how `StatTile`,
+        `ProgressMeter` and `MapPreview` ended up in front of a model that
+        needed a date picker.
+
+        It is built when somebody asks for it now. See `surface.py`.
+        """
         import asyncio
 
         model = FakeModel([([], []), ([], []), ([], [])])
@@ -458,9 +470,35 @@ class TestThePanel:
                 )
             )
         )
-        assert len(model.bodies) == 3, "the turn, then the sidebar and the home screen"
+        assert len(model.bodies) == 2, "the turn, then the sidebar — and nothing else"
         # Not chained: a rebuild is not something the traveller said.
         assert "previous_interaction_id" not in model.bodies[1]
+
+    def test_the_home_screen_is_still_drawable_on_request(self) -> None:
+        """Out of the turn loop, not out of the product."""
+        import asyncio
+
+        model = FakeModel([([SURFACE], [])])
+        events = asyncio.run(
+            collect(
+                base(
+                    message="build my home page",
+                    surface="home",
+                    surface_id="home",
+                    trip=dict(SETTLED),
+                    shape=__import__(
+                        "travel_a2ui.brain.trip", fromlist=["decision_shape"]
+                    ).decision_shape(SETTLED),
+                    client=model,
+                )
+            )
+        )
+        drawn = [event["surfaceId"] for event in events if event["type"] == "ui"]
+        assert "home" in drawn, "asking for the home screen has to draw one"
+        # The sidebar appears too, and that is not a rebuild: a value the
+        # traveller set reaches every standing surface as a data-model update,
+        # with no model in the path. One model call, which is the turn itself.
+        assert len(model.bodies) == 1, f"extra model calls: {len(model.bodies)}"
 
     def test_nothing_is_redrawn_before_there_is_a_trip(self) -> None:
         import asyncio
