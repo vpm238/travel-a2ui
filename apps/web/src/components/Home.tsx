@@ -26,7 +26,21 @@ import { Spinner } from './bits.js';
 export function Home({ agent }: { agent: Agent }) {
   const [request, setRequest] = useState('');
   // Same reason as the sidebar: the dashboard arrives from a silent turn.
-  const hasSurface = Boolean(useSurface(agent.store, 'home'));
+  //
+  // A surface *record* is not a dashboard, and the difference was this tab's
+  // worst bug. Every turn ends by sending the standing panels a data-model
+  // update, and applying one calls `ensure`, which creates the surface if it is
+  // not there — so after any turn at all, `home` existed with a data model and
+  // no components. This read that as "built": the placeholder and its Build
+  // button were replaced by an empty box and a Rebuild button, and because a
+  // failed rebuild leaves that same empty box behind, pressing Rebuild looked
+  // like it did nothing, every time.
+  //
+  // What makes it drawable is a `root` to render from, so that is what is
+  // asked. Now a turn that draws nothing leaves the placeholder up, saying so
+  // and offering the button again.
+  const surface = useSurface(agent.store, 'home');
+  const hasSurface = Boolean(surface?.components.has('root'));
   const canRun = Boolean(agent.apiKey) || Boolean(agent.meta?.keyProvided);
 
   /*

@@ -247,3 +247,49 @@ describe('list templates', () => {
     });
   });
 });
+
+describe('a surface record is not a drawable surface', () => {
+  /*
+   * The bug this pins: every turn ends by sending the standing panels a
+   * data-model update, and `apply` calls `ensure`, which creates the surface
+   * when it is missing. So `home` and `sidebar` exist — with a data model and
+   * no components — after any turn at all, including ones that drew nothing.
+   *
+   * The web app read "the store has this surface" as "there is a dashboard",
+   * so a failed build replaced its own Build button with an empty box and a
+   * Rebuild button. Every later attempt that also failed left that same empty
+   * box, which is what "clicking rebuild does nothing" looked like.
+   */
+  it('materialises an empty surface from a data-model update alone', () => {
+    const store = new SurfaceStore();
+    store.apply([
+      { version: 'v0.9.1', updateDataModel: { surfaceId: 'home', path: '/trip', value: {} } },
+    ] as never);
+
+    const surface = store.get('home');
+    expect(surface, 'the update creates the record — this is the trap').toBeDefined();
+    expect(surface?.components.size, 'and it has nothing to draw').toBe(0);
+    expect(surface?.components.has('root'), 'which is the question worth asking').toBe(false);
+  });
+
+  it('is drawable only once a root arrives', () => {
+    const store = new SurfaceStore();
+    store.apply([
+      { version: 'v0.9.1', updateDataModel: { surfaceId: 'home', path: '/trip', value: {} } },
+    ] as never);
+    store.apply([
+      {
+        version: 'v0.9.1',
+        updateComponents: {
+          surfaceId: 'home',
+          components: [
+            { id: 'hello', component: 'Text', text: 'Hi' },
+            { id: 'root', component: 'Column', children: ['hello'] },
+          ],
+        },
+      },
+    ] as never);
+
+    expect(store.get('home')?.components.has('root')).toBe(true);
+  });
+});

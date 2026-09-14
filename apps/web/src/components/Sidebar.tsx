@@ -31,7 +31,13 @@ import { Spinner } from './bits.js';
 export function Sidebar({ agent }: { agent: Agent }) {
   // Subscribe rather than reading the store during render: the panel arrives
   // from a silent turn, which changes nothing else this component watches.
-  const hasSurface = Boolean(useSurface(agent.store, 'sidebar'));
+  //
+  // `components.has('root')` rather than the surface existing, because those
+  // are different things and only one of them can be drawn. Every turn ends by
+  // sending the standing panels a data-model update, and applying one creates
+  // the surface if it is absent — so an empty `sidebar` record exists from the
+  // first turn onward, whether or not a panel was ever built.
+  const hasSurface = Boolean(useSurface(agent.store, 'sidebar')?.components.has('root'));
 
   /*
    * When this panel is *stale* is not the browser's business, and used to be:
