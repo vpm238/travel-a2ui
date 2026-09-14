@@ -1160,18 +1160,20 @@ class TestTheModelDropsTheStreamMidSentence:
     class Drops(FakeModel):
         """Streams `said`, then fails mid-stream, once. Then answers normally."""
 
-        def __init__(self, said: list[str], turns, calls=()) -> None:  # noqa: ANN001
+        def __init__(self, said: list[str], turns, calls=(), times: int = 1) -> None:  # noqa: ANN001
             super().__init__(turns)
             self.said = said
             self.calls = list(calls)
-            self.dropped = False
+            #: How many streams drop before one is allowed to finish. More than
+            #: one covers the standby dropping too.
+            self.times = times
             self.asked: list[str] = []
 
         async def create(self, **body: Any):  # noqa: ANN201
             self.asked.append(str(body.get("model")))
-            if self.dropped:
+            if self.times <= 0:
                 return await super().create(**body)
-            self.dropped = True
+            self.times -= 1
             said, calls = self.said, self.calls
 
             class Stream:
@@ -1245,8 +1247,14 @@ class TestTheModelDropsTheStreamMidSentence:
         ]
         assert "".join(after).strip() == "Here you go.", "the second attempt, whole"
 
-    def test_a_turn_that_already_ran_a_tool_is_not_replayed(self) -> None:
-        """`save_trip` has already changed the trip; a restart would do it twice."""
+    def test_a_tool_the_model_only_asked_for_does_not_block_the_restart(self) -> None:
+        """A request is not an effect.
+
+        Tool calls are collected while the stream runs and dispatched only
+        after it finishes, so one recorded on a *dropped* stream never ran.
+        Refusing to restart on it blocked every opening turn, because the model
+        asks for `save_trip` in the same round it draws the form.
+        """
         client = self.Drops(
             ["Let me set"],
             [(["Here you go."], [])],
@@ -1254,8 +1262,8 @@ class TestTheModelDropsTheStreamMidSentence:
         )
         events = self._run(client)
 
-        assert client.asked == ["gemini-3.8-flash"], "asked once — the tool already ran"
-        assert [e for e in events if e["type"] == "error"], "and the failure is reported, not hidden"
+        assert [e for e in events if e["type"] == "restart"], "the request died with the turn"
+        assert FALLBACK_MODEL in client.asked, "so the standby gets to finish the job"
 
 
 def test_a_block_begun_but_never_drawn_does_not_block_the_restart() -> None:
@@ -1353,6 +1361,8 @@ class TestATurnCutShortAfterItDrew:
             ["Let me set"],
             [(["ignored"], [])],
             calls=[ToolCall(id="c1", name="save_trip", args={"destination": "Madrid"})],
+            # The standby drops too, so the turn really does end in an error.
+            times=2,
         )
         events = self._run(client)
 
@@ -1382,7 +1392,6 @@ def test_a_tool_in_an_earlier_round_does_not_block_the_restart() -> None:
     )
     # Round one runs the tool and finishes; the drop lands on round two, which
     # has drawn nothing of its own.
-    client.dropped = True
     client.turns.insert(
         0, ([""], [ToolCall(id="c1", name="save_trip", args={"destination": "Madrid"})])
     )

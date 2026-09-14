@@ -425,8 +425,15 @@ def _standby(
     Starting over is only safe while the turn has done nothing a second run
     would do twice:
 
-    - **No tool calls.** `save_trip` has already changed the trip; the rest have
-      spent a lookup. A restart would replay them.
+    - **No tool calls *that ran*.** This is not the same as "the model asked
+      for one". Tool calls are collected while the stream runs and dispatched
+      only after it finishes, so a call recorded on a dropped stream never
+      executed — it is a request that died with the turn, and discarding it
+      costs nothing. Refusing on it was the second thing blocking every
+      opening: the model asks for `save_trip` in the same round it draws the
+      form, so `result.tool_calls` was populated before the drop on nearly
+      every first message, and the standby was ruled out again. The caller
+      knows what actually ran, and says so through `has_drawn`.
     - **Nothing drawn.** A surface is compiled and painted as it streams, so
       restarting after one has appeared would leave the first half of it under
       the whole of another.
@@ -450,8 +457,8 @@ def _standby(
     standby = fallback_model
     if not standby or standby == model or standby == served_by:
         return None
-    if result.tool_calls:
-        return None
+    # No `result.tool_calls` check: see above — those are requests, not
+    # effects, and on a dropped stream they were never dispatched.
     drawn = has_drawn() if has_drawn is not None else "<a2ui" in result.text.lower()
     if drawn:
         return None
