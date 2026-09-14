@@ -172,6 +172,14 @@ def tool_examples(today: _dt.date | None = None) -> dict[str, dict[str, Any]]:
                 "root = Column([head])"
             ),
         },
+        "export_a2ui_app": {
+            "surfaceId": "trip",
+            "source": (
+                'surface("trip")\n'
+                'head = Text("SFO → New York", variant="h3")\n'
+                'root = Column([head])'
+            ),
+        },
         "get_a2ui_component_reference": {},
     }
 
@@ -388,6 +396,63 @@ async def call_tool(
 
     # Not a surface: this one hands back the vocabulary so the *next* call can
     # compose one. It is what makes the layouts generative rather than a menu.
+    if name == "export_a2ui_app":
+        # The same compile as `render_a2ui_express`, wrapped in a page that
+        # carries the renderer rather than linking it.
+        #
+        # It exists because of somebody else's content security policy. A host
+        # that will happily show HTML you generated usually restricts where that
+        # HTML may load scripts from — a short list of public CDNs — and this
+        # deployment is not on it. So a page that points at `/mcp-view/app.js`
+        # is a page that draws nothing, silently, with a CSP violation in a
+        # console nobody opens. One that carries the bundle has nothing to
+        # fetch and nothing to be blocked.
+        try:
+            surface = await build_surface(
+                "render_a2ui_express", args, context.provider, context.today
+            )
+        except Exception as error:  # noqa: BLE001 - a compile error is the answer
+            return ok(request_id, tool_error(str(error)))
+
+        messages = compile_surface(surface)
+        page = app_template(
+            context.origin,
+            {
+                "surfaceId": surface.surface_id,
+                "messages": messages,
+                "summary": surface.summary,
+            },
+        )
+        return ok(
+            request_id,
+            {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"A standalone page for `{surface.surface_id}`, "
+                            f"{len(page) // 1024} kB with the renderer inlined. "
+                            "Write it to a .html file and open or publish it."
+                        ),
+                    },
+                    {
+                        "type": "resource",
+                        "resource": {
+                            "uri": f"ui://a2ui/{surface.surface_id}.html",
+                            "mimeType": "text/html",
+                            "text": page,
+                        },
+                    },
+                ],
+                "structuredContent": {
+                    "surfaceId": surface.surface_id,
+                    "bytes": len(page),
+                    "summary": surface.summary,
+                },
+                "isError": False,
+            },
+        )
+
     if name == "get_a2ui_component_reference":
         # The contract goes in *both* halves of the result, which looks like
         # belt and braces and is not.
@@ -555,17 +620,37 @@ def render_view(
     return shell.replace("__ORIGIN__", origin).replace("__A2UI_PAYLOAD__", payload, 1)
 
 
-def app_template(origin: str) -> str:
+def app_template(origin: str, payload: dict[str, Any] | None = None) -> str:
     """The MCP Apps template, built from the assets this deployment serves.
 
     Assembled rather than imported as a build artifact: composing it from the
     files actually being served means the template can never be a stale copy of
     the renderer the rest of the app uses. Everything is inlined, so the view
     fetches nothing — which is why its resource declares `resourceDomains: []`.
+
+    With a `payload` it becomes **a standalone page**: the surface baked in
+    beside the renderer, opening to the finished interface with no host to talk
+    to. That is what `export_a2ui_app` hands back, and the reason it exists is a
+    constraint rather than a preference — a host that sandboxes generated HTML
+    typically allows scripts only from a short list of CDNs, so a page that
+    *links* this renderer is a page that silently draws nothing. One that
+    carries it works anywhere HTML does.
+
+    Without a payload it is the MCP Apps view, which receives its surface from
+    the host over `postMessage` and should not have one baked in.
     """
     base = _ROOT / "apps" / "web" / "dist" / "mcp-view"
     script = (base / "app.js").read_text("utf-8") if (base / "app.js").is_file() else ""
     style = (base / "app.css").read_text("utf-8") if (base / "app.css").is_file() else ""
+    # The bundle already looks for this element — it is how `shell.html` feeds
+    # the legacy view — so a baked-in surface needs no second code path.
+    baked = (
+        '<script id="a2ui-payload" type="application/json">'
+        + _escape_script(json.dumps(payload, ensure_ascii=False))
+        + "</script>\n"
+        if payload is not None
+        else ""
+    )
     return (
         "<!doctype html>\n"
         '<html lang="en">\n'
@@ -577,6 +662,7 @@ def app_template(origin: str) -> str:
         f"<style>{style}</style>\n"
         "</head>\n"
         "<body>\n"
+        f"{baked}"
         '<div id="root"></div>\n'
         f"<script>{_escape_script(script)}</script>\n"
         "</body>\n"

@@ -533,3 +533,73 @@ class TestTheViewsRenderWithoutTheirSourceTree:
             if part["type"] == "resource"
         ]
         assert "text/html" in kinds
+
+
+class TestAPageThatCarriesItsOwnRenderer:
+    """`export_a2ui_app`, and the content security policy it exists for.
+
+    A host that will show HTML you generated usually restricts where that HTML
+    may load scripts from — a short list of public CDNs, which this deployment
+    is not on. So a page that *links* `/mcp-view/app.js` draws nothing, silently,
+    with the reason in a console nobody opens.
+
+    This one carries the bundle. Verified in a browser with every outbound
+    request blocked: 25 nodes drawn, no page errors, no requests attempted.
+    """
+
+    def page(self, source: str, surface_id: str = "trip") -> str:
+        body = call(
+            "tools/call",
+            {
+                "name": "export_a2ui_app",
+                "arguments": {"source": source, "surfaceId": surface_id},
+            },
+        )
+        parts = body["result"]["content"]
+        return next(p["resource"]["text"] for p in parts if p["type"] == "resource")
+
+    SOURCE = 'surface("trip")\nh = Text("SFO → New York", variant="h3")\nroot = Column([h])'
+
+    def test_it_fetches_nothing(self) -> None:
+        """The whole point. One external reference is one thing to block."""
+        html = self.page(self.SOURCE)
+        assert 'src="http' not in html
+        assert 'href="http' not in html
+        assert "/mcp-view/" not in html
+
+    def test_the_surface_is_baked_in(self) -> None:
+        import re
+
+        html = self.page(self.SOURCE)
+        found = re.search(
+            r'<script id="a2ui-payload" type="application/json">(.*?)</script>', html, re.S
+        )
+        assert found, "no payload element"
+        payload = json.loads(found.group(1))
+        drawn = [
+            node.get("component")
+            for message in payload["messages"]
+            for node in (message.get("updateComponents") or {}).get("components") or []
+        ]
+        assert "Text" in drawn and "Column" in drawn
+
+    def test_it_carries_the_renderer(self) -> None:
+        html = self.page(self.SOURCE)
+        # Big because it is React plus the component library. If this ever comes
+        # back small, the bundle was not built and the page is an empty frame.
+        assert len(html) > 100_000
+
+    def test_a_compile_error_is_an_answer_not_a_page(self) -> None:
+        body = call(
+            "tools/call",
+            {"name": "export_a2ui_app", "arguments": {"source": "root = NotAComponent()"}},
+        )
+        assert body["result"]["isError"] is True
+
+    def test_the_mcp_apps_view_is_left_without_a_payload(self) -> None:
+        """The host delivers it there, so baking one in would fight the host."""
+        import re
+
+        from travel_a2ui.doors.plugin import app_template
+
+        assert not re.search(r'<script id="a2ui-payload"', app_template("https://x"))

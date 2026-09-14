@@ -254,6 +254,27 @@
           "source"
         ]
       }
+    },
+    {
+      "name": "export_a2ui_app",
+      "description": "Compiles A2UI Express into a **standalone HTML page** with the renderer baked into it — the same React components every other tool here draws with, and nothing to fetch. Use it when your host can show generated HTML but does not render MCP Apps: write the result to a file and open or publish it, and the interface appears. Sandboxed HTML usually may only load scripts from a short list of CDNs, so a page that *links* this renderer draws nothing; this one carries it. The page is about 250 kB, which is the renderer — prefer render_a2ui_express when the host draws MCP Apps itself.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "A2UI Express source, exactly as render_a2ui_express takes it."
+          },
+          "surfaceId": {
+            "type": "string",
+            "description": "Surface id to draw into. Defaults to \"mcp\"."
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "additionalProperties": false
+      }
     }
   ]
 }

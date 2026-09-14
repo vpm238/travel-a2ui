@@ -31,6 +31,7 @@ compose those, which is the point of the plugin.
 | `share_plan` | the trip as a page somebody outside the chat can read |
 | `get_a2ui_component_reference` | the component contract, before you write one |
 | `render_a2ui_express` | compile a surface and draw it |
+| `export_a2ui_app` | the same surface as a standalone page, for a host that cannot draw one |
 
 There used to be six `show_*` tools here that each returned a finished card —
 flights, hotels, controls, itinerary, dashboard, a price summary. They are gone
@@ -41,6 +42,39 @@ picking from a menu of six.
 
 Every tool ships example arguments in its `_meta.example`. When you are unsure
 what a call wants, read that rather than guessing.
+
+## When nothing appears on screen
+
+Call `render_a2ui_express` first. Its result carries the surface *and*
+`_meta.ui.resourceUri`, and a host that implements MCP Apps fetches that
+resource and draws the interface in a frame. That is the good path and it costs
+one small call.
+
+**Not every host does that.** Some show you the tool result as text. If you can
+see the A2UI JSON in your own transcript rather than an interface, that is what
+happened — and describing the interface in prose is the one thing this plugin
+exists to stop you doing.
+
+So use `export_a2ui_app` instead. It returns **one HTML file with the renderer
+baked into it**: the same React components, nothing to fetch. Write it to a
+`.html` file and open it, or publish it however your host publishes generated
+pages. The interface appears.
+
+It carries the renderer rather than linking it for a specific reason. A host
+that sandboxes generated HTML usually allows scripts only from a short list of
+public CDNs, and this deployment is not one of them — so a page that *links*
+`/mcp-view/app.js` draws nothing at all, silently, with the reason in a console
+nobody opens. A page that carries it has nothing to be blocked.
+
+The cost is size: about 250 kB, nearly all of it the renderer. So reach for it
+when you need the page, not for every turn — and never twice for the same
+surface.
+
+```
+get_a2ui_component_reference     once, for the grammar and the signatures
+search_flights / search_hotels   the real numbers
+export_a2ui_app                  the page, if the host will not draw one itself
+```
 
 ## Two rules that matter
 
