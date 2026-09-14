@@ -187,6 +187,28 @@ def compile_surface(surface: Surface) -> list[dict[str, Any]]:
     return messages
 
 
+def surface_id_of(messages: list[dict[str, Any]], fallback: str) -> str:
+    """The surface the compiled messages actually declare.
+
+    Not always the id the parser was handed. Express may open with its own
+    `surface("trip-note")` directive — the contract's own example does — and
+    that directive wins in the output. So a caller that reports
+    `Surface.surface_id` alongside those messages can name a surface that
+    appears nowhere in them.
+
+    Nothing catches that. The messages validate, the payload is well formed,
+    and the renderer mounts the surface it was told to mount, finds no
+    components under that name, and draws an empty root: no error, no warning,
+    a blank frame. Read the id off `createSurface` instead, which is the one
+    the components are filed under.
+    """
+    for message in messages:
+        created = message.get("createSurface")
+        if isinstance(created, dict) and created.get("surfaceId"):
+            return str(created["surfaceId"])
+    return fallback
+
+
 async def build_surface(
     name: str,
     args: dict[str, Any],

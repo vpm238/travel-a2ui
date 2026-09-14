@@ -43,7 +43,7 @@ from typing import Any
 from .interactions import CATALOG_ID, CATALOG_JSON, _parser
 from ..brain.providers.types import TravelProvider
 from ..brain.skills import skill_text
-from ..brain.surfaces import Surface, build_surface, compile_surface
+from ..brain.surfaces import Surface, build_surface, compile_surface, surface_id_of
 from ..brain.tools import ToolContext, is_data_tool, mcp_data_tools, run_tool
 
 _ROOT = ROOT
@@ -411,14 +411,27 @@ async def call_tool(
             surface = await build_surface(
                 "render_a2ui_express", args, context.provider, context.today
             )
-        except Exception as error:  # noqa: BLE001 - a compile error is the answer
+        except Exception as error:  # noqa: BLE001 - a refusal is an outcome
             return ok(request_id, tool_error(str(error)))
 
-        messages = compile_surface(surface)
+        try:
+            messages = compile_surface(surface)
+        except Exception as error:  # noqa: BLE001
+            # The caller wrote the Express, so the caller is who can fix it. A
+            # raised exception here reaches the host as a 500 and ends the
+            # JSON-RPC conversation; the message it needs never arrives.
+            return ok(
+                request_id,
+                tool_error(f"The A2UI Express did not compile: {error}"),
+            )
+
+        # The id the messages declare, not the one the parser was handed —
+        # Express may name its own surface, and the renderer mounts by name.
+        surface_id = surface_id_of(messages, surface.surface_id)
         page = app_template(
             context.origin,
             {
-                "surfaceId": surface.surface_id,
+                "surfaceId": surface_id,
                 "messages": messages,
                 "summary": surface.summary,
             },
@@ -430,7 +443,7 @@ async def call_tool(
                     {
                         "type": "text",
                         "text": (
-                            f"A standalone page for `{surface.surface_id}`, "
+                            f"A standalone page for `{surface_id}`, "
                             f"{len(page) // 1024} kB with the renderer inlined. "
                             "Write it to a .html file and open or publish it."
                         ),
@@ -438,14 +451,14 @@ async def call_tool(
                     {
                         "type": "resource",
                         "resource": {
-                            "uri": f"ui://a2ui/{surface.surface_id}.html",
+                            "uri": f"ui://a2ui/{surface_id}.html",
                             "mimeType": "text/html",
                             "text": page,
                         },
                     },
                 ],
                 "structuredContent": {
-                    "surfaceId": surface.surface_id,
+                    "surfaceId": surface_id,
                     "bytes": len(page),
                     "summary": surface.summary,
                 },
@@ -587,7 +600,10 @@ async def call_tool(
         {
             "content": content,
             "structuredContent": {
-                "surfaceId": surface.surface_id,
+                # Same reason as `export_a2ui_app`: the view mounts the surface
+                # this names, so it has to be the one `createSurface` filed the
+                # components under, not the one the parser was constructed with.
+                "surfaceId": surface_id_of(messages, surface.surface_id),
                 "catalogId": CATALOG_ID,
                 "messages": messages,
             },

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from typing import Any
 
 import pytest
@@ -595,6 +596,77 @@ class TestAPageThatCarriesItsOwnRenderer:
             {"name": "export_a2ui_app", "arguments": {"source": "root = NotAComponent()"}},
         )
         assert body["result"]["isError"] is True
+
+    def test_express_that_compiles_late_is_an_answer_too(self) -> None:
+        """Two layers can reject Express, and only one of them used to be caught.
+
+        `NotAComponent()` above is refused while the surface is *built* — the
+        catalog has no such name. Express whose components all exist but which
+        never assigns `root` gets past that and dies in the compiler, and an
+        exception there reached the host as a 500: no message, and the JSON-RPC
+        conversation over. The caller wrote the Express and is the only one who
+        can fix it, so it has to come back as a result.
+        """
+        body = call(
+            "tools/call",
+            {
+                "name": "export_a2ui_app",
+                "arguments": {"source": 'head = Text("no root here", variant="h2")'},
+            },
+        )
+        assert body["result"]["isError"] is True
+        assert "did not compile" in body["result"]["content"][0]["text"]
+
+    NAMES_ITS_OWN = (
+        'surface("trip-note")\n'
+        'head = Text("Two ways out of San Francisco", variant="h2")\n'
+        "root = Column([head])"
+    )
+
+    def test_it_reports_the_surface_the_messages_declare(self) -> None:
+        """Express may name its own surface, and the renderer mounts by name.
+
+        `surface("trip-note")` is the first line of the example in the
+        contract this tool hands out, so it is the ordinary case rather than an
+        exotic one. The parser is still constructed with `mcp`, and reporting
+        *that* alongside messages filed under `trip-note` produces a page that
+        draws nothing: the renderer mounts a surface with no components in it
+        and shows an empty root. No error anywhere — the messages validate and
+        the payload is well formed — so the only symptom is a blank frame.
+        """
+        body = call(
+            "tools/call",
+            {"name": "export_a2ui_app", "arguments": {"source": self.NAMES_ITS_OWN}},
+        )
+        result = body["result"]
+        assert result["structuredContent"]["surfaceId"] == "trip-note"
+
+        resource = next(c for c in result["content"] if c["type"] == "resource")
+        assert resource["resource"]["uri"] == "ui://a2ui/trip-note.html"
+
+        payload = json.loads(
+            re.search(
+                r'<script id="a2ui-payload"[^>]*>(.*?)</script>',
+                resource["resource"]["text"],
+                re.DOTALL,
+            ).group(1)
+        )
+        created = next(m for m in payload["messages"] if "createSurface" in m)
+        assert payload["surfaceId"] == created["createSurface"]["surfaceId"]
+
+    def test_render_reports_it_too(self) -> None:
+        """The MCP Apps path reads `structuredContent.surfaceId` and mounts it.
+
+        Same mismatch, same blank frame — and this is the path that is supposed
+        to work, so it is the more important of the two.
+        """
+        body = call(
+            "tools/call",
+            {"name": "render_a2ui_express", "arguments": {"source": self.NAMES_ITS_OWN}},
+        )
+        structured = body["result"]["structuredContent"]
+        created = next(m for m in structured["messages"] if "createSurface" in m)
+        assert structured["surfaceId"] == created["createSurface"]["surfaceId"] == "trip-note"
 
     def test_the_mcp_apps_view_is_left_without_a_payload(self) -> None:
         """The host delivers it there, so baking one in would fight the host."""
