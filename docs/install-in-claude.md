@@ -47,18 +47,28 @@ at the repo root — everyone who opens that repo is prompted to enable it:
 open. There is no authentication to configure: the server holds no credentials
 of its own, which is also why it holds no trip data of yours.
 
-## 2 · Claude Desktop and claude.ai
+## 2 · claude.ai (and Claude Desktop)
 
-Both take a **custom connector** pointed at the same URL.
+A remote MCP server is added as a **custom connector**, at
+[claude.ai/customize/connectors](https://claude.ai/customize/connectors):
 
-- **Claude Desktop** — Settings → Connectors → *Add custom connector* → paste
-  `https://travel-a2ui-vy7stnte2a-uc.a.run.app/mcp`.
-- **claude.ai** — Settings → Connectors → *Add custom connector* → same URL.
-  (Custom connectors are a paid-plan feature; on a Team or Enterprise plan an
-  owner may need to allow them first.)
+1. **Customize → Connectors**
+2. **+** → *Add custom connector*
+3. Paste `https://travel-a2ui-vy7stnte2a-uc.a.run.app/mcp`
+4. **Add**
 
 Leave the OAuth fields blank. The transport is Streamable HTTP and the server is
 stateless, so there is nothing else to fill in.
+
+**Which plans.** Custom connectors work on Free, Pro, Max, Team and Enterprise —
+Free is limited to one. On **Team and Enterprise only an Owner can add one**, from
+*Organization settings → Connectors → Add → Custom → Web*; everyone else then
+finds it under Customize → Connectors and presses **Connect**.
+
+**Claude Desktop** signs in to the same account, so a connector added on
+claude.ai is there too. Desktop's `claude_desktop_config.json` is a different
+mechanism — it launches *local* MCP servers as subprocesses — and is not the way
+to reach a deployment over HTTP.
 
 Interfaces render in the conversation and, for the panel-shaped surfaces, in
 Claude's side panel — that is the host's choice, and asking for "the sidebar

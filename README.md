@@ -1,159 +1,182 @@
 # Travel A2UI
 
-**A travel agent that answers in interfaces.** You describe a trip in your own
-words; it replies with flights you can pick, dates you can set, and a day plan
-you can tap through — built fresh each turn, not chosen from a set of screens
-somebody designed in advance.
+### An agent that answers with an interface instead of a paragraph.
 
-> **This is a sample application, not an official Google project.** A2UI — the
-> protocol, the specification and the component catalogs it builds on — is the
-> work of [the A2UI project](https://github.com/google/a2ui). This repository is
-> an independent app built on top of it, and is not affiliated with or endorsed
-> by Google LLC. Treat it as a worked example of how to build and deploy a
-> generative-UI application, not as a reference implementation of the protocol.
+You describe a trip in your own words. It replies with flights you can pick,
+dates you can drag and a day plan you can tap through — **built for that answer,
+in that moment**, not chosen from screens somebody designed in advance.
 
 <p align="center">
-  <img src="docs/screenshots/02-mcp-light.png" alt="Flight options rendered as A2UI components" width="820">
+  <img src="docs/screenshots/01-chat-light.png" alt="A conversation where the agent's reply is a set of flight cards, with a live record of the trip beside it" width="900">
 </p>
 
 <p align="center">
-  <b><a href="https://travel-a2ui-vy7stnte2a-uc.a.run.app">Try it</a></b> ·
-  <a href="https://travel-a2ui-vy7stnte2a-uc.a.run.app/flutter">the same agent, drawn by Flutter</a> ·
-  <a href="docs/install-in-claude.md">install it in Claude</a> ·
-  <a href="docs/demo-script.md">what to type</a>
+  <b><a href="https://travel-a2ui-vy7stnte2a-uc.a.run.app">Try it live</a></b> ·
+  <a href="#try-it-in-two-minutes">two-minute setup</a> ·
+  <a href="#build-one-of-your-own">build one</a> ·
+  <a href="docs/architecture.md">how it works</a>
 </p>
 
-<p align="center">
-  <sub>The <b>Catalog</b> tab needs no API key — every component the agent can draw,
-  rendered by the real renderer.</sub>
-</p>
+> **A sample application, not an official Google project.** A2UI — the protocol,
+> the specification and the catalogs it builds on — is [the A2UI
+> project's](https://github.com/google/a2ui) work. This repository is an
+> independent app built on top of it, not affiliated with or endorsed by Google
+> LLC. Treat it as a worked example of building and deploying a generative-UI
+> application, not as a reference implementation of the protocol.
 
 ---
 
-## Start with the problem
+## The problem, in four lines
 
-Say this out loud:
+Say this out loud: *"I want to go from San Francisco to London and back, for two
+of us."* **Three seconds.**
 
-> *"I want to go from San Francisco to London and back, for two of us."*
+Now do it on a travel site: departure airport, arrival airport, date, date,
+travellers, cabin class. Six fields — and you still have not said the things
+that actually decide the trip. That you would rather not land at midnight. That
+one of you is joining from Chicago. That there is a wedding on the Saturday so
+the hotel has to be near the church.
 
-That took you three seconds. Now try to do it on a travel website.
+**There is no form that could have asked you all of that** — not because nobody
+tried, but because trips do not have a fixed shape. A weekend in Lisbon, a
+four-city loop with a different number of people on the last leg, a drive where
+you only need a bed: every one is a different set of questions in a different
+order. A form has to guess them in advance and show everyone the same ones.
 
-You will fill in a departure airport, an arrival airport, a date, another date,
-a number of travellers, a cabin class. Six fields, and you have only just
-described the *shape* of the trip. You have said nothing about what you actually
-want — that you would rather not land at midnight, that one of you is joining
-from Chicago, that you are flexible by a day either way if it saves a few
-hundred, that there is a wedding on the Saturday so the hotel has to be near the
-church.
-
-Here is the uncomfortable part: **there is no form that could have asked you all
-of that.** Not because nobody has tried, but because trips do not have a fixed
-shape.
-
-- One person wants a weekend in Lisbon.
-- Another wants San Francisco → Chicago → New York → home, two nights in the
-  middle, a different number of people on the last leg because a friend is
-  coming back with them.
-- Another is driving, and only needs somewhere to stay.
-- Another has a fixed budget and wants to know what fits inside it.
-
-Every one of those is a different set of questions, in a different order, with
-different things that matter. A form has to guess the questions in advance and
-show the same ones to everybody. So it guesses the most common trip, and
-everyone whose trip is not that one ends up fighting the form, opening six tabs,
-and doing the actual planning in a spreadsheet or a group chat.
-
-**The input problem and the output problem are different problems, and they need
-different answers.**
-
----
-
-## Why chat alone is not the answer either
-
-Chat fixes the input. You can say anything, in any order, and change your mind
-halfway through. Open-ended input is exactly right for something with infinite
-variations.
-
-But chat is a genuinely bad way to *receive* an answer. Read this:
-
-> Option 1 is Iberia IB612 departing 07:15 arriving 19:40 with one stop in
-> Madrid for $624. Option 2 is United UA930 departing 15:20 arriving 09:55
-> nonstop for $811. Option 3 is Virgin Atlantic VS20 departing 19:00 arriving
-> 13:15 nonstop for $779. Option 4 is...
-
-Nobody compares four flights that way. By the third one you have forgotten the
-first. There is nothing to sort, nothing to click, and no way to say "that one"
-without typing out the flight number and hoping you copied it correctly.
-
-And there is a second, quieter problem. When you say *"me and my partner, first
-week of June, somewhere warm"*, the agent has understood **something** — but you
-cannot see what. Did it hear two people or two rooms? Which first week of June?
-Warm meaning Lisbon or warm meaning Bali? In a pure chat interface you find out
-three turns later, when it prices the wrong trip.
-
-So:
+Chat fixes the input and ruins the output. Four flights read out as a paragraph
+is a memory test, with nothing to sort and no way to say "that one".
 
 |  | Good at | Bad at |
 | --- | --- | --- |
-| **A form** | Showing you exactly what it understood | Asking an open-ended question |
-| **Chat** | Asking an open-ended question | Showing you exactly what it understood |
+| **A form** | showing you what it understood | asking an open-ended question |
+| **Chat** | asking an open-ended question | showing you what it understood |
 
-You need both halves. **Open-ended in, structured out.**
+**You need both halves: open-ended in, structured out.** That is the whole idea.
 
 ---
 
-## What generative UI actually is
+## What you are looking at
 
-Here is the whole idea, with no jargon:
-
-> Normally a programmer decides in advance what every screen looks like, and the
-> program picks one. In generative UI, **the AI builds the screen as part of its
-> answer**, out of a box of pieces the app already knows how to draw.
-
-Think of it like a box of LEGO. The app ships the bricks: a flight card, a date
-picker, a price summary, a counter for how many people are going. The app does
-*not* ship instructions for a finished model. Each turn, the AI decides which
-bricks this particular answer needs and clicks them together.
-
-That is why it can handle a trip nobody anticipated. It is not choosing from
-five pre-built screens — it is building the screen that this answer needs, from
-the same bricks, every time.
-
-Three things follow from that, and they are the reason this is worth doing:
-
-**1. You can see what it understood.** You said "two of us, first week of June".
-It draws a traveller counter showing **2** and a date range showing **1–7 June**.
-If it heard you wrong, you can see it immediately and drag the dates — instead of
-discovering the mistake three turns later.
-
-**2. You answer by pointing, not by typing.** Four flights arrive as four cards.
-You tap one. No flight numbers, no copying, no "the second one, no sorry the
-third".
-
-**3. It stays a conversation.** You can still say *"actually, can we leave a day
-later?"* at any point, because the text box never went away. The interface is
-the *answer*; your own words are still the question.
-
-### The loop
+In the picture above, the agent did not *pick* that screen. It **built** it, out
+of pieces the app already knows how to draw — a flight card, a date picker, a
+traveller counter — the way you would build a model out of LEGO. The app ships
+the bricks; the agent clicks them together for this answer, this turn.
 
 ```
-        you speak or type, in your own words
-                        │
-                        ▼
-        the agent works out what you meant
-                        │
-                        ▼
-        it builds a small interface that shows
-        what it understood and what it found
-                        │
-                        ▼
-        you press, drag, pick — or just say
-        something else
-                        │
-                        └──────────► back to the top
+   you say something, however you like
+                  │
+                  ▼
+   the agent works out what you meant, and what is still open
+                  │
+                  ▼
+   it writes a short description of an interface —
+   which components, bound to which data
+                  │
+                  ▼
+   your device draws it, using components it already has
+                  │
+                  ▼
+   you press, drag or pick — and that is your next turn
+                  │
+                  └──────────────► back to the top
 ```
 
-Every turn the understanding gets more exact, and you never had to learn a form.
+Three things follow, and they are the reason this is worth building:
+
+**You can see what it understood.** You said "two of us, first week of June"; it
+draws a counter showing **2** and a range showing **1–7 June**. Wrong? Drag it
+now, instead of finding out three turns later when it prices the wrong trip.
+
+**You answer by pointing.** Four flights arrive as four cards. Tap one. No
+flight numbers, no "the second one — no, sorry, the third".
+
+**It is still a conversation.** The text box never went away, so *"actually, can
+we leave a day later?"* works at any point.
+
+And because the agent sends a *description* rather than pixels, the same answer
+draws in a web app, in a Flutter app, or inside Claude. None of them knows
+anything about travel.
+
+---
+
+## Try it in two minutes
+
+**1. Get a Gemini API key — free.** Go to
+[aistudio.google.com/apikey](https://aistudio.google.com/apikey), sign in with a
+Google account, and press **Create API key**. The free tier is enough for this.
+
+**2. Open the app** and paste it when asked:
+
+> ### **[travel-a2ui-vy7stnte2a-uc.a.run.app](https://travel-a2ui-vy7stnte2a-uc.a.run.app)**
+
+Or skip the form by putting the key in the URL fragment, which never leaves your
+browser:
+
+```
+https://travel-a2ui-vy7stnte2a-uc.a.run.app/#key=AIza...
+```
+
+The key is held in *your* browser and sent with each request. It is never stored
+on the server. ([Why `#key=` and not `?key=`.](#the-key))
+
+**3. Say something.** These all work:
+
+- `Six days in Madrid in April, two of us, around $2,500 all in`
+- `SFO to Chicago for two nights then New York for four, then home — a friend joins me in Chicago`
+- `Plan three days in Tokyo — first visit, we like walking`
+
+**No key, no signup:** the **Catalog** tab draws every component the agent can
+use, with the real renderer. It is the fastest way to see A2UI render with
+nothing else in the path.
+
+**Other ways in:** the same agent drawn by
+[Flutter](https://travel-a2ui-vy7stnte2a-uc.a.run.app/flutter), or installed
+[inside Claude](docs/install-in-claude.md) as an MCP app, where Claude becomes
+the model and there is no key at all.
+
+<p align="center">
+  <img src="docs/screenshots/02-panel-light.png" alt="The trip record, each decision with a Change button" width="320">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/06-mcp-view.png" alt="The same components rendered inside an MCP host" width="420">
+</p>
+
+<p align="center">
+  <sub>Left: the record of what you have decided, each row re-openable. Right: the same
+  components, drawn inside Claude.</sub>
+</p>
+
+---
+
+## Build one of your own
+
+```bash
+git clone https://github.com/vpm238/travel-a2ui && cd travel-a2ui
+npm run setup                      # installs, regenerates, builds, tests
+pip install -e ./apps/server
+uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src
+```
+
+Open `http://127.0.0.1:8080`. One server serves the API, the MCP endpoint and
+both clients from one origin.
+
+**Nothing here is coupled to travel except the names.** The fastest way to see
+that is to replace them:
+
+| To change… | Edit | And then |
+| --- | --- | --- |
+| what the agent can draw | `catalogs/a2ui-travel/catalog.json` | write the React component, register it |
+| what it can look up | `data/tools.json` | one `switch` in `brain/tools.py` |
+| how it decides what is next | `prompts/flow.md` | nothing — it is markdown |
+| what the model is told about components | *nothing* | `npm run generate` writes it from the catalog |
+
+Two rules worth stealing whatever you build. **Anything that must not vary
+belongs in the host, not the prompt** — a rule in a prompt is a request to a
+model; a rule in the host is a guarantee. And **anything derivable should be
+derived**: a night count written by the model is right in the screenshot and
+wrong the moment a date moves.
+
+[**docs/architecture.md**](docs/architecture.md) is the long version, decision by
+decision.
 
 ---
 
@@ -356,19 +379,20 @@ Start wherever matches what you want:
 | Deploy it | **[docs/deploying.md](docs/deploying.md)** — Cloud Run, and the one setting not to change |
 
 ---
-## Run it
+## Running it, in detail
+
+[Build one of your own](#build-one-of-your-own) is the three-command version.
+This is everything around it.
 
 One server. It is Python, it is two packages — `brain/` and `doors/` — and it
 serves the API, the MCP endpoint and the built clients from one origin.
 
-### The Python server
+### Developing against it
+
+Two terminals, so a change to a component is visible without a rebuild:
 
 ```bash
-git clone <your-repo> && cd travel-a2ui
-npm run setup                        # installs, regenerates, builds, tests
-pip install -e ./apps/server         # the server and its dependencies
-
-# terminal 1 — the API
+# terminal 1 — the API, restarting on a change
 uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src --reload
 
 # terminal 2 — the React client, with hot reload
@@ -558,7 +582,7 @@ A plugin installed in Claude gets the same product, not a subset of it — see
 composes them there.
 
 <p align="center">
-  <img src="docs/screenshots/03-dashboard-dark.png" alt="A generated trip dashboard in dark mode" width="820">
+  <img src="docs/screenshots/03-home-light.png" alt="A trip dashboard generated for today" width="820">
 </p>
 
 Two more tabs earn their place. **Catalog** shows every component the agent can
@@ -566,7 +590,7 @@ draw, with the exact signatures the model is given — so "what is it allowed to
 use" is one click away rather than a JSON schema away.
 
 <p align="center">
-  <img src="docs/screenshots/05-catalog-dark.png" alt="The component catalog, with signatures" width="820">
+  <img src="docs/screenshots/04-catalog-dark.png" alt="The component catalog, with signatures" width="820">
 </p>
 
 **Wire** shows any live surface in both representations, the Express the agent
@@ -574,7 +598,7 @@ wrote and the JSON the host received, because "what did the model actually emit"
 is the first question anyone asks about generative UI.
 
 <p align="center">
-  <img src="docs/screenshots/06-wire-light.png" alt="The same surface as Express and as A2UI JSON" width="820">
+  <img src="docs/screenshots/05-wire-light.png" alt="The same surface as Express and as A2UI JSON" width="820">
 </p>
 
 ---
@@ -901,8 +925,8 @@ prompts as something the user must invoke by hand, so a model that can only read
 prompts can never learn the vocabulary mid-conversation. As a tool it can.
 
 <p align="center">
-  <img src="docs/screenshots/05-mcp-view.png" width="46%" alt="A flight picker rendered from an MCP tool result">
-  <img src="docs/screenshots/05-mcp-view-composed.png" width="46%" alt="A layout composed on the fly from catalog components">
+  <img src="docs/screenshots/06-mcp-view.png" width="46%" alt="A flight picker rendered from an MCP tool result">
+  <img src="docs/screenshots/06-mcp-view-composed.png" width="46%" alt="A layout composed on the fly from catalog components">
 </p>
 
 Left: `show_flight_options`. Right: a pre-flight card — price summary, budget
