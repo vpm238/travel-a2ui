@@ -637,6 +637,22 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 if event["type"] == "text":
                     for out in rendered(stream.push(event["delta"]), "stream"):
                         yield out
+                elif event["type"] == "restart":
+                    # The model dropped the stream mid-sentence and the turn is
+                    # starting again on the standby. What it said belongs to the
+                    # abandoned attempt: the client drops it, and so do we — a
+                    # splitter still holding half a sentence would glue it to
+                    # the front of the new one.
+                    stream = ExpressStream(
+                        parser=_parser(request.surface_id),
+                        components=COMPONENT_NAMES,
+                        validator=_CATALOG.validator,
+                        required=REQUIRED_PROPERTIES,
+                        missing=tuple(_still_owed(trip)),
+                    )
+                    gate = FenceGate()
+                    spoken = ""
+                    yield event
                 elif event["type"] == "served_by":
                     # Said rather than hidden. The traveller asked for one model
                     # and a different one is answering; a demo that quietly

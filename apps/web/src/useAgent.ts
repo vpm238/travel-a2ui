@@ -615,6 +615,16 @@ export function useAgent() {
           case 'retry':
             if (!options.silent) patchTurn(assistantId, { retrying: event.reason });
             break;
+          case 'restart':
+            // The model dropped the stream part-way through answering, and the
+            // turn is being run again on the standby model. What it managed to
+            // say belongs to the attempt that is being abandoned — usually a
+            // clause with no verb — so it goes, rather than sitting above the
+            // real answer as if it were the start of one.
+            if (!options.silent) {
+              patchTurn(assistantId, { text: '', parts: [], retrying: event.reason });
+            }
+            break;
           case 'served_by':
             if (!options.silent) patchTurn(assistantId, { servedBy: event.model });
             break;

@@ -861,9 +861,11 @@ class TestABusyModelDegradesRatherThanDies:
     Measured on the eval that chose the default model: twelve of thirty-six
     turns on Flash 3.8 came back with no surface at all, every one of them a
     capacity spike on Google's side rather than anything the surface got wrong.
-    Every turn that actually ran drew the right thing. A traveller halfway
-    through planning a trip cannot do anything about that, and an error banner
-    is a worse answer than a smaller model's interface.
+    A traveller halfway through planning a trip cannot do anything about that,
+    and an error banner is a worse answer than a smaller model's interface.
+    This covers a model that is busy when asked; `TestTheModelDropsTheStream
+    MidSentence` covers the commoner case of one that goes busy while
+    answering.
     """
 
     class Busy(FakeModel):
@@ -1140,3 +1142,117 @@ def test_a_guessed_date_is_still_owed_a_picker() -> None:
 
     given = {k: v for k, v in guessed.items() if k != "assumed"}
     assert _still_owed(given) == [], "a date they actually gave is settled"
+
+
+class TestTheModelDropsTheStreamMidSentence:
+    """A capacity failure that arrives *after* the stream opens.
+
+    The retry and the fallback both live in `_open`, which has returned by the
+    time the first word is on screen. So a model that goes busy halfway through
+    answering went straight past all of it: the turn ended with one dangling
+    clause and nothing drawn, and nothing retried because nothing had failed in
+    a place that was watching.
+
+    Measured on the opening-turn eval: of eight blank turns re-run with the
+    failure printed, six were this, every one after the first few words.
+    """
+
+    class Drops(FakeModel):
+        """Streams `said`, then fails mid-stream, once. Then answers normally."""
+
+        def __init__(self, said: list[str], turns, calls=()) -> None:  # noqa: ANN001
+            super().__init__(turns)
+            self.said = said
+            self.calls = list(calls)
+            self.dropped = False
+            self.asked: list[str] = []
+
+        async def create(self, **body: Any):  # noqa: ANN201
+            self.asked.append(str(body.get("model")))
+            if self.dropped:
+                return await super().create(**body)
+            self.dropped = True
+            said, calls = self.said, self.calls
+
+            class Stream:
+                def __aiter__(self):  # noqa: ANN204
+                    return self._events()
+
+                async def _events(self):  # noqa: ANN202
+                    yield {
+                        "event_type": "interaction.created",
+                        "interaction": {"id": "int_drop", "status": "in_progress"},
+                    }
+                    for chunk in said:
+                        yield {
+                            "event_type": "step.delta",
+                            "index": 0,
+                            "delta": {"type": "text", "text": chunk},
+                        }
+                    for index, call in enumerate(calls, start=1):
+                        yield {
+                            "event_type": "step.start",
+                            "index": index,
+                            "step": {
+                                "type": "function_call",
+                                "id": call.id,
+                                "name": call.name,
+                                "arguments": call.args,
+                            },
+                        }
+                        yield {"event_type": "step.stop", "index": index}
+                    yield {
+                        "event_type": "error",
+                        "error": {"code": "api_error", "message": "high demand"},
+                    }
+
+            return Stream()
+
+    def _run(self, client) -> list[dict[str, Any]]:  # noqa: ANN001
+        import asyncio
+
+        return asyncio.run(
+            collect(
+                TurnRequest(
+                    api_key="k",
+                    model="gemini-3.8-flash",
+                    message="hello",
+                    provider=FixtureProvider(),
+                    client=client,
+                )
+            )
+        )
+
+    def test_the_turn_starts_over_on_the_standby_rather_than_dying(self) -> None:
+        client = self.Drops(["Let me set"], [(["Here you go."], [])])
+        events = self._run(client)
+
+        assert not [e for e in events if e["type"] == "error"], "a blank screen is not an answer"
+        assert client.asked == ["gemini-3.8-flash", FALLBACK_MODEL], "finished on the one that was up"
+        assert [e for e in events if e["type"] == "restart"], "the client has to drop the half sentence"
+        said = [e for e in events if e["type"] == "served_by"]
+        assert said and said[0]["model"] == FALLBACK_MODEL, "and be told who answered"
+
+    def test_the_abandoned_half_sentence_is_disowned(self) -> None:
+        """`restart` arrives before the replacement prose, or they read as one."""
+        client = self.Drops(["Let me set"], [(["Here you go."], [])])
+        events = self._run(client)
+
+        order = [e["type"] for e in events]
+        restart = order.index("restart")
+        after = [
+            e["delta"] for e in events[restart:] if e["type"] == "text"
+        ]
+        assert "".join(after).strip() == "Here you go.", "the second attempt, whole"
+
+    def test_a_turn_that_already_ran_a_tool_is_not_replayed(self) -> None:
+        """`save_trip` has already changed the trip; a restart would do it twice."""
+        client = self.Drops(
+            ["Let me set"],
+            [(["Here you go."], [])],
+            calls=[ToolCall(id="c1", name="save_trip", args={"destination": "Lisbon"})],
+        )
+        events = self._run(client)
+
+        assert client.asked == ["gemini-3.8-flash"], "asked once — the tool already ran"
+        assert [e for e in events if e["type"] == "error"], "and the failure is reported, not hidden"

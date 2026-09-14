@@ -25,6 +25,9 @@ export type AgentEvent =
   | { type: 'ui'; surfaceId: string; messages: A2uiMessage[]; done: boolean }
   | { type: 'ui_error'; message: string; source: string; express?: string }
   | { type: 'retry'; reason: string }
+  // The stream failed part-way through and the turn is starting over on the
+  // standby model. Everything said so far belongs to the abandoned attempt.
+  | { type: 'restart'; reason: string }
   /**
    * A different model answered this turn, because the chosen one was busy.
    *

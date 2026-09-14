@@ -272,92 +272,111 @@ async def stream_interaction(
         result.served_by = served_by
         yield {"type": "served_by", "model": served_by}
 
-    async for event in stream:
-        raw = _as_dict(event)
-        kind = str(raw.get("event_type") or "")
-        index = raw.get("index")
-        index = index if isinstance(index, int) else 0
+    # A capacity failure does not always arrive before the stream opens; it
+    # arrives mid-sentence, past everything `_open` guards. Restarting is
+    # only safe while nothing has happened a second run would do twice.
+    while True:
+        try:
+            async for event in stream:
+                raw = _as_dict(event)
+                kind = str(raw.get("event_type") or "")
+                index = raw.get("index")
+                index = index if isinstance(index, int) else 0
 
-        if kind in ("interaction.created", "interaction.completed"):
-            interaction = _as_dict(raw.get("interaction"))
-            if isinstance(interaction.get("id"), str):
-                result.interaction_id = interaction["id"]
-            if isinstance(interaction.get("status"), str):
-                result.status = interaction["status"]
-            # A plain model turn reports usage *only* here, and reports the
-            # whole interaction's total — so this replaces the per-step tally
-            # rather than adding to it.
-            if interaction.get("usage"):
-                result.usage = _read_usage(_as_dict(interaction["usage"]))
+                if kind in ("interaction.created", "interaction.completed"):
+                    interaction = _as_dict(raw.get("interaction"))
+                    if isinstance(interaction.get("id"), str):
+                        result.interaction_id = interaction["id"]
+                    if isinstance(interaction.get("status"), str):
+                        result.status = interaction["status"]
+                    # A plain model turn reports usage *only* here, and reports the
+                    # whole interaction's total — so this replaces the per-step tally
+                    # rather than adding to it.
+                    if interaction.get("usage"):
+                        result.usage = _read_usage(_as_dict(interaction["usage"]))
 
-        elif kind == "step.start":
-            step = _as_dict(raw.get("step"))
-            if step.get("type") == "function_call":
-                # Some calls arrive whole rather than streamed — but the
-                # streamed ones open with `arguments: {}`, which is truthy.
-                # Only a non-empty object is a whole call; seeding from an
-                # empty one and appending the real deltas gives `{}{"a":1}`,
-                # which parses as nothing at all.
-                whole = _as_dict(step.get("arguments"))
-                open_steps[index] = {
-                    "id": str(step.get("id") or f"call_{index}"),
-                    "name": str(step.get("name") or ""),
-                    "args": json.dumps(whole) if whole else "",
-                }
+                elif kind == "step.start":
+                    step = _as_dict(raw.get("step"))
+                    if step.get("type") == "function_call":
+                        # Some calls arrive whole rather than streamed — but the
+                        # streamed ones open with `arguments: {}`, which is truthy.
+                        # Only a non-empty object is a whole call; seeding from an
+                        # empty one and appending the real deltas gives `{}{"a":1}`,
+                        # which parses as nothing at all.
+                        whole = _as_dict(step.get("arguments"))
+                        open_steps[index] = {
+                            "id": str(step.get("id") or f"call_{index}"),
+                            "name": str(step.get("name") or ""),
+                            "args": json.dumps(whole) if whole else "",
+                        }
 
-        elif kind == "step.delta":
-            delta = _as_dict(raw.get("delta"))
-            delta_type = str(delta.get("type") or "")
-            if delta_type == "text" and isinstance(delta.get("text"), str):
-                result.text += delta["text"]
-                yield {"type": "text", "delta": delta["text"]}
-            elif delta_type in ("arguments_delta", "arguments"):
-                chunk = delta.get("arguments")
-                if chunk is None:
-                    chunk = delta.get("partial_arguments")
-                if isinstance(chunk, str):
-                    step = open_steps.setdefault(
-                        index, {"id": f"call_{index}", "name": "", "args": ""}
+                elif kind == "step.delta":
+                    delta = _as_dict(raw.get("delta"))
+                    delta_type = str(delta.get("type") or "")
+                    if delta_type == "text" and isinstance(delta.get("text"), str):
+                        result.text += delta["text"]
+                        yield {"type": "text", "delta": delta["text"]}
+                    elif delta_type in ("arguments_delta", "arguments"):
+                        chunk = delta.get("arguments")
+                        if chunk is None:
+                            chunk = delta.get("partial_arguments")
+                        if isinstance(chunk, str):
+                            step = open_steps.setdefault(
+                                index, {"id": f"call_{index}", "name": "", "args": ""}
+                            )
+                            step["args"] += chunk
+
+                elif kind == "step.stop":
+                    # `step_usage` is this step; the sibling `usage` is the running
+                    # total, so adding both would double-count. A managed agent reports
+                    # here and a plain model does not, which is why this is a tally and
+                    # `interaction.completed` is allowed to replace it.
+                    if raw.get("step_usage"):
+                        step_usage = _read_usage(_as_dict(raw["step_usage"]))
+                        result.usage.input_tokens += step_usage.input_tokens
+                        result.usage.output_tokens += step_usage.output_tokens
+                        result.usage.cached_tokens += step_usage.cached_tokens
+                        result.usage.thought_tokens += step_usage.thought_tokens
+
+                    step = open_steps.get(index)
+                    if step and step["name"]:
+                        del open_steps[index]
+                        result.tool_calls.append(
+                            ToolCall(id=step["id"], name=step["name"], args=_parse_args(step["args"]))
+                        )
+
+                elif kind == "error":
+                    error = _as_dict(raw.get("error"))
+                    # `code` is not always a number. A mid-stream failure carries
+                    # `"code": "api_error"`, and `int()` on that raised a ValueError
+                    # *inside the raise* — so the exception that surfaced was
+                    # "invalid literal for int() with base 10: 'api_error'" and Google's
+                    # actual message was thrown away. Every mid-stream failure this app
+                    # has ever had was reported as a bug in this line.
+                    code = error.get("code")
+                    try:
+                        status = int(code)
+                    except (TypeError, ValueError):
+                        status = 500
+                    raise GeminiError(
+                        str(error.get("message") or "The model reported an error mid-stream."),
+                        status,
+                        True,
                     )
-                    step["args"] += chunk
-
-        elif kind == "step.stop":
-            # `step_usage` is this step; the sibling `usage` is the running
-            # total, so adding both would double-count. A managed agent reports
-            # here and a plain model does not, which is why this is a tally and
-            # `interaction.completed` is allowed to replace it.
-            if raw.get("step_usage"):
-                step_usage = _read_usage(_as_dict(raw["step_usage"]))
-                result.usage.input_tokens += step_usage.input_tokens
-                result.usage.output_tokens += step_usage.output_tokens
-                result.usage.cached_tokens += step_usage.cached_tokens
-                result.usage.thought_tokens += step_usage.thought_tokens
-
-            step = open_steps.get(index)
-            if step and step["name"]:
-                del open_steps[index]
-                result.tool_calls.append(
-                    ToolCall(id=step["id"], name=step["name"], args=_parse_args(step["args"]))
-                )
-
-        elif kind == "error":
-            error = _as_dict(raw.get("error"))
-            # `code` is not always a number. A mid-stream failure carries
-            # `"code": "api_error"`, and `int()` on that raised a ValueError
-            # *inside the raise* — so the exception that surfaced was
-            # "invalid literal for int() with base 10: 'api_error'" and Google's
-            # actual message was thrown away. Every mid-stream failure this app
-            # has ever had was reported as a bug in this line.
-            code = error.get("code")
-            try:
-                status = int(code)
-            except (TypeError, ValueError):
-                status = 500
-            raise GeminiError(
-                str(error.get("message") or "The model reported an error mid-stream."),
-                status,
-                True,
-            )
+            break
+        except GeminiError as dropped:
+            standby = _standby(dropped, result, served_by, model, fallback_model)
+            if standby is None:
+                raise
+            # The prose already on screen belongs to a turn being abandoned,
+            # so the client is told to drop it rather than show half a
+            # sentence with a second opening underneath.
+            yield {"type": "restart", "reason": str(dropped)}
+            result = InteractionResult(served_by=standby)
+            open_steps = {}
+            stream, _ = await _open(genai, {**body, "model": standby}, standby, None)
+            served_by = standby
+            yield {"type": "served_by", "model": standby}
 
     # A stream that ends without `step.stop` still owes us its calls; dropping
     # them would end the turn silently having done nothing.
@@ -380,6 +399,52 @@ async def stream_interaction(
 _BACKOFF = (1.5, 4.0)
 
 
+def _standby(
+    dropped: GeminiError,
+    result: InteractionResult,
+    served_by: str | None,
+    model: str,
+    fallback_model: str | None,
+) -> str | None:
+    """The model to finish this turn on, if starting it over is still safe.
+
+    `_open` covers a model that is busy when asked. It does not cover a model
+    that is busy *halfway through answering*, which is what actually happens:
+    the stream opens, the opening sentence arrives, and then the interaction
+    fails with "currently experiencing high demand". By then `_open` has long
+    returned, so every retry and the fallback it exists for are behind us, and
+    the turn ends with one dangling clause on screen and nothing drawn.
+
+    Measured on the opening-turn eval, sixteen of thirty-six turns drew nothing;
+    of eight re-run with the failure printed, six were this, mid-stream, every
+    one after the first few words. It is not a rare edge.
+
+    Starting over is only safe while the turn has done nothing a second run
+    would do twice:
+
+    - **No tool calls.** `save_trip` has already changed the trip; the rest have
+      spent a lookup. A restart would replay them.
+    - **Nothing drawn.** Once an `<a2ui` block has begun, the surface is being
+      compiled and painted as it streams. A restart would leave the first half
+      of one surface underneath the whole of another.
+    - **A standby that is actually different.** Falling back to the model that
+      just dropped the stream is a second wait for the same answer.
+
+    Returns the model to restart on, or None to let the failure through — which
+    is the right outcome for a turn too far along to repeat.
+    """
+    if not dropped.retryable:
+        return None
+    standby = fallback_model
+    if not standby or standby == model or standby == served_by:
+        return None
+    if result.tool_calls:
+        return None
+    if "<a2ui" in result.text.lower():
+        return None
+    return standby
+
+
 async def _open(
     genai: Any, body: dict[str, Any], model: str, fallback_model: str | None
 ) -> tuple[Any, str | None]:
@@ -399,7 +464,10 @@ async def _open(
     Measured, and the reason this exists: twelve of thirty-six eval turns on
     Flash 3.8 came back with no surface at all, every one of them "currently
     experiencing high demand". Not a wrong component, not a compile failure —
-    the model was simply not there. Every turn that *ran* drew the right thing.
+    the model was simply not there. What that sample did not separate is how
+    many of those failed *before* the stream opened, where this helps, and how
+    many failed part-way through it, where `_standby` does — re-measured, most
+    were mid-stream.
     """
     attempts = len(_BACKOFF) + 1
     last: GeminiError | None = None
