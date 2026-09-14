@@ -247,7 +247,7 @@ async def build_surface(
         return await _price(args, provider)
     if name == "render_a2ui_express":
         from ..doors.interactions import COMPONENT_NAMES
-        from .express import unknown_components
+        from .express import nearest_components, unknown_components
 
         source = _str(args.get("source"))
         # Checked here because this is the one surface nobody wrote by hand.
@@ -265,10 +265,13 @@ async def build_surface(
         invented = unknown_components(source, COMPONENT_NAMES)
         if invented:
             raise ValueError(
+                # No tool named here, for the reason `NeedsInput` names none:
+                # `get_a2ui_component_reference` went with MCP and this message
+                # went on telling the model to call it.
                 f"Not components in this catalog: {', '.join(invented)}. "
-                f"The catalog has {len(COMPONENT_NAMES)}; call "
-                "get_a2ui_component_reference for the list and the exact "
-                "spelling, then write the block again."
+                + (f"{nearest_components(invented, COMPONENT_NAMES)} " if invented else "")
+                + f"The catalog has {len(COMPONENT_NAMES)}; use one of them or "
+                "compose from Row, Column and Text, then write the block again."
             )
         return Surface(
             express=source,

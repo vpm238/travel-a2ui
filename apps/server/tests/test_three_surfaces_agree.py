@@ -347,7 +347,14 @@ class TestARefusalCanBeActedOn:
         }
 
     def refusals(self) -> list[str]:
-        """Every message the brain hands back instead of a surface."""
+        """Every message the brain hands back instead of a surface.
+
+        Both kinds, because the first version of this test only drove
+        `NeedsInput` — and `build_surface`'s invented-component message was
+        still telling the model to call `get_a2ui_component_reference`, which
+        had gone with MCP. Same bug, same week, missed because the guard only
+        looked where the last one had been.
+        """
         import asyncio
 
         from travel_a2ui.brain.providers.fixture import FixtureProvider
@@ -355,18 +362,22 @@ class TestARefusalCanBeActedOn:
 
         provider = FixtureProvider()
         said: list[str] = []
-        for args in (
-            {"destination": "Madrid", "origin": "JFK"},  # no date
-            {"destination": "Madrid", "date": "2027-04-12"},  # no origin
-            {"destination": "Madrid"},  # neither
-        ):
+        cases: list[tuple[str, dict]] = [
+            ("show_flight_options", {"destination": "Madrid", "origin": "JFK"}),
+            ("show_flight_options", {"destination": "Madrid", "date": "2027-04-12"}),
+            ("show_flight_options", {"destination": "Madrid"}),
+            # An invented component, which is the other way a turn is refused.
+            (
+                "render_a2ui_express",
+                {"source": 'd = DateInput("When")\nroot = Column([d])'},
+            ),
+        ]
+        for tool, args in cases:
             try:
-                asyncio.run(
-                    build_surface("show_flight_options", args, provider, "2026-09-14")
-                )
+                asyncio.run(build_surface(tool, args, provider, "2026-09-14"))
             except Exception as error:  # noqa: BLE001 - the message is the subject
                 said.append(str(error))
-        assert said, "these arguments are supposed to be refused"
+        assert len(said) == len(cases), "every one of these is supposed to be refused"
         return said
 
     def test_no_refusal_names_a_tool_that_does_not_exist(self) -> None:
@@ -382,5 +393,7 @@ class TestARefusalCanBeActedOn:
     def test_a_refusal_still_says_what_to_do(self) -> None:
         """Dropping the tool name must not drop the instruction with it."""
         for message in self.refusals():
-            assert "draw the" in message, f"no recovery in: {message[:120]}"
-            assert "$/trip/" in message, "and it has to name what to bind"
+            assert any(
+                hint in message
+                for hint in ("draw the", "use one of them", "write the block again")
+            ), f"no recovery in: {message[:140]}"

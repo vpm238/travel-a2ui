@@ -447,3 +447,117 @@ class TestTheFenceGate:
         assert "print" not in prose
         assert len(fences) == 1
         assert not fences[0].looks_like_a_surface
+
+
+class TestATagWrittenNearlyRight:
+    """`<a2ui surface="inline-1">` cost an entire turn.
+
+    The contract says `<a2ui>`. The model writes the tag with an attribute on it
+    often enough to matter, and matched literally that tag is not found — so the
+    block is not a block, and every line of Express inside it goes to the
+    traveller as prose. Measured on the reported turn: fourteen and a half
+    seconds, "No surface", and a wall of `departure = DateInput label: …` on
+    screen where a date picker belonged.
+
+    The attributes are ignored rather than honoured: `surface("inline-1")`
+    inside the block is the mechanism, and a tag attribute saying something else
+    would be a second way to say it that nothing else reads.
+    """
+
+    SOURCE = (
+        'when = DateRangePicker("Travel dates", $/trip/startDate, $/trip/endDate)\n'
+        'lbl = Text("Search")\n'
+        'go = Button(lbl, "primary", Event("search", {startDate: $/trip/startDate}))\n'
+        "root = Column([when, go])\n"
+    )
+
+    def drive(self, parser, text: str, size: int):
+        stream = ExpressStream(parser=parser, components=frozenset())
+        prose, drew = [], False
+        for start in range(0, len(text), size):
+            for event in stream.push(text[start : start + size]):
+                if isinstance(event, Text):
+                    prose.append(event.delta)
+                elif isinstance(event, Ui):
+                    drew = True
+        for event in stream.end():
+            if isinstance(event, Text):
+                prose.append(event.delta)
+            elif isinstance(event, Ui):
+                drew = True
+        return "".join(prose), drew
+
+    @pytest.mark.parametrize(
+        "opening",
+        [
+            "<a2ui>",
+            '<a2ui surface="inline-1">',
+            "<a2ui surface='inline-1' version='v0.9.1'>",
+            "<A2UI>",
+        ],
+    )
+    def test_the_block_is_recognised(self, parser, opening) -> None:
+        text = f"Here you go.\n\n{opening}\n{self.SOURCE}</a2ui>\n"
+        # Every chunk size, because a tag arrives split and a matcher that only
+        # works on whole tags is a matcher that works in tests and not in life.
+        for size in (1, 2, 5, 23, 10_000):
+            prose, drew = self.drive(parser, text, size)
+            assert drew, f"{opening!r} at chunk {size} did not draw"
+            assert "DateRangePicker" not in prose, (
+                f"{opening!r} at chunk {size} printed the Express at the traveller"
+            )
+            assert "Here you go." in prose
+
+    def test_a_closing_tag_with_space_in_it_still_closes(self) -> None:
+        from travel_a2ui.doors.interactions import _parser as door_parser
+
+        prose, drew = self.drive(
+            door_parser("inline-1"), f"<a2ui>\n{self.SOURCE}</a2ui >\n", 4
+        )
+        assert drew
+        assert "DateRangePicker" not in prose
+
+    def test_prose_that_merely_mentions_the_tag_is_not_a_block(self, parser) -> None:
+        """A half-written tag must be held, not emitted — and then released."""
+        prose, drew = self.drive(parser, "I will write <a2 and stop there.", 1)
+        assert not drew
+        assert prose == "I will write <a2 and stop there."
+
+
+class TestTheNameItAlmostGot:
+    """`DateInput` is not a component, and saying only that wastes the round.
+
+    The names a model reaches for are near-misses, not nonsense — `DateInput`
+    for `DateTimeInput`, `DateRangeField` for `DateRangePicker`, `NumberField`
+    for `TextField`. All three came out of one reported turn. The reader of the
+    error is a model about to write the block again, and the traveller is
+    watching a spinner while it does.
+    """
+
+    def test_it_names_the_nearest_real_one(self) -> None:
+        from travel_a2ui.brain.express import nearest_components
+        from travel_a2ui.doors.interactions import COMPONENT_NAMES
+
+        said = nearest_components(["DateInput", "DateRangeField"], COMPONENT_NAMES)
+        assert "DateTimeInput" in said
+        assert "DateRangePicker" in said
+
+    def test_it_stays_quiet_when_nothing_is_close(self) -> None:
+        """`Form` has no near match, and a wrong suggestion is worse than none."""
+        from travel_a2ui.brain.express import nearest_components
+        from travel_a2ui.doors.interactions import COMPONENT_NAMES
+
+        assert nearest_components(["Form"], COMPONENT_NAMES) == ""
+
+    def test_the_compile_error_carries_it(self, parser) -> None:
+        stream = ExpressStream(
+            parser=parser, components=frozenset({"DateTimeInput", "Column", "Text"})
+        )
+        failures = []
+        for event in stream.push(
+            '<a2ui>\nd = DateInput("When")\nroot = Column([d])\n</a2ui>'
+        ):
+            if isinstance(event, Failed):
+                failures.append(event.message)
+        assert failures, "an invented component compiled to nothing and said nothing"
+        assert "DateTimeInput" in failures[0], "the error has to name the one that exists"

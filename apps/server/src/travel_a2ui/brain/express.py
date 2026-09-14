@@ -98,6 +98,27 @@ class UnknownComponent(Exception):
     """
 
 
+def nearest_components(invented: Iterable[str], known: Iterable[str]) -> str:
+    """"No such component: DateInput" is true and not much use on its own.
+
+    The reader of that message is a model about to write the block again, and
+    the names it reaches for are near-misses rather than nonsense: `DateInput`
+    for `DateTimeInput`, `DateRangeField` for `DateRangePicker`, `NumberField`
+    for `TextField`. Naming the closest real one turns a round spent guessing
+    into a round spent fixing — and the traveller is watching a spinner for
+    every one of them.
+    """
+    import difflib
+
+    names = sorted(known)
+    said = []
+    for name in invented:
+        close = difflib.get_close_matches(name, names, n=2, cutoff=0.6)
+        if close:
+            said.append(f"`{name}` → did you mean {' or '.join(f'`{c}`' for c in close)}?")
+    return " ".join(said)
+
+
 def unknown_components(source: str, component_names: Iterable[str]) -> list[str]:
     """Component names in `source` that the catalog does not define."""
     known = set(component_names) | _NOT_COMPONENTS
@@ -106,6 +127,55 @@ def unknown_components(source: str, component_names: Iterable[str]) -> list[str]
         if name not in known and name not in seen:
             seen.append(name)
     return seen
+
+
+#: The opening sentinel, as written rather than as specified.
+#:
+#: The contract says `<a2ui>` and the model writes `<a2ui surface="inline-1">`
+#: often enough to matter. Matched literally, that tag is not found at all — so
+#: the block is not a block, and every line of Express inside it goes to the
+#: traveller as prose. Measured on the reported turn: fourteen and a half
+#: seconds, no surface, and a wall of `departure = DateInput label: …` on screen.
+#:
+#: The attributes are ignored rather than honoured. `surface("inline-1")` inside
+#: the block is the mechanism, and a tag attribute saying something different
+#: would be a second way to say it that nothing else reads.
+_OPEN = re.compile(r"<a2ui\b[^>]*>", re.IGNORECASE)
+_CLOSE = re.compile(r"</\s*a2ui\s*>", re.IGNORECASE)
+
+
+def _first_tag(text: str, pattern: re.Pattern[str], stem: str) -> tuple[int, int] | None:
+    """Where the next tag starts and ends, or None if it has not arrived yet.
+
+    Returns None both when there is no tag and when one has *started* and not
+    finished — `<a2ui surf` with the rest still in flight. The caller holds the
+    tail either way, which is what `_dangling_prefix` did for a fixed token and
+    cannot do for one whose length is not known in advance.
+    """
+    match = pattern.search(text)
+    if match:
+        return match.start(), match.end()
+    # An unterminated tag: the stem is present with no `>` after it.
+    at = text.lower().rfind(stem)
+    if at != -1 and ">" not in text[at:]:
+        return None
+    return None
+
+
+def _held_for_tag(text: str, pattern: re.Pattern[str], stem: str) -> int:
+    """Length of the tail to hold because it could still become a tag.
+
+    Case-insensitive throughout, and `_dangling_prefix` is not — which is not a
+    detail: fed one character at a time, `<A` is not a prefix of `<a2ui` by that
+    comparison, so it was emitted as prose and the tag could never be recognised
+    afterwards. The stream is the one place where being nearly right has to
+    still work.
+    """
+    lowered = text.lower()
+    at = lowered.rfind(stem)
+    if at != -1 and ">" not in text[at:]:
+        return len(text) - at
+    return _dangling_prefix(lowered, stem)
 
 
 @dataclass(frozen=True)
@@ -194,28 +264,29 @@ class ExpressStream:
 
         while True:
             if not self._inside:
-                open_at = self._buffer.find(A2UI_INFERENCE_OPEN_TAG)
-                if open_at == -1:
-                    hold = _dangling_prefix(self._buffer, A2UI_INFERENCE_OPEN_TAG)
+                found = _first_tag(self._buffer, _OPEN, "<a2ui")
+                if found is None:
+                    hold = _held_for_tag(self._buffer, _OPEN, "<a2ui")
                     emit = self._buffer[: len(self._buffer) - hold]
                     if emit:
                         events.append(Text(delta=emit))
                     self._buffer = self._buffer[len(self._buffer) - hold :]
                     return events
 
+                open_at, open_end = found
                 prose = self._buffer[:open_at]
                 if prose:
                     events.append(Text(delta=prose))
-                self._buffer = self._buffer[open_at + len(A2UI_INFERENCE_OPEN_TAG) :]
+                self._buffer = self._buffer[open_end:]
                 self._inside = True
                 self._block_index += 1
                 self._block_source = ""
                 self._last_emitted = ""
                 continue
 
-            close_at = self._buffer.find(A2UI_INFERENCE_CLOSE_TAG)
-            if close_at == -1:
-                hold = _dangling_prefix(self._buffer, A2UI_INFERENCE_CLOSE_TAG)
+            closing = _first_tag(self._buffer, _CLOSE, "</a2ui")
+            if closing is None:
+                hold = _held_for_tag(self._buffer, _CLOSE, "</a2ui")
                 self._block_source += self._buffer[: len(self._buffer) - hold]
                 self._buffer = self._buffer[len(self._buffer) - hold :]
                 event = self._compile(done=False)
@@ -223,8 +294,9 @@ class ExpressStream:
                     events.append(event)
                 return events
 
+            close_at, close_end = closing
             self._block_source += self._buffer[:close_at]
-            self._buffer = self._buffer[close_at + len(A2UI_INFERENCE_CLOSE_TAG) :]
+            self._buffer = self._buffer[close_end:]
             self._inside = False
             event = self._compile(done=True)
             if event:
@@ -271,10 +343,12 @@ class ExpressStream:
             if self.components:
                 invented = unknown_components(source, self.components)
                 if invented:
+                    hint = nearest_components(invented, self.components)
                     raise UnknownComponent(
                         f"No such component: {', '.join(invented)}. "
-                        f"The catalog has {len(self.components)} components; "
-                        f"use one of them or compose from Row, Column and Text."
+                        + (f"{hint} " if hint else "")
+                        + f"The catalog has {len(self.components)} components; "
+                        "use one of them or compose from Row, Column and Text."
                     )
             messages = self.parser.compile(source, is_final=done)
             # Only on a finished block. A tree still being written legitimately
