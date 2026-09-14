@@ -1340,3 +1340,53 @@ class TestATurnCutShortAfterItDrew:
         errors = [e for e in events if e["type"] == "error"]
         assert errors
         assert "still works" not in errors[0]["message"]
+
+    def test_a_tool_is_not_a_surface(self) -> None:
+        """Caught live: the banner promised a form that was never drawn.
+
+        `save_trip` ran, the stream then dropped, and the turn reported "what it
+        had already drawn is below and still works" to somebody looking at an
+        empty space. A tool running is not a surface arriving, and the message
+        has to be about what is actually on screen.
+        """
+        client = TestTheModelDropsTheStreamMidSentence.Drops(
+            ["Let me set"],
+            [(["ignored"], [])],
+            calls=[ToolCall(id="c1", name="save_trip", args={"destination": "Madrid"})],
+        )
+        events = self._run(client)
+
+        errors = [e for e in events if e["type"] == "error"]
+        assert errors, "the failure is still reported"
+        assert "still works" not in errors[0]["message"], "nothing was drawn to reassure about"
+
+
+def test_a_tool_in_an_earlier_round_does_not_block_the_restart() -> None:
+    """Why the standby almost never rescued a real turn.
+
+    The opening turn calls `save_trip` with what the traveller just said, and
+    only then starts drawing. `has_drawn` was wired to `did_something`, which a
+    tool call also sets — so by the time a capacity failure arrived, the restart
+    was refused on the commonest turn in the app, by a flag that was never
+    about the screen.
+
+    Replaying a tool is still guarded: `_standby` checks `result.tool_calls`,
+    which is this round's, and a restart re-runs only this round.
+    """
+    client = TestTheModelDropsTheStreamMidSentence.Drops(
+        ["Let me set"],
+        [
+            ([""], [ToolCall(id="c1", name="save_trip", args={"destination": "Madrid"})]),
+            ([f'{A2UI_OPEN}\nt = Text("Hi")\nroot = Column([t])\n{A2UI_CLOSE}'], []),
+        ],
+    )
+    # Round one runs the tool and finishes; the drop lands on round two, which
+    # has drawn nothing of its own.
+    client.dropped = True
+    client.turns.insert(
+        0, ([""], [ToolCall(id="c1", name="save_trip", args={"destination": "Madrid"})])
+    )
+    events = TestTheModelDropsTheStreamMidSentence._run(
+        TestTheModelDropsTheStreamMidSentence(), client
+    )
+    assert [e for e in events if e["type"] == "tool"], "the tool ran, as it does every opening"

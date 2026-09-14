@@ -538,6 +538,14 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     #: your travel dates" with nothing drawn in four runs of five.
     spoken = ""
     did_something = False
+    #: A surface actually reached the screen this turn.
+    #:
+    #: Distinct from `did_something`, which is also true when a tool ran.
+    #: Told apart because a message that says "what it drew is below" has to
+    #: be about something that is, in fact, below: a turn that called
+    #: `save_trip` and then lost the stream set `did_something` and drew
+    #: nothing, and said so to a traveller looking at an empty space.
+    drew_surface = False
     retried_promise = False
     #: A surface that drew but left the traveller nothing to answer.
     thin: str | None = None
@@ -571,7 +579,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
 
         def rendered(events: Sequence[Any], source: str) -> list[dict[str, Any]]:
             """Splitter events, as events for the browser."""
-            nonlocal unreported, misdrawn, spoken, did_something, thin
+            nonlocal unreported, misdrawn, spoken, did_something, thin, drew_surface
             out: list[dict[str, Any]] = []
             for event in events:
                 if isinstance(event, Text):
@@ -586,6 +594,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                     out.append({"type": "text", "delta": said, "round": round_index})
                 elif isinstance(event, Ui):
                     did_something = True
+                    drew_surface = True
                     # Drawn either way. A surface that asks for none of what the
                     # trip is waiting on is unhelpful, not invalid, and putting
                     # nothing on screen instead is worse for the traveller than
@@ -633,8 +642,15 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 previous_interaction_id=previous_interaction_id,
                 fallback_model=FALLBACK_MODEL,
                 # So a dropped stream can be restarted while the screen is
-                # still empty. A half-written block is not a drawn surface.
-                has_drawn=lambda: did_something,
+                # still empty. `drew_surface` and not `did_something`: the
+                # latter is also true once a tool has run, and the opening
+                # turn calls `save_trip` before it draws anything — so on the
+                # commonest turn in the app, the restart was refused every
+                # time, by a flag that was never about the screen. Replaying
+                # a tool is still guarded, by `result.tool_calls` in
+                # `_standby`, which is about *this* round rather than the
+                # whole turn.
+                has_drawn=lambda: drew_surface,
                 client=request.client,
             ):
                 if event["type"] == "text":
@@ -681,7 +697,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             # and "gemini is experiencing high demand" over the top of it reads
             # as though the form is broken. It is not, and the traveller's next
             # move is to use it.
-            if did_something and reported.get("retryable"):
+            if drew_surface and reported.get("retryable"):
                 reported = {
                     **reported,
                     "message": (
