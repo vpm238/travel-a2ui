@@ -13,28 +13,44 @@
 # not depart from was a trip that could never finish. San Francisco was exactly
 # that: a destination the demo offers and an airport nobody could leave.
 #
-# `zones`, `lat` and `lon` are gone. They existed to turn a browser's timezone
-# or coordinates into a guessed departure airport, and that guess is gone: a
-# timezone covers a continent-slice, and asking is both simpler and right.
-code,city
-JFK,New York
-ORD,Chicago
-SFO,San Francisco
-DEN,Denver
-LAX,Los Angeles
-MIA,Miami
-MEX,Mexico City
-GRU,São Paulo
-LHR,London
-CDG,Paris
-MAD,Madrid
-LIS,Lisbon
-ATH,Athens
-FRA,Frankfurt
-DXB,Dubai
-DEL,Delhi
-SIN,Singapore
-HKG,Hong Kong
-NRT,Tokyo
-SYD,Sydney
-JNB,Johannesburg
+# `lat`, `lon` and `region` are back, and not for what they were removed for.
+#
+# They used to turn a browser's timezone into a *guessed* departure airport, and
+# that guess is gone for good — a timezone covers a continent-slice, and asking
+# is both simpler and right. These are here for geography, which is a different
+# job: how far one airport is from another.
+#
+# Without it the fixtures had none, and it showed the moment anybody looked.
+# SFO to JFK came back "1 stop · FRA" — a domestic hop connecting in Frankfurt —
+# because the connection was drawn from a list of five European hubs regardless
+# of the route. Every nonstop anywhere took between seven and nine and a half
+# hours, because the leg length was a random number with no distance in it. And
+# the fare was `280 + random()*260` whatever the route, while the documentation
+# claimed prices moved with distance.
+#
+# A demo is allowed to invent its inventory. It is not allowed to be absurd
+# about it, because absurd is the thing a visitor notices first and the thing
+# they remember.
+#
+code,city,lat,lon,region
+JFK,New York,40.64,-73.78,north-america
+ORD,Chicago,41.98,-87.9,north-america
+SFO,San Francisco,37.62,-122.38,north-america
+DEN,Denver,39.86,-104.67,north-america
+LAX,Los Angeles,33.94,-118.41,north-america
+MIA,Miami,25.8,-80.29,north-america
+MEX,Mexico City,19.44,-99.07,north-america
+GRU,São Paulo,-23.43,-46.47,south-america
+LHR,London,51.47,-0.45,europe
+CDG,Paris,49.01,2.55,europe
+MAD,Madrid,40.47,-3.56,europe
+LIS,Lisbon,38.77,-9.13,europe
+ATH,Athens,37.94,23.95,europe
+FRA,Frankfurt,50.03,8.56,europe
+DXB,Dubai,25.25,55.36,middle-east
+DEL,Delhi,28.56,77.1,asia
+SIN,Singapore,1.36,103.99,asia
+HKG,Hong Kong,22.31,113.91,asia
+NRT,Tokyo,35.77,140.39,asia
+SYD,Sydney,-33.94,151.18,oceania
+JNB,Johannesburg,-26.13,28.24,africa

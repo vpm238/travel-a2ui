@@ -815,8 +815,23 @@ not, because Amadeus has no weather product and the fixture's provenance travels
 with the delegated answer.
 
 **Fixtures** are a deterministic generator over the rows in `data/` — CSV and
-JSON, read from disk at startup. Prices move with distance, cabin and season;
-the same query returns the same result. Destination guidance is real; fares, schedules
+JSON, read from disk at startup, with real geography in it: every airport
+carries a latitude, a longitude and a region, so a fare is a floor plus a rate
+per great-circle kilometre, a flight time is taxi and climb plus cruise, and a
+connection is a hub that is actually on the way.
+
+None of that was true until somebody drove the plugin and looked. The fare was
+`280 + random() * 260` whatever the route — San Francisco to New York priced the
+same as San Francisco to Sydney, while this paragraph claimed otherwise. Every
+nonstop anywhere took between seven and nine and a half hours. And the
+connection was drawn from a list of five European hubs regardless of the route,
+so SFO → JFK came back **"1 stop · FRA"**: a domestic hop connecting in
+Frankfurt.
+
+A hub now has to be within a quarter of the direct distance or the route simply
+has no connecting option, which is why London to Paris is nonstop-only at 1h 20m
+and San Francisco to Tokyo connects at Los Angeles rather than Denver. The same
+query still returns the same result. Destination guidance is real; fares, schedules
 and hotels are not, and the UI says so. No booking happens.
 
 ### The contract, and why it is shaped like that

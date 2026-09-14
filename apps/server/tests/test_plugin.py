@@ -385,3 +385,108 @@ def test_the_script_escaping_is_the_whole_safety_story() -> None:
         "<\\/script><img onerror=alert(1)>"
     )
     assert "</script" not in _escape_script("a </script> b")
+
+
+class TestTheFourThingsDrivingItForRealFound:
+    """What a real Claude conversation turned up that no unit test had.
+
+    The plugin was installed, asked to plan SFO to New York, and driven through
+    the whole path. Every one of these looked fine from inside the repository
+    and was obviously wrong the moment somebody used it.
+    """
+
+    def test_save_trip_can_record_where_you_are_leaving_from(self) -> None:
+        """`origin` was not in the schema at all.
+
+        A trip field the route, the panel and `search_flights` all depend
+        on — and the one tool whose job is recording decisions could not accept
+        it. "Flying from SFO" was unrecordable; the only way `origin` ever
+        reached a trip was a traveller typing it into a control.
+        """
+        from travel_a2ui.brain.tools import TOOLS
+
+        save = next(tool for tool in TOOLS if tool["name"] == "save_trip")
+        assert "origin" in save["input_schema"]["properties"]
+
+    def test_every_trip_field_a_decision_uses_can_be_saved(self) -> None:
+        """The general version, so the next omission fails here instead.
+
+        Not every field belongs on the tool — `assumed` and `days` are the
+        host's bookkeeping — but a decision the panel offers a Change button for
+        is a decision the agent has to be able to write.
+        """
+        from travel_a2ui.brain import trip as model
+        from travel_a2ui.brain.tools import TOOLS
+
+        save = next(tool for tool in TOOLS if tool["name"] == "save_trip")
+        offered = set(save["input_schema"]["properties"])
+        missing = [key for key in model.DECISIONS if key not in offered]
+        assert not missing, f"save_trip cannot record: {missing}"
+
+    def test_the_trip_travels_in_the_arguments(self) -> None:
+        """MCP is stateless, so the host carries the trip or nothing does."""
+        from travel_a2ui.brain.tools import mcp_data_tools
+
+        for tool in mcp_data_tools():
+            assert "trip" in tool["inputSchema"]["properties"], tool["name"]
+
+    def test_saving_over_mcp_actually_saves(self) -> None:
+        """It used to answer `{"saved": true}` over an empty trip.
+
+        `ToolContext.save` defaults to a no-op — right for a tool that only
+        reads, wrong for the one whose entire job is recording what somebody
+        decided. The MCP door never passed one, so `save_trip` reported success,
+        returned an empty trip, and listed everything it had just been told as
+        still needed.
+        """
+        body = call(
+            "tools/call",
+            {
+                "name": "save_trip",
+                "arguments": {"origin": "SFO", "destination": "New York", "travelers": 2},
+            },
+        )
+        saved = json.loads(body["result"]["content"][0]["text"])
+        assert saved["saved"] is True
+        assert saved["trip"]["origin"] == "SFO"
+        assert saved["trip"]["destination"] == "New York"
+        assert "destination" not in saved["stillNeeded"]
+
+    def test_a_carried_trip_comes_back_with_the_new_decision_on_it(self) -> None:
+        """Two calls, and the second remembers the first — via the host."""
+        def save(arguments: dict) -> dict:
+            body = call("tools/call", {"name": "save_trip", "arguments": arguments})
+            return json.loads(body["result"]["content"][0]["text"])
+
+        first = save({"origin": "SFO", "destination": "New York"})
+        second = save({"trip": first["trip"], "travelers": 3})
+        assert second["trip"]["origin"] == "SFO"
+        assert second["trip"]["travelers"] == 3
+
+    def test_the_component_reference_carries_the_signatures(self) -> None:
+        """Not just the names.
+
+        A host may render `structuredContent` and drop the text — the one this
+        was tested against does — so the model asked for the grammar and the
+        positional signatures and got a list of thirty component names. Enough
+        to know `FlightOption` exists, nothing about what it takes.
+        """
+        result = call("tools/call", {"name": "get_a2ui_component_reference", "arguments": {}})["result"]
+        structured = result["structuredContent"]
+
+        for half in (result["content"][0]["text"], structured["contract"]):
+            assert "FlightOption(" in half
+            assert "<a2ui>" in half
+        assert len(structured["contract"]) > 5000
+
+    def test_the_instructions_do_not_advertise_withdrawn_tools(self) -> None:
+        """They opened with "the `show_*` tools are shortcuts for the six…".
+
+        Those were withdrawn from the listing deliberately; the sentence
+        describing them was not, so the first thing a host read about this
+        server was a menu it could not order from.
+        """
+        from travel_a2ui.doors.plugin import INSTRUCTIONS
+
+        assert "show_*" not in INSTRUCTIONS
+        assert "trip" in INSTRUCTIONS

@@ -72,19 +72,22 @@ SERVER_INFO = {"name": "travel-a2ui", "title": "Travel A2UI", "version": "0.1.0"
 INSTRUCTIONS = (
     "These tools return user interfaces, not text. Call one whenever the user is choosing "
     "between options, looking at an itinerary, or asking what a trip costs.\n\n"
-    "The `show_*` tools are shortcuts for the six layouts that come up most. The real "
-    "capability is composition: call `get_a2ui_component_reference` once to learn the "
+    "Nine of them return data — fares, rooms, a destination guide, a forecast, an "
+    "estimate, and the trip record itself. None of them returns a layout, because "
+    "composing one is your job: call `get_a2ui_component_reference` once to learn the "
     "catalog — flight and hotel cards, itinerary days, maps, price summaries, stat tiles, "
     "sliders, date pickers, checkboxes, layout primitives — then write A2UI Express and "
     "send it to `render_a2ui_express` to build whatever this particular conversation needs. "
     "Prefer that over describing an interface in prose.\n\n"
+    "This server keeps nothing between calls. The trip travels in the `trip` argument: "
+    "pass back what the last call returned, every time.\n\n"
     "Every result carries three things: a plain-text summary you can read, an A2UI payload "
     f"({A2UI_MIME}) for a host with its own renderer, and an HTML view for one without. "
     "Interactions in the surface come back to you as the user's next turn, so build "
     "surfaces that ask a question and let the user answer by using them.\n\n"
-    "Every tool that composes content takes `surface`: `inline` answers the current "
-    "message, `sidebar` is a persistent panel of controls, `home` is a standing summary. "
-    "It changes what gets composed, not just where it lands."
+    "Name the surface you draw into: `inline` answers the current message, `sidebar` is "
+    "a standing panel of what has been decided, `home` is a summary. A surface written "
+    "to again replaces itself, which is what makes the last two behave like panels."
 )
 
 RESOURCES = [
@@ -386,14 +389,29 @@ async def call_tool(
     # Not a surface: this one hands back the vocabulary so the *next* call can
     # compose one. It is what makes the layouts generative rather than a menu.
     if name == "get_a2ui_component_reference":
+        # The contract goes in *both* halves of the result, which looks like
+        # belt and braces and is not.
+        #
+        # A host may render either, and the one this was tested against renders
+        # `structuredContent` and drops the text. So the model asked for the
+        # grammar and the positional signatures — the two things this tool
+        # exists to hand over — and received a list of thirty component names.
+        # Enough to know `FlightOption` exists; nothing about what it takes or
+        # in what order. The next call was then a guess, and the tool that is
+        # supposed to make composition possible had quietly made it harder.
+        #
+        # Twenty-seven kilobytes, once per conversation, against a generative
+        # path that does not work without it.
+        contract = _skill_express()
         return ok(
             request_id,
             {
-                "content": [{"type": "text", "text": _skill_express()}],
+                "content": [{"type": "text", "text": contract}],
                 "structuredContent": {
                     "catalogId": CATALOG_ID,
                     "version": "v0.9.1",
                     "components": list(CATALOG_JSON.get("components") or {}),
+                    "contract": contract,
                 },
                 "isError": False,
             },
@@ -415,9 +433,24 @@ async def call_tool(
     # in advance — three cities side by side, a comparison the fixtures never
     # anticipated. A host that only ever calls `show_*` loses nothing.
     if is_data_tool(name):
+        # The trip arrives in the arguments, because there is nowhere else it
+        # could. MCP is stateless by design — every POST is self-contained and
+        # any instance may answer it — so the conversation's memory lives with
+        # the host, which hands it back on the next call. `mcp_data_tools` is
+        # where each schema gains the `trip` property that carries it.
         trip = dict(args.get("trip") or {})
+
+        # And a way to write to it. This was missing, and the symptom was a
+        # tool that lied: `save_trip` reported `{"saved": true}` while the
+        # `trip` it returned was still empty and `stillNeeded` still listed
+        # everything it had just been told. `ToolContext.save` defaults to a
+        # no-op — right for a tool that only reads, wrong for the one whose
+        # entire job is recording what somebody decided.
         tool_context = ToolContext(
-            trip=trip, provider=context.provider, today=context.today
+            trip=trip,
+            provider=context.provider,
+            save=trip.update,
+            today=context.today,
         )
         output, failed = await run_tool(name, args, tool_context)
         return ok(

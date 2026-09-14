@@ -69,6 +69,112 @@ _DESTINATIONS: list[dict[str, Any]] = json.loads(
 _AIRLINES = [{"code": r["code"], "name": r["name"]} for r in _rows("airlines.csv")]
 _ORIGINS = [{"code": r["code"], "city": r["city"]} for r in _rows("origins.csv")]
 _ORIGIN_CODES = {entry["code"] for entry in _ORIGINS}
+
+#: Where each airport is, and what part of the world it is in.
+#:
+#: The fixtures had no geography and every symptom of it was visible on the
+#: first screen: SFO to JFK connecting in Frankfurt, a nonstop to anywhere
+#: taking between seven and nine hours, and a fare that did not move with
+#: distance while the documentation said it did.
+_PLACE: dict[str, dict[str, Any]] = {
+    row["code"]: {
+        "lat": float(row["lat"]),
+        "lon": float(row["lon"]),
+        "region": row["region"],
+    }
+    for row in _rows("origins.csv")
+    if row.get("lat")
+}
+
+#: Where a connecting flight actually stops.
+#:
+#: Airports this deployment already knows, so a connection is somewhere the app
+#: could talk about rather than three letters nobody can place. Picked from the
+#: regions the route touches — which is what makes a domestic hop connect
+#: domestically.
+_HUBS: dict[str, list[str]] = {
+    "north-america": ["ORD", "DEN", "JFK", "LAX", "MIA"],
+    "south-america": ["GRU"],
+    "europe": ["LHR", "CDG", "FRA", "MAD", "LIS"],
+    "middle-east": ["DXB"],
+    "asia": ["SIN", "HKG", "NRT", "DEL"],
+    "oceania": ["SYD"],
+    "africa": ["JNB"],
+}
+
+
+def _distance_km(origin: str, destination: str) -> float | None:
+    """Great-circle kilometres between two airports we know.
+
+    `None` when either is unknown, so every caller has to say what it does
+    without geography rather than quietly pretending the distance is zero.
+    """
+    import math
+
+    a, b = _PLACE.get(origin), _PLACE.get(destination)
+    if not a or not b:
+        return None
+    lat1, lon1, lat2, lon2 = map(math.radians, (a["lat"], a["lon"], b["lat"], b["lon"]))
+    haversine = (
+        math.sin((lat2 - lat1) / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
+    )
+    return 6371.0 * 2 * math.asin(min(1.0, math.sqrt(haversine)))
+
+
+def _connection(origin: str, destination: str, random: Callable[[], float]) -> str | None:
+    """Somewhere a flight between these two would plausibly stop, or nothing.
+
+    `None` means no hub is on the way, and the honest answer is then that this
+    route does not have a connecting option — which is true of short ones.
+    London to Paris is 347 km and every hub that is not London or Paris adds
+    more than double the journey; a "1 stop · FRA" on it is not a cheaper
+    alternative, it is a joke at the traveller's expense.
+
+    A hub has to be roughly *on the way*. Region alone is not enough: picking
+    from the regions at either end still offered San Francisco to Tokyo via New
+    York, and New York to Madrid via Los Angeles — both of them flying several
+    thousand kilometres backwards before setting off.
+
+    So every hub is scored by how far it drags the journey — the two legs
+    against the direct distance — and only those within a reasonable detour are
+    candidates. That is also what makes a domestic hop connect domestically,
+    without having to say so: Frankfurt is not on the way from San Francisco to
+    New York, so it scores itself out.
+
+    A route between airports we have no geography for falls back to every hub we
+    know, which is the old behaviour and at least claims nothing.
+    """
+    direct = _distance_km(origin, destination)
+    candidates = [
+        hub
+        for hubs in _HUBS.values()
+        for hub in hubs
+        if hub not in (origin, destination) and hub in _PLACE
+    ]
+
+    if direct:
+        detours: list[tuple[float, str]] = []
+        for hub in candidates:
+            first, second = _distance_km(origin, hub), _distance_km(hub, destination)
+            if first is None or second is None:
+                continue
+            detours.append(((first + second) / max(direct, 1.0), hub))
+        # A quarter over the direct distance is about where a real connection
+        # stops being worth it, and it is tight enough to rule out the ones that
+        # fly backwards: San Francisco to Tokyo via Denver is only a third
+        # longer and is still pointed the wrong way.
+        #
+        # Sorted so the pick is stable for a seed regardless of dict order.
+        near = sorted(hub for ratio, hub in detours if ratio <= 1.25)
+        return _pick(near, random) if near else None
+
+    pool = sorted(hub for hub in candidates if hub not in (origin, destination))
+    if not pool:
+        pool = sorted(_CONNECTIONS)
+    return _pick(pool, random)
+
+
 _CURRENCY_SYMBOL = {r["code"]: r["symbol"] for r in _rows("currencies.csv")}
 
 _LODGING: dict[str, list[str]] = {}
@@ -386,7 +492,17 @@ class FixtureProvider:
         cabin = query.get("cabin") or "economy"
         random = _rng(_seed(f"{origin}-{destination['airport']}-{when}-{cabin}"))
         multiplier = {"economy": 1, "premium": 1.7, "business": 3.4, "first": 5.6}.get(cabin, 1)
-        base = 280 + random() * 260
+
+        # How far it actually is, and what that costs.
+        #
+        # `base` was `280 + random() * 260` — stable per route, and completely
+        # unrelated to the route. San Francisco to New York and San Francisco to
+        # Sydney were the same price, while the architecture doc claimed prices
+        # moved with distance. They do now: a floor for the seat and the airport,
+        # plus a rate per kilometre, and the random part narrowed to the spread
+        # you would actually see between carriers on one day.
+        km = _distance_km(origin, destination["airport"])
+        base = (55 + km * 0.055) if km else (280 + random() * 260)
 
         import math
 
@@ -400,10 +516,30 @@ class FixtureProvider:
                 guard += 1
             used.add(airline["code"])
 
-            stops = index == 4 or random() < 0.28
+            # Whether it stops, and where. Asked in that order and then
+            # reconciled: a route with nowhere sensible to stop has no
+            # connecting option at all, however the dice landed.
+            wants_stop = index == 4 or random() < 0.28
+            hub = _connection(origin, destination["airport"], random) if wants_stop else None
+            stops = hub is not None
             depart = math.floor(6 * 60 + random() * 15 * 60)
-            leg = math.floor((620 if stops else 430) + random() * 140)
-            price = base * multiplier * (0.82 if stops else 1) * (0.9 + random() * 0.4)
+
+            # How long it takes, from how far it is.
+            #
+            # This was `(620 if stops else 430) + random() * 140`: seven to nine
+            # and a half hours for a nonstop, whether that nonstop was London to
+            # Paris or San Francisco to Sydney. Now it is taxi, climb and descent
+            # plus cruise at a shade under 900 km/h — and a stop adds the detour
+            # through the hub and an hour or so on the ground.
+            if km:
+                cruise = 45 + km / 14.0
+                leg = math.floor(cruise * (1.18 if stops else 1.0) + (65 + random() * 55 if stops else random() * 25))
+            else:
+                leg = math.floor((620 if stops else 430) + random() * 140)
+
+            # A connection is cheaper than the nonstop, which is why anyone takes
+            # one, and carriers differ by a little rather than by half.
+            price = base * multiplier * (0.82 if stops else 1) * (0.92 + random() * 0.22)
 
             all_flights.append(
                 {
@@ -415,7 +551,7 @@ class FixtureProvider:
                     "departTime": _clock(depart),
                     "arriveTime": _clock(depart + leg),
                     "duration": f"{leg // 60}h {leg % 60}m",
-                    "stops": f"1 stop · {_pick(_CONNECTIONS, random)}" if stops else "Nonstop",
+                    "stops": f"1 stop · {hub}" if hub else "Nonstop",
                     "price": _money(price, "USD"),
                     "priceValue": _js_round(price),
                     "cabin": cabin,

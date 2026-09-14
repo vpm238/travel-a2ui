@@ -124,12 +124,36 @@ def mcp_data_tools() -> list[dict[str, Any]]:
     source — re-keyed from `parameters` to `inputSchema`, which is the only
     thing the two protocols disagree about.
     """
+    #: What the host carries between calls, since the server carries nothing.
+    #:
+    #: MCP is stateless: every POST is self-contained and any instance may
+    #: answer it, so there is no session to keep a trip in. The host is the only
+    #: party present for the whole conversation, so it holds the trip and hands
+    #: it back — the same arrangement the web client uses for its resume
+    #: receipt, for the same reason.
+    #:
+    #: Without this the trip could not travel at all. `save_trip` would record a
+    #: departure airport, return it, and be asked for it again on the next call
+    #: because nothing had anywhere to put it.
+    carried = {
+        "type": "object",
+        "description": (
+            "The trip so far, exactly as the last call returned it. Pass it back "
+            "on every call: this server keeps nothing between calls, so a trip "
+            "you do not carry is a trip it has never heard of."
+        ),
+        "additionalProperties": True,
+    }
+
     return [
         {
             "name": tool["name"],
             "title": tool["name"].replace("_", " ").capitalize(),
             "description": tool["description"],
-            "inputSchema": tool["input_schema"],
+            "inputSchema": {
+                **tool["input_schema"],
+                "properties": {**tool["input_schema"].get("properties", {}), "trip": carried},
+            },
         }
         for tool in TOOLS
     ]

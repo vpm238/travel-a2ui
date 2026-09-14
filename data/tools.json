@@ -181,6 +181,10 @@
           "destination": {
             "type": "string"
           },
+          "origin": {
+            "type": "string",
+            "description": "Departure airport code for the first hop — 'SFO'. Later hops carry their own on the leg."
+          },
           "startDate": {
             "type": "string",
             "description": "YYYY-MM-DD."
