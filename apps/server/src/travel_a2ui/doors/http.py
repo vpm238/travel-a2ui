@@ -37,7 +37,9 @@ from .interactions import (
     DEFAULT_MODEL as AGENT_DEFAULT_MODEL,
     SurfaceAction,
     TurnRequest,
+    WarmRequest,
     run_turn,
+    warm,
 )
 from ..brain.contract import INSTANTIATION_MAX_AGE_MS, contract_stamp
 from ..brain.providers.fixture import FixtureProvider
@@ -60,19 +62,15 @@ _ROOT = ROOT
 WEB_DIST = _ROOT / "apps" / "web" / "dist"
 FLUTTER_DIST = _ROOT / "renderers" / "flutter" / "build" / "web"
 
-#: What the picker offers, and what answers when nobody picks.
+#: What this deployment can run, reported for information.
 #:
-#: Flash Lite is the default because it was measured, not because it is cheap.
-#: The same turn — "trip from sfo to nyc" — traced end to end:
-#:
-#:   gemini-3.5-flash-lite   first word 1.7s, first surface 1.7s, done  2.9s
-#:   gemini-3.8-flash        first word 2.5s, first surface 4.7s, done 10.8s
-#:
-#: and Flash was additionally failing mid-stream with "gemini-3.8-flash is
-#: currently experiencing high demand". Lite is also the only one of the three
-#: that accepts `thinking_level: minimal`, which is most of the difference: this
-#: turn is recall, not reasoning — the catalog and the rules are in the prompt
-#: and the job is to pick three components and bind them.
+#: Not a picker any more. One was offered in the header and it governed the
+#: reply but not the panel beside it, which was pinned to the small model with
+#: the picked one wired in as its *fallback* — so choosing the better model
+#: changed half the screen. `DEFAULT_MODEL` decides, `PANEL_MODEL` decides for
+#: the panels, and both live in `interactions.py` next to the loops that use
+#: them. This list stays because a reader of the API should be able to see what
+#: the deployment is running without reading its source.
 MODELS = [
     {
         "id": "gemini-3.8-flash",
@@ -110,6 +108,44 @@ app = FastAPI(title="Travel A2UI", docs_url=None, redoc_url=None)
 
 def _no_store(payload: Any, status: int = 200) -> JSONResponse:
     return JSONResponse(payload, status_code=status, headers={"cache-control": "no-store"})
+
+
+@app.post("/api/warm")
+async def warm_up(
+    request: Request, x_goog_api_key: str = Header(default="")
+) -> JSONResponse:
+    """Start the conversation before the traveller has typed anything.
+
+    The client calls this once, when somebody first touches the composer — which
+    is the moment they are about to type and several seconds before they finish.
+    The reply is a receipt the next turn resumes, so that turn pays forty-odd
+    input tokens instead of five thousand.
+
+    A POST because it creates something. Cheap, and safe to call twice: a second
+    conversation is started, the client keeps the newer receipt, and the older
+    one is never referred to again.
+    """
+    body: dict[str, Any] = {}
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001 - an empty body is a valid warm-up
+        body = {}
+
+    api_key = (x_goog_api_key or os.environ.get("GEMINI_API_KEY", "")).strip()
+    if not api_key:
+        # Not an error. A visitor with no key has nothing to warm, and saying so
+        # with a 400 would put a red line in their console on page load.
+        return _no_store({"interactionId": None, "setup": None, "skipped": "no key"})
+
+    return _no_store(
+        await warm(
+            WarmRequest(
+                api_key=api_key,
+                skill=str(body.get("skill") or "express-modular"),
+                model=str(body.get("model") or os.environ.get("DEFAULT_MODEL", AGENT_DEFAULT_MODEL)),
+            )
+        )
+    )
 
 
 @app.get("/api/meta")

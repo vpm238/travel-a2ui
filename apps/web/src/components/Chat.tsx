@@ -325,6 +325,18 @@ export function Chat({ agent }: { agent: Agent }) {
         <textarea
           value={draft}
           rows={1}
+          /*
+            The conversation starts here, not on the first Send.
+
+            A first turn is about eight times slower than every one after it,
+            because the Interactions API is stateful and the whole prompt goes
+            up once when a conversation begins. Touching the composer is the
+            earliest honest signal that somebody is about to say something — and
+            it buys the several seconds they spend typing, which is most of what
+            that first upload costs. Doing it on page load would spend a model
+            call on everybody who reads the page and leaves.
+          */
+          onFocus={agent.warm}
           placeholder={
             agent.voice.listening
               ? agent.voice.speaking

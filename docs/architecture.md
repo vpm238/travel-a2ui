@@ -553,6 +553,37 @@ party size — in its heading. `LHR → Madrid · 12–19 Apr · 3 travellers`, 
 
 ## 6 · A turn, end to end
 
+### The first one is the slow one, and that is fixable
+
+Worth saying before the diagram, because it is the turn everybody judges the app
+on. The Interactions API is **stateful**: `previous_interaction_id` carries the
+whole prior context on Google's side, so the system instruction — role, flow,
+journey, inventory, controls, catalog, about fifteen thousand tokens — is sent
+once when a conversation starts and never again. Measured on a 5,411-token
+instruction, a follow-up that omitted it cost **44 input tokens instead of
+5,411**, with `total_cached_tokens` at 0 throughout, so nothing was quietly
+caching it either.
+
+That makes the first turn about eight times slower to draw than the second
+(`tools/eval/latency.py`, same ask, same model):
+
+    cold     firstWord 5.3s   firstSurface 19.6s   done 29.4s
+    second   firstWord 1.8s   firstSurface  2.4s   done 15.0s
+    warmed   firstWord 5.2s   firstSurface 11.6s   done 13.5s
+
+So `POST /api/warm` starts the conversation against a throwaway turn, and the
+client fires it when somebody **first focuses the composer** — the earliest
+honest signal they are about to type, and several seconds before they finish.
+The traveller's first message is then a *second* turn. In a real browser, first
+surface: 5.9–17.0 s without it, 2.4–3.4 s with.
+
+Focus rather than page load, deliberately: a warm-up on load spends a model call
+on everyone who reads the page and leaves. And it is only possible at all
+because `build_prompt_parts` splits the prompt by what varies — the stable half
+depends on the skill variant alone, with no surface id, no trip and no date in
+it, so nothing warmed early is stale by the time somebody types.
+
+
 ```
  client                     server                       Gemini
  ──────                     ──────                       ─────────

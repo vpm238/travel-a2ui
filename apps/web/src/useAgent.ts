@@ -31,6 +31,7 @@ import { consumeKeyFromUrl } from './apiKey.js';
 export type Trip = Record<string, unknown>;
 import { instantiateLive, startVoice as openVoice, type VoiceSession } from './voice.js';
 import {
+  warmUp,
   clientHints,
   fetchMeta,
   getApiOrigin,
@@ -638,6 +639,10 @@ export function useAgent() {
               interactionId: event.interactionId,
               trip: event.trip,
               shape: event.shape,
+              // Carried rather than dropped. Without it the server falls back
+              // to its own session, and the claim that the client holds the
+              // thread is only true while there is one server.
+              setup: event.setup,
             };
             break;
           case 'timing':
@@ -758,12 +763,45 @@ export function useAgent() {
     [busy, send],
   );
 
+  /**
+   * Starts the conversation before the traveller finishes typing.
+   *
+   * Fired on the first touch of the composer rather than on page load, and that
+   * is the whole design: it is the moment somebody is about to type, several
+   * seconds before they are done, and it costs nothing for the visitor who
+   * reads the page and leaves.
+   *
+   * What it buys, measured (`tools/eval/latency.py`): the first interface
+   * arrives in about 11.6 s instead of 19.6 s, and the turn finishes in 13.5 s
+   * instead of 29.4 s. The Interactions API is stateful, so the fifteen
+   * thousand tokens of prompt go up once per conversation — this just moves
+   * "once" to a moment nobody is watching.
+   *
+   * Once per conversation. `reset` clears the flag with the receipt, because a
+   * new conversation is cold again.
+   */
+  const warmedRef = useRef(false);
+  const warm = useCallback(() => {
+    if (warmedRef.current || !keyRef.current) return;
+    // Set before the request, not after: two keystrokes in the same tick would
+    // otherwise start two conversations.
+    warmedRef.current = true;
+    void warmUp(keyRef.current, prefsRef.current.skill).then((warmed) => {
+      // Only if nothing has happened since. A traveller who typed fast enough
+      // to finish a real turn already has a better receipt than this one.
+      if (warmed.interactionId && !resumeRef.current) {
+        resumeRef.current = { interactionId: warmed.interactionId, setup: warmed.setup ?? undefined };
+      }
+    });
+  }, []);
+
   const reset = useCallback(async () => {
     abortRef.current?.abort();
     await resetSession(sessionId).catch(() => undefined);
     // The receipt goes with the conversation it belongs to. Keeping it would
     // resume the trip that was just thrown away, on the next message.
     resumeRef.current = undefined;
+    warmedRef.current = false;
     setSessionId(newSessionId());
     setTurns([]);
     setTrip({});
@@ -1053,6 +1091,8 @@ export function useAgent() {
     busy,
     liveSurface,
     send,
+    /** Called when the composer is first touched. See `warm`. */
+    warm,
     drawSurface,
     stop,
     reset,

@@ -759,3 +759,95 @@ class TestPressesTheHostAnswersItself:
         """Removing the wrong activity is worse than removing none."""
         called, _ = self._drop(client, monkeypatch, 9, 9)
         assert called["model"] is True
+
+
+class TestTheConversationStartsBeforeAnybodyTypes:
+    """`/api/warm`, and why the first interface used to take twenty seconds.
+
+    The Interactions API is stateful: the fifteen-thousand-token system
+    instruction goes up once when a conversation starts and never again. So the
+    first turn is about eight times slower to draw than the second, and it is
+    the one somebody judges the app on. Measured, same ask, same model:
+
+        cold     first surface 19.6s   done 29.4s
+        warmed   first surface 11.6s   done 13.5s
+        second   first surface  2.4s   done 15.0s
+
+    This pays that cost against a throwaway turn while somebody is still typing.
+    """
+
+    def test_it_hands_back_a_receipt_the_next_turn_can_resume(
+        self, client: TestClient
+    ) -> None:
+        from travel_a2ui.doors import http as http_module
+
+        calls: list[dict] = []
+
+        async def fake_warm(request):
+            calls.append({"skill": request.skill, "model": request.model})
+            return {"interactionId": "int-123", "setup": "abc123", "ms": 900.0}
+
+        original = http_module.warm
+        http_module.warm = fake_warm
+        try:
+            body = client.post("/api/warm", headers={"x-goog-api-key": "k"}).json()
+        finally:
+            http_module.warm = original
+
+        assert body["interactionId"] == "int-123"
+        assert body["setup"] == "abc123"
+        assert calls and calls[0]["skill"] == "express-modular"
+
+    def test_no_key_is_not_an_error(self, client: TestClient) -> None:
+        """A visitor who has not pasted one has nothing to warm.
+
+        A 400 here would put a red line in the console of somebody who has done
+        nothing wrong, on a request they did not make.
+        """
+        import os
+
+        had = os.environ.pop("GEMINI_API_KEY", None)
+        try:
+            response = client.post("/api/warm")
+        finally:
+            if had is not None:
+                os.environ["GEMINI_API_KEY"] = had
+        assert response.status_code == 200
+        assert response.json()["interactionId"] is None
+        assert response.json()["skipped"] == "no key"
+
+    def test_the_warm_up_carries_no_tools(self) -> None:
+        """A warm-up that can call something might.
+
+        `search_flights` for a trip nobody has described is the opposite of the
+        head start this exists to give.
+        """
+        import inspect
+
+        from travel_a2ui.doors import interactions
+
+        source = inspect.getsource(interactions.warm)
+        assert "tools=" not in source
+
+    def test_it_warms_the_half_of_the_prompt_that_is_actually_reused(self) -> None:
+        """The stable half, and nothing that goes stale while somebody types.
+
+        `build_prompt_parts` splits the prompt by what varies. The stable half
+        depends on the skill variant alone — no surface id, no trip, no date —
+        which is the only reason a conversation can be started before there is
+        anything to say.
+        """
+        from travel_a2ui.brain.skills import build_prompt_parts
+
+        common = dict(catalog_id="x", variant="express-modular")
+        empty, _ = build_prompt_parts(
+            surface="inline", surface_id="inline-1", trip={}, today="2027-03-01", **common
+        )
+        busy, _ = build_prompt_parts(
+            surface="home",
+            surface_id="home",
+            trip={"destination": "Madrid", "travelers": 3},
+            today="2027-09-09",
+            **common,
+        )
+        assert empty == busy

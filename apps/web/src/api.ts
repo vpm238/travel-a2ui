@@ -64,7 +64,13 @@ export type AgentEvent =
    * it a second instance has never heard of this conversation and starts a new
    * one with an empty trip, mid-sentence.
    */
-  | { type: 'resume'; interactionId?: string; trip?: Record<string, unknown>; shape?: string }
+  | {
+      type: 'resume';
+      interactionId?: string;
+      trip?: Record<string, unknown>;
+      shape?: string;
+      setup?: string;
+    }
   | { type: 'done'; stopReason: string | null };
 
 /** The last turn's receipt, carried by the client and sent back unread. */
@@ -72,6 +78,16 @@ export interface Resume {
   interactionId?: string;
   trip?: Record<string, unknown>;
   shape?: string;
+  /**
+   * Which prompt the conversation was started against.
+   *
+   * The server sends this and the client used to drop it, which quietly undid
+   * the point of handing the receipt over: the server then fell back to its own
+   * in-memory session, so "any instance can answer any turn" was true only
+   * while there was one instance. It is opaque — a hash of the stable half of
+   * the prompt — and the only thing to do with it is hand it back.
+   */
+  setup?: string;
 }
 
 export interface ModelOption {
@@ -292,6 +308,45 @@ export async function fetchMeta(): Promise<Meta> {
   const response = await fetch(api('/api/meta'));
   if (!response.ok) throw new Error(`Could not load app metadata (${response.status}).`);
   return (await response.json()) as Meta;
+}
+
+/** What a warm-up hands back: the conversation, already started. */
+export interface Warmed {
+  interactionId?: string | null;
+  setup?: string | null;
+  ms?: number;
+  skipped?: string;
+  error?: string;
+}
+
+/**
+ * Starts the conversation before the traveller has typed anything.
+ *
+ * The first interface takes about eight times longer than every one after it,
+ * because the Interactions API is stateful and the fifteen-thousand-token system
+ * instruction goes up once per conversation. Paying that against a throwaway
+ * turn, while somebody is still typing, is most of it back:
+ *
+ *     cold     first surface 19.6s
+ *     warmed   first surface 11.6s
+ *     second   first surface  2.4s
+ *
+ * Never throws. A warm-up that did not happen costs the first turn its head
+ * start and nothing else, and an error banner for a request nobody made is
+ * worse than the slow turn it is warning about.
+ */
+export async function warmUp(apiKey: string, skill: string): Promise<Warmed> {
+  try {
+    const response = await fetch(api('/api/warm'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({ skill }),
+    });
+    if (!response.ok) return { error: `warm-up failed (${response.status})` };
+    return (await response.json()) as Warmed;
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 export async function resetSession(sessionId: string): Promise<void> {
