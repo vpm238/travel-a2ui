@@ -285,6 +285,15 @@ Label them by leg — "Going out", "Coming back", "In Chicago" — not "Traveler
 twice. Two identical labels with different numbers reads as a bug on screen
 even when the data underneath is right.
 
+**And a leg with a party pays a party's price.** A fare is quoted per traveller,
+so a flight card reading `$261` on a leg carrying two people is showing half of
+what it costs. Every flight card takes a `total` for exactly this — set it to
+what the whole leg pays, like `"$522 for 2"`, whenever more than one person is
+on that hop, and the card shows both.
+
+Then say nothing about it in prose. "$261 each · $522 for 2" written underneath
+the cards is the number that belongs *on* them.
+
 ## Make the surface do its own arithmetic
 
 Catalog functions run in the renderer. A label bound to one recomputes the

@@ -167,7 +167,16 @@ export function FlightOption({ node, scope, ctx }: ComponentProps) {
   const interactive = Boolean(node['action']);
   const flightNumber = resolveText(node['flightNumber'], scope);
   const code = carrierCode(flightNumber);
-  const [fare, party] = splitPrice(resolveText(node['price'], scope));
+  const [fare, inline] = splitPrice(resolveText(node['price'], scope));
+  // What the whole party pays, when that is a different number from the fare.
+  //
+  // `total` is the field for it. The `·` convention `splitPrice` handles came
+  // first and no producer ever emitted it — the server passed the provider's
+  // per-traveller price straight through — so a leg carrying two people showed
+  // one person's fare and the real number appeared only in the prose
+  // underneath, which is the one place this product exists not to put it.
+  // Still honoured, because a surface the model composed may use it.
+  const party = resolveText(node['total'], scope) || inline;
 
   return (
     <div
@@ -229,10 +238,15 @@ export function FlightOption({ node, scope, ctx }: ComponentProps) {
             fare
           )}
         </strong>
-        {/* What the party actually pays, when that is a different number from
-            the one above it. The server composes both into `price`; this is
-            only deciding which of them is the big one. */}
-        <span className="tv-flight__cabin">{party || str(node['cabin']) || 'economy'}</span>
+        {/* A leg with more than one traveller says so here, under the fare,
+            because a price with no party beside it is the thing that makes an
+            answer untrustworthy. Falls back to the cabin when the party is one,
+            which is most trips. */}
+        {party ? (
+          <span className="tv-flight__party">{party}</span>
+        ) : (
+          <span className="tv-flight__cabin">{str(node['cabin']) || 'economy'}</span>
+        )}
       </div>
 
       {selected ? (

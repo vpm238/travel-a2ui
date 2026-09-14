@@ -167,6 +167,17 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
                 " model so the selection survives a re-render."
             ),
             "badge": dyn_str("Short editorial tag, e.g. 'Cheapest' or 'Fastest'."),
+            # Last, and that is load-bearing: declaration order *is* the
+            # positional argument order the model is taught, so a field inserted
+            # next to `price` would silently renumber every argument after it
+            # and invalidate every example, golden and Express block already
+            # written. Appending costs nothing and breaks nothing.
+            "total": dyn_str(
+                "What this flight costs for everyone on this leg, when that is"
+                " more than one person — preformatted, e.g. '$522 for 2'. Give it"
+                " whenever the leg carries a party, and `price` is then read as"
+                " the per-traveler fare."
+            ),
         },
         required=["airline", "departTime", "arriveTime", "origin", "destination", "price", "action"],
     ),

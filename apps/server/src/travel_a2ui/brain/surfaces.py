@@ -319,15 +319,34 @@ async def _flights(args: dict[str, Any], provider: TravelProvider) -> Surface:
         f"surface({_q(surface_id)})",
         f"head = Text({_q(heading)}, variant={_q('h4' if flow == 'home' else 'h3')})",
     ]
+    # Who is on *this* hop, which is not always who is on the trip.
+    #
+    # "on the way back I need 2 tickets" is an ordinary sentence and it makes
+    # the return leg a different size from the outbound. The fare a provider
+    # quotes is per traveller either way, so a card showing `$261` for a leg
+    # carrying two people is quietly showing half the price — and the only
+    # place the real number appeared was the prose underneath, which is the one
+    # place this product exists not to put it.
+    party = _int(trip.get("travelers"), 1) or 1
+
     for index, flight in enumerate(flights):
         badge = f", badge={_q(flight['badge'])}" if flight.get("badge") else ""
+        # Only when it differs from the fare. `total="$261 for 1"` is noise on
+        # every card of every single-traveller trip, which is most of them.
+        fare = _number(flight.get("priceValue"))
+        total = (
+            f", total={_q(f'{_money(int(round(fare * party)))} for {party}')}"
+            if party > 1 and fare is not None
+            else ""
+        )
         lines.append(
             f"f{index} = FlightOption({_q(flight['airline'])}, {_q(flight['departTime'])}, "
             f"{_q(flight['arriveTime'])}, {_q(flight['origin'])}, {_q(flight['destination'])}, "
             f"{_q(flight['price'])}, "
             f'Event("select_flight", {{id: {_q(flight["id"])}, price: {_q(flight["price"])}}}), '
             f"duration={_q(flight['duration'])}, stops={_q(flight['stops'])}, "
-            f"flightNumber={_q(flight['flightNumber'])}, cabin={_q(flight['cabin'])}{badge})"
+            f"flightNumber={_q(flight['flightNumber'])}, cabin={_q(flight['cabin'])}"
+            f"{badge}{total})"
         )
 
     # The footer says where the numbers came from. On a fixture deployment that

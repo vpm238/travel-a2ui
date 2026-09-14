@@ -270,3 +270,73 @@ class TestCatalogFunctionsAreClientSide:
         )
         for name in self._catalog()["functions"]:
             assert f"def {name}" not in source, f"{name} has a server implementation"
+
+
+class TestALegCarriesItsOwnParty:
+    """"On the way back I need 2 tickets" makes the return a different size.
+
+    A provider quotes per traveller, so a card showing `$261` for a leg
+    carrying two people is showing half of what it costs. The only place the
+    real number appeared was the prose underneath — which is the one place this
+    product exists not to put it.
+
+    The renderer had a `splitPrice` helper for exactly this and no producer ever
+    emitted the shape it split, so the affordance was dead on both sides.
+    """
+
+    def express(self, travelers: int) -> str:
+        import asyncio
+
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
+        from travel_a2ui.brain.surfaces import build_surface
+
+        surface = asyncio.run(
+            build_surface(
+                "show_flight_options",
+                {
+                    "destination": "SFO",
+                    "origin": "JFK",
+                    "date": "2026-09-27",
+                    "travelers": travelers,
+                },
+                FixtureProvider(),
+                "2026-09-14",
+            )
+        )
+        return surface.express
+
+    def test_a_party_gets_a_total(self) -> None:
+        express = self.express(2)
+        assert "total=" in express, "two tickets and no total on the card"
+        assert "for 2" in express
+
+    def test_one_traveller_gets_none(self) -> None:
+        """`total="$261 for 1"` is noise on most trips."""
+        assert "total=" not in self.express(1)
+
+    def test_the_total_is_the_fare_times_the_party(self) -> None:
+        import re
+
+        express = self.express(3)
+        fares = re.findall(r'FlightOption\([^)]*?"(\$[\d,]+)"', express)
+        totals = re.findall(r'total="\$([\d,]+) for 3"', express)
+        assert fares and totals, "expected both a fare and a total on every card"
+        for fare, total in zip(fares, totals):
+            each = int(fare.lstrip("$").replace(",", ""))
+            assert int(total.replace(",", "")) == each * 3, f"{fare} × 3 ≠ ${total}"
+
+    def test_it_compiles_and_validates(self) -> None:
+        """A new field the catalog does not accept is a surface that never draws."""
+        from travel_a2ui.brain.surfaces import Surface, compile_surface
+
+        messages = compile_surface(
+            Surface(express=self.express(2), surface_id="mcp-flights", summary="")
+        )
+        flights = [
+            component
+            for message in messages
+            for component in (message.get("updateComponents") or {}).get("components", [])
+            if component.get("component") == "FlightOption"
+        ]
+        assert flights, "no flight cards compiled"
+        assert all("for 2" in str(card.get("total", "")) for card in flights)

@@ -999,6 +999,10 @@
             "badge": {
               "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
               "description": "Short editorial tag, e.g. 'Cheapest' or 'Fastest'."
+            },
+            "total": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+              "description": "What this flight costs for everyone on this leg, when that is more than one person — preformatted, e.g. '$522 for 2'. Give it whenever the leg carries a party, and `price` is then read as the per-traveler fare."
             }
           },
           "required": [

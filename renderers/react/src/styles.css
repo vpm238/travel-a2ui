@@ -756,6 +756,17 @@
   text-transform: capitalize;
 }
 
+/* The party total, where the cabin sits on a single-traveller card.
+   Darker than the cabin it replaces, because it is a price rather than a
+   footnote — a number the traveller is meant to read, not skip. */
+.tv-flight__party {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--tv-ink-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .tv-flight__tick {
   position: absolute;
   top: -8px;

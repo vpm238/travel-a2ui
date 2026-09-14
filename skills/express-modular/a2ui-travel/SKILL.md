@@ -64,7 +64,7 @@ Use these exact positional signatures to instantiate components. Do not output p
     * status - One of 'paid', 'owes', 'settled'.
   - action: Fired when the traveler settles or edits the split.
   - actionLabel: Label for that action, e.g. 'Settle up'.
-• FlightOption(airline, departTime, arriveTime, origin, destination, price, action (static), duration?, stops?, flightNumber?, cabin? (static), selected?, badge?)
+• FlightOption(airline, departTime, arriveTime, origin, destination, price, action (static), duration?, stops?, flightNumber?, cabin? (static), selected?, badge?, total?)
   - Description: A single selectable flight itinerary leg. Use one per option when presenting a choice of flights; do not build flight rows by hand out of Row and Text.
   - airline: Operating carrier, e.g. 'Iberia' or 'Delta'.
   - departTime: Local departure time as a display string, e.g. '07:15'.
@@ -79,6 +79,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - cabin: Cabin the price refers to. Must be one of: 'economy', 'premium', 'business', 'first'
   - selected: Whether this option is currently chosen. Bind it to the data model so the selection survives a re-render.
   - badge: Short editorial tag, e.g. 'Cheapest' or 'Fastest'.
+  - total: What this flight costs for everyone on this leg, when that is more than one person — preformatted, e.g. '$522 for 2'. Give it whenever the leg carries a party, and `price` is then read as the per-traveler fare.
 • HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities? (static), selected?, badge?)
   - Description: A place to stay, presented as a rich card with imagery, rating and nightly price.
   - name: Property name.

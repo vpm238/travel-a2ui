@@ -342,6 +342,7 @@ Widget _flightOption(BuildContext context, ComponentBuild build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
   final badge = build.string('badge');
+  final total = build.string('total');
 
   return _tappable(
     onTap: build.hasAction ? build.fire : null,
@@ -368,8 +369,23 @@ Widget _flightOption(BuildContext context, ComponentBuild build) {
                   child: Text(badge, style: text.labelSmall),
                 ),
               const SizedBox(width: 8),
-              _bound(build, 'price', text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                  width: 56),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _bound(build, 'price',
+                      text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      width: 56),
+                  // What the whole party pays, when the leg carries more than
+                  // one person. `price` is per traveller, so a return leg with
+                  // two tickets showed half of what it costs until this.
+                  if (total != null && total.isNotEmpty)
+                    Text(total,
+                        style: text.labelSmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600)),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 8),
