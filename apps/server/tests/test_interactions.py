@@ -858,3 +858,55 @@ class TestABusyModelDegradesRatherThanDies:
 
         assert [event for event in events if event["type"] == "error"], "said once, plainly"
         assert client.asked == ["gemini-3.8-flash"], "asked once, not four times"
+
+
+def test_a_surface_written_as_json_never_reaches_the_traveller() -> None:
+    """The model reached for a notation that does not exist, and it was printed.
+
+    Reported from a real turn: asked for a trip from SFO to NYC, the reply was
+    a fenced JSON document — `"call": "host:render"`, components typed `Form`
+    and `NumberField` — and the whole thing appeared in the chat as prose,
+    because the splitter looks for `<a2ui>` and there was none to find.
+
+    A compile error was already caught and handed back to be rewritten. This
+    was the same mistake one step earlier and the only one that reached the
+    screen, which made it the worst of the three.
+    """
+    import asyncio
+
+    misdrawn = (
+        "Here are your options.\n\n"
+        '```json\n[{"call": "host:render", "surface": "inline-1", '
+        '"components": [{"id": "picker", "type": "Form"}]}]\n```\n\nLet me know.'
+    )
+    model = FakeModel([(list(misdrawn), []), (["Sorry — ", SURFACE], [])])
+    events = asyncio.run(collect(base(message="plan me a trip", client=model)))
+
+    text = "".join(event["delta"] for event in events if event["type"] == "text")
+    assert "host:render" not in text, "the JSON was printed at the traveller"
+    assert '"components"' not in text
+    assert "Here are your options." in text, "the prose around it still arrives"
+
+    # And the model is told, once, the way a compile failure tells it.
+    retries = [event for event in events if event["type"] == "retry"]
+    assert retries, "the model was never told it used the wrong notation"
+    assert "Express" in retries[0]["reason"]
+
+    told = model.bodies[-1]["input"][0]["content"][0]["text"]
+    assert "<a2ui>" in told, "the retry has to name the notation that does work"
+    assert "host:render" in told, "and quote back what it actually wrote"
+
+    # The second attempt is the one the traveller sees.
+    assert [event for event in events if event["type"] == "ui"], "the retry drew"
+
+
+def test_a_fence_is_not_retried_forever() -> None:
+    """Twice is a pattern; a third round is a traveller watching a spinner."""
+    import asyncio
+
+    misdrawn = '```json\n{"components": []}\n```'
+    model = FakeModel([(list(misdrawn), []), (list(misdrawn), [])])
+    events = asyncio.run(collect(base(message="plan me a trip", client=model)))
+
+    assert len([event for event in events if event["type"] == "retry"]) == 1
+    assert len(model.bodies) == 2, "one retry, not a loop"

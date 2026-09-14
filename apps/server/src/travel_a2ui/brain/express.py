@@ -292,3 +292,108 @@ class ExpressStream:
             return Failed(block_index=self._block_index, message=str(error), source=source)
 
         return Ui(block_index=self._block_index, messages=messages, done=done)
+
+
+# --------------------------------------------------------------------------
+# Prose that is trying to be a surface
+# --------------------------------------------------------------------------
+
+
+#: What a surface written in a notation that does not exist looks like.
+#:
+#: The model is given one way to draw — an `<a2ui>` block of Express — and a
+#: catalog that says what may go in it. Sometimes it ignores both and emits a
+#: fenced JSON document instead, in a shape nobody defined:
+#:
+#:     ```json
+#:     [{"call": "host:render", "surface": "inline-1",
+#:       "components": [{"id": "…", "type": "Form", "props": {…}}]}]
+#:
+#: `Form`, `DateRangeField` and `NumberField` are not components this catalog
+#: has, `type`/`props` is not how A2UI names them, and `host:render` is not a
+#: call anything answers. None of that matters as much as what happened next:
+#: the splitter looks for `<a2ui>` and found none, so the whole thing went to
+#: the traveller as prose. Two hundred lines of JSON where an interface should
+#: have been.
+#:
+#: A compile error is already handled — the model is told and writes the block
+#: again. This is the same failure one step earlier, and it was the one case
+#: that reached the screen instead.
+_SURFACE_SHAPED = re.compile(
+    r'"(?:components|call|surfaceId|surface)"\s*:|"(?:root|catalog|catalogId)"\s*:',
+)
+
+
+@dataclass(frozen=True)
+class Fenced:
+    """A fenced code block, held back rather than spoken.
+
+    This agent answers in interfaces and in one or two sentences of prose.
+    Neither is a code fence, so a fence is always one of two mistakes: a surface
+    in the wrong notation, or the model showing its working. The traveller wants
+    neither, and `looks_like_a_surface` decides whether the model is worth
+    telling.
+    """
+
+    source: str
+    type: Literal["fenced"] = "fenced"
+
+    @property
+    def looks_like_a_surface(self) -> bool:
+        return bool(_SURFACE_SHAPED.search(self.source))
+
+
+class FenceGate:
+    """Keeps fenced blocks out of the transcript.
+
+    Streaming makes this less trivial than it sounds: the three backticks that
+    open a fence can arrive split across two deltas, so a gate that tested each
+    delta on its own would pass the first two characters through and hold the
+    third. Hence the carry — up to two characters are kept back whenever the
+    tail of what arrived could still be the start of a fence.
+    """
+
+    def __init__(self) -> None:
+        self._inside = False
+        self._carry = ""
+        self._block: list[str] = []
+
+    def feed(self, delta: str) -> tuple[str, list[Fenced]]:
+        """Returns the prose to emit, and any fences that closed."""
+        buffer = self._carry + delta
+        self._carry = ""
+        out: list[str] = []
+        closed: list[Fenced] = []
+
+        while buffer:
+            marker = buffer.find("```")
+            if marker == -1:
+                # Nothing certain. Hold back a tail that could still become one.
+                keep = 0
+                for size in (2, 1):
+                    if buffer.endswith("`" * size):
+                        keep = size
+                        break
+                body, self._carry = (buffer[: len(buffer) - keep], buffer[len(buffer) - keep :])
+                (self._block if self._inside else out).append(body)
+                break
+
+            before, buffer = buffer[:marker], buffer[marker + 3 :]
+            (self._block if self._inside else out).append(before)
+            if self._inside:
+                closed.append(Fenced(source="".join(self._block)))
+                self._block = []
+            self._inside = not self._inside
+
+        return "".join(out), closed
+
+    def flush(self) -> tuple[str, list[Fenced]]:
+        """End of the round. An unclosed fence still counts as one."""
+        tail, self._carry = self._carry, ""
+        if self._inside:
+            self._block.append(tail)
+            block = Fenced(source="".join(self._block))
+            self._block = []
+            self._inside = False
+            return "", [block]
+        return tail, []

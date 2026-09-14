@@ -27,7 +27,8 @@ from a2ui.inference_formats.experimental.express.parser import (  # noqa: E402
 )
 from a2ui.schema.catalog import A2uiCatalog, CatalogConfig  # noqa: E402
 
-from travel_a2ui.brain.express import (  # noqa: E402
+from travel_a2ui.brain.express import (  # noqa: F401
+    FenceGate,  # noqa: E402
     ExpressStream,
     Failed,
     Text,
@@ -352,3 +353,97 @@ class TestTheQuestionIsAskable:
         source = 'when = Text($/trip/startDate)\nroot = Column([when])'
         events = stream.feed([OPEN + source + CLOSE])
         assert not [event for event in events if isinstance(event, Failed)]
+
+
+# Trimmed from a real turn. The traveller asked for a trip from SFO to NYC and
+# got this, printed as prose, where an interface should have been.
+MISDRAWN = '''Here are your options.
+
+```json
+[
+  {
+    "call": "host:render",
+    "surface": "inline-1",
+    "catalog": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+    "root": "date_party_picker",
+    "components": [
+      {"id": "date_party_picker", "type": "Form", "props": {"title": "Dates & Party"}}
+    ]
+  }
+]
+```
+
+Let me know.'''
+
+
+def through_the_gate(text: str, size: int) -> tuple[str, list]:
+    """Streams text through in chunks, the way the model delivers it."""
+    gate = FenceGate()
+    prose: list[str] = []
+    fences: list = []
+    for start in range(0, len(text), size):
+        said, closed = gate.feed(text[start : start + size])
+        prose.append(said)
+        fences.extend(closed)
+    said, closed = gate.flush()
+    prose.append(said)
+    fences.extend(closed)
+    return "".join(prose), fences
+
+
+class TestTheFenceGate:
+    """A wall of JSON, printed where an interface should have been.
+
+    The model is given one way to draw and sometimes reaches for another: a
+    fenced JSON document in a shape nobody defined, with `Form` and
+    `NumberField` components this catalog does not have. The splitter looks for
+    `<a2ui>`, finds none, so the whole thing went to the traveller as prose.
+
+    A compile error is already caught and handed back to be rewritten. This is
+    the same mistake one step earlier, and it was the one that reached the
+    screen.
+    """
+
+    def test_the_json_never_reaches_the_traveller(self) -> None:
+        # Every chunk size, because the model does not deliver it in one.
+        for size in (1, 2, 3, 7, 50, 10_000):
+            prose, fences = through_the_gate(MISDRAWN, size)
+            assert "host:render" not in prose, f"leaked at chunk size {size}"
+            assert "components" not in prose, f"leaked at chunk size {size}"
+            assert "Here are your options." in prose
+            assert "Let me know." in prose
+            assert len(fences) == 1, f"chunk size {size} found {len(fences)}"
+            assert fences[0].looks_like_a_surface
+
+    def test_a_fence_split_across_deltas_is_still_a_fence(self) -> None:
+        """Three backticks arrive one character at a time often enough."""
+        prose, fences = through_the_gate("a```x```b", 1)
+        assert prose == "ab"
+        assert len(fences) == 1 and fences[0].source == "x"
+
+    def test_two_backticks_are_not_a_fence(self) -> None:
+        """The held-back tail has to come back when it turns out to be prose."""
+        prose, fences = through_the_gate("a``", 1)
+        assert prose == "a``"
+        assert fences == []
+
+    def test_an_unclosed_fence_still_counts(self) -> None:
+        """A turn cut off mid-block must not spill the half that arrived."""
+        prose, fences = through_the_gate('before ```json\n{"components": [1,2', 4)
+        assert '"components"' not in prose
+        assert prose.strip() == "before"
+        assert len(fences) == 1 and fences[0].looks_like_a_surface
+
+    def test_prose_about_a_trip_passes_straight_through(self) -> None:
+        said = "Four fares, cheapest $249. Shall I book it?"
+        prose, fences = through_the_gate(said, 5)
+        assert prose == said
+        assert fences == []
+
+    def test_a_fence_that_is_not_a_surface_is_held_but_not_retried(self) -> None:
+        """Held, because prose here is a sentence and never a code block. Not
+        retried, because there is no surface for the model to write again."""
+        prose, fences = through_the_gate('see ```print("hi")``` there', 6)
+        assert "print" not in prose
+        assert len(fences) == 1
+        assert not fences[0].looks_like_a_surface

@@ -40,7 +40,7 @@ from a2ui.inference_formats.experimental.express.parser import ExpressParser  # 
 from a2ui.schema.catalog import A2uiCatalog, CatalogConfig  # noqa: E402
 
 from ..brain import trip as model  # noqa: E402
-from ..brain.express import ExpressStream, Failed, Text, Ui  # noqa: E402
+from ..brain.express import ExpressStream, Failed, FenceGate, Text, Ui  # noqa: E402
 from ..gemini import describe_api_error, stream_interaction, supported_level  # noqa: E402
 from ..brain.providers.fixture import FixtureProvider  # noqa: E402
 from ..brain.providers.types import TravelProvider  # noqa: E402
@@ -483,6 +483,14 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     # nothing ever said so.
     unreported: dict[str, str] | None = None
     retried_compile = False
+    #: A fenced block the model wrote instead of an `<a2ui>` one.
+    #:
+    #: Same failure as a compile error, one step earlier: the model meant to
+    #: draw and reached for a notation that does not exist. The difference is
+    #: that a compile error was caught and this reached the screen — two hundred
+    #: lines of JSON where an interface should have been.
+    misdrawn: str | None = None
+    retried_notation = False
 
     for round_index in range(MAX_TOOL_ROUNDS):
         # A fresh splitter per round: each round is its own stream of prose and
@@ -494,14 +502,26 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             validator=_CATALOG.validator,
         )
 
+        # Fenced blocks never reach the transcript. This agent answers in
+        # interfaces and in a sentence or two of prose; a code fence is neither,
+        # so it is always a mistake, and the only question is whether it is one
+        # worth telling the model about.
+        gate = FenceGate()
+
         def rendered(events: Sequence[Any], source: str) -> list[dict[str, Any]]:
             """Splitter events, as events for the browser."""
-            nonlocal unreported
+            nonlocal unreported, misdrawn
             out: list[dict[str, Any]] = []
             for event in events:
                 if isinstance(event, Text):
+                    said, fenced = gate.feed(event.delta)
+                    for block in fenced:
+                        if block.looks_like_a_surface and misdrawn is None:
+                            misdrawn = block.source
+                    if not said:
+                        continue
                     mark("firstWord")
-                    out.append({"type": "text", "delta": event.delta, "round": round_index})
+                    out.append({"type": "text", "delta": said, "round": round_index})
                 elif isinstance(event, Ui):
                     # The number that matters. Everything before this is a blank
                     # space where an interface should be.
@@ -584,6 +604,47 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # back and let it write the block again. Once — a model that cannot fix
         # it on the second attempt will not fix it on the fifth, and the
         # traveller is waiting.
+        # An unclosed fence is still a fence: a turn that stopped mid-block
+        # should not spill the half of it that arrived.
+        tail, trailing = gate.flush()
+        if tail:
+            yield {"type": "text", "delta": tail, "round": round_index}
+        for block in trailing:
+            if block.looks_like_a_surface and misdrawn is None:
+                misdrawn = block.source
+
+        # A surface written in a notation that does not exist. The model is
+        # told once, the same way a compile error tells it, because a model
+        # that reaches for the wrong notation twice will reach for it a third
+        # time and the traveller is waiting.
+        if not result.tool_calls and misdrawn and not retried_notation:
+            retried_notation = True
+            block, misdrawn = misdrawn, None
+            yield {"type": "retry", "reason": "the surface was not written in Express"}
+            turn_input = [
+                {
+                    "type": "user_input",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "That was a fenced code block, so nothing was drawn and "
+                                "the traveler saw nothing.\n\nThere is one way to draw "
+                                "here and it is an `<a2ui>` block of A2UI Express — named "
+                                "lines, one component each, ending in `root = ...`, using "
+                                "only components this catalog defines. JSON is not it: no "
+                                "`call`, no `props`, no component types you invented.\n\n"
+                                "What you wrote was:\n\n"
+                                f"{block[:2000]}\n\n"
+                                "Write it again as Express. Do not repeat the prose — only "
+                                "the <a2ui> block."
+                            ),
+                        }
+                    ],
+                }
+            ]
+            continue
+
         if not result.tool_calls and unreported and not retried_compile:
             retried_compile = True
             failure = unreported
