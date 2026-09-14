@@ -134,6 +134,12 @@ COPY skills/ skills/
 COPY prompts/ prompts/
 COPY data/ data/
 COPY apps/server/src/ apps/server/src/
+# Read at runtime by `render_view`, and the only file outside the four
+# directories above that is. Leaving it out did not fail the build, did not
+# fail the import check, and did not fail any request — until somebody asked
+# for `?view=legacy`, which is the shape an older MCP-UI host asks for, and got
+# a bare 500 with the reason in a log nobody was reading.
+COPY apps/mcp-view/shell.html apps/mcp-view/shell.html
 
 COPY --from=web /build/apps/web/dist/ apps/web/dist/
 COPY --from=flutter /build/build/web/ renderers/flutter/build/web/
@@ -152,6 +158,15 @@ COPY --from=flutter /build/build/web/ renderers/flutter/build/web/
 # start there. It costs a second and it is the difference between a build
 # failure that names the problem and a deploy failure that does not.
 RUN python -c "import travel_a2ui.doors.http"
+
+# And read every file the app reads at runtime, which importing does not.
+#
+# The import check above catches a module that cannot load. It does not catch a
+# file opened lazily inside a function: `render_view` reads `shell.html` only
+# when a host asks for the legacy view, so a missing one is a 500 on a path
+# nobody exercises until somebody does. This opens all of them at build time,
+# where a missing file is a failed build naming the file.
+RUN python -c "import travel_a2ui.doors.plugin as p; p.render_view('s', [], '', 'https://x'); p.app_template('https://x'); print('runtime files ok')"
 
 # Cloud Run sends traffic to $PORT and does not ask.
 ENV PORT=8080

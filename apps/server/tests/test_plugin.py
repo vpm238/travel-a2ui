@@ -490,3 +490,46 @@ class TestTheFourThingsDrivingItForRealFound:
 
         assert "show_*" not in INSTRUCTIONS
         assert "trip" in INSTRUCTIONS
+
+
+class TestTheViewsRenderWithoutTheirSourceTree:
+    """Both HTML views, exercised — because one of them shipped broken.
+
+    `render_view` reads `apps/mcp-view/shell.html` at runtime, and the image
+    copied `catalogs/`, `skills/`, `prompts/`, `data/` and the server source.
+    Not that file. Nothing caught it: the build passed, the import check passed,
+    and every request passed — until a host asked for `?view=legacy`, which is
+    the shape an older MCP-UI host asks for, and got a bare 500.
+
+    The Dockerfile now renders both at build time for the same reason it imports
+    the app at build time: a file opened lazily inside a function is invisible
+    to an import.
+    """
+
+    def test_the_legacy_view_renders(self) -> None:
+        from travel_a2ui.doors.plugin import render_view
+
+        html = render_view("s", [], "a summary", "https://example.test")
+        assert "a2ui-payload" in html
+        assert "https://example.test/mcp-view/app.js" in html
+
+    def test_the_mcp_app_template_renders(self) -> None:
+        from travel_a2ui.doors.plugin import app_template
+
+        assert "<!doctype html>" in app_template("https://example.test")
+
+    def test_a_legacy_call_comes_back_with_html(self) -> None:
+        body = call(
+            "tools/call",
+            {
+                "name": "show_flight_options",
+                "arguments": {"destination": "Madrid", "origin": "LHR", "date": "2027-04-12"},
+            },
+            view="legacy",
+        )
+        kinds = [
+            part.get("resource", {}).get("mimeType")
+            for part in body["result"]["content"]
+            if part["type"] == "resource"
+        ]
+        assert "text/html" in kinds
