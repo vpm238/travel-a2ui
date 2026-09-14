@@ -312,7 +312,7 @@
     "surfaceId": "component-DateTimeInput",
     "name": "DateTimeInput",
     "description": "",
-    "express": "root = DateTimeInput(3)",
+    "express": "root = DateTimeInput(value=3)",
     "messages": [
       {
         "version": "v0.9.1",

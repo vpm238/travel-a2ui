@@ -53,6 +53,13 @@ Use these exact positional signatures to instantiate components. Do not output p
   - end: Bound path for the end date (RFC 3339).
   - action: Fired when the traveler commits a new range.
   - nightsLabel: Derived caption, e.g. '6 nights'.
+• DateTimeInput(label?, value, enableDate? (static), enableTime? (static), min?, max?, checks? (static))
+  - label: The text label for the input field.
+  - value: The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string.
+  - enableDate: If true, allows the user to select a date.
+  - enableTime: If true, allows the user to select a time.
+  - min: The minimum allowed date/time in ISO 8601 format.
+  - max: The maximum allowed date/time in ISO 8601 format.
 • ExpenseSplit(title, total, participants (static), action? (static), actionLabel?)
   - Description: Splits a shared trip cost between travelers and shows who owes what.
   - title: What was paid for, e.g. 'Dinner at Sobrino'.

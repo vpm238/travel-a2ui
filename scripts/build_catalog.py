@@ -439,6 +439,40 @@ TRAVEL_FUNCTIONS: dict[str, dict[str, Any]] = {
 }
 
 
+def _label_first(component: dict[str, Any]) -> dict[str, Any]:
+    """Moves `label` to the front of a component's properties.
+
+    Declaration order *is* the positional argument order the model is taught —
+    the module docstring says so — and `DateTimeInput` arrives from the basic
+    catalog ordered `(value, enableDate, enableTime, min, max, label)`. Every
+    other input in this catalog is label-first: `TextField(label, value)`,
+    `TravelerCounter(label, value)`, `DateRangePicker(label, start, end)`,
+    `CheckBox(label, value)`.
+
+    So a model that has learned the pattern from all of those writes
+    `DateTimeInput("Departure", $/trip/startDate)` — and the label lands on
+    `value`, the binding lands on `enableDate`, and `enableDate` is static, so
+    the surface does not compile. The one component that breaks the pattern is
+    the one every date question needs, which is why "it almost always fails on
+    date input" was a fair description.
+
+    Reordering is safe on both sides: renderers read properties by name, and the
+    compiler emits them by name. The only thing that changes is the order the
+    model is taught to pass them in.
+    """
+    out = json.loads(json.dumps(component))
+    for sub in out.get("allOf", []):
+        props = sub.get("properties")
+        if not isinstance(props, dict) or "label" not in props:
+            continue
+        sub["properties"] = {
+            "component": props["component"],
+            "label": props["label"],
+            **{k: v for k, v in props.items() if k not in ("component", "label")},
+        }
+    return out
+
+
 def build() -> dict[str, Any]:
     basic = json.loads(BASIC.read_text(encoding="utf-8"))
 
@@ -450,7 +484,11 @@ def build() -> dict[str, Any]:
         "description": CATALOG_DESCRIPTION,
         "instructions": CATALOG_INSTRUCTIONS,
         "extends": basic["catalogId"],
-        "components": {**basic["components"], **TRAVEL_COMPONENTS},
+        "components": {
+            **basic["components"],
+            "DateTimeInput": _label_first(basic["components"]["DateTimeInput"]),
+            **TRAVEL_COMPONENTS,
+        },
         "functions": _tag_as_client_side({**basic["functions"], **TRAVEL_FUNCTIONS}),
         "$defs": dict(basic["$defs"]),
     }

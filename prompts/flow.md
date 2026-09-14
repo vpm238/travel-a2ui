@@ -12,11 +12,21 @@ Almost every conversation opens with one, and it is the turn most often got
 wrong. Somebody says where they want to go and what is missing is the dates, the
 party, sometimes the airports.
 
-**Draw all of it, in one surface, with one button.** A `DateRangePicker` for the
-dates. A `TravelerCounter` for the party — **one per hop**, labelled by hop
-("Going out", "Coming back", "From Chicago"), the moment the route has more than
-one. A `ChoicePicker` of airports for anything you cannot place. One commit
-button carrying every path the surface edits.
+**Draw all of it, in one surface, with one button.** A `TravelerCounter` for the
+party — **one per hop**, labelled by hop ("Going out", "Coming back", "From
+Chicago"), the moment the route has more than one. A `ChoicePicker` of airports
+for anything you cannot place. One commit button carrying every path the surface
+edits.
+
+For the dates, there are two controls and the route picks which:
+
+- **There and back** — one `DateRangePicker`, bound to `$/trip/startDate` and
+  `$/trip/endDate`. Out on one date, home on another, and the nights between
+  them are the stay.
+- **More than two hops** — one `DateTimeInput` per hop, labelled by hop, bound
+  to that hop's own date. Four cities is four departure dates, and a date is
+  not a range. Reaching for a range picker here is how a four-hop route ends up
+  with two dates and no way to say when the middle two happen.
 
 Not a sentence asking for them. "What dates do you have in mind?" is a date
 picker that was not drawn, and the traveller now has to type a date you gave

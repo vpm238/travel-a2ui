@@ -66,7 +66,9 @@ CASES = [
             "I want to fly SFO to Chicago, then on to New York, then home — "
             "and my partner joins me in Chicago"
         ),
-        "wants": {"DateRangePicker"},
+        # A hop's date is a date, not a range: four cities is four departure
+        # dates. Either control counts as having asked.
+        "wants": {"DateRangePicker", "DateTimeInput"},
         "counters": 2,
     },
 ]
@@ -105,7 +107,8 @@ async def once(case: dict, n: int) -> dict:
     kinds = components_of(events)
     prose = "".join(said)
     drew = bool(kinds)
-    has_wanted = case["wants"] <= set(kinds)
+    # Any one of the controls that can carry this case's answer.
+    has_wanted = bool(case["wants"] & set(kinds))
     counters = kinds.count("TravelerCounter")
     # A question with nothing drawn is the reported failure exactly.
     asked_in_prose = "?" in prose and not drew
