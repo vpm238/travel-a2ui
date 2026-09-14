@@ -152,6 +152,75 @@ a {
   max-width: 170px;
 }
 
+/* ---------------------------------------------------------------- warmth
+ *
+ * Whether the agent has a conversation open. A status, not a gate: it never
+ * disables anything, and when it is cold it becomes the button that fixes it.
+ */
+.warmth {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  color: var(--tv-ink-soft);
+  white-space: nowrap;
+}
+
+.warmth__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.warmth--ready {
+  color: var(--tv-positive, #2f8f5b);
+}
+
+/* Breathing while it works, and still while it waits. */
+.warmth--warming {
+  color: var(--tv-ink-soft);
+}
+
+.warmth--warming .warmth__dot {
+  animation: warmth-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes warmth-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .warmth--warming .warmth__dot {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+.warmth--failed {
+  color: var(--tv-critical, #b4503c);
+}
+
+.warmth button {
+  appearance: none;
+  border: 1px solid var(--tv-line-strong);
+  background: var(--tv-surface);
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.warmth button:hover {
+  border-color: var(--tv-accent, var(--tv-ink));
+  color: var(--tv-ink);
+}
+
 .iconButton {
   appearance: none;
   border: 1px solid var(--tv-line-strong);
@@ -186,6 +255,25 @@ a {
   background: var(--tv-caution-soft);
   color: var(--tv-caution);
   border-bottom: 1px solid var(--tv-line);
+}
+
+/* The button inside a banner — the thing the banner is telling you to do. */
+.banner__action {
+  appearance: none;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 2px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.banner__action:hover {
+  background: currentColor;
+  /* The banner's own ground, so the text stays legible when the pill fills. */
+  color: var(--tv-surface);
 }
 
 .banner code {

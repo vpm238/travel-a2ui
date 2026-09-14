@@ -131,8 +131,16 @@ nothing else in the path.
 
 **Other ways in:** the same agent drawn by
 [Flutter](https://travel-a2ui-vy7stnte2a-uc.a.run.app/flutter), or installed
-[inside Claude](docs/install-in-claude.md) as an MCP app, where Claude becomes
-the model and there is no key at all.
+**inside Claude**, where Claude becomes the model and there is no key at all:
+
+```
+/plugin marketplace add vpm238/travel-a2ui
+/plugin install travel-a2ui@travel-a2ui
+```
+
+That is the plugin — the MCP server *and* the skill that tells Claude when to
+draw rather than describe. [docs/install-in-claude.md](docs/install-in-claude.md)
+covers the rest, including claude.ai and Claude Desktop.
 
 <p align="center">
   <img src="docs/screenshots/02-panel-light.png" alt="The trip record, each decision with a Change button" width="320">

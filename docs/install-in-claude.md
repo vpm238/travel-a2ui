@@ -15,17 +15,61 @@ This page is about the second one. You need the deployment's URL first — see
 
 ---
 
-## 1 · Claude Code (terminal, and the IDE extensions)
+## 1 · Claude Code, as a plugin — skill included
 
-One command:
+**This is the one to use.** A plugin carries the MCP server *and* the skill that
+tells Claude when to reach for it; the bare MCP install below carries only the
+tools, and a tool Claude does not know the manners of is a tool it uses like a
+search box.
+
+This repository is its own plugin marketplace, so two commands inside Claude
+Code:
+
+```
+/plugin marketplace add vpm238/travel-a2ui
+/plugin install travel-a2ui@travel-a2ui
+```
+
+The second opens a details view where you pick an installation scope; confirm
+there and it is live in that conversation.
+
+`travel-a2ui@travel-a2ui` reads oddly and is right: the first name is the
+plugin, the second is the marketplace, and in this repository they are the same
+word because the marketplace holds exactly one plugin.
+
+Check it:
+
+```bash
+claude plugin list                 # what is installed
+claude plugin marketplace list     # where it came from
+```
+
+### What the plugin carries
+
+```
+.claude-plugin/marketplace.json         the catalogue — one plugin, this one
+plugins/travel-a2ui/
+├── .claude-plugin/plugin.json          name, description, where the server is
+├── .mcp.json                           the deployment's /mcp endpoint
+└── skills/travel-a2ui/SKILL.md         when to draw, and what not to say after
+```
+
+The skill is the half that is easy to skip and hardest to replace. It is what
+tells Claude that four fares read aloud is a memory test, that the surface is
+already on screen so there is no need to describe it afterwards, and that the
+nine data tools are for looking things up while *it* composes the interface. Ten
+lines of judgement that the tool schemas cannot carry.
+
+To point it at your own deployment, edit `plugins/travel-a2ui/.mcp.json` and
+install from your fork.
+
+## 2 · Claude Code, the MCP server alone
+
+Without the skill — useful if you only want the tools, or want to read the
+protocol traffic:
 
 ```bash
 claude mcp add --transport http travel-a2ui https://travel-a2ui-vy7stnte2a-uc.a.run.app/mcp
-```
-
-Check it connected:
-
-```bash
 claude mcp list
 ```
 
@@ -47,7 +91,7 @@ at the repo root — everyone who opens that repo is prompted to enable it:
 open. There is no authentication to configure: the server holds no credentials
 of its own, which is also why it holds no trip data of yours.
 
-## 2 · claude.ai (and Claude Desktop)
+## 3 · claude.ai (and Claude Desktop)
 
 A remote MCP server is added as a **custom connector**, at
 [claude.ai/customize/connectors](https://claude.ai/customize/connectors):
@@ -74,7 +118,7 @@ Interfaces render in the conversation and, for the panel-shaped surfaces, in
 Claude's side panel — that is the host's choice, and asking for "the sidebar
 version" is what nudges it (see the flows below).
 
-## 3 · Check it works
+## 4 · Check it works
 
 Ask Claude, in that conversation:
 

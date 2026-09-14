@@ -199,6 +199,15 @@ export interface Usage {
  * `/api/meta` said the default was Flash 3.8. Sending nothing lets the server
  * decide, which it was always doing anyway for half the screen.
  */
+/**
+ * How ready the agent is to answer quickly.
+ *
+ * `cold` is not broken — it is a conversation that has not been started yet,
+ * and a first message sent while cold works exactly as it always did, about
+ * eight times slower to draw. See `warm`.
+ */
+export type Warmth = 'cold' | 'warming' | 'ready' | 'failed';
+
 export interface Prefs {
   skill: SkillVariant;
 }
@@ -781,19 +790,46 @@ export function useAgent() {
    * new conversation is cold again.
    */
   const warmedRef = useRef(false);
-  const warm = useCallback(() => {
+  const [warmth, setWarmth] = useState<Warmth>('cold');
+
+  const warm = useCallback(async () => {
     if (warmedRef.current || !keyRef.current) return;
-    // Set before the request, not after: two keystrokes in the same tick would
-    // otherwise start two conversations.
+    // Set before the request, not after: a keystroke and the page-load effect
+    // landing in the same tick would otherwise start two conversations.
     warmedRef.current = true;
-    void warmUp(keyRef.current, prefsRef.current.skill).then((warmed) => {
-      // Only if nothing has happened since. A traveller who typed fast enough
-      // to finish a real turn already has a better receipt than this one.
-      if (warmed.interactionId && !resumeRef.current) {
-        resumeRef.current = { interactionId: warmed.interactionId, setup: warmed.setup ?? undefined };
+    setWarmth('warming');
+    const warmed = await warmUp(keyRef.current, prefsRef.current.skill);
+    if (warmed.interactionId) {
+      // Only if nothing has happened since. Somebody who typed fast enough to
+      // finish a real turn already holds a better receipt than this one.
+      if (!resumeRef.current) {
+        resumeRef.current = {
+          interactionId: warmed.interactionId,
+          setup: warmed.setup ?? undefined,
+        };
       }
-    });
+      setWarmth('ready');
+      return;
+    }
+    // Failed, or skipped for want of a key. Either way it can be tried again,
+    // and the only cost of never trying is a slow first turn.
+    warmedRef.current = false;
+    setWarmth(warmed.skipped ? 'cold' : 'failed');
   }, []);
+
+  /**
+   * Warm as soon as there is a key, rather than waiting to be asked.
+   *
+   * The button exists for when this has not happened — no key yet, or the
+   * request failed — and not as a gate. Nothing here disables the composer
+   * while it runs: a control you cannot use until you have used another control
+   * is the shape that made the microphone unusable, and the worst case here is
+   * a first turn that takes the time it always used to.
+   */
+  useEffect(() => {
+    if (!apiKey) return;
+    void warm();
+  }, [apiKey, warm]);
 
   const reset = useCallback(async () => {
     abortRef.current?.abort();
@@ -801,7 +837,9 @@ export function useAgent() {
     // The receipt goes with the conversation it belongs to. Keeping it would
     // resume the trip that was just thrown away, on the next message.
     resumeRef.current = undefined;
+    // A new conversation is cold again, so it warms again.
     warmedRef.current = false;
+    setWarmth('cold');
     setSessionId(newSessionId());
     setTurns([]);
     setTrip({});
@@ -1091,7 +1129,9 @@ export function useAgent() {
     busy,
     liveSurface,
     send,
-    /** Called when the composer is first touched. See `warm`. */
+    /** Whether the agent has a conversation open and ready. See `warm`. */
+    warmth,
+    /** Starts one. Safe to call repeatedly; only the first does anything. */
     warm,
     drawSurface,
     stop,
