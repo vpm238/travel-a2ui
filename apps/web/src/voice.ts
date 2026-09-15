@@ -32,6 +32,8 @@ export type VoiceEvent =
   | { type: 'tool'; name: string; input: unknown }
   | { type: 'trip'; trip: Record<string, unknown> }
   | { type: 'turn_end' }
+  /** The traveller spoke over the answer; whatever is queued should not play. */
+  | { type: 'interrupted' }
   | { type: 'error'; message: string };
 
 const INPUT_RATE = 16_000;
@@ -284,6 +286,24 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
     options.onSpeakingChange?.(next);
   };
 
+  // Everything scheduled and not yet finished, so an interruption can stop it.
+  // Chunks arrive faster than they play, so at the moment the traveller speaks
+  // over the model there can be several seconds already queued — and a queue
+  // that plays out after "stop" is a model that does not appear to have.
+  const queued = new Set<AudioBufferSourceNode>();
+  const hush = () => {
+    for (const source of queued) {
+      try {
+        source.stop();
+      } catch {
+        /* never started, or already ended */
+      }
+    }
+    queued.clear();
+    playHead = 0;
+    setSpeaking(false);
+  };
+
   const stop = () => {
     for (const track of stream.getTracks()) track.stop();
     void capture.close().catch(() => {});
@@ -331,13 +351,16 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
       playHead = Math.max(playHead, playback.currentTime);
       source.start(playHead);
       playHead += buffer.duration;
+      queued.add(source);
       setSpeaking(true);
       source.addEventListener('ended', () => {
+        queued.delete(source);
         if (playHead <= playback.currentTime + 0.05) setSpeaking(false);
       });
       return;
     }
 
+    if (message.type === 'interrupted') hush();
     if (message.type === 'turn_end') setSpeaking(false);
     options.onEvent(message);
   });
