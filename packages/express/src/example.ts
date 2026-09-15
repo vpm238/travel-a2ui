@@ -90,6 +90,8 @@ root = ItineraryDay("Day 2 — Old Madrid", [a1, a2], date="Mon 13 Apr", summary
 
   WeatherStrip: `root = WeatherStrip([{day: "Mon", high: 21, low: 11, condition: "sunny"}, {day: "Tue", high: 19, low: 10, condition: "cloudy"}], place="Madrid")`,
 
+  TripCalendar: `root = TripCalendar("2027-04-12", "2027-04-18", marks=[{date: "2027-04-12", icon: "plane", label: "Fly out"}, {date: "2027-04-14", icon: "🎨", label: "Prado"}, {date: "2027-04-18", icon: "plane", label: "Fly home"}], title="Madrid", caption="6 nights")`,
+
   ChoicePicker: `root = ChoicePicker("Cabin", "mutuallyExclusive", [{label: "Economy", value: "economy"}, {label: "Premium", value: "premium"}], $/cabin)`,
 
   // The rest are here because the derived version is legal and absurd —

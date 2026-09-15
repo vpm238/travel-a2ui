@@ -91,6 +91,7 @@ const REGISTRY: Record<string, Renderer> = {
   ProgressMeter: travel.ProgressMeter,
   WeatherStrip: travel.WeatherStrip,
   ExpenseSplit: travel.ExpenseSplit,
+  TripCalendar: travel.TripCalendar,
 };
 
 /** Component names this host can draw — what a catalog compatibility check reads. */

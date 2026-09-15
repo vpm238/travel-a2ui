@@ -1069,6 +1069,56 @@
     "bytes": 395
   },
   {
+    "id": "component-TripCalendar",
+    "surfaceId": "component-TripCalendar",
+    "name": "TripCalendar",
+    "description": "",
+    "express": "root = TripCalendar(\"2027-04-12\", \"2027-04-18\", marks=[{date: \"2027-04-12\", icon: \"plane\", label: \"Fly out\"}, {date: \"2027-04-14\", icon: \"🎨\", label: \"Prado\"}, {date: \"2027-04-18\", icon: \"plane\", label: \"Fly home\"}], title=\"Madrid\", caption=\"6 nights\")",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-TripCalendar",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-TripCalendar",
+          "components": [
+            {
+              "id": "root",
+              "component": "TripCalendar",
+              "start": "2027-04-12",
+              "end": "2027-04-18",
+              "marks": [
+                {
+                  "date": "2027-04-12",
+                  "icon": "plane",
+                  "label": "Fly out"
+                },
+                {
+                  "date": "2027-04-14",
+                  "icon": "🎨",
+                  "label": "Prado"
+                },
+                {
+                  "date": "2027-04-18",
+                  "icon": "plane",
+                  "label": "Fly home"
+                }
+              ],
+              "title": "Madrid",
+              "caption": "6 nights"
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 533
+  },
+  {
     "id": "component-Video",
     "surfaceId": "component-Video",
     "name": "Video",

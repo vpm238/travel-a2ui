@@ -19,6 +19,8 @@ A persistent panel beside the conversation showing the trip as it stands. It is
   - the flight → `FlightOption`, with its times, duration, stops and number
   - the days → `ItineraryDay` with `ActivityItem` children, not a list of
     sentences about the days
+  - when they are going → `TripCalendar`, bound to `$/trip/startDate` and
+    `$/trip/endDate`, with the flights marked on their days
   - where the stops are → `MapPreview`
   - what it will be like → `WeatherStrip`
   - the money → `PriceSummary`, and `StatTile` for the figures worth a glance
