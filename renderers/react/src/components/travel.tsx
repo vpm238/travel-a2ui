@@ -11,9 +11,10 @@
 import type { Json } from '@travel-a2ui/express';
 
 import { isPending, resolveBoolean, resolveNumber, resolveText } from '../binding.js';
+import { monthLabel, monthsFor, parseCivil, toIso, weekStartFor, weekdayLetters } from '../calendar.js';
 import { runAction, type ComponentProps } from '../context.js';
 import { isSafeUrl } from '../functions.js';
-import { Icon } from './icons.js';
+import { Icon, hasIcon } from './icons.js';
 
 const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(' ');
 
@@ -609,6 +610,123 @@ export function WeatherStrip({ node, scope }: ComponentProps) {
       </ul>
       {node['caption'] ? <p className="tv-weather__caption">{resolveText(node['caption'], scope)}</p> : null}
     </div>
+  );
+}
+
+/**
+ * The trip on a month grid.
+ *
+ * Read-only on purpose. `DateRangePicker` is for choosing; this is for the
+ * three places a traveller looks to *see* when they are going — the panel, the
+ * home surface, beside a chosen flight — and a calendar that is also an editor
+ * is a form nobody asked for in the middle of a record.
+ *
+ * The dates are civil, never instants (see `calendar.ts`). A `Date` built from
+ * `"2027-04-12"` is midnight UTC, which is the 11th west of Greenwich, and a
+ * departure drawn one day early is the whole component being wrong quietly.
+ */
+export function TripCalendar({ node, scope, ctx }: ComponentProps) {
+  const start = parseCivil(resolveText(node['start'], scope));
+  const end = parseCivil(resolveText(node['end'], scope));
+  const interactive = Boolean(node['action']);
+  const locale = typeof navigator === 'undefined' ? undefined : navigator.language;
+  const weekStart = weekStartFor(locale);
+
+  // Glyphs by day. A day can carry one; the last one written wins, which is
+  // the same rule as everything else in a data model.
+  const marks = new Map<string, { icon: string; label: string }>();
+  for (const mark of rowsOf(node['marks'])) {
+    const day = parseCivil(str(mark['date']));
+    if (day) marks.set(toIso(day), { icon: str(mark['icon']), label: str(mark['label']) });
+  }
+  // The key under the grid: each glyph once, with what it means. Two flights
+  // both marked "plane · Flight" are one line, not two.
+  const key = [...new Map(
+    [...marks.values()]
+      .filter((mark) => mark.icon && mark.label)
+      .map((mark) => [`${mark.icon}\u0000${mark.label}`, mark] as const),
+  ).values()];
+
+  const title = node['title'] ? resolveText(node['title'], scope) : '';
+  const caption = node['caption'] ? resolveText(node['caption'], scope) : '';
+
+  return (
+    <div
+      className={cx('tv-cal', interactive && 'is-interactive')}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={() => runAction(node['action'], scope, ctx, node)}
+    >
+      {title ? <span className="tv-cal__title">{title}</span> : null}
+      {start ? (
+        <div className="tv-cal__months">
+          {monthsFor(start, end, weekStart).map((month) => (
+            <table className="tv-cal__month" key={`${month.year}-${month.month}`}>
+              <caption>{monthLabel(month.year, month.month, locale)}</caption>
+              <thead>
+                <tr>
+                  {weekdayLetters(weekStart, locale).map((letter, index) => (
+                    <th key={index} scope="col" abbr={letter}>
+                      {letter}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {month.weeks.map((week, row) => (
+                  <tr key={row}>
+                    {week.map((cell, column) => {
+                      if (!cell) return <td key={column} className="is-pad" />;
+                      const mark = marks.get(cell.iso);
+                      return (
+                        <td
+                          key={column}
+                          className={cx(
+                            cell.inRange && 'in-range',
+                            cell.isStart && 'is-start',
+                            cell.isEnd && 'is-end',
+                            mark && 'is-marked',
+                          )}
+                          title={mark?.label || undefined}
+                        >
+                          <span className="tv-cal__day">{cell.date.day}</span>
+                          {mark?.icon ? <Glyph name={mark.icon} className="tv-cal__glyph" /> : null}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ))}
+        </div>
+      ) : (
+        // No parseable start yet — the binding has not arrived, or holds
+        // something that is not a day. A grid of nothing is worse than a line.
+        <span className="tv-cal__empty">Dates to come</span>
+      )}
+      {key.length ? (
+        <ul className="tv-cal__key">
+          {key.map((mark, index) => (
+            <li key={index}>
+              <Glyph name={mark.icon} />
+              <span>{mark.label}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {caption ? <p className="tv-cal__caption">{caption}</p> : null}
+    </div>
+  );
+}
+
+/** One of our icons when the name is one; otherwise the text itself — an emoji, usually. */
+function Glyph({ name, className }: { name: string; className?: string }) {
+  if (hasIcon(name)) return <Icon name={name} className={className} />;
+  return (
+    <span className={className} aria-hidden>
+      {name}
+    </span>
   );
 }
 

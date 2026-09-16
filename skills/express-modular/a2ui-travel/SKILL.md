@@ -170,6 +170,18 @@ Use these exact positional signatures to instantiate components. Do not output p
   - min: Lowest allowed count.
   - max: Highest allowed count.
   - caption: Qualifier, e.g. 'Age 12+'.
+• TripCalendar(start, end?, marks? (static), title?, caption?, action? (static))
+  - Description: The trip's dates on a month grid: the travel days drawn as one highlighted band, with a glyph on any day worth marking. Read-only — use it wherever a traveler should *see* when they are going (the panel, the home surface, beside a chosen flight), and DateRangePicker when they are still choosing.
+  - start: First travel day as yyyy-MM-dd, e.g. '2027-04-12'. Bind it to the trip — `$/trip/startDate` — so the band moves when the dates do.
+  - end: Last travel day as yyyy-MM-dd. Omit for a single day; the band runs from `start` to here inclusive.
+  - marks: Days worth a glyph, in date order. Static values only — a departure, a check-in, the one thing booked that day.
+    List of maps keys:
+    * date - The day, as yyyy-MM-dd.
+    * icon - A short glyph for the day: an emoji, or one of 'plane', 'bed', 'food', 'sight', 'transit', 'outdoors', 'event'.
+    * label - What the glyph means, e.g. 'Fly out' — shown in the key.
+  - title: Heading, e.g. 'Madrid' or 'Six nights in April'.
+  - caption: One line under the grid, e.g. '6 nights · flights booked'.
+  - action: Fired when the traveler taps the calendar, e.g. to change the dates.
 • WeatherStrip(days (static), place?, caption?)
   - Description: A short forecast row for the destination. Purely informational.
   - days: Forecast entries in date order, at most seven. Static values only.
@@ -295,9 +307,10 @@ t2 = StatTile("Budget left", "$680", caption="of $2,000", tone="caution")
 t3 = StatTile("Next up", "Pick dinner", caption="Sat 11 Apr", tone="accent", action=Event("open_task", {id: "dinner"}))
 tiles = Row([t1, t2, t3])
 budget = ProgressMeter("Budget used", 1320, 2000, caption="$1,320 of $2,000", tone="caution")
+when = TripCalendar($/trip/startDate, $/trip/endDate, marks=[{date: "2027-04-12", icon: "plane", label: "Fly out"}, {date: "2027-04-18", icon: "plane", label: "Fly home"}], title="Madrid", caption="6 nights")
 weather = WeatherStrip([{day: "Sun", high: "21°", low: "9°", condition: "sun"}, {day: "Mon", high: "19°", low: "8°", condition: "sun"}, {day: "Tue", high: "16°", low: "7°", condition: "rain"}], place="Madrid", caption="Pack a light jacket for Tuesday")
 map = MapPreview([{label: "Hotel", kind: "stay"}, {label: "Prado", kind: "sight", day: "2"}, {label: "Sobrino", kind: "food", day: "2"}], caption="Everything on day 2 is walkable")
-root = Column([hello, tiles, budget, weather, map], align="stretch")
+root = Column([hello, tiles, budget, when, weather, map], align="stretch")
 
 ---END 30-home-dashboard---
 

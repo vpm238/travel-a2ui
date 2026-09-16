@@ -1,6 +1,6 @@
 # The travel catalog
 
-21 components, every one drawn here by the renderer that ships — not a
+23 components, every one drawn here by the renderer that ships — not a
 mockup. Each picture is a screenshot of the real component, beside the single line
 of A2UI Express that produced it.
 
@@ -130,6 +130,26 @@ root = DateRangePicker("Trip dates", $/trip/startDate, $/trip/endDate, nightsLab
 | `action` | action |  | Fired when the traveler commits a new range. |
 | `nightsLabel` | bindable string |  | Derived caption, e.g. '6 nights'. |
 
+## DateTimeInput
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="catalog/DateTimeInput-dark.png">
+  <img src="catalog/DateTimeInput-light.png" alt="DateTimeInput as the renderer draws it" width="560">
+</picture>
+
+```
+root = DateTimeInput("Madrid", 3)
+```
+
+| prop | type | | what it is |
+| --- | --- | --- | --- |
+| `label` | bindable string | **required** | The text label for the input field. |
+| `value` | bindable string | **required** | The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string. |
+| `enableDate` | boolean |  | If true, allows the user to select a date. |
+| `enableTime` | boolean |  | If true, allows the user to select a time. |
+| `min` | any |  | The minimum allowed date/time in ISO 8601 format. |
+| `max` | any |  | The maximum allowed date/time in ISO 8601 format. |
+
 ## ExpenseSplit
 
 <picture>
@@ -175,6 +195,7 @@ root = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("
 | `cabin` | `economy` \\| `premium` \\| `business` \\| `first` |  | Cabin the price refers to. |
 | `selected` | bindable boolean |  | Whether this option is currently chosen. Bind it to the data model so the selection survives a re-render. |
 | `badge` | bindable string |  | Short editorial tag, e.g. 'Cheapest' or 'Fastest'. |
+| `total` | bindable string |  | What this flight costs for everyone on this leg, when that is more than one person — preformatted, e.g. '$522 for 2'. Give it whenever the leg carries a party, and `price` is then read as the per-traveler fare. |
 
 ## HotelCard
 
@@ -406,6 +427,26 @@ root = TravelerCounter("Travelers", $/trip/travelers, min=1, max=9, caption="Adu
 | `max` | integer |  | Highest allowed count. |
 | `caption` | bindable string |  | Qualifier, e.g. 'Age 12+'. |
 
+## TripCalendar
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="catalog/TripCalendar-dark.png">
+  <img src="catalog/TripCalendar-light.png" alt="TripCalendar as the renderer draws it" width="560">
+</picture>
+
+```
+root = TripCalendar("2027-04-12", "2027-04-18", marks=[{date: "2027-04-12", icon: "plane", label: "Fly out"}, {date: "2027-04-14", icon: "🎨", label: "Prado"}, {date: "2027-04-18", icon: "plane", label: "Fly home"}], title="Madrid", caption="6 nights")
+```
+
+| prop | type | | what it is |
+| --- | --- | --- | --- |
+| `start` | bindable string | **required** | First travel day as yyyy-MM-dd, e.g. '2027-04-12'. Bind it to the trip — `$/trip/startDate` — so the band moves when the dates do. |
+| `end` | bindable string |  | Last travel day as yyyy-MM-dd. Omit for a single day; the band runs from `start` to here inclusive. |
+| `marks` | array |  | Days worth a glyph, in date order. Static values only — a departure, a check-in, the one thing booked that day. |
+| `title` | bindable string |  | Heading, e.g. 'Madrid' or 'Six nights in April'. |
+| `caption` | bindable string |  | One line under the grid, e.g. '6 nights · flights booked'. |
+| `action` | action |  | Fired when the traveler taps the calendar, e.g. to change the dates. |
+
 ## WeatherStrip
 
 <picture>
@@ -438,7 +479,6 @@ because a catalog the model does not need is tokens on every single turn.
 | `Modal` | the conversation is the modal; a surface that covers the chat hides the record |
 | `Tabs` | the three surfaces are the navigation; tabs inside one of them compete with it |
 | `Divider` | Column spacing already separates sections, and the model reaches for it as filler |
-| `DateTimeInput` | DateRangePicker covers every date question this agent asks, and offering both invites a single-date control where a range belongs |
 | `Icon` | ActivityItem takes a `category` and draws its own icon; WeatherStrip and the rest do the same. Nothing in the examples or in live traffic ever drew a bare one. |
 | `Image` | HotelCard carries `imageUrl` and MapPreview draws itself. A loose image on a travel surface is a picture with no caption and no role. |
 | `Card` | FlightOption, HotelCard, StatTile and PriceSummary *are* the cards, and they align across siblings in a way a generic container cannot. Keeping both taught the model two ways to draw a hotel. |

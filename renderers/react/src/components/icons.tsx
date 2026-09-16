@@ -176,6 +176,19 @@ export interface IconProps extends SVGProps<SVGSVGElement> {
   name: string;
 }
 
+/**
+ * Whether `name` is one of ours, before it is drawn as one.
+ *
+ * `Icon` falls back to a sparkle for anything it does not know, which is right
+ * for a `category` that must draw *something* and wrong for a field that may
+ * hold an emoji: `TripCalendar` marks a day with "🎨" or with "plane", and only
+ * the second should become an SVG.
+ */
+export function hasIcon(name: string): boolean {
+  const key = ALIASES[name?.toLowerCase?.() ?? ''] ?? name;
+  return key in paths;
+}
+
 export function Icon({ name, ...rest }: IconProps) {
   const key = ALIASES[name?.toLowerCase?.() ?? ''] ?? name;
   const glyph = paths[key] ?? paths['sparkle']!;

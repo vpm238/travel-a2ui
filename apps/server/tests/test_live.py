@@ -156,6 +156,15 @@ def tool_frame(name: str, args: dict[str, Any], call_id: str = "c1") -> Frame:
     return Frame(tool_call=Obj(function_calls=[Obj(name=name, args=args, id=call_id)]))
 
 
+def interrupted_frame() -> Frame:
+    """The traveller spoke over the model, as the API reports it."""
+    return Frame(server_content=Obj(model_turn=None, turn_complete=False, interrupted=True))
+
+
+def turn_complete_frame() -> Frame:
+    return Frame(server_content=Obj(model_turn=None, turn_complete=True))
+
+
 def run_call(
     frames: list[Any],
     *,
@@ -225,12 +234,37 @@ class TestOpeningTheSession:
         assert ready["contract"] == "stamp-1"
         assert ready["model"].startswith("gemini-")
 
+    def test_the_session_opens_on_gemini_3_8_live(self) -> None:
+        """The first Live model on a stable channel, and the named successor to
+        every preview this pointed at before — each of which was withdrawn and
+        answered a connect with NOT_FOUND."""
+        import os
+
+        if "VOICE_MODEL" in os.environ:
+            pytest.skip("VOICE_MODEL is overridden in this environment")
+        _, client, _ = run_call([])
+        assert client.model == "gemini-3.8-live"
+
     def test_the_setup_carries_every_tool_a_call_may_use(self) -> None:
         _, client, _ = run_call([])
         declared = {
             tool["name"] for tool in client.config["tools"][0]["function_declarations"]
         }
         assert {"show_flight_options", "show_hotel_options", "save_trip"} <= declared
+
+    def test_every_tool_is_declared_blocking(self) -> None:
+        """Gemini 3.8 Live made asynchronous calls the default: the model fires
+        the call, keeps talking, ends its turn, and speaks again whenever the
+        result lands. The relay counts turns — one nudge per turn, "did this
+        turn call anything", the panel refresh after a call — on the assumption
+        that a result arrives inside the turn that asked for it. Left to the
+        new default, none of that accounting holds."""
+        _, client, _ = run_call([])
+        behaviors = {
+            tool["name"]: tool.get("behavior")
+            for tool in client.config["tools"][0]["function_declarations"]
+        }
+        assert behaviors and set(behaviors.values()) == {"BLOCKING"}, behaviors
 
     def test_the_schemas_are_cleaned_or_the_whole_setup_is_refused(self) -> None:
         """The Live API rejects the entire setup over one unsupported keyword.
@@ -314,6 +348,62 @@ class TestCarryingTheCall:
     def test_a_closing_session_says_so(self) -> None:
         seen, _, _ = run_call([Frame(go_away=Obj(time_left=None))])
         assert any("closing" in e.get("message", "") for e in seen if e["type"] == "error")
+
+    def test_speaking_over_the_answer_reaches_the_browser(self) -> None:
+        """The model stops on its own. The browser does not: it queues audio
+        ahead of playback, so at the moment somebody says "stop" there can be
+        seconds already scheduled — and told nothing, it plays them out."""
+        seen, _, _ = run_call([audio_frame("QUJD"), interrupted_frame()])
+        kinds = [event["type"] for event in seen]
+        assert "interrupted" in kinds
+        assert kinds.index("audio") < kinds.index("interrupted")
+
+    def test_a_promise_with_nothing_called_is_handed_back_once(self) -> None:
+        """Asked for flights six times, the model said "Let me find some flights
+        for you" and ended the turn five of them. The turn is handed back once
+        with what it actually did — and the nudge is spent, so a second promise
+        in the same turn cannot loop it."""
+        seen, client, _ = run_call(
+            [
+                [
+                    transcript_frame("Let me find some flights for you", "agent"),
+                    turn_complete_frame(),
+                ],
+                [
+                    transcript_frame("Let me look into that", "agent"),
+                    turn_complete_frame(),
+                ],
+            ]
+        )
+        nudges = [
+            kwargs
+            for kind, kwargs in client.live_session.sent
+            if kind == "text" and "[system]" in kwargs["turns"]["parts"][0]["text"]
+        ]
+        assert len(nudges) == 1, "once, and only once"
+        # The nudged turn did not end — the browser saw no `turn_end` until the
+        # turn that answered the nudge had spoken.
+        kinds = [event["type"] for event in seen]
+        assert kinds.index("turn_end") > kinds.index("transcript", 1)
+
+    def test_a_cut_off_promise_is_not_nudged(self) -> None:
+        """"Let me find some flights" with nothing called is handed back once —
+        unless the traveller is the one who ended it. Then prodding the model
+        to finish would have it talk over the person who just interrupted it."""
+        seen, client, _ = run_call(
+            [
+                transcript_frame("Let me find some flights for you", "agent"),
+                interrupted_frame(),
+                turn_complete_frame(),
+            ]
+        )
+        nudges = [
+            kwargs
+            for kind, kwargs in client.live_session.sent
+            if kind == "text" and "[system]" in kwargs["turns"]["parts"][0]["text"]
+        ]
+        assert nudges == [], "the turn was the traveller's to end"
+        assert "turn_end" in [event["type"] for event in seen]
 
 
 class TestDrawing:
