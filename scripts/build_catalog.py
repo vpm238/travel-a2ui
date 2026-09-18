@@ -385,6 +385,41 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
         },
         required=["title", "total", "participants"],
     ),
+    "TripCalendar": component(
+        "TripCalendar",
+        "The trip's dates on a month grid: the travel days drawn as one"
+        " highlighted band, with a glyph on any day worth marking. Read-only —"
+        " use it wherever a traveler should *see* when they are going (the panel,"
+        " the home surface, beside a chosen flight), and DateRangePicker when they"
+        " are still choosing.",
+        {
+            "start": dyn_str(
+                "First travel day as yyyy-MM-dd, e.g. '2027-04-12'. Bind it to"
+                " the trip — `$/trip/startDate` — so the band moves when the"
+                " dates do."
+            ),
+            "end": dyn_str(
+                "Last travel day as yyyy-MM-dd. Omit for a single day; the band"
+                " runs from `start` to here inclusive."
+            ),
+            "marks": static_list_of(
+                "Days worth a glyph, in date order. Static values only — a"
+                " departure, a check-in, the one thing booked that day.",
+                {
+                    "date": "The day, as yyyy-MM-dd.",
+                    "icon": (
+                        "A short glyph for the day: an emoji, or one of 'plane',"
+                        " 'bed', 'food', 'sight', 'transit', 'outdoors', 'event'."
+                    ),
+                    "label": "What the glyph means, e.g. 'Fly out' — shown in the key.",
+                },
+            ),
+            "title": dyn_str("Heading, e.g. 'Madrid' or 'Six nights in April'."),
+            "caption": dyn_str("One line under the grid, e.g. '6 nights · flights booked'."),
+            "action": action("Fired when the traveler taps the calendar, e.g. to change the dates."),
+        },
+        required=["start"],
+    ),
 }
 
 

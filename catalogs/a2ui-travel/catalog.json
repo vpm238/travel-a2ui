@@ -1676,6 +1676,76 @@
         }
       ],
       "unevaluatedProperties": false
+    },
+    "TripCalendar": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "description": "The trip's dates on a month grid: the travel days drawn as one highlighted band, with a glyph on any day worth marking. Read-only — use it wherever a traveler should *see* when they are going (the panel, the home surface, beside a chosen flight), and DateRangePicker when they are still choosing.",
+          "properties": {
+            "component": {
+              "const": "TripCalendar"
+            },
+            "start": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+              "description": "First travel day as yyyy-MM-dd, e.g. '2027-04-12'. Bind it to the trip — `$/trip/startDate` — so the band moves when the dates do."
+            },
+            "end": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+              "description": "Last travel day as yyyy-MM-dd. Omit for a single day; the band runs from `start` to here inclusive."
+            },
+            "marks": {
+              "type": "array",
+              "description": "Days worth a glyph, in date order. Static values only — a departure, a check-in, the one thing booked that day.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "description": "The day, as yyyy-MM-dd."
+                  },
+                  "icon": {
+                    "type": "string",
+                    "description": "A short glyph for the day: an emoji, or one of 'plane', 'bed', 'food', 'sight', 'transit', 'outdoors', 'event'."
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "What the glyph means, e.g. 'Fly out' — shown in the key."
+                  }
+                },
+                "required": [
+                  "date"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "title": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+              "description": "Heading, e.g. 'Madrid' or 'Six nights in April'."
+            },
+            "caption": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+              "description": "One line under the grid, e.g. '6 nights · flights booked'."
+            },
+            "action": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action",
+              "description": "Fired when the traveler taps the calendar, e.g. to change the dates."
+            }
+          },
+          "required": [
+            "component",
+            "start"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
     }
   },
   "functions": {
@@ -2372,6 +2442,9 @@
         },
         {
           "$ref": "#/components/ExpenseSplit"
+        },
+        {
+          "$ref": "#/components/TripCalendar"
         }
       ],
       "discriminator": {

@@ -23,6 +23,7 @@
     "Text",
     "TextField",
     "TravelerCounter",
+    "TripCalendar",
     "WeatherStrip"
   ],
   "allowedFunctions": [

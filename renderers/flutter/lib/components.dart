@@ -981,6 +981,276 @@ Widget _expenseSplit(BuildContext context, ComponentBuild build) {
 }
 
 // ---------------------------------------------------------------------------
+// TripCalendar
+// ---------------------------------------------------------------------------
+
+/// A civil date read off the front of a string — `2027-04-12`, or an RFC 3339
+/// instant whose first ten characters are the day. Parsed as digits and built
+/// in UTC, never through `DateTime.parse` on the whole string: that applies
+/// the offset, and a departure west of Greenwich moves to the day before.
+DateTime? _civilDate(Object? value) {
+  if (value is! String) return null;
+  final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(value.trim());
+  if (match == null) return null;
+  final year = int.parse(match.group(1)!);
+  final month = int.parse(match.group(2)!);
+  final day = int.parse(match.group(3)!);
+  if (month < 1 || month > 12) return null;
+  final date = DateTime.utc(year, month, day);
+  // `DateTime.utc(2027, 2, 30)` rolls to March rather than failing.
+  if (date.month != month) return null;
+  return date;
+}
+
+String _isoDay(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-'
+    '${date.month.toString().padLeft(2, '0')}-'
+    '${date.day.toString().padLeft(2, '0')}';
+
+/// The catalog's glyph names, in Material. Anything else is drawn as text —
+/// an emoji, usually — which is what the `icon` field says it may hold.
+const Map<String, IconData> _calendarGlyphs = {
+  'plane': Icons.flight,
+  'flight': Icons.flight,
+  'bed': Icons.hotel,
+  'stay': Icons.hotel,
+  'hotel': Icons.hotel,
+  'food': Icons.restaurant,
+  'restaurant': Icons.restaurant,
+  'sight': Icons.museum,
+  'museum': Icons.museum,
+  'transit': Icons.train,
+  'outdoors': Icons.park,
+  'shopping': Icons.shopping_bag,
+  'event': Icons.event,
+};
+
+Widget _calendarGlyph(String name, Color colour, double size) {
+  final icon = _calendarGlyphs[name.toLowerCase()];
+  if (icon != null) return Icon(icon, size: size, color: colour);
+  return Text(name, style: TextStyle(fontSize: size * 0.85, height: 1));
+}
+
+Widget _tripCalendar(BuildContext context, ComponentBuild build) {
+  final scheme = Theme.of(context).colorScheme;
+  final text = Theme.of(context).textTheme;
+  final locale = MaterialLocalizations.of(context);
+
+  final start = _civilDate(build.props['start']);
+  var end = _civilDate(build.props['end']);
+  // No end, or one before the start, is a single day: a range being edited
+  // passes through inverted, and vanishing at that moment is worse than
+  // drawing the one day that is certainly true.
+  if (start != null && (end == null || end.isBefore(start))) end = start;
+
+  final marks = <String, (String, String)>{};
+  final rawMarks = build.props['marks'];
+  if (rawMarks is List) {
+    for (final mark in rawMarks) {
+      if (mark is! Map) continue;
+      final day = _civilDate(mark['date']);
+      if (day == null) continue;
+      marks[_isoDay(day)] = (mark['icon']?.toString() ?? '', mark['label']?.toString() ?? '');
+    }
+  }
+  // Each glyph once in the key, with what it means.
+  final key = <String, String>{};
+  for (final (icon, label) in marks.values) {
+    if (icon.isNotEmpty && label.isNotEmpty) key['$icon\u0000$label'] = label;
+  }
+
+  // 0 = Sunday … 6 = Saturday, as Material counts; DateTime counts Monday as 1.
+  final firstDay = locale.firstDayOfWeekIndex;
+  final letters = locale.narrowWeekdays;
+
+  final months = <Widget>[];
+  if (start != null && end != null) {
+    var year = start.year;
+    var month = start.month;
+    // Capped so a typo in a year does not draw three hundred grids.
+    while (months.length < 4) {
+      months.add(_calendarMonth(
+        context,
+        year: year,
+        month: month,
+        start: start,
+        end: end,
+        firstDay: firstDay,
+        letters: letters,
+        marks: marks,
+      ));
+      if (year == end.year && month == end.month) break;
+      month += 1;
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
+    }
+  }
+
+  final body = Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (!build.pending('title'))
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(build.string('title') ?? '', style: text.labelLarge),
+        ),
+      if (months.isEmpty)
+        Text('Dates to come', style: text.bodySmall?.copyWith(fontStyle: FontStyle.italic))
+      else
+        Wrap(spacing: 20, runSpacing: 12, children: months),
+      if (key.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              for (final entry in key.entries)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _calendarGlyph(entry.key.split('\u0000').first, scheme.primary, 14),
+                    const SizedBox(width: 4),
+                    Text(entry.value, style: text.bodySmall),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      if (!build.pending('caption'))
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(build.string('caption') ?? '', style: text.bodySmall),
+        ),
+    ],
+  );
+
+  return _tappable(
+    onTap: build.hasAction ? build.fire : null,
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: body,
+    ),
+  );
+}
+
+/// One month: its name, then whole weeks of 32-point cells with the travel
+/// band drawn on the cell backgrounds so it wraps across rows for free.
+Widget _calendarMonth(
+  BuildContext context, {
+  required int year,
+  required int month,
+  required DateTime start,
+  required DateTime end,
+  required int firstDay,
+  required List<String> letters,
+  required Map<String, (String, String)> marks,
+}) {
+  final scheme = Theme.of(context).colorScheme;
+  final text = Theme.of(context).textTheme;
+  final total = DateTime.utc(year, month + 1, 0).day;
+  // DateTime.weekday is 1 (Monday) … 7 (Sunday); Material's index is
+  // 0 (Sunday) … 6 (Saturday).
+  final leading = (DateTime.utc(year, month, 1).weekday % 7 - firstDay + 7) % 7;
+  final cells = <Widget>[];
+  for (var i = 0; i < leading; i += 1) {
+    cells.add(const SizedBox(width: 32, height: 32));
+  }
+
+  for (var day = 1; day <= total; day += 1) {
+    final date = DateTime.utc(year, month, day);
+    final inRange = !date.isBefore(start) && !date.isAfter(end);
+    final isStart = date == start;
+    final isEnd = date == end;
+    final mark = marks[_isoDay(date)];
+    final number = Text(
+      '$day',
+      style: text.bodySmall?.copyWith(
+        fontWeight: inRange ? FontWeight.w600 : FontWeight.w400,
+        color: (isStart || isEnd)
+            ? scheme.onPrimary
+            : inRange
+                ? scheme.onSurface
+                : scheme.onSurfaceVariant,
+      ),
+    );
+    cells.add(Container(
+      width: 32,
+      height: 32,
+      decoration: inRange
+          ? BoxDecoration(
+              color: scheme.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.horizontal(
+                left: isStart ? const Radius.circular(16) : Radius.zero,
+                right: isEnd ? const Radius.circular(16) : Radius.zero,
+              ),
+            )
+          : null,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (isStart || isEnd)
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
+            ),
+          number,
+          if (mark != null && mark.$1.isNotEmpty)
+            Positioned(
+              right: 1,
+              top: (isStart || isEnd) ? -1 : null,
+              bottom: (isStart || isEnd) ? null : 1,
+              child: _calendarGlyph(mark.$1, scheme.primary, 10),
+            ),
+        ],
+      ),
+    ));
+  }
+  while (cells.length % 7 != 0) {
+    cells.add(const SizedBox(width: 32, height: 32));
+  }
+
+  final monthName = MaterialLocalizations.of(context).formatMonthYear(DateTime.utc(year, month, 1));
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 4),
+        child: Text(monthName, style: text.titleSmall),
+      ),
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < 7; i += 1)
+            SizedBox(
+              width: 32,
+              child: Text(
+                letters[(firstDay + i) % 7],
+                textAlign: TextAlign.center,
+                style: text.labelSmall?.copyWith(color: scheme.outline),
+              ),
+            ),
+        ],
+      ),
+      for (var row = 0; row < cells.length; row += 7)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Row(mainAxisSize: MainAxisSize.min, children: cells.sublist(row, row + 7)),
+        ),
+    ],
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Components the catalog has and this client does not draw specially
 // ---------------------------------------------------------------------------
 
@@ -1040,4 +1310,5 @@ final Map<String, ComponentBuilder> _builders = {
   'ProgressMeter': _progressMeter,
   'WeatherStrip': _weatherStrip,
   'ExpenseSplit': _expenseSplit,
+  'TripCalendar': _tripCalendar,
 };

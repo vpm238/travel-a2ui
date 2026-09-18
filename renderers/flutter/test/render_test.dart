@@ -312,6 +312,72 @@ void main() {
     });
   });
 
+  group('a TripCalendar, from the parity golden', () {
+    // The same bytes the TypeScript compiler and the reference compiler agree
+    // on for `tools/parity/cases/21-trip-calendar.express`: two calendars, one
+    // bound to the trip's dates with three marks, one a single literal day.
+    late List<Map<String, dynamic>> messages;
+
+    setUpAll(() {
+      final golden = jsonDecode(
+        File('${_root.path}/tools/parity/expected/21-trip-calendar.json').readAsStringSync(),
+      ) as List;
+      messages = [for (final message in golden) (message as Map).cast<String, dynamic>()];
+    });
+
+    testWidgets('waits for the dates, then draws the band on them', (tester) async {
+      final processor = _process(messages);
+      final surface = processor.groupModel.getSurface('parity-surface')!;
+      await _pump(tester, surface);
+
+      // The bound calendar has no dates yet; the literal one is drawn already.
+      expect(find.text('Dates to come'), findsOneWidget);
+      expect(find.text('Day trip to Toledo'), findsOneWidget);
+      expect(find.text('May 2027'), findsOneWidget);
+
+      processor.processMessages([
+        A2uiMessage.fromJson({
+          'version': 'v0.9',
+          'updateDataModel': {
+            'surfaceId': 'parity-surface',
+            'path': '/trip',
+            'value': {'startDate': '2027-04-12', 'endDate': '2027-04-18'},
+          },
+        }),
+      ]);
+      await tester.pump();
+
+      expect(find.text('Dates to come'), findsNothing);
+      expect(find.text('April 2027'), findsOneWidget);
+      // The key names each glyph once; the two flights share a line.
+      expect(find.text('Fly out'), findsOneWidget);
+      expect(find.text('Fly home'), findsOneWidget);
+      expect(find.text('Prado'), findsOneWidget);
+      // An emoji mark is drawn as itself, in the cell and in the key.
+      expect(find.text('🎨'), findsNWidgets(2));
+      // A named glyph becomes an icon: two marked days, one key entry each.
+      expect(find.byIcon(Icons.flight), findsNWidgets(4));
+    });
+
+    testWidgets('an inverted range is one day, not nothing', (tester) async {
+      final processor = _process(messages);
+      processor.processMessages([
+        A2uiMessage.fromJson({
+          'version': 'v0.9',
+          'updateDataModel': {
+            'surfaceId': 'parity-surface',
+            'path': '/trip',
+            'value': {'startDate': '2027-04-18', 'endDate': '2027-04-12'},
+          },
+        }),
+      ]);
+      final surface = processor.groupModel.getSurface('parity-surface')!;
+      await _pump(tester, surface);
+      expect(find.text('April 2027'), findsOneWidget);
+      expect(find.text('Dates to come'), findsNothing);
+    });
+  });
+
   group('the catalog functions', () {
     test('every function the catalog declares is implemented', () {
       // Driven from the catalog rather than from the code, so a function
