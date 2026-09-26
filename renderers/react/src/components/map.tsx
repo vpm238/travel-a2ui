@@ -82,8 +82,13 @@ function loadMaps(apiKey: string): Promise<boolean> {
     const script = document.createElement('script');
     script.async = true;
     script.dataset.a2uiMaps = 'yes';
+    // `loading=async` is Google's documented pattern and the library says so out
+    // loud without it: "loaded directly without loading=async. This can result
+    // in suboptimal performance." Without it the parser blocks on the bootstrap
+    // while a surface is still streaming in beside it.
     script.src =
-      'https://maps.googleapis.com/maps/api/js?v=alpha&libraries=maps3d,marker,places,routes' +
+      'https://maps.googleapis.com/maps/api/js?v=alpha&loading=async' +
+      '&libraries=maps3d,marker,places,routes' +
       `&key=${encodeURIComponent(apiKey)}`;
     script.onload = () => resolve(true);
     // A key that is rejected, a referrer that is not allowed, a network that is
