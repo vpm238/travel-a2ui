@@ -14,6 +14,7 @@
     "HotelCard",
     "ItineraryDay",
     "List",
+    "GoogleMap",
     "MapPreview",
     "PriceSummary",
     "ProgressMeter",

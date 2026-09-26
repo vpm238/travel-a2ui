@@ -159,6 +159,12 @@ async def meta() -> JSONResponse:
             "defaultSkill": os.environ.get("DEFAULT_SKILL", "express-modular"),
             "models": MODELS,
             "surfaces": SURFACES,
+            # The browser needs this one, unlike the Gemini key: the Maps
+            # JavaScript API is loaded by the page. That is what a Maps key is
+            # for — it is restricted by HTTP referrer rather than kept secret,
+            # so shipping it to the client is the documented way to use it, and
+            # a deployment without one simply gets no maps.
+            "mapsApiKey": os.environ.get("GOOGLE_MAPS_API_KEY", ""),
             "skills": describe_all_skills(),
             "destinations": [
                 {

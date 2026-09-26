@@ -33,7 +33,13 @@ picker that was not drawn, and the traveller now has to type a date you gave
 them a control for.
 
 **And nothing else on that surface.** Not a `StatTile`, not a `ProgressMeter`,
-not a `MapPreview`, not a summary of the trip so far — there is no trip so far.
+not a summary of the trip so far — there is no trip so far.
+
+One exception, and only once the destination is known: a `GoogleMap` above the
+controls, centred on the city, with its areas as pins. It turns a word into a
+place, which is worth a moment on the turn where somebody commits to going
+somewhere. It is not an exception to the rule below — it asks nothing, so the
+controls underneath still have to ask everything.
 A progress meter before anything is decided is a bar at zero; a map with no
 dates is a picture. Those components are for a trip that exists, and drawing
 them here spends the turn showing off instead of asking, which is the failure
@@ -75,6 +81,28 @@ two — a control they can correct, not a question they have to answer twice.
 the surface is the date range, the counter and the button. Drop the
 `ChoicePicker`. Do not ask again for something you were just told.
 
+**They named a destination you have places for.** Draw the city before the
+controls — `get_destination` returned `places`, so the map costs one component
+and a handful of numbers:
+
+    <a2ui>
+    map = GoogleMap(center={lat: 40.4168, lng: -3.7038}, zoom=12, markers=[
+      {lat: 40.4260, lng: -3.7040, label: "Malasaña"},
+      {lat: 40.4110, lng: -3.7100, label: "La Latina"},
+      {lat: 40.4290, lng: -3.6810, label: "Salamanca"}])
+    where = ChoicePicker("Which part of town",
+      options=[{label: "Malasaña", value: "Malasaña"},
+               {label: "La Latina", value: "La Latina"},
+               {label: "Salamanca", value: "Salamanca"}],
+      value=$/trip/neighborhood)
+    when = DateRangePicker("Six days in April", $/trip/startDate, $/trip/endDate)
+    go = Button(Text("Find flights"), action=Event("search"), variant="primary")
+    root = Column([map, where, when, go])
+    </a2ui>
+
+The map shows the three areas; the picker is how one of them gets chosen. Drop
+the map and the surface still works. Drop the picker and it does not.
+
 **They named several stops.** "SFO to Chicago, then New York, then home, and my
 partner joins me in Chicago." Three hops is three departure dates, and no range
 picker can say when the middle one happens — so it is one `DateTimeInput` per
@@ -82,13 +110,18 @@ hop, and a `TravelerCounter` on each hop whose party differs:
 
     <a2ui>
     heading = Text("Three hops — when does each one leave?", variant="h3")
+    map = GoogleMap(center={lat: 41.5, lng: -95.0}, zoom=4, routes=[
+      {origin: {lat: 37.62, lng: -122.38, label: "SFO"},
+       destination: {lat: 41.98, lng: -87.90, label: "ORD"}},
+      {origin: {lat: 41.98, lng: -87.90, label: "ORD"},
+       destination: {lat: 40.64, lng: -73.78, label: "JFK"}}])
     out = DateTimeInput("Leaving San Francisco", $/trip/startDate)
     onward = DateTimeInput("Chicago to New York", $/trip/legs/0/startDate)
     home = DateTimeInput("New York home", $/trip/legs/1/startDate)
     first = TravelerCounter("To Chicago", $/trip/travelers, min=1, max=8)
     rest = TravelerCounter("From Chicago on", $/trip/legs/0/travelers, min=1, max=8)
     go = Button(Text("Find flights"), action=Event("search"), variant="primary")
-    root = Column([heading, out, onward, home, first, rest, go])
+    root = Column([heading, map, out, onward, home, first, rest, go])
     </a2ui>
 
 The range picker in the first example is for **there and back, and nothing

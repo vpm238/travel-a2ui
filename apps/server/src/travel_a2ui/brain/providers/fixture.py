@@ -197,6 +197,9 @@ _DESTINATION_LIST: list[dict[str, Any]] = [
         "summary": entry["summary"],
         "highlights": [dict(h) for h in entry["highlights"]],
         "neighbourhoods": list(entry["neighbourhoods"]),
+        # Pins, for the surfaces that draw a map. Absent on a generated city,
+        # deliberately: see the note in `destinations.json`.
+        "places": [dict(p) for p in entry.get("places", ())],
     }
     for entry in _DESTINATIONS
 ]
@@ -410,6 +413,13 @@ def _invent_destination(name: str) -> dict[str, Any]:
         "aliases": [cleaned.lower()],
         "neighbourhoods": list(areas),
         "highlights": highlights,
+        # No `places`, and that is the point. Everything else here is invented
+        # and labelled as invented, which a reader can discount. A coordinate
+        # cannot be discounted: it does not look generated, it looks surveyed,
+        # and a map is believed in a way a sentence is not. So a city nobody
+        # wrote down gets no pins, and the surface that wanted a map draws
+        # something else.
+        "places": [],
         # Said plainly, because everything downstream shows provenance and this
         # is a stronger claim than "sample data": nobody wrote this city down.
         "invented": True,

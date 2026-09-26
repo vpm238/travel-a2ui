@@ -699,10 +699,106 @@ Widget _weatherStrip(BuildContext context, ComponentBuild build) {
   );
 }
 
+/// A `GoogleMap`, in a client that cannot draw one.
+///
+/// The React renderer mounts the Maps JavaScript API's own `gmp-map-3d` and
+/// shows a real map. This client has no map, and the honest thing is to say so
+/// rather than to draw a grey rectangle where one would be: what the component
+/// carries is places and legs, and those are readable as a list.
+///
+/// It is a named difference rather than a gap to be fixed quietly — see
+/// `TestNothingIsPromisedThatCannotBeDrawn`. A real map here means a web view
+/// factory over the same element, which needs the Flutter SDK to build and
+/// verify, so it is not something to write blind.
+Widget _googleMap(BuildContext context, ComponentBuild build) {
+  final scheme = Theme.of(context).colorScheme;
+  final text = Theme.of(context).textTheme;
+
+  final markers = build.props['markers'];
+  final anchor = build.props['anchorMarker'];
+  final routes = build.props['routes'];
+
+  String labelOf(Object? pin) {
+    if (pin is Map) {
+      final label = pin['label']?.toString() ?? '';
+      if (label.isNotEmpty) return label;
+    }
+    return '';
+  }
+
+  final pins = <String>[
+    if (anchor != null && labelOf(anchor).isNotEmpty) labelOf(anchor),
+    if (markers is List)
+      for (final marker in markers)
+        if (labelOf(marker).isNotEmpty) labelOf(marker),
+  ];
+
+  final legs = <String>[
+    if (routes is List)
+      for (final route in routes)
+        if (route is Map &&
+            labelOf(route['origin']).isNotEmpty &&
+            labelOf(route['destination']).isNotEmpty)
+          '${labelOf(route['origin'])} → ${labelOf(route['destination'])}',
+  ];
+
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: scheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.map_outlined, size: 16, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Text('Places on this map', style: text.labelMedium),
+          ],
+        ),
+        if (legs.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(legs.join('  ·  '), style: text.bodySmall),
+          ),
+        if (pins.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final pin in pins)
+                  Chip(
+                    avatar: const Icon(Icons.place_outlined, size: 16),
+                    label: Text(pin, style: text.labelSmall),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+          ),
+        if (pins.isEmpty && legs.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text('No places to show.', style: text.bodySmall),
+          ),
+      ],
+    ),
+  );
+}
+
 Widget _mapPreview(BuildContext context, ComponentBuild build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
-  final places = build.props['places'];
+  // `markers`, which is what the catalog calls them. This read `places` and
+  // so found nothing, every time: the chips below have never drawn. Nothing
+  // failed, because a missing prop is an empty map and an empty map is an
+  // empty row of chips.
+  final places = build.props['markers'];
   return Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
@@ -1034,6 +1130,7 @@ final Map<String, ComponentBuilder> _builders = {
   'HotelCard': _hotelCard,
   'ItineraryDay': _itineraryDay,
   'ActivityItem': _activityItem,
+  'GoogleMap': _googleMap,
   'MapPreview': _mapPreview,
   'PriceSummary': _priceSummary,
   'StatTile': _statTile,

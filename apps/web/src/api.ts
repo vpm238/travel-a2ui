@@ -117,6 +117,14 @@ export interface Meta {
   surfaces: SurfaceKind[];
   skills: SkillInfo[];
   keyProvided: boolean;
+  /**
+   * The deployment's Google Maps key, for loading the Maps JavaScript API.
+   *
+   * Public on purpose — a Maps key is restricted by HTTP referrer rather
+   * than kept secret, and the page is what loads the library. Empty when
+   * the deployment has none, and then maps say so instead of failing.
+   */
+  mapsApiKey?: string;
   /** Which agent runtimes this deployment knows about. */
   backends?: BackendOption[];
   /**

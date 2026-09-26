@@ -6,12 +6,19 @@ which stop of a multi-city route a call is about, and what a saved trip reports
 still missing. None of it is generated and all of it is judgement, which makes
 it the part of the port most likely to drift while every test still passes.
 
-`tools/parity/__golden__/tools.json` is written by the TypeScript and is the
-contract. A divergence here is not a formatting difference — every one of these
-results is read by a model and turned into a surface, so a port that returns
-the right flights under a different key, or drops the sentence telling the
-model to draw the controls and wait, ships an agent that is quietly worse at
-its job.
+`tools/parity/__golden__/tools.json` was written by the TypeScript, which is
+gone — `packages/trip` was deleted once the Python became the only runtime. So
+this is no longer a parity check between two implementations; it is the record
+that port left behind, and it still earns its place. A divergence here is not a
+formatting difference: every one of these results is read by a model and turned
+into a surface, so a change that returns the right flights under a different
+key, or drops the sentence telling the model to draw the controls and wait,
+ships an agent that is quietly worse at its job and no test would otherwise
+notice.
+
+Re-record it only for a change you meant, and check the blast radius first —
+the last time was `places`, the map coordinates, which touched four
+destination-shaped cases and nothing else.
 """
 
 from __future__ import annotations
@@ -59,13 +66,13 @@ def canonical(value) -> str:
 
 
 @pytest.mark.parametrize("name", list(GOLDEN))
-def test_matches_the_typescript(name: str) -> None:
+def test_matches_the_recorded_behaviour(name: str) -> None:
     expected = GOLDEN[name]
     actual = run_case(expected)
 
     for field in ("result", "isError", "trip", "saved"):
         assert canonical(actual[field]) == canonical(expected[field]), (
-            f"{name}: {field} diverged from the TypeScript"
+            f"{name}: {field} diverged from the recorded behaviour"
         )
 
 

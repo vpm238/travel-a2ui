@@ -20,6 +20,7 @@ import { isTemplate, type ResolveScope } from './binding.js';
 import type { A2uiEvent, ComponentProps, RenderContext } from './context.js';
 import { readPointer, type Surface, type SurfaceStore } from './store.js';
 import * as basic from './components/basic.js';
+import * as map from './components/map.js';
 import * as travel from './components/travel.js';
 
 /**
@@ -83,6 +84,7 @@ const REGISTRY: Record<string, Renderer> = {
   HotelCard: travel.HotelCard,
   ItineraryDay: travel.ItineraryDay,
   ActivityItem: travel.ActivityItem,
+  GoogleMap: map.GoogleMap,
   MapPreview: travel.MapPreview,
   PriceSummary: travel.PriceSummary,
   DateRangePicker: travel.DateRangePicker,

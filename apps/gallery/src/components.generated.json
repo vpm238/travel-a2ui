@@ -456,6 +456,57 @@
     "bytes": 567
   },
   {
+    "id": "component-GoogleMap",
+    "surfaceId": "component-GoogleMap",
+    "name": "GoogleMap",
+    "description": "",
+    "express": "root = GoogleMap(center={lat: 40.4168, lng: -3.7038}, zoom=12, markers=[{lat: 40.4260, lng: -3.7040, label: \"Malasaña\"}, {lat: 40.4110, lng: -3.7100, label: \"La Latina\"}, {lat: 40.4153, lng: -3.6844, label: \"Retiro Park\"}])",
+    "messages": [
+      {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "component-GoogleMap",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
+        }
+      },
+      {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "component-GoogleMap",
+          "components": [
+            {
+              "id": "root",
+              "component": "GoogleMap",
+              "center": {
+                "lat": 40.4168,
+                "lng": -3.7038
+              },
+              "zoom": 12,
+              "markers": [
+                {
+                  "lat": 40.426,
+                  "lng": -3.704,
+                  "label": "Malasaña"
+                },
+                {
+                  "lat": 40.411,
+                  "lng": -3.71,
+                  "label": "La Latina"
+                },
+                {
+                  "lat": 40.4153,
+                  "lng": -3.6844,
+                  "label": "Retiro Park"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "bytes": 482
+  },
+  {
     "id": "component-HotelCard",
     "surfaceId": "component-HotelCard",
     "name": "HotelCard",

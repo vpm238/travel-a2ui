@@ -1754,3 +1754,66 @@
   border-color: var(--tv-accent-line);
   color: var(--tv-ink);
 }
+
+/* A real map.
+ *
+ * Sized by aspect ratio rather than a fixed height, so the same component works
+ * in the narrow inline column and across the home screen. Google's own
+ * component uses 8/5 and it is a good ratio for a city: wide enough to show a
+ * route, tall enough that the pins are not in a line. */
+.a2-map {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.a2-map__canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 8 / 5;
+  overflow: hidden;
+  border-radius: var(--tv-radius);
+  border: 1px solid var(--tv-line);
+  background: var(--tv-panel, rgba(127, 127, 127, 0.08));
+}
+
+.a2-map__canvas > * {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Over the canvas, not instead of it: the element is already mounted and
+ * upgrading underneath, and swapping the container out would restart it. */
+.a2-map__fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  text-align: center;
+  color: var(--tv-ink-muted);
+  font-size: 0.9rem;
+}
+
+.a2-map__fallback p {
+  margin: 0;
+  max-width: 34ch;
+}
+
+.a2-map__caption {
+  color: var(--tv-ink-muted);
+  font-size: 0.85rem;
+}
+
+.a2-map--empty {
+  padding: 16px;
+  border: 1px dashed var(--tv-line);
+  border-radius: var(--tv-radius);
+  color: var(--tv-ink-muted);
+  font-size: 0.9rem;
+}
+
+.a2-map--empty p {
+  margin: 0;
+}

@@ -103,6 +103,41 @@ def static_list_of(desc: str, keys: dict[str, str]) -> dict[str, Any]:
     }
 
 
+#: A point, in the shape `@googlemaps/a2ui` uses.
+#:
+#: `lng`, not `lon`, and that is not a preference. This catalog's `GoogleMap` is
+#: the same component Google publishes, property for property, so a payload this
+#: app composes renders in their Lit host and one of theirs renders here. The
+#: moment the spelling drifts that stops being true, and the only thing gained
+#: is agreeing with `destinations.json`, which the agent reads anyway.
+def _lat_lng(desc: str) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "description": desc,
+        "properties": {
+            "lat": dyn_num("Latitude, in degrees."),
+            "lng": dyn_num("Longitude, in degrees."),
+        },
+        "required": ["lat", "lng"],
+        "additionalProperties": False,
+    }
+
+
+def _map_pin(desc: str) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "description": desc,
+        "properties": {
+            "lat": dyn_num("Latitude, in degrees."),
+            "lng": dyn_num("Longitude, in degrees."),
+            "label": dyn_str("What the pin says on the map."),
+            "placeId": dyn_str("Google place id, when one is known."),
+        },
+        "required": ["lat", "lng", "label"],
+        "additionalProperties": False,
+    }
+
+
 def component(
     name: str,
     description: str,
@@ -245,6 +280,49 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
             ),
         },
         required=["title"],
+    ),
+    "GoogleMap": component(
+        "GoogleMap",
+        "A real Google map. Use it to show *where* — a city and its"
+        " neighbourhoods, the shape of a multi-city route, how far a stay is"
+        " from what the traveler wants to do. It draws nothing and asks"
+        " nothing: pair it with the controls for the decision it illustrates.",
+        {
+            "center": _lat_lng("Where the map is centred."),
+            "zoom": dyn_num(
+                "How close in. 4 spans a continent, 11 a city, 14 a"
+                " neighbourhood, 16 a street. Above 16 is clamped."
+            ),
+            "tilt": dyn_num("Degrees of tilt. Only has an effect in satellite mode."),
+            "heading": dyn_num("Compass heading, in degrees."),
+            "mode": enum("Map style.", ["roadmap", "satellite"], "roadmap"),
+            "anchorMarker": _map_pin("The one place this map is about, marked apart from the rest."),
+            "markers": {
+                "type": "array",
+                "description": "Pins to drop. Static list — write them out.",
+                "items": _map_pin("A pin."),
+            },
+            "origin": _lat_lng("Start of a single route."),
+            "destination": _lat_lng("End of a single route."),
+            "travelMode": enum(
+                "How the route is travelled.",
+                ["driving", "walking", "bicycling", "transit"],
+            ),
+            "routes": {
+                "type": "array",
+                "description": "Several legs at once, drawn end to end.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "origin": _map_pin("Where the leg starts."),
+                        "destination": _map_pin("Where the leg ends."),
+                    },
+                    "required": ["origin", "destination"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        required=["center", "zoom"],
     ),
     "MapPreview": component(
         "MapPreview",

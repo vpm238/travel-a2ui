@@ -86,6 +86,11 @@ root = ItineraryDay("Day 2 — Old Madrid", [a1, a2], date="Mon 13 Apr", summary
 
   ExpenseSplit: `root = ExpenseSplit("Dinner at Sobrino", "€96", [{name: "You"}, {name: "Sam"}])`,
 
+  // Real coordinates, because the derived example cannot invent them: `center`
+  // is an object and the generic path fills a required prop with its own name,
+  // so `GoogleMap` would arrive as `center: "center"` and draw its "no
+  // coordinates" state — a gallery card advertising the component as broken.
+  GoogleMap: `root = GoogleMap(center={lat: 40.4168, lng: -3.7038}, zoom=12, markers=[{lat: 40.4260, lng: -3.7040, label: "Malasaña"}, {lat: 40.4110, lng: -3.7100, label: "La Latina"}, {lat: 40.4153, lng: -3.6844, label: "Retiro Park"}])`,
   MapPreview: `root = MapPreview([{label: "Madrid"}, {label: "Toledo"}], caption="Day trip, 70km south")`,
 
   WeatherStrip: `root = WeatherStrip([{day: "Mon", high: 21, low: 11, condition: "sunny"}, {day: "Tue", high: 19, low: 10, condition: "cloudy"}], place="Madrid")`,

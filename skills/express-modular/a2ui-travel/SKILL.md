@@ -87,6 +87,41 @@ Use these exact positional signatures to instantiate components. Do not output p
   - selected: Whether this option is currently chosen. Bind it to the data model so the selection survives a re-render.
   - badge: Short editorial tag, e.g. 'Cheapest' or 'Fastest'.
   - total: What this flight costs for everyone on this leg, when that is more than one person — preformatted, e.g. '$522 for 2'. Give it whenever the leg carries a party, and `price` is then read as the per-traveler fare.
+• GoogleMap(center (static), zoom, tilt?, heading?, mode? (static), anchorMarker? (static), markers? (static), origin? (static), destination? (static), travelMode? (static), routes? (static))
+  - Description: A real Google map. Use it to show *where* — a city and its neighbourhoods, the shape of a multi-city route, how far a stay is from what the traveler wants to do. It draws nothing and asks nothing: pair it with the controls for the decision it illustrates.
+  - center: Where the map is centred.
+    Map keys:
+    * lat - Latitude, in degrees.
+    * lng - Longitude, in degrees.
+  - zoom: How close in. 4 spans a continent, 11 a city, 14 a neighbourhood, 16 a street. Above 16 is clamped.
+  - tilt: Degrees of tilt. Only has an effect in satellite mode.
+  - heading: Compass heading, in degrees.
+  - mode: Map style. Must be one of: 'roadmap', 'satellite'
+  - anchorMarker: The one place this map is about, marked apart from the rest.
+    Map keys:
+    * lat - Latitude, in degrees.
+    * lng - Longitude, in degrees.
+    * label - What the pin says on the map.
+    * placeId - Google place id, when one is known.
+  - markers: Pins to drop. Static list — write them out.
+    List of maps keys:
+    * lat - Latitude, in degrees.
+    * lng - Longitude, in degrees.
+    * label - What the pin says on the map.
+    * placeId - Google place id, when one is known.
+  - origin: Start of a single route.
+    Map keys:
+    * lat - Latitude, in degrees.
+    * lng - Longitude, in degrees.
+  - destination: End of a single route.
+    Map keys:
+    * lat - Latitude, in degrees.
+    * lng - Longitude, in degrees.
+  - travelMode: How the route is travelled. Must be one of: 'driving', 'walking', 'bicycling', 'transit'
+  - routes: Several legs at once, drawn end to end.
+    List of maps keys:
+    * origin - Where the leg starts.
+    * destination - Where the leg ends.
 • HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities? (static), selected?, badge?)
   - Description: A place to stay, presented as a rich card with imagery, rating and nightly price.
   - name: Property name.

@@ -270,6 +270,15 @@ class TestNothingIsPromisedThatCannotBeDrawn:
     a placeholder box — a component that exists in the catalog, is recommended
     in a brief, compiles without complaint, and silently is not there. Nothing
     in the pipeline objected, because nothing in the pipeline knew.
+
+    One named difference, in the spirit of this file's opening note. `GoogleMap`
+    draws a real map in React, over the Maps JavaScript API's own `gmp-map-3d`,
+    and in Flutter it draws the places and legs as a list. Both are registered
+    and both render something a person can read, which is what these tests
+    check; what Flutter cannot do is show geography. A real map there means a
+    web view factory over the same element, and writing that without a Flutter
+    SDK to compile it against would risk the image build for a client that is
+    not where the map work is aimed.
     """
 
     @staticmethod
@@ -294,7 +303,7 @@ class TestNothingIsPromisedThatCannotBeDrawn:
         import re
 
         source = (ROOT / "renderers" / "react" / "src" / "Surface.tsx").read_text("utf-8")
-        drawn = set(re.findall(r"^\s*([A-Z][A-Za-z]+):\s*(?:basic|travel)\.", source, re.M))
+        drawn = set(re.findall(r"^\s*([A-Z][A-Za-z]+):\s*(?:basic|travel|map)\.", source, re.M))
         missing = sorted(self._told() - drawn)
         assert not missing, f"the agent is told to use {missing}, which React does not draw"
 
@@ -314,7 +323,7 @@ class TestNothingIsPromisedThatCannotBeDrawn:
         )
         react = set(
             re.findall(
-                r"^\s*([A-Z][A-Za-z]+):\s*(?:basic|travel)\.",
+                r"^\s*([A-Z][A-Za-z]+):\s*(?:basic|travel|map)\.",
                 (ROOT / "renderers" / "react" / "src" / "Surface.tsx").read_text("utf-8"),
                 re.M,
             )

@@ -100,8 +100,23 @@ jobs:
           echo "IMAGE=${image}:${GITHUB_SHA}" >> "$GITHUB_ENV"
 
       - name: Deploy
+        env:
+          # Optional. Set it and the maps draw; leave it unset and `GoogleMap`
+          # says so on screen rather than failing. A Maps key is restricted by
+          # HTTP referrer rather than kept secret — the browser is what loads
+          # the library — so it is served to the page from `/api/meta`.
+          MAPS_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
           set -euo pipefail
+
+          # One `--set-env-vars`, built up here. Passing the flag twice does not
+          # add to the environment, it replaces it, so a second flag would have
+          # quietly dropped PUBLIC_NAME.
+          env_vars="PUBLIC_NAME=Travel A2UI"
+          if [ -n "${MAPS_KEY:-}" ]; then
+            env_vars="${env_vars},GOOGLE_MAPS_API_KEY=${MAPS_KEY}"
+          fi
+
           gcloud run deploy "${{ inputs.service || 'travel-a2ui' }}" \
             --image "${IMAGE}" \
             --region "${{ vars.GCP_REGION }}" \
@@ -115,7 +130,7 @@ jobs:
             --concurrency 40 \
             --min-instances 0 \
             --max-instances 1 \
-            --set-env-vars "PUBLIC_NAME=Travel A2UI"
+            --set-env-vars "${env_vars}"
 
           # `--max-instances 1` is not a cost control, it is a correctness one.
           # Sessions live in this process's memory (see `sessions.py`), so a

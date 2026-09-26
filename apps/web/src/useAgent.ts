@@ -315,6 +315,20 @@ export function useAgent() {
   const store = useMemo(() => new SurfaceStore(), []);
 
   const [meta, setMeta] = useState<Meta | null>(null);
+
+  /*
+   * The Maps key, parked where the renderer can find it.
+   *
+   * On `window` rather than threaded through props, because the component that
+   * needs it is a leaf of a tree the *model* composed — there is no prop path
+   * from here to a `GoogleMap` the agent decided to draw three surfaces down,
+   * and inventing one would mean every catalog component that ever needs a
+   * deployment setting gets a new prop on every renderer.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    (window as unknown as Record<string, unknown>)['__A2UI_MAPS_KEY'] = meta?.mapsApiKey ?? '';
+  }, [meta?.mapsApiKey]);
   const [metaError, setMetaError] = useState<string | null>(null);
   // A key in the URL wins over a stored one and is consumed on the first read,
   // before anything else can see it in `location`.

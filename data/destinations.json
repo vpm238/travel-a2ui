@@ -9,7 +9,19 @@
     "",
     "`aliases` is how free text resolves. It used to be a separate map, and a",
     "destination could end up in one and not the other; a city that cannot be",
-    "named is a city that does not exist, so the names live on the record."
+    "named is a city that does not exist, so the names live on the record.",
+    "",
+    "`places` is what a map needs and nothing else: the city centre, each named",
+    "area and each highlight, as {name, kind, lat, lon}. Real coordinates, to",
+    "about a street block — these are centroids somebody can check, not surveyed",
+    "points, and the file says so rather than implying a precision it does not",
+    "have. A day trip sits where it really is, which is why Toledo is an hour",
+    "southwest of Madrid on the map instead of inside it.",
+    "",
+    "A generated city has none. Inventing a fare is the sin this app refuses",
+    "everywhere else, and a coordinate is a fare with worse consequences: it puts",
+    "somebody's hotel in the sea. No coordinates means no map, which is the right",
+    "answer rather than a missing feature."
   ],
   "destinations": [
     {
@@ -19,13 +31,100 @@
       "currency": "EUR",
       "bestMonths": "April–June, September–October",
       "summary": "Dense, walkable and late-running. The art is world class and the eating starts at 21:00.",
-      "aliases": ["madrid", "spain"],
-      "neighbourhoods": ["Malasaña", "La Latina", "Chueca", "Salamanca", "Lavapiés"],
+      "aliases": [
+        "madrid",
+        "spain"
+      ],
+      "neighbourhoods": [
+        "Malasaña",
+        "La Latina",
+        "Chueca",
+        "Salamanca",
+        "Lavapiés"
+      ],
       "highlights": [
-        { "name": "Museo del Prado", "category": "sight", "note": "Go at opening or in the last free hours" },
-        { "name": "Mercado de San Fernando", "category": "food", "note": "Cheaper and less touristed than San Miguel" },
-        { "name": "Retiro Park", "category": "outdoors", "note": "Rowboats on the lake until 19:00" },
-        { "name": "Toledo day trip", "category": "sight", "note": "33 minutes by AVE from Atocha" }
+        {
+          "name": "Museo del Prado",
+          "category": "sight",
+          "note": "Go at opening or in the last free hours"
+        },
+        {
+          "name": "Mercado de San Fernando",
+          "category": "food",
+          "note": "Cheaper and less touristed than San Miguel"
+        },
+        {
+          "name": "Retiro Park",
+          "category": "outdoors",
+          "note": "Rowboats on the lake until 19:00"
+        },
+        {
+          "name": "Toledo day trip",
+          "category": "sight",
+          "note": "33 minutes by AVE from Atocha"
+        }
+      ],
+      "places": [
+        {
+          "name": "Madrid",
+          "kind": "city",
+          "lat": 40.4168,
+          "lon": -3.7038
+        },
+        {
+          "name": "Malasaña",
+          "kind": "area",
+          "lat": 40.426,
+          "lon": -3.704
+        },
+        {
+          "name": "La Latina",
+          "kind": "area",
+          "lat": 40.411,
+          "lon": -3.71
+        },
+        {
+          "name": "Chueca",
+          "kind": "area",
+          "lat": 40.4225,
+          "lon": -3.6975
+        },
+        {
+          "name": "Salamanca",
+          "kind": "area",
+          "lat": 40.429,
+          "lon": -3.681
+        },
+        {
+          "name": "Lavapiés",
+          "kind": "area",
+          "lat": 40.409,
+          "lon": -3.701
+        },
+        {
+          "name": "Museo del Prado",
+          "kind": "sight",
+          "lat": 40.4138,
+          "lon": -3.6921
+        },
+        {
+          "name": "Mercado de San Fernando",
+          "kind": "sight",
+          "lat": 40.4087,
+          "lon": -3.7018
+        },
+        {
+          "name": "Retiro Park",
+          "kind": "sight",
+          "lat": 40.4153,
+          "lon": -3.6844
+        },
+        {
+          "name": "Toledo day trip",
+          "kind": "sight",
+          "lat": 39.8628,
+          "lon": -4.0273
+        }
       ]
     },
     {
@@ -35,13 +134,101 @@
       "currency": "EUR",
       "bestMonths": "March–June, September–October",
       "summary": "Hills, tiles and light. Plan for the gradients — the trams exist for a reason.",
-      "aliases": ["lisbon", "lisboa", "portugal"],
-      "neighbourhoods": ["Alfama", "Príncipe Real", "Baixa", "Graça", "Cais do Sodré"],
+      "aliases": [
+        "lisbon",
+        "lisboa",
+        "portugal"
+      ],
+      "neighbourhoods": [
+        "Alfama",
+        "Príncipe Real",
+        "Baixa",
+        "Graça",
+        "Cais do Sodré"
+      ],
       "highlights": [
-        { "name": "Alfama at dawn", "category": "sight", "note": "Empty streets before the tour groups" },
-        { "name": "Time Out Market", "category": "food", "note": "Busy at 13:00; go at 11:30" },
-        { "name": "Sintra", "category": "sight", "note": "A full day, and book Pena Palace ahead" },
-        { "name": "Belém", "category": "food", "note": "The pastéis really are better at the original" }
+        {
+          "name": "Alfama at dawn",
+          "category": "sight",
+          "note": "Empty streets before the tour groups"
+        },
+        {
+          "name": "Time Out Market",
+          "category": "food",
+          "note": "Busy at 13:00; go at 11:30"
+        },
+        {
+          "name": "Sintra",
+          "category": "sight",
+          "note": "A full day, and book Pena Palace ahead"
+        },
+        {
+          "name": "Belém",
+          "category": "food",
+          "note": "The pastéis really are better at the original"
+        }
+      ],
+      "places": [
+        {
+          "name": "Lisbon",
+          "kind": "city",
+          "lat": 38.7223,
+          "lon": -9.1393
+        },
+        {
+          "name": "Alfama",
+          "kind": "area",
+          "lat": 38.7118,
+          "lon": -9.13
+        },
+        {
+          "name": "Príncipe Real",
+          "kind": "area",
+          "lat": 38.717,
+          "lon": -9.149
+        },
+        {
+          "name": "Baixa",
+          "kind": "area",
+          "lat": 38.71,
+          "lon": -9.1395
+        },
+        {
+          "name": "Graça",
+          "kind": "area",
+          "lat": 38.717,
+          "lon": -9.129
+        },
+        {
+          "name": "Cais do Sodré",
+          "kind": "area",
+          "lat": 38.706,
+          "lon": -9.145
+        },
+        {
+          "name": "Alfama at dawn",
+          "kind": "sight",
+          "lat": 38.7118,
+          "lon": -9.13
+        },
+        {
+          "name": "Time Out Market",
+          "kind": "sight",
+          "lat": 38.7068,
+          "lon": -9.1455
+        },
+        {
+          "name": "Sintra",
+          "kind": "sight",
+          "lat": 38.798,
+          "lon": -9.3878
+        },
+        {
+          "name": "Belém",
+          "kind": "sight",
+          "lat": 38.697,
+          "lon": -9.2065
+        }
       ]
     },
     {
@@ -51,12 +238,82 @@
       "currency": "EUR",
       "bestMonths": "April–June, September–October",
       "summary": "Everything you expect, plus a lot that only shows up if you walk between the sights.",
-      "aliases": ["paris", "france"],
-      "neighbourhoods": ["Le Marais", "Canal Saint-Martin", "Saint-Germain", "Belleville"],
+      "aliases": [
+        "paris",
+        "france"
+      ],
+      "neighbourhoods": [
+        "Le Marais",
+        "Canal Saint-Martin",
+        "Saint-Germain",
+        "Belleville"
+      ],
       "highlights": [
-        { "name": "Musée d’Orsay", "category": "sight", "note": "Better than the Louvre for a first visit" },
-        { "name": "Canal Saint-Martin", "category": "outdoors", "note": "Sunday, when the roads close" },
-        { "name": "Marché d’Aligre", "category": "food", "note": "Morning market, closed Mondays" }
+        {
+          "name": "Musée d’Orsay",
+          "category": "sight",
+          "note": "Better than the Louvre for a first visit"
+        },
+        {
+          "name": "Canal Saint-Martin",
+          "category": "outdoors",
+          "note": "Sunday, when the roads close"
+        },
+        {
+          "name": "Marché d’Aligre",
+          "category": "food",
+          "note": "Morning market, closed Mondays"
+        }
+      ],
+      "places": [
+        {
+          "name": "Paris",
+          "kind": "city",
+          "lat": 48.8566,
+          "lon": 2.3522
+        },
+        {
+          "name": "Le Marais",
+          "kind": "area",
+          "lat": 48.8575,
+          "lon": 2.36
+        },
+        {
+          "name": "Canal Saint-Martin",
+          "kind": "area",
+          "lat": 48.871,
+          "lon": 2.366
+        },
+        {
+          "name": "Saint-Germain",
+          "kind": "area",
+          "lat": 48.854,
+          "lon": 2.333
+        },
+        {
+          "name": "Belleville",
+          "kind": "area",
+          "lat": 48.872,
+          "lon": 2.383
+        },
+        {
+          "name": "Musée d’Orsay",
+          "kind": "sight",
+          "lat": 48.86,
+          "lon": 2.3266
+        },
+        {
+          "name": "Canal Saint-Martin",
+          "kind": "sight",
+          "lat": 48.871,
+          "lon": 2.366
+        },
+        {
+          "name": "Marché d’Aligre",
+          "kind": "sight",
+          "lat": 48.8495,
+          "lon": 2.3782
+        }
       ]
     },
     {
@@ -66,12 +323,82 @@
       "currency": "JPY",
       "bestMonths": "March–May, October–November",
       "summary": "Vast and legible at once. Pick two neighbourhoods a day and do them properly.",
-      "aliases": ["tokyo", "japan"],
-      "neighbourhoods": ["Shibuya", "Yanaka", "Nakameguro", "Kagurazaka"],
+      "aliases": [
+        "tokyo",
+        "japan"
+      ],
+      "neighbourhoods": [
+        "Shibuya",
+        "Yanaka",
+        "Nakameguro",
+        "Kagurazaka"
+      ],
       "highlights": [
-        { "name": "Tsukiji outer market", "category": "food", "note": "Before 09:00 or not at all" },
-        { "name": "Shimokitazawa", "category": "shopping", "note": "Second-hand, coffee, small venues" },
-        { "name": "Meiji Jingu", "category": "outdoors", "note": "Enter from Harajuku, leave via Yoyogi" }
+        {
+          "name": "Tsukiji outer market",
+          "category": "food",
+          "note": "Before 09:00 or not at all"
+        },
+        {
+          "name": "Shimokitazawa",
+          "category": "shopping",
+          "note": "Second-hand, coffee, small venues"
+        },
+        {
+          "name": "Meiji Jingu",
+          "category": "outdoors",
+          "note": "Enter from Harajuku, leave via Yoyogi"
+        }
+      ],
+      "places": [
+        {
+          "name": "Tokyo",
+          "kind": "city",
+          "lat": 35.6762,
+          "lon": 139.6503
+        },
+        {
+          "name": "Shibuya",
+          "kind": "area",
+          "lat": 35.6595,
+          "lon": 139.7005
+        },
+        {
+          "name": "Yanaka",
+          "kind": "area",
+          "lat": 35.727,
+          "lon": 139.766
+        },
+        {
+          "name": "Nakameguro",
+          "kind": "area",
+          "lat": 35.644,
+          "lon": 139.699
+        },
+        {
+          "name": "Kagurazaka",
+          "kind": "area",
+          "lat": 35.701,
+          "lon": 139.74
+        },
+        {
+          "name": "Tsukiji outer market",
+          "kind": "sight",
+          "lat": 35.6654,
+          "lon": 139.7707
+        },
+        {
+          "name": "Shimokitazawa",
+          "kind": "sight",
+          "lat": 35.6613,
+          "lon": 139.668
+        },
+        {
+          "name": "Meiji Jingu",
+          "kind": "sight",
+          "lat": 35.6764,
+          "lon": 139.6993
+        }
       ]
     },
     {
@@ -81,12 +408,83 @@
       "currency": "MXN",
       "bestMonths": "March–May, October–November",
       "summary": "A capital that rewards a slow itinerary. Altitude is real on the first day.",
-      "aliases": ["mexico city", "cdmx", "mexico"],
-      "neighbourhoods": ["Roma Norte", "Condesa", "Juárez", "Coyoacán"],
+      "aliases": [
+        "mexico city",
+        "cdmx",
+        "mexico"
+      ],
+      "neighbourhoods": [
+        "Roma Norte",
+        "Condesa",
+        "Juárez",
+        "Coyoacán"
+      ],
       "highlights": [
-        { "name": "Museo Nacional de Antropología", "category": "sight", "note": "Half a day, minimum" },
-        { "name": "Mercado de Coyoacán", "category": "food", "note": "Tostadas, then the Frida Kahlo house" },
-        { "name": "Roma Norte", "category": "food", "note": "Where to eat every evening" }
+        {
+          "name": "Museo Nacional de Antropología",
+          "category": "sight",
+          "note": "Half a day, minimum"
+        },
+        {
+          "name": "Mercado de Coyoacán",
+          "category": "food",
+          "note": "Tostadas, then the Frida Kahlo house"
+        },
+        {
+          "name": "Roma Norte",
+          "category": "food",
+          "note": "Where to eat every evening"
+        }
+      ],
+      "places": [
+        {
+          "name": "Mexico City",
+          "kind": "city",
+          "lat": 19.4326,
+          "lon": -99.1332
+        },
+        {
+          "name": "Roma Norte",
+          "kind": "area",
+          "lat": 19.419,
+          "lon": -99.16
+        },
+        {
+          "name": "Condesa",
+          "kind": "area",
+          "lat": 19.411,
+          "lon": -99.172
+        },
+        {
+          "name": "Juárez",
+          "kind": "area",
+          "lat": 19.427,
+          "lon": -99.159
+        },
+        {
+          "name": "Coyoacán",
+          "kind": "area",
+          "lat": 19.35,
+          "lon": -99.162
+        },
+        {
+          "name": "Museo Nacional de Antropología",
+          "kind": "sight",
+          "lat": 19.426,
+          "lon": -99.1863
+        },
+        {
+          "name": "Mercado de Coyoacán",
+          "kind": "sight",
+          "lat": 19.3505,
+          "lon": -99.1625
+        },
+        {
+          "name": "Roma Norte",
+          "kind": "sight",
+          "lat": 19.419,
+          "lon": -99.16
+        }
       ]
     },
     {
@@ -96,13 +494,102 @@
       "currency": "USD",
       "bestMonths": "April–June, September–early November",
       "summary": "Walkable in bursts, and the subway covers the rest. Book nothing for the first evening.",
-      "aliases": ["new york", "nyc", "manhattan", "brooklyn"],
-      "neighbourhoods": ["West Village", "Lower East Side", "Fort Greene", "Harlem", "Astoria"],
+      "aliases": [
+        "new york",
+        "nyc",
+        "manhattan",
+        "brooklyn"
+      ],
+      "neighbourhoods": [
+        "West Village",
+        "Lower East Side",
+        "Fort Greene",
+        "Harlem",
+        "Astoria"
+      ],
       "highlights": [
-        { "name": "The Met", "category": "sight", "note": "Enter at 10:00 and start on the top floor" },
-        { "name": "Prospect Park", "category": "outdoors", "note": "Quieter than Central Park and better for a Saturday" },
-        { "name": "Essex Market", "category": "food", "note": "Lunch, then walk the Williamsburg Bridge" },
-        { "name": "The Frick", "category": "sight", "note": "One hour, and the best small collection in the city" }
+        {
+          "name": "The Met",
+          "category": "sight",
+          "note": "Enter at 10:00 and start on the top floor"
+        },
+        {
+          "name": "Prospect Park",
+          "category": "outdoors",
+          "note": "Quieter than Central Park and better for a Saturday"
+        },
+        {
+          "name": "Essex Market",
+          "category": "food",
+          "note": "Lunch, then walk the Williamsburg Bridge"
+        },
+        {
+          "name": "The Frick",
+          "category": "sight",
+          "note": "One hour, and the best small collection in the city"
+        }
+      ],
+      "places": [
+        {
+          "name": "New York",
+          "kind": "city",
+          "lat": 40.7128,
+          "lon": -74.006
+        },
+        {
+          "name": "West Village",
+          "kind": "area",
+          "lat": 40.7358,
+          "lon": -74.0036
+        },
+        {
+          "name": "Lower East Side",
+          "kind": "area",
+          "lat": 40.715,
+          "lon": -73.9843
+        },
+        {
+          "name": "Fort Greene",
+          "kind": "area",
+          "lat": 40.689,
+          "lon": -73.974
+        },
+        {
+          "name": "Harlem",
+          "kind": "area",
+          "lat": 40.8116,
+          "lon": -73.9465
+        },
+        {
+          "name": "Astoria",
+          "kind": "area",
+          "lat": 40.7644,
+          "lon": -73.9235
+        },
+        {
+          "name": "The Met",
+          "kind": "sight",
+          "lat": 40.7794,
+          "lon": -73.9632
+        },
+        {
+          "name": "Prospect Park",
+          "kind": "sight",
+          "lat": 40.6602,
+          "lon": -73.969
+        },
+        {
+          "name": "Essex Market",
+          "kind": "sight",
+          "lat": 40.7185,
+          "lon": -73.988
+        },
+        {
+          "name": "The Frick",
+          "kind": "sight",
+          "lat": 40.7712,
+          "lon": -73.9673
+        }
       ]
     },
     {
@@ -112,12 +599,89 @@
       "currency": "USD",
       "bestMonths": "May–June, September–October",
       "summary": "The best architecture in the country and a lakefront to walk it off on. Winter is not a suggestion.",
-      "aliases": ["chicago", "chi"],
-      "neighbourhoods": ["Wicker Park", "Logan Square", "Pilsen", "Hyde Park", "Andersonville"],
+      "aliases": [
+        "chicago",
+        "chi"
+      ],
+      "neighbourhoods": [
+        "Wicker Park",
+        "Logan Square",
+        "Pilsen",
+        "Hyde Park",
+        "Andersonville"
+      ],
       "highlights": [
-        { "name": "Chicago Architecture river cruise", "category": "sight", "note": "Do it first; everything else makes more sense after" },
-        { "name": "Art Institute", "category": "sight", "note": "The Thorne Rooms are worth the detour" },
-        { "name": "Pilsen", "category": "food", "note": "Murals, then tacos on 18th Street" }
+        {
+          "name": "Chicago Architecture river cruise",
+          "category": "sight",
+          "note": "Do it first; everything else makes more sense after"
+        },
+        {
+          "name": "Art Institute",
+          "category": "sight",
+          "note": "The Thorne Rooms are worth the detour"
+        },
+        {
+          "name": "Pilsen",
+          "category": "food",
+          "note": "Murals, then tacos on 18th Street"
+        }
+      ],
+      "places": [
+        {
+          "name": "Chicago",
+          "kind": "city",
+          "lat": 41.8781,
+          "lon": -87.6298
+        },
+        {
+          "name": "Wicker Park",
+          "kind": "area",
+          "lat": 41.9088,
+          "lon": -87.6796
+        },
+        {
+          "name": "Logan Square",
+          "kind": "area",
+          "lat": 41.927,
+          "lon": -87.707
+        },
+        {
+          "name": "Pilsen",
+          "kind": "area",
+          "lat": 41.856,
+          "lon": -87.656
+        },
+        {
+          "name": "Hyde Park",
+          "kind": "area",
+          "lat": 41.7943,
+          "lon": -87.5907
+        },
+        {
+          "name": "Andersonville",
+          "kind": "area",
+          "lat": 41.977,
+          "lon": -87.669
+        },
+        {
+          "name": "Chicago Architecture river cruise",
+          "kind": "sight",
+          "lat": 41.888,
+          "lon": -87.624
+        },
+        {
+          "name": "Art Institute",
+          "kind": "sight",
+          "lat": 41.8796,
+          "lon": -87.6237
+        },
+        {
+          "name": "Pilsen",
+          "kind": "sight",
+          "lat": 41.856,
+          "lon": -87.656
+        }
       ]
     },
     {
@@ -127,12 +691,90 @@
       "currency": "USD",
       "bestMonths": "September–October",
       "summary": "Small, steep and a dozen microclimates. Bring a layer even in August — especially in August.",
-      "aliases": ["san francisco", "sf", "bay area"],
-      "neighbourhoods": ["Mission", "Hayes Valley", "North Beach", "Outer Sunset", "Potrero Hill"],
+      "aliases": [
+        "san francisco",
+        "sf",
+        "bay area"
+      ],
+      "neighbourhoods": [
+        "Mission",
+        "Hayes Valley",
+        "North Beach",
+        "Outer Sunset",
+        "Potrero Hill"
+      ],
       "highlights": [
-        { "name": "Lands End", "category": "outdoors", "note": "The coastal trail, ending at the Sutro Baths" },
-        { "name": "Ferry Building", "category": "food", "note": "Saturday market before 10:00" },
-        { "name": "Mission murals", "category": "sight", "note": "Balmy Alley and Clarion Alley, half an hour apart" }
+        {
+          "name": "Lands End",
+          "category": "outdoors",
+          "note": "The coastal trail, ending at the Sutro Baths"
+        },
+        {
+          "name": "Ferry Building",
+          "category": "food",
+          "note": "Saturday market before 10:00"
+        },
+        {
+          "name": "Mission murals",
+          "category": "sight",
+          "note": "Balmy Alley and Clarion Alley, half an hour apart"
+        }
+      ],
+      "places": [
+        {
+          "name": "San Francisco",
+          "kind": "city",
+          "lat": 37.7749,
+          "lon": -122.4194
+        },
+        {
+          "name": "Mission",
+          "kind": "area",
+          "lat": 37.7599,
+          "lon": -122.4148
+        },
+        {
+          "name": "Hayes Valley",
+          "kind": "area",
+          "lat": 37.7765,
+          "lon": -122.4241
+        },
+        {
+          "name": "North Beach",
+          "kind": "area",
+          "lat": 37.8,
+          "lon": -122.41
+        },
+        {
+          "name": "Outer Sunset",
+          "kind": "area",
+          "lat": 37.756,
+          "lon": -122.495
+        },
+        {
+          "name": "Potrero Hill",
+          "kind": "area",
+          "lat": 37.758,
+          "lon": -122.4
+        },
+        {
+          "name": "Lands End",
+          "kind": "sight",
+          "lat": 37.78,
+          "lon": -122.506
+        },
+        {
+          "name": "Ferry Building",
+          "kind": "sight",
+          "lat": 37.7955,
+          "lon": -122.3937
+        },
+        {
+          "name": "Mission murals",
+          "kind": "sight",
+          "lat": 37.752,
+          "lon": -122.412
+        }
       ]
     },
     {
@@ -142,12 +784,82 @@
       "currency": "EUR",
       "bestMonths": "April–June, September–October",
       "summary": "Ancient and scruffy and excellent. The islands are two hours away when you want them.",
-      "aliases": ["athens", "greece"],
-      "neighbourhoods": ["Koukaki", "Plaka", "Exarchia", "Kolonaki"],
+      "aliases": [
+        "athens",
+        "greece"
+      ],
+      "neighbourhoods": [
+        "Koukaki",
+        "Plaka",
+        "Exarchia",
+        "Kolonaki"
+      ],
       "highlights": [
-        { "name": "Acropolis", "category": "sight", "note": "First entry slot, before the heat" },
-        { "name": "Anafiotika", "category": "sight", "note": "Island village inside the city" },
-        { "name": "Varvakios market", "category": "food", "note": "Not for the squeamish; superb" }
+        {
+          "name": "Acropolis",
+          "category": "sight",
+          "note": "First entry slot, before the heat"
+        },
+        {
+          "name": "Anafiotika",
+          "category": "sight",
+          "note": "Island village inside the city"
+        },
+        {
+          "name": "Varvakios market",
+          "category": "food",
+          "note": "Not for the squeamish; superb"
+        }
+      ],
+      "places": [
+        {
+          "name": "Athens",
+          "kind": "city",
+          "lat": 37.9838,
+          "lon": 23.7275
+        },
+        {
+          "name": "Koukaki",
+          "kind": "area",
+          "lat": 37.965,
+          "lon": 23.725
+        },
+        {
+          "name": "Plaka",
+          "kind": "area",
+          "lat": 37.972,
+          "lon": 23.73
+        },
+        {
+          "name": "Exarchia",
+          "kind": "area",
+          "lat": 37.987,
+          "lon": 23.734
+        },
+        {
+          "name": "Kolonaki",
+          "kind": "area",
+          "lat": 37.979,
+          "lon": 23.743
+        },
+        {
+          "name": "Acropolis",
+          "kind": "sight",
+          "lat": 37.9715,
+          "lon": 23.7267
+        },
+        {
+          "name": "Anafiotika",
+          "kind": "sight",
+          "lat": 37.9725,
+          "lon": 23.727
+        },
+        {
+          "name": "Varvakios market",
+          "kind": "sight",
+          "lat": 37.982,
+          "lon": 23.727
+        }
       ]
     }
   ]

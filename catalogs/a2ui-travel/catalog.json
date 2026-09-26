@@ -1208,6 +1208,250 @@
       ],
       "unevaluatedProperties": false
     },
+    "GoogleMap": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "description": "A real Google map. Use it to show *where* — a city and its neighbourhoods, the shape of a multi-city route, how far a stay is from what the traveler wants to do. It draws nothing and asks nothing: pair it with the controls for the decision it illustrates.",
+          "properties": {
+            "component": {
+              "const": "GoogleMap"
+            },
+            "center": {
+              "type": "object",
+              "description": "Where the map is centred.",
+              "properties": {
+                "lat": {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                  "description": "Latitude, in degrees."
+                },
+                "lng": {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                  "description": "Longitude, in degrees."
+                }
+              },
+              "required": [
+                "lat",
+                "lng"
+              ],
+              "additionalProperties": false
+            },
+            "zoom": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+              "description": "How close in. 4 spans a continent, 11 a city, 14 a neighbourhood, 16 a street. Above 16 is clamped."
+            },
+            "tilt": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+              "description": "Degrees of tilt. Only has an effect in satellite mode."
+            },
+            "heading": {
+              "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+              "description": "Compass heading, in degrees."
+            },
+            "mode": {
+              "type": "string",
+              "description": "Map style.",
+              "enum": [
+                "roadmap",
+                "satellite"
+              ],
+              "default": "roadmap"
+            },
+            "anchorMarker": {
+              "type": "object",
+              "description": "The one place this map is about, marked apart from the rest.",
+              "properties": {
+                "lat": {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                  "description": "Latitude, in degrees."
+                },
+                "lng": {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                  "description": "Longitude, in degrees."
+                },
+                "label": {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+                  "description": "What the pin says on the map."
+                },
+                "placeId": {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+                  "description": "Google place id, when one is known."
+                }
+              },
+              "required": [
+                "lat",
+                "lng",
+                "label"
+              ],
+              "additionalProperties": false
+            },
+            "markers": {
+              "type": "array",
+              "description": "Pins to drop. Static list — write them out.",
+              "items": {
+                "type": "object",
+                "description": "A pin.",
+                "properties": {
+                  "lat": {
+                    "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                    "description": "Latitude, in degrees."
+                  },
+                  "lng": {
+                    "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                    "description": "Longitude, in degrees."
+                  },
+                  "label": {
+                    "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+                    "description": "What the pin says on the map."
+                  },
+                  "placeId": {
+                    "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+                    "description": "Google place id, when one is known."
+                  }
+                },
+                "required": [
+                  "lat",
+                  "lng",
+                  "label"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "origin": {
+              "type": "object",
+              "description": "Start of a single route.",
+              "properties": {
+                "lat": {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                  "description": "Latitude, in degrees."
+                },
+                "lng": {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                  "description": "Longitude, in degrees."
+                }
+              },
+              "required": [
+                "lat",
+                "lng"
+              ],
+              "additionalProperties": false
+            },
+            "destination": {
+              "type": "object",
+              "description": "End of a single route.",
+              "properties": {
+                "lat": {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                  "description": "Latitude, in degrees."
+                },
+                "lng": {
+                  "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                  "description": "Longitude, in degrees."
+                }
+              },
+              "required": [
+                "lat",
+                "lng"
+              ],
+              "additionalProperties": false
+            },
+            "travelMode": {
+              "type": "string",
+              "description": "How the route is travelled.",
+              "enum": [
+                "driving",
+                "walking",
+                "bicycling",
+                "transit"
+              ]
+            },
+            "routes": {
+              "type": "array",
+              "description": "Several legs at once, drawn end to end.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "origin": {
+                    "type": "object",
+                    "description": "Where the leg starts.",
+                    "properties": {
+                      "lat": {
+                        "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                        "description": "Latitude, in degrees."
+                      },
+                      "lng": {
+                        "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                        "description": "Longitude, in degrees."
+                      },
+                      "label": {
+                        "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+                        "description": "What the pin says on the map."
+                      },
+                      "placeId": {
+                        "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+                        "description": "Google place id, when one is known."
+                      }
+                    },
+                    "required": [
+                      "lat",
+                      "lng",
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "destination": {
+                    "type": "object",
+                    "description": "Where the leg ends.",
+                    "properties": {
+                      "lat": {
+                        "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                        "description": "Latitude, in degrees."
+                      },
+                      "lng": {
+                        "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber",
+                        "description": "Longitude, in degrees."
+                      },
+                      "label": {
+                        "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+                        "description": "What the pin says on the map."
+                      },
+                      "placeId": {
+                        "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
+                        "description": "Google place id, when one is known."
+                      }
+                    },
+                    "required": [
+                      "lat",
+                      "lng",
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "origin",
+                  "destination"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "component",
+            "center",
+            "zoom"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
     "MapPreview": {
       "type": "object",
       "allOf": [
@@ -2348,6 +2592,9 @@
         },
         {
           "$ref": "#/components/ActivityItem"
+        },
+        {
+          "$ref": "#/components/GoogleMap"
         },
         {
           "$ref": "#/components/MapPreview"

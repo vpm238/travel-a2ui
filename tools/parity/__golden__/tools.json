@@ -1211,6 +1211,68 @@
             "Chueca",
             "Salamanca",
             "Lavapiés"
+          ],
+          "places": [
+            {
+              "name": "Madrid",
+              "kind": "city",
+              "lat": 40.4168,
+              "lon": -3.7038
+            },
+            {
+              "name": "Malasaña",
+              "kind": "area",
+              "lat": 40.426,
+              "lon": -3.704
+            },
+            {
+              "name": "La Latina",
+              "kind": "area",
+              "lat": 40.411,
+              "lon": -3.71
+            },
+            {
+              "name": "Chueca",
+              "kind": "area",
+              "lat": 40.4225,
+              "lon": -3.6975
+            },
+            {
+              "name": "Salamanca",
+              "kind": "area",
+              "lat": 40.429,
+              "lon": -3.681
+            },
+            {
+              "name": "Lavapiés",
+              "kind": "area",
+              "lat": 40.409,
+              "lon": -3.701
+            },
+            {
+              "name": "Museo del Prado",
+              "kind": "sight",
+              "lat": 40.4138,
+              "lon": -3.6921
+            },
+            {
+              "name": "Mercado de San Fernando",
+              "kind": "sight",
+              "lat": 40.4087,
+              "lon": -3.7018
+            },
+            {
+              "name": "Retiro Park",
+              "kind": "sight",
+              "lat": 40.4153,
+              "lon": -3.6844
+            },
+            {
+              "name": "Toledo day trip",
+              "kind": "sight",
+              "lat": 39.8628,
+              "lon": -4.0273
+            }
           ]
         },
         {
@@ -1248,6 +1310,68 @@
             "Baixa",
             "Graça",
             "Cais do Sodré"
+          ],
+          "places": [
+            {
+              "name": "Lisbon",
+              "kind": "city",
+              "lat": 38.7223,
+              "lon": -9.1393
+            },
+            {
+              "name": "Alfama",
+              "kind": "area",
+              "lat": 38.7118,
+              "lon": -9.13
+            },
+            {
+              "name": "Príncipe Real",
+              "kind": "area",
+              "lat": 38.717,
+              "lon": -9.149
+            },
+            {
+              "name": "Baixa",
+              "kind": "area",
+              "lat": 38.71,
+              "lon": -9.1395
+            },
+            {
+              "name": "Graça",
+              "kind": "area",
+              "lat": 38.717,
+              "lon": -9.129
+            },
+            {
+              "name": "Cais do Sodré",
+              "kind": "area",
+              "lat": 38.706,
+              "lon": -9.145
+            },
+            {
+              "name": "Alfama at dawn",
+              "kind": "sight",
+              "lat": 38.7118,
+              "lon": -9.13
+            },
+            {
+              "name": "Time Out Market",
+              "kind": "sight",
+              "lat": 38.7068,
+              "lon": -9.1455
+            },
+            {
+              "name": "Sintra",
+              "kind": "sight",
+              "lat": 38.798,
+              "lon": -9.3878
+            },
+            {
+              "name": "Belém",
+              "kind": "sight",
+              "lat": 38.697,
+              "lon": -9.2065
+            }
           ]
         },
         {
@@ -1279,6 +1403,56 @@
             "Canal Saint-Martin",
             "Saint-Germain",
             "Belleville"
+          ],
+          "places": [
+            {
+              "name": "Paris",
+              "kind": "city",
+              "lat": 48.8566,
+              "lon": 2.3522
+            },
+            {
+              "name": "Le Marais",
+              "kind": "area",
+              "lat": 48.8575,
+              "lon": 2.36
+            },
+            {
+              "name": "Canal Saint-Martin",
+              "kind": "area",
+              "lat": 48.871,
+              "lon": 2.366
+            },
+            {
+              "name": "Saint-Germain",
+              "kind": "area",
+              "lat": 48.854,
+              "lon": 2.333
+            },
+            {
+              "name": "Belleville",
+              "kind": "area",
+              "lat": 48.872,
+              "lon": 2.383
+            },
+            {
+              "name": "Musée d’Orsay",
+              "kind": "sight",
+              "lat": 48.86,
+              "lon": 2.3266
+            },
+            {
+              "name": "Canal Saint-Martin",
+              "kind": "sight",
+              "lat": 48.871,
+              "lon": 2.366
+            },
+            {
+              "name": "Marché d’Aligre",
+              "kind": "sight",
+              "lat": 48.8495,
+              "lon": 2.3782
+            }
           ]
         },
         {
@@ -1310,6 +1484,56 @@
             "Yanaka",
             "Nakameguro",
             "Kagurazaka"
+          ],
+          "places": [
+            {
+              "name": "Tokyo",
+              "kind": "city",
+              "lat": 35.6762,
+              "lon": 139.6503
+            },
+            {
+              "name": "Shibuya",
+              "kind": "area",
+              "lat": 35.6595,
+              "lon": 139.7005
+            },
+            {
+              "name": "Yanaka",
+              "kind": "area",
+              "lat": 35.727,
+              "lon": 139.766
+            },
+            {
+              "name": "Nakameguro",
+              "kind": "area",
+              "lat": 35.644,
+              "lon": 139.699
+            },
+            {
+              "name": "Kagurazaka",
+              "kind": "area",
+              "lat": 35.701,
+              "lon": 139.74
+            },
+            {
+              "name": "Tsukiji outer market",
+              "kind": "sight",
+              "lat": 35.6654,
+              "lon": 139.7707
+            },
+            {
+              "name": "Shimokitazawa",
+              "kind": "sight",
+              "lat": 35.6613,
+              "lon": 139.668
+            },
+            {
+              "name": "Meiji Jingu",
+              "kind": "sight",
+              "lat": 35.6764,
+              "lon": 139.6993
+            }
           ]
         },
         {
@@ -1341,6 +1565,56 @@
             "Condesa",
             "Juárez",
             "Coyoacán"
+          ],
+          "places": [
+            {
+              "name": "Mexico City",
+              "kind": "city",
+              "lat": 19.4326,
+              "lon": -99.1332
+            },
+            {
+              "name": "Roma Norte",
+              "kind": "area",
+              "lat": 19.419,
+              "lon": -99.16
+            },
+            {
+              "name": "Condesa",
+              "kind": "area",
+              "lat": 19.411,
+              "lon": -99.172
+            },
+            {
+              "name": "Juárez",
+              "kind": "area",
+              "lat": 19.427,
+              "lon": -99.159
+            },
+            {
+              "name": "Coyoacán",
+              "kind": "area",
+              "lat": 19.35,
+              "lon": -99.162
+            },
+            {
+              "name": "Museo Nacional de Antropología",
+              "kind": "sight",
+              "lat": 19.426,
+              "lon": -99.1863
+            },
+            {
+              "name": "Mercado de Coyoacán",
+              "kind": "sight",
+              "lat": 19.3505,
+              "lon": -99.1625
+            },
+            {
+              "name": "Roma Norte",
+              "kind": "sight",
+              "lat": 19.419,
+              "lon": -99.16
+            }
           ]
         },
         {
@@ -1378,6 +1652,68 @@
             "Fort Greene",
             "Harlem",
             "Astoria"
+          ],
+          "places": [
+            {
+              "name": "New York",
+              "kind": "city",
+              "lat": 40.7128,
+              "lon": -74.006
+            },
+            {
+              "name": "West Village",
+              "kind": "area",
+              "lat": 40.7358,
+              "lon": -74.0036
+            },
+            {
+              "name": "Lower East Side",
+              "kind": "area",
+              "lat": 40.715,
+              "lon": -73.9843
+            },
+            {
+              "name": "Fort Greene",
+              "kind": "area",
+              "lat": 40.689,
+              "lon": -73.974
+            },
+            {
+              "name": "Harlem",
+              "kind": "area",
+              "lat": 40.8116,
+              "lon": -73.9465
+            },
+            {
+              "name": "Astoria",
+              "kind": "area",
+              "lat": 40.7644,
+              "lon": -73.9235
+            },
+            {
+              "name": "The Met",
+              "kind": "sight",
+              "lat": 40.7794,
+              "lon": -73.9632
+            },
+            {
+              "name": "Prospect Park",
+              "kind": "sight",
+              "lat": 40.6602,
+              "lon": -73.969
+            },
+            {
+              "name": "Essex Market",
+              "kind": "sight",
+              "lat": 40.7185,
+              "lon": -73.988
+            },
+            {
+              "name": "The Frick",
+              "kind": "sight",
+              "lat": 40.7712,
+              "lon": -73.9673
+            }
           ]
         },
         {
@@ -1410,6 +1746,62 @@
             "Pilsen",
             "Hyde Park",
             "Andersonville"
+          ],
+          "places": [
+            {
+              "name": "Chicago",
+              "kind": "city",
+              "lat": 41.8781,
+              "lon": -87.6298
+            },
+            {
+              "name": "Wicker Park",
+              "kind": "area",
+              "lat": 41.9088,
+              "lon": -87.6796
+            },
+            {
+              "name": "Logan Square",
+              "kind": "area",
+              "lat": 41.927,
+              "lon": -87.707
+            },
+            {
+              "name": "Pilsen",
+              "kind": "area",
+              "lat": 41.856,
+              "lon": -87.656
+            },
+            {
+              "name": "Hyde Park",
+              "kind": "area",
+              "lat": 41.7943,
+              "lon": -87.5907
+            },
+            {
+              "name": "Andersonville",
+              "kind": "area",
+              "lat": 41.977,
+              "lon": -87.669
+            },
+            {
+              "name": "Chicago Architecture river cruise",
+              "kind": "sight",
+              "lat": 41.888,
+              "lon": -87.624
+            },
+            {
+              "name": "Art Institute",
+              "kind": "sight",
+              "lat": 41.8796,
+              "lon": -87.6237
+            },
+            {
+              "name": "Pilsen",
+              "kind": "sight",
+              "lat": 41.856,
+              "lon": -87.656
+            }
           ]
         },
         {
@@ -1442,6 +1834,62 @@
             "North Beach",
             "Outer Sunset",
             "Potrero Hill"
+          ],
+          "places": [
+            {
+              "name": "San Francisco",
+              "kind": "city",
+              "lat": 37.7749,
+              "lon": -122.4194
+            },
+            {
+              "name": "Mission",
+              "kind": "area",
+              "lat": 37.7599,
+              "lon": -122.4148
+            },
+            {
+              "name": "Hayes Valley",
+              "kind": "area",
+              "lat": 37.7765,
+              "lon": -122.4241
+            },
+            {
+              "name": "North Beach",
+              "kind": "area",
+              "lat": 37.8,
+              "lon": -122.41
+            },
+            {
+              "name": "Outer Sunset",
+              "kind": "area",
+              "lat": 37.756,
+              "lon": -122.495
+            },
+            {
+              "name": "Potrero Hill",
+              "kind": "area",
+              "lat": 37.758,
+              "lon": -122.4
+            },
+            {
+              "name": "Lands End",
+              "kind": "sight",
+              "lat": 37.78,
+              "lon": -122.506
+            },
+            {
+              "name": "Ferry Building",
+              "kind": "sight",
+              "lat": 37.7955,
+              "lon": -122.3937
+            },
+            {
+              "name": "Mission murals",
+              "kind": "sight",
+              "lat": 37.752,
+              "lon": -122.412
+            }
           ]
         },
         {
@@ -1473,6 +1921,56 @@
             "Plaka",
             "Exarchia",
             "Kolonaki"
+          ],
+          "places": [
+            {
+              "name": "Athens",
+              "kind": "city",
+              "lat": 37.9838,
+              "lon": 23.7275
+            },
+            {
+              "name": "Koukaki",
+              "kind": "area",
+              "lat": 37.965,
+              "lon": 23.725
+            },
+            {
+              "name": "Plaka",
+              "kind": "area",
+              "lat": 37.972,
+              "lon": 23.73
+            },
+            {
+              "name": "Exarchia",
+              "kind": "area",
+              "lat": 37.987,
+              "lon": 23.734
+            },
+            {
+              "name": "Kolonaki",
+              "kind": "area",
+              "lat": 37.979,
+              "lon": 23.743
+            },
+            {
+              "name": "Acropolis",
+              "kind": "sight",
+              "lat": 37.9715,
+              "lon": 23.7267
+            },
+            {
+              "name": "Anafiotika",
+              "kind": "sight",
+              "lat": 37.9725,
+              "lon": 23.727
+            },
+            {
+              "name": "Varvakios market",
+              "kind": "sight",
+              "lat": 37.982,
+              "lon": 23.727
+            }
           ]
         }
       ]
@@ -1523,6 +2021,68 @@
         "Chueca",
         "Salamanca",
         "Lavapiés"
+      ],
+      "places": [
+        {
+          "name": "Madrid",
+          "kind": "city",
+          "lat": 40.4168,
+          "lon": -3.7038
+        },
+        {
+          "name": "Malasaña",
+          "kind": "area",
+          "lat": 40.426,
+          "lon": -3.704
+        },
+        {
+          "name": "La Latina",
+          "kind": "area",
+          "lat": 40.411,
+          "lon": -3.71
+        },
+        {
+          "name": "Chueca",
+          "kind": "area",
+          "lat": 40.4225,
+          "lon": -3.6975
+        },
+        {
+          "name": "Salamanca",
+          "kind": "area",
+          "lat": 40.429,
+          "lon": -3.681
+        },
+        {
+          "name": "Lavapiés",
+          "kind": "area",
+          "lat": 40.409,
+          "lon": -3.701
+        },
+        {
+          "name": "Museo del Prado",
+          "kind": "sight",
+          "lat": 40.4138,
+          "lon": -3.6921
+        },
+        {
+          "name": "Mercado de San Fernando",
+          "kind": "sight",
+          "lat": 40.4087,
+          "lon": -3.7018
+        },
+        {
+          "name": "Retiro Park",
+          "kind": "sight",
+          "lat": 40.4153,
+          "lon": -3.6844
+        },
+        {
+          "name": "Toledo day trip",
+          "kind": "sight",
+          "lat": 39.8628,
+          "lon": -4.0273
+        }
       ]
     },
     "isError": false,
@@ -1571,6 +2131,68 @@
         "Chueca",
         "Salamanca",
         "Lavapiés"
+      ],
+      "places": [
+        {
+          "name": "Madrid",
+          "kind": "city",
+          "lat": 40.4168,
+          "lon": -3.7038
+        },
+        {
+          "name": "Malasaña",
+          "kind": "area",
+          "lat": 40.426,
+          "lon": -3.704
+        },
+        {
+          "name": "La Latina",
+          "kind": "area",
+          "lat": 40.411,
+          "lon": -3.71
+        },
+        {
+          "name": "Chueca",
+          "kind": "area",
+          "lat": 40.4225,
+          "lon": -3.6975
+        },
+        {
+          "name": "Salamanca",
+          "kind": "area",
+          "lat": 40.429,
+          "lon": -3.681
+        },
+        {
+          "name": "Lavapiés",
+          "kind": "area",
+          "lat": 40.409,
+          "lon": -3.701
+        },
+        {
+          "name": "Museo del Prado",
+          "kind": "sight",
+          "lat": 40.4138,
+          "lon": -3.6921
+        },
+        {
+          "name": "Mercado de San Fernando",
+          "kind": "sight",
+          "lat": 40.4087,
+          "lon": -3.7018
+        },
+        {
+          "name": "Retiro Park",
+          "kind": "sight",
+          "lat": 40.4153,
+          "lon": -3.6844
+        },
+        {
+          "name": "Toledo day trip",
+          "kind": "sight",
+          "lat": 39.8628,
+          "lon": -4.0273
+        }
       ]
     },
     "isError": false,
@@ -1628,6 +2250,7 @@
           "note": "Where everyone else goes, and rightly"
         }
       ],
+      "places": [],
       "invented": true
     },
     "isError": false,
