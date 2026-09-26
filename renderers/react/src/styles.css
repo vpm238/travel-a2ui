@@ -1512,6 +1512,176 @@
   color: var(--tv-ink-muted);
 }
 
+/* -- TripCalendar -----------------------------------------------------------
+ * A month grid with the travel days as one band. The band is drawn on the cell
+ * backgrounds rather than as a separate element so it wraps across rows for
+ * free; the ends are rounded to read as a range and not as seven highlighted
+ * days that happen to touch. */
+.tv-cal {
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius);
+  padding: 13px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tv-gap-sm);
+}
+
+.tv-cal.is-interactive {
+  cursor: pointer;
+}
+
+.tv-cal.is-interactive:hover {
+  border-color: var(--tv-accent-line);
+}
+
+.tv-cal__title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tv-ink-muted);
+  font-weight: 600;
+}
+
+.tv-cal__months {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tv-gap) var(--tv-gap-lg);
+}
+
+.tv-cal__month {
+  border-collapse: separate;
+  border-spacing: 0 2px;
+  table-layout: fixed;
+  /* Seven columns of a fixed width, so months line up beside each other and
+   * the band is the same shape in every one. */
+  width: calc(7 * 34px);
+  font-variant-numeric: var(--tv-figures);
+}
+
+.tv-cal__month caption {
+  text-align: left;
+  font-weight: 640;
+  font-size: 0.88rem;
+  padding: 0 0 6px 4px;
+  color: var(--tv-ink);
+}
+
+.tv-cal__month th {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--tv-ink-faint);
+  text-transform: uppercase;
+  padding: 0 0 2px;
+  text-align: center;
+}
+
+.tv-cal__month td {
+  position: relative;
+  height: 34px;
+  padding: 0;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 0.8rem;
+  color: var(--tv-ink-muted);
+}
+
+.tv-cal__month td.is-pad {
+  visibility: hidden;
+}
+
+.tv-cal__month td.in-range {
+  background: var(--tv-accent-soft);
+  color: var(--tv-ink);
+  font-weight: 600;
+}
+
+.tv-cal__month td.is-start {
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+
+.tv-cal__month td.is-end {
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+/* The ends get a filled disc so the band reads as "from here to here" even
+ * when it is a single row, or a single day. */
+.tv-cal__month td.is-start .tv-cal__day,
+.tv-cal__month td.is-end .tv-cal__day {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--tv-accent);
+  color: var(--tv-accent-ink);
+}
+
+.tv-cal__day {
+  line-height: 1;
+}
+
+/* A marked day carries its glyph in the corner, small enough to leave the
+ * number readable. Emoji and SVG share the box so the two kinds sit alike. */
+.tv-cal__glyph {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  font-size: 0.6rem;
+  line-height: 1;
+  width: 0.75rem;
+  height: 0.75rem;
+  display: inline-grid;
+  place-items: center;
+  color: var(--tv-accent);
+}
+
+.tv-cal__month td.is-start .tv-cal__glyph,
+.tv-cal__month td.is-end .tv-cal__glyph {
+  /* On a filled disc the glyph moves outside it, top-right, and takes the
+   * accent so it is not lost against the paper. */
+  top: -2px;
+  bottom: auto;
+  right: -1px;
+}
+
+.tv-cal__key {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--tv-gap);
+  font-size: 0.74rem;
+  color: var(--tv-ink-muted);
+}
+
+.tv-cal__key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tv-cal__key li > :first-child {
+  color: var(--tv-accent);
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.tv-cal__caption {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--tv-ink-muted);
+}
+
+.tv-cal__empty {
+  font-size: 0.82rem;
+  color: var(--tv-ink-faint);
+  font-style: italic;
+}
+
 .tv-split {
   background: var(--tv-surface);
   border: 1px solid var(--tv-line);

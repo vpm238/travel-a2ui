@@ -47,25 +47,22 @@ SURFACE_TOOLS: list[dict[str, Any]] = json.loads(
 #: import the module that fingerprints it. The cycle would work — both sides
 #: only touch each other inside functions — right up until an unrelated edit
 #: moves one of those calls to import time.
-VOICE_MODEL = os.environ.get(
-    "VOICE_MODEL", "gemini-2.5-flash-native-audio-preview-12-2025"
-)
-#: The 09-2025 build this used to name is gone — withdrawn, and no longer listed
-#: among the models that serve `bidiGenerateContent`. That is the whole of why
-#: voice stopped working: the connect was answered with NOT_FOUND, which reads
-#: like a bug in this app rather than like a model that no longer exists.
+VOICE_MODEL = os.environ.get("VOICE_MODEL", "gemini-3.8-live")
+#: Gemini 3.8 Live is the first Live model on a stable channel, and the named
+#: replacement for every preview this used to point at: the 09-2025 native-audio
+#: build was withdrawn, 12-2025 succeeded it, and `gemini-3.1-flash-live-preview`
+#: sat beside both. Each withdrawal answered a connect with NOT_FOUND, which
+#: reads like a bug in this app rather than like a model that no longer exists —
+#: which is why the name stayed a setting even now that the default should not
+#: rot. The audio format, the transcription config and the tool schemas all
+#: carry over; what 3.8 changes is the *default* for function calling, which is
+#: why `setup_config` names one. See there.
 #:
-#: 12-2025 is its direct successor in the same family, so the setup config, the
-#: tool schemas and the audio format all carry over unchanged. The other current
-#: option is `gemini-3.1-flash-live-preview`, which is newer and lower-latency;
-#: it is not the default only because this one is the smaller change from what
-#: was here, and voice needs to be working before it is worth tuning.
-#: Overridable because the default is a *preview* model, and previews are
-#: withdrawn. When that happens the Live API answers a connect with NOT_FOUND
-#: and voice stops working for a reason that has nothing to do with this code —
-#: so the name is a setting, and a deployment can be corrected without one.
-#: Every other model this app uses is on a stable channel; this one has no
-#: stable equivalent to point at, which is why it is the one that can rot.
+#: The sibling `gemini-3.8-live-extended-thinking` reasons in the background and
+#: fills the silence with spoken "checking that now"s. It is not the default
+#: because it only accepts `NON_BLOCKING` tools and reports being finished
+#: through `interaction_status` rather than `turn_complete` — both of which the
+#: relay below would need to learn first.
 
 
 #: How to behave on a call rather than in a chat window.
@@ -146,6 +143,9 @@ def live_schema(schema: Any) -> Any:
 #: and costs the transcript.
 DEFAULT_LANGUAGE = "en-US"
 
+#: How a tool call is scheduled against the model's speech. See `setup_config`.
+TOOL_BEHAVIOR = "BLOCKING"
+
 
 def setup_config(
     system_instruction: str,
@@ -163,6 +163,16 @@ def setup_config(
 
     Both transcripts are on, so the conversation has a readable record: what
     they said is the only way to show a caller they were heard correctly.
+
+    Every tool is declared `BLOCKING`. Gemini 3.8 Live made asynchronous calls
+    (`NON_BLOCKING`) the default: the model fires the call, keeps talking, ends
+    its turn, and speaks again whenever the result lands. The relay's turn
+    accounting — one promise-nudge per turn, "did this turn call anything", the
+    panel refresh after a call — all assume the result arrives *inside* the turn
+    that asked for it, and the surface tools answer in milliseconds from a
+    fixture, so there is no silence for an async call to fill. Naming the old
+    behaviour keeps the relay honest; the setting is what 3.8 offers for exactly
+    this case.
     """
     config: dict[str, Any] = {
         "response_modalities": ["AUDIO"],
@@ -173,6 +183,7 @@ def setup_config(
                     {
                         "name": tool["name"],
                         "description": tool["description"],
+                        "behavior": TOOL_BEHAVIOR,
                         "parameters": live_schema(tool["parameters"]),
                     }
                     for tool in voice_tools()
@@ -398,6 +409,14 @@ async def relay(
     shape = model.decision_shape(trip)
     #: How many surfaces this call has drawn, so each gets its own id.
     drawings = 0
+    #: Whether the turn in flight has already been handed back once.
+    #:
+    #: Out here rather than inside `_one_turn`, because the turn that *answers*
+    #: a nudge is a new `receive()`: the SDK breaks its loop on `turn_complete`,
+    #: nudge or no nudge. A flag that lived with the loop was reset with it, so
+    #: a model that answered "Let me look into that" with "Let me check on
+    #: that" was nudged again — and the once-only guard was a comment.
+    nudged = False
 
     try:
         async with genai.aio.live.connect(
@@ -481,6 +500,7 @@ async def relay(
                 """One model turn. False when the session has nothing left."""
                 nonlocal drawings
                 nonlocal shape
+                nonlocal nudged
                 alive = False
                 # Per turn, not per session: what this turn said and whether it
                 # did anything. Reset on every `turn_complete` below, because a
@@ -488,7 +508,7 @@ async def relay(
                 # turn's one too.
                 spoken_this_turn = ""
                 called_this_turn = False
-                nudged = False
+                cut_off = False
                 async for frame in live.receive():
                     alive = True
                     content = getattr(frame, "server_content", None)
@@ -521,6 +541,19 @@ async def relay(
                             await announce(
                                 {"type": "transcript", "text": heard.text, "who": "you"}
                             )
+                        if getattr(content, "interrupted", False):
+                            # The traveller spoke over the answer. The model
+                            # has already stopped; the browser has not, because
+                            # it queues audio ahead of playback and would go on
+                            # saying a sentence nobody is listening to. Told,
+                            # it drops the queue.
+                            #
+                            # And a cut-off turn is not one that promised and
+                            # did nothing — it is one the traveller ended.
+                            # Prodding it would talk over the very person who
+                            # just asked it to stop.
+                            cut_off = True
+                            await announce({"type": "interrupted"})
                         if getattr(content, "turn_complete", False):
                             # A turn that promised and did nothing is not over.
                             #
@@ -538,7 +571,11 @@ async def relay(
                             # only when nothing was called and nothing drawn:
                             # a nudge that can itself be ignored must not be
                             # able to loop.
-                            if _promised(spoken_this_turn) and not called_this_turn:
+                            if (
+                                _promised(spoken_this_turn)
+                                and not called_this_turn
+                                and not cut_off
+                            ):
                                 if not nudged:
                                     nudged = True
                                     await live.send_client_content(
@@ -824,15 +861,15 @@ def _describe_live_error(error: Exception) -> str:
         return "That API key was rejected for the Live API."
     if "quota" in lowered or "429" in text:
         return "That key has hit its Live API quota. Try again shortly."
-    # A withdrawn preview is the failure this is most likely to be, and the one
-    # the raw message explains worst: the SDK says NOT_FOUND, which reads as a
-    # bug in this app rather than as a model that no longer exists. Naming the
-    # model and where to change it turns an outage into a setting.
+    # A model this key cannot see is the failure the raw message explains
+    # worst: the SDK says NOT_FOUND, which reads as a bug in this app rather
+    # than as a name that is wrong for this key — an override pointing at a
+    # withdrawn preview, or a key on a plan the model has not reached. Naming
+    # the model and where to change it turns an outage into a setting.
     if "not_found" in lowered or "404" in text or "was not found" in lowered:
         return (
-            f"The Live model “{VOICE_MODEL}” is not available to that key. It is a "
-            "preview model, and previews get withdrawn — set VOICE_MODEL on the "
-            "server to a current one."
+            f"The Live model “{VOICE_MODEL}” is not available to that key — set "
+            "VOICE_MODEL on the server to one that serves the Live API."
         )
     if "not supported" in lowered or "unsupported" in lowered:
         return (

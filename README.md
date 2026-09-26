@@ -850,7 +850,7 @@ travel-a2ui/
 ├── prompts/                    what the agent is told: its role, and each surface's brief
 ├── catalogs/
 │   ├── basic/                  vendored A2UI v0.9.1 basic catalog
-│   └── a2ui-travel/            generated: basic + 12 travel components, and the examples
+│   └── a2ui-travel/            generated: basic + 13 travel components, and the examples
 ├── apps/
 │   ├── server/                 ★ the whole backend: brain/ and doors/
 │   ├── web/                    React client: the three flows, the catalog and the wire inspector
