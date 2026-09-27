@@ -164,6 +164,11 @@ export function GoogleMap({ node, scope }: ComponentProps) {
     map.setAttribute('range', String(Math.max(200, 40_000_000 / 2 ** Math.min(zoom, 16))));
     map.setAttribute('tilt', String(tilt));
     map.setAttribute('heading', String(heading));
+    // `roadmap` becomes HYBRID, which is a real decision and not a typo. The 3D
+    // map has two modes, HYBRID and SATELLITE, and no flat road map at all:
+    // HYBRID is imagery *with* the roads and labels drawn over it, so it is the
+    // one that answers "where is this" the way a road map does. SATELLITE is
+    // the bare imagery, which is what somebody asking for satellite wants.
     map.setAttribute('mode', mode === 'satellite' ? 'SATELLITE' : 'HYBRID');
     map.style.width = '100%';
     map.style.height = '100%';
