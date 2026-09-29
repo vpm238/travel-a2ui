@@ -11,12 +11,18 @@
  * What is *not* borrowed is their renderer. Their package ships the component
  * as a Lit element bound to `@a2ui/lit` — a second A2UI runtime, with its own
  * data model, mounted inside ours. Reading their source is what settled it:
- * their element's whole job is to turn resolved props into `<gmp-map-3d>`,
- * `<gmp-marker-3d>` and `<gmp-route-3d>`, which are framework-agnostic custom
- * elements published by the Maps JavaScript API itself. Our renderer already
- * resolves A2UI props. So this draws the same elements from the props we
- * already have, and the page keeps one data model instead of mirroring it into
- * a second one.
+ * their element's whole job is to turn resolved props into Maps JavaScript API
+ * primitives. Our renderer already resolves A2UI props, so it draws those
+ * primitives from the props we already have, and the page keeps one data model
+ * instead of mirroring it into a second one.
+ *
+ * Where this deliberately differs: Google's component draws `<gmp-map-3d>`,
+ * and the 3D map has no flat road map — its two modes are HYBRID and
+ * SATELLITE, both of them photographic. Tried on a real trip, satellite
+ * imagery turned out to be the wrong surface for a decision: it is beautiful
+ * and it is hard to read, and a traveller comparing two hotels wants streets
+ * and labels, not roofs. So this draws the 2D `google.maps.Map`, where
+ * `roadmap` means a road map and `satellite` still means satellite.
  *
  * The map draws and does not ask. Google's component dispatches no events —
  * no click, no selection, nothing — so by this app's own rules it is furniture,
@@ -66,10 +72,13 @@ function pin(value: Json | undefined, scope: ResolveScope): Pin | null {
 /**
  * The Maps JavaScript API, loaded once per page and shared.
  *
- * `v=alpha` and the `maps3d` library, because `gmp-map-3d` lives there — this
- * is what Google's own sample loads, and the element simply does not upgrade
- * without it. The promise is cached on the module so eight maps on one home
- * screen are one script tag and one download.
+ * The stable channel and the `maps` library, and nothing else. Every extra
+ * library is a separate API somebody has to enable: `places` and `routes` were
+ * in this URL for components we never built, and a deployment with only the
+ * Maps JavaScript API switched on would have paid for them with an error.
+ *
+ * The promise is cached on the module so eight maps on one home screen are one
+ * script tag and one download.
  */
 let loading: Promise<boolean> | null = null;
 
@@ -87,10 +96,24 @@ function loadMaps(apiKey: string): Promise<boolean> {
     // in suboptimal performance." Without it the parser blocks on the bootstrap
     // while a surface is still streaming in beside it.
     script.src =
-      'https://maps.googleapis.com/maps/api/js?v=alpha&loading=async' +
-      '&libraries=maps3d,marker,places,routes' +
+      'https://maps.googleapis.com/maps/api/js?loading=async&libraries=maps' +
       `&key=${encodeURIComponent(apiKey)}`;
-    script.onload = () => resolve(true);
+    // `loading=async` means the tag fires `onload` when the *bootstrap* is
+    // parsed, not when `google.maps` exists — which is the whole point of it.
+    // Resolving on `onload` alone handed the component an API that was not
+    // there yet: the effect returned early, `ready` never changed again, and
+    // the card sat as an empty rectangle with nothing in the console. So wait
+    // for the thing we actually need.
+    script.onload = () => {
+      const started = Date.now();
+      const settle = () => {
+        const maps = (window as unknown as Record<string, any>)['google']?.maps;
+        if (typeof maps?.importLibrary === 'function') return resolve(true);
+        if (Date.now() - started > 15_000) return resolve(false);
+        setTimeout(settle, 50);
+      };
+      settle();
+    };
     // A key that is rejected, a referrer that is not allowed, a network that is
     // not there. All of them end here, and none of them should take the
     // surface down with them — the caption still says where this is.
@@ -155,43 +178,98 @@ export function GoogleMap({ node, scope }: ComponentProps) {
   useEffect(() => {
     if (ready !== 'ready' || !host.current || !centre) return;
     const element = host.current;
-    element.replaceChildren();
+    let cancelled = false;
 
-    const map = document.createElement('gmp-map-3d');
-    map.setAttribute('center', `${centre.lat},${centre.lng},0`);
-    // The 3D element takes a range in metres rather than a tile zoom level, so
-    // the same doubling a zoom level means is a halving here.
-    map.setAttribute('range', String(Math.max(200, 40_000_000 / 2 ** Math.min(zoom, 16))));
-    map.setAttribute('tilt', String(tilt));
-    map.setAttribute('heading', String(heading));
-    // `roadmap` becomes HYBRID, which is a real decision and not a typo. The 3D
-    // map has two modes, HYBRID and SATELLITE, and no flat road map at all:
-    // HYBRID is imagery *with* the roads and labels drawn over it, so it is the
-    // one that answers "where is this" the way a road map does. SATELLITE is
-    // the bare imagery, which is what somebody asking for satellite wants.
-    map.setAttribute('mode', mode === 'satellite' ? 'SATELLITE' : 'HYBRID');
-    map.style.width = '100%';
-    map.style.height = '100%';
+    void (async () => {
+      const maps = (window as unknown as Record<string, any>)['google']?.maps;
+      if (!maps?.importLibrary) return;
+      // Three libraries, because the modular loader puts them in three places
+      // and getting that wrong fails silently: `LatLngBounds` is in `core` and
+      // `Marker` is in `marker`, so reaching for them on `google.maps` after
+      // importing only `maps` throws inside this async function, where nothing
+      // is listening, and the card renders an empty box with no error anywhere.
+      const [{ Map, Polyline }, { LatLngBounds }, { Marker }] = await Promise.all([
+        maps.importLibrary('maps'),
+        maps.importLibrary('core'),
+        maps.importLibrary('marker'),
+      ]);
+      if (cancelled) return;
+      element.replaceChildren();
 
-    for (const place of anchor ? [anchor, ...markers] : markers) {
-      const marker = document.createElement('gmp-marker-3d');
-      marker.setAttribute('position', `${place.lat},${place.lng}`);
-      if (place.label) marker.setAttribute('label', place.label);
-      if (anchor && place === anchor) marker.setAttribute('altitude-mode', 'clamp-to-ground');
-      map.appendChild(marker);
-    }
+      const canvas = document.createElement('div');
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      element.appendChild(canvas);
 
-    for (const leg of legs) {
-      const route = document.createElement('gmp-route-3d');
-      route.setAttribute('origin', `${leg.from.lat},${leg.from.lng}`);
-      route.setAttribute('destination', `${leg.to.lat},${leg.to.lng}`);
-      const travel = resolveText(node['travelMode'], scope);
-      if (travel) route.setAttribute('travel-mode', travel.toUpperCase());
-      map.appendChild(route);
-    }
+      const map = new Map(canvas, {
+        center: centre,
+        zoom,
+        mapTypeId: mode === 'satellite' ? 'satellite' : 'roadmap',
+        heading,
+        tilt,
+        // The chrome a traveller does not need on a card inside a chat. The map
+        // is here to be read, not operated: no Street View peg, no map-type
+        // switcher, no fullscreen. Panning and zooming stay, because "what is
+        // near this" is a question people answer by dragging.
+        disableDefaultUI: true,
+        zoomControl: true,
+        keyboardShortcuts: false,
+      });
 
-    element.appendChild(map);
-    return () => element.replaceChildren();
+      const bounds = new LatLngBounds();
+      let points = 0;
+
+      for (const place of anchor ? [anchor, ...markers] : markers) {
+        // `Marker` rather than `AdvancedMarkerElement`, which needs a Map ID
+        // configured in the cloud console. This component works with nothing
+        // but a key, and a pin that needs a second piece of setup is a pin that
+        // is missing on somebody's deployment.
+        new Marker({
+          map,
+          position: { lat: place.lat, lng: place.lng },
+          title: place.label,
+          ...(anchor && place === anchor
+            ? { zIndex: 10, label: { text: '★', color: '#fff', fontSize: '14px' } }
+            : {}),
+        });
+        bounds.extend({ lat: place.lat, lng: place.lng });
+        points += 1;
+      }
+
+      for (const leg of legs) {
+        new Polyline({
+          map,
+          path: [
+            { lat: leg.from.lat, lng: leg.from.lng },
+            { lat: leg.to.lat, lng: leg.to.lng },
+          ],
+          geodesic: true,
+          strokeOpacity: 0.9,
+          strokeWeight: 3,
+        });
+        for (const end of [leg.from, leg.to]) {
+          bounds.extend({ lat: end.lat, lng: end.lng });
+          points += 1;
+        }
+      }
+
+      // More than one place means the interesting thing is the *span* — how far
+      // the hotel is from the museum, whether the route doubles back. A centre
+      // and a zoom cannot express that without the agent doing trigonometry, so
+      // the host fits the map to what is on it and the agent's `zoom` becomes
+      // the answer for the single-pin case, where it is exactly right.
+      if (points > 1) map.fitBounds(bounds, 48);
+    })().catch((problem) => {
+      // Otherwise this is a silent empty rectangle: the promise is detached, so
+      // a throw in here reaches no one. It cost an afternoon once.
+      console.error('[a2ui] the map could not be drawn', problem);
+      if (!cancelled) setReady('unavailable');
+    });
+
+    return () => {
+      cancelled = true;
+      element.replaceChildren();
+    };
     // Serialised rather than listed: `markers` and `routes` are fresh arrays on
     // every render, so a dependency on the arrays themselves would tear the map
     // down and rebuild it on each streamed token.

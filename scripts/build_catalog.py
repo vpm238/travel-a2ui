@@ -283,10 +283,12 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
     ),
     "GoogleMap": component(
         "GoogleMap",
-        "A real Google map. Use it to show *where* — a city and its"
-        " neighbourhoods, the shape of a multi-city route, how far a stay is"
-        " from what the traveler wants to do. It draws nothing and asks"
-        " nothing: pair it with the controls for the decision it illustrates.",
+        "A real Google map, for decisions that are about distance: which stay"
+        " to pick given what is near it, whether a multi-city order makes"
+        " sense, how far a day's walking really is. It draws nothing and asks"
+        " nothing, so pair it with the controls for the decision it"
+        " illustrates — and do not use it to confirm a destination, which is"
+        " a question nobody asked.",
         {
             "center": _lat_lng("Where the map is centred."),
             "zoom": dyn_num(
@@ -295,7 +297,14 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
             ),
             "tilt": dyn_num("Degrees of tilt. Only has an effect in satellite mode."),
             "heading": dyn_num("Compass heading, in degrees."),
-            "mode": enum("Map style.", ["roadmap", "satellite"], "roadmap"),
+            "mode": enum(
+                "Map style. Leave it alone unless somebody asks to see the"
+                " terrain: a road map is what people read a decision off,"
+                " and satellite imagery is beautiful and hard to compare"
+                " two places on.",
+                ["roadmap", "satellite"],
+                "roadmap",
+            ),
             "anchorMarker": _map_pin("The one place this map is about, marked apart from the rest."),
             "markers": {
                 "type": "array",

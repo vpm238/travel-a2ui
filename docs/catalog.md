@@ -214,7 +214,7 @@ root = GoogleMap(center={lat: 40.4168, lng: -3.7038}, zoom=12, markers=[{lat: 40
 | `zoom` | bindable number | **required** | How close in. 4 spans a continent, 11 a city, 14 a neighbourhood, 16 a street. Above 16 is clamped. |
 | `tilt` | bindable number |  | Degrees of tilt. Only has an effect in satellite mode. |
 | `heading` | bindable number |  | Compass heading, in degrees. |
-| `mode` | `roadmap` \\| `satellite` |  | Map style. |
+| `mode` | `roadmap` \\| `satellite` |  | Map style. Leave it alone unless somebody asks to see the terrain: a road map is what people read a decision off, and satellite imagery is beautiful and hard to compare two places on. |
 | `anchorMarker` | object |  | The one place this map is about, marked apart from the rest. |
 | `markers` | array |  | Pins to drop. Static list — write them out. |
 | `origin` | object |  | Start of a single route. |

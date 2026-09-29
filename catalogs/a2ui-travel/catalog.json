@@ -1219,7 +1219,7 @@
         },
         {
           "type": "object",
-          "description": "A real Google map. Use it to show *where* — a city and its neighbourhoods, the shape of a multi-city route, how far a stay is from what the traveler wants to do. It draws nothing and asks nothing: pair it with the controls for the decision it illustrates.",
+          "description": "A real Google map, for decisions that are about distance: which stay to pick given what is near it, whether a multi-city order makes sense, how far a day's walking really is. It draws nothing and asks nothing, so pair it with the controls for the decision it illustrates — and do not use it to confirm a destination, which is a question nobody asked.",
           "properties": {
             "component": {
               "const": "GoogleMap"
@@ -1257,7 +1257,7 @@
             },
             "mode": {
               "type": "string",
-              "description": "Map style.",
+              "description": "Map style. Leave it alone unless somebody asks to see the terrain: a road map is what people read a decision off, and satellite imagery is beautiful and hard to compare two places on.",
               "enum": [
                 "roadmap",
                 "satellite"

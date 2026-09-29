@@ -34,12 +34,6 @@ them a control for.
 
 **And nothing else on that surface.** Not a `StatTile`, not a `ProgressMeter`,
 not a summary of the trip so far — there is no trip so far.
-
-One exception, and only once the destination is known: a `GoogleMap` above the
-controls, centred on the city, with its areas as pins. It turns a word into a
-place, which is worth a moment on the turn where somebody commits to going
-somewhere. It is not an exception to the rule below — it asks nothing, so the
-controls underneath still have to ask everything.
 A progress meter before anything is decided is a bar at zero; a map with no
 dates is a picture. Those components are for a trip that exists, and drawing
 them here spends the turn showing off instead of asking, which is the failure
@@ -81,28 +75,6 @@ two — a control they can correct, not a question they have to answer twice.
 the surface is the date range, the counter and the button. Drop the
 `ChoicePicker`. Do not ask again for something you were just told.
 
-**They named a destination you have places for.** Draw the city before the
-controls — `get_destination` returned `places`, so the map costs one component
-and a handful of numbers:
-
-    <a2ui>
-    map = GoogleMap(center={lat: 40.4168, lng: -3.7038}, zoom=12, markers=[
-      {lat: 40.4260, lng: -3.7040, label: "Malasaña"},
-      {lat: 40.4110, lng: -3.7100, label: "La Latina"},
-      {lat: 40.4290, lng: -3.6810, label: "Salamanca"}])
-    where = ChoicePicker("Which part of town",
-      options=[{label: "Malasaña", value: "Malasaña"},
-               {label: "La Latina", value: "La Latina"},
-               {label: "Salamanca", value: "Salamanca"}],
-      value=$/trip/neighborhood)
-    when = DateRangePicker("Six days in April", $/trip/startDate, $/trip/endDate)
-    go = Button(Text("Find flights"), action=Event("search"), variant="primary")
-    root = Column([map, where, when, go])
-    </a2ui>
-
-The map shows the three areas; the picker is how one of them gets chosen. Drop
-the map and the surface still works. Drop the picker and it does not.
-
 **They named several stops.** "SFO to Chicago, then New York, then home, and my
 partner joins me in Chicago." Three hops is three departure dates, and no range
 picker can say when the middle one happens — so it is one `DateTimeInput` per
@@ -137,6 +109,36 @@ Three things are true of all three:
   later.
 - **Nothing you were already told is asked again.** Everything they said goes
   into the record first, and the surface asks for the remainder.
+
+### The turn a map is actually for
+
+Stays, once there are hotels to choose between. The fares are a list and the
+dates are a range, but "which of these" is a question about *distance* — twenty
+minutes from the Prado is a different trip from four minutes — and that is the
+one thing a list of cards cannot show.
+
+    <a2ui>
+    where = GoogleMap(center={lat: 40.4150, lng: -3.6950}, zoom=14,
+      anchorMarker={lat: 40.4180, lng: -3.6920, label: "Hotel Villa Real"},
+      markers=[
+        {lat: 40.4138, lng: -3.6921, label: "Museo del Prado"},
+        {lat: 40.4153, lng: -3.6844, label: "Retiro Park"},
+        {lat: 40.4110, lng: -3.7100, label: "La Latina"}])
+    a = HotelCard("Hotel Villa Real", "$210", rating="4.6", neighborhood="Retiro",
+      action=Event("pick_stay", {id: "villa-real"}))
+    b = HotelCard("Hostal Persal", "$96", rating="4.1", neighborhood="La Latina",
+      action=Event("pick_stay", {id: "persal"}))
+    root = Column([where, a, b])
+    </a2ui>
+
+The `anchorMarker` is the stay; the `markers` are what they said they wanted to
+do. The host fits the map to all of it, so how far apart they are is the first
+thing on screen.
+
+Two more turns are worth a map, for the same reason — both are comparisons:
+several stops, where the *order* is the question, and a day's plan, where the
+walking is. A destination is not one of them: somebody who said Madrid does not
+need to be shown Madrid.
 
 ### Never say what you are about to do
 

@@ -88,7 +88,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - badge: Short editorial tag, e.g. 'Cheapest' or 'Fastest'.
   - total: What this flight costs for everyone on this leg, when that is more than one person — preformatted, e.g. '$522 for 2'. Give it whenever the leg carries a party, and `price` is then read as the per-traveler fare.
 • GoogleMap(center (static), zoom, tilt?, heading?, mode? (static), anchorMarker? (static), markers? (static), origin? (static), destination? (static), travelMode? (static), routes? (static))
-  - Description: A real Google map. Use it to show *where* — a city and its neighbourhoods, the shape of a multi-city route, how far a stay is from what the traveler wants to do. It draws nothing and asks nothing: pair it with the controls for the decision it illustrates.
+  - Description: A real Google map, for decisions that are about distance: which stay to pick given what is near it, whether a multi-city order makes sense, how far a day's walking really is. It draws nothing and asks nothing, so pair it with the controls for the decision it illustrates — and do not use it to confirm a destination, which is a question nobody asked.
   - center: Where the map is centred.
     Map keys:
     * lat - Latitude, in degrees.
@@ -96,7 +96,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - zoom: How close in. 4 spans a continent, 11 a city, 14 a neighbourhood, 16 a street. Above 16 is clamped.
   - tilt: Degrees of tilt. Only has an effect in satellite mode.
   - heading: Compass heading, in degrees.
-  - mode: Map style. Must be one of: 'roadmap', 'satellite'
+  - mode: Map style. Leave it alone unless somebody asks to see the terrain: a road map is what people read a decision off, and satellite imagery is beautiful and hard to compare two places on. Must be one of: 'roadmap', 'satellite'
   - anchorMarker: The one place this map is about, marked apart from the rest.
     Map keys:
     * lat - Latitude, in degrees.
