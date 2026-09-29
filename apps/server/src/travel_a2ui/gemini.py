@@ -59,6 +59,33 @@ class ToolCall:
     id: str
     name: str
     args: dict[str, Any]
+    #: The model's own signature over the reasoning that produced this call.
+    #:
+    #: Needed only to hand the call *back* to the API as history — see
+    #: `replayable` below. The API rejects a replayed `function_call` step that
+    #: does not carry it, with "Request contains an invalid argument" and no
+    #: indication of which argument, so a caller that drops it silently loses
+    #: the ability to continue a turn it started.
+    signature: str | None = None
+
+    def replayable(self) -> dict[str, Any]:
+        """This call as a `function_call` step the API will accept back.
+
+        A round of tool use is two halves — what the model asked for and what
+        came back — and the API only accepts the second if it is preceded by
+        the first. Sending the result alone works while the server still holds
+        the call; when it does not, the turn dies on "please ensure that
+        function response turn comes immediately after a function call turn".
+        """
+        step: dict[str, Any] = {
+            "type": "function_call",
+            "id": self.id,
+            "name": self.name,
+            "arguments": self.args,
+        }
+        if self.signature:
+            step["signature"] = self.signature
+        return step
 
 
 @dataclass
@@ -268,6 +295,8 @@ async def stream_interaction(
     # Steps are addressed by index, and a tool call's arguments arrive across
     # several deltas as partial JSON — whole only once the step stops.
     open_steps: dict[int, dict[str, str]] = {}
+    #: This round's thought signature, stamped onto every call it produced.
+    signature: str | None = None
 
     stream, served_by = await _open(genai, body, model, fallback_model)
     if served_by:
@@ -315,7 +344,16 @@ async def stream_interaction(
                 elif kind == "step.delta":
                     delta = _as_dict(raw.get("delta"))
                     delta_type = str(delta.get("type") or "")
-                    if delta_type == "text" and isinstance(delta.get("text"), str):
+                    if delta_type == "thought_signature" and isinstance(
+                        delta.get("signature"), str
+                    ):
+                        # Arrives on the *thought* step, not on the call — but
+                        # in the unstreamed response the same signature is on
+                        # both, and the API takes it on a replayed call. One
+                        # per round: a round that calls three tools in parallel
+                        # reasons about them once, and signs that once.
+                        signature = delta["signature"]
+                    elif delta_type == "text" and isinstance(delta.get("text"), str):
                         result.text += delta["text"]
                         yield {"type": "text", "delta": delta["text"]}
                     elif delta_type in ("arguments_delta", "arguments"):
@@ -344,7 +382,12 @@ async def stream_interaction(
                     if step and step["name"]:
                         del open_steps[index]
                         result.tool_calls.append(
-                            ToolCall(id=step["id"], name=step["name"], args=_parse_args(step["args"]))
+                            ToolCall(
+                                id=step["id"],
+                                name=step["name"],
+                                args=_parse_args(step["args"]),
+                                signature=signature,
+                            )
                         )
 
                 elif kind == "error":
@@ -376,6 +419,7 @@ async def stream_interaction(
             yield {"type": "restart", "reason": str(dropped)}
             result = InteractionResult(served_by=standby)
             open_steps = {}
+            signature = None
             stream, _ = await _open(genai, {**body, "model": standby}, standby, None)
             served_by = standby
             yield {"type": "served_by", "model": standby}
@@ -385,7 +429,12 @@ async def stream_interaction(
     for step in open_steps.values():
         if step["name"]:
             result.tool_calls.append(
-                ToolCall(id=step["id"], name=step["name"], args=_parse_args(step["args"]))
+                ToolCall(
+                    id=step["id"],
+                    name=step["name"],
+                    args=_parse_args(step["args"]),
+                    signature=signature,
+                )
             )
 
     yield {"type": "result", "result": result}

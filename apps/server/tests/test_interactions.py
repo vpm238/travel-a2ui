@@ -71,6 +71,16 @@ class FakeModel:
                         "index": 0,
                         "delta": {"type": "text", "text": chunk},
                     }
+                # The signature rides on the round's thought step, ahead of the
+                # calls it signs — which is where the API puts it, and the only
+                # place a replayed call can get one from.
+                signed = next((c.signature for c in calls if c.signature), None)
+                if signed:
+                    yield {
+                        "event_type": "step.delta",
+                        "index": 0,
+                        "delta": {"type": "thought_signature", "signature": signed},
+                    }
                 for index, call in enumerate(calls, start=1):
                     yield {
                         "event_type": "step.start",
@@ -508,6 +518,17 @@ class TestThePanel:
         assert len(model.bodies) == 1, "a panel saying 'no trip' is a panel nobody wants"
 
 
+def last_user_text(body: dict) -> str:
+    """The newest thing said to the model in a request.
+
+    Every round now re-sends the whole turn, so the nudge or the complaint is
+    the last `user_input` in the list rather than the only one.
+    """
+    said = [e for e in body["input"] if e.get("type") == "user_input"]
+    assert said, "nothing was said to the model at all"
+    return said[-1]["content"][0]["text"]
+
+
 class TestTheConversation:
     def test_the_chain_is_threaded_so_a_turn_sends_one_message(self) -> None:
         import asyncio
@@ -516,6 +537,69 @@ class TestTheConversation:
         asyncio.run(collect(base(message="hi", interaction_id="int_previous", client=model)))
         assert model.bodies[0]["previous_interaction_id"] == "int_previous"
         assert len(model.bodies[0]["input"]) == 1, "one message, not the whole transcript"
+
+    def test_a_turn_carries_its_own_rounds_and_does_not_re_anchor(self) -> None:
+        """The fix for the turn that forgot what it had just done.
+
+        Answering a round by posting the results against the interaction that
+        asked for them looked right and did not hold: measured over fourteen
+        continuation rounds, six came back rooted at a brand-new conversation,
+        and a round after one of those either re-asked the traveller for dates
+        they had already given or died on "function response turn comes
+        immediately after a function call turn". So the anchor stays on the
+        previous *turn* for the whole turn, and the rounds ride in the input.
+        """
+        import asyncio
+
+        model = FakeModel(
+            [
+                ([], [ToolCall(id="c1", name="get_destination", args={"destination": "Madrid"})]),
+                ([], [ToolCall(id="c2", name="get_weather", args={"destination": "Madrid"})]),
+                ([], []),
+            ]
+        )
+        asyncio.run(collect(base(message="hi", interaction_id="int_previous", client=model)))
+
+        anchors = [body.get("previous_interaction_id") for body in model.bodies[:3]]
+        assert anchors == ["int_previous"] * 3, "the anchor never moves mid-turn"
+
+        third = model.bodies[2]["input"]
+        kinds = [entry["type"] for entry in third]
+        assert kinds == [
+            "user_input",
+            "function_call",
+            "function_result",
+            "function_call",
+            "function_result",
+        ], "every round so far, in order, calls before their results"
+        assert [e["name"] for e in third if e["type"] == "function_call"] == [
+            "get_destination",
+            "get_weather",
+        ]
+
+    def test_a_replayed_call_carries_the_signature_the_api_demands(self) -> None:
+        """Without it the API rejects the round with an unnamed argument."""
+        import asyncio
+
+        model = FakeModel(
+            [
+                (
+                    [],
+                    [
+                        ToolCall(
+                            id="c1",
+                            name="get_destination",
+                            args={"destination": "Madrid"},
+                            signature="sig-abc",
+                        )
+                    ],
+                ),
+                ([], []),
+            ]
+        )
+        asyncio.run(collect(base(message="hi", client=model)))
+        call = next(e for e in model.bodies[1]["input"] if e["type"] == "function_call")
+        assert call["signature"] == "sig-abc"
 
     def test_the_result_carries_the_new_interaction_id(self) -> None:
         import asyncio
@@ -543,8 +627,13 @@ class TestTheConversation:
         )
         asyncio.run(collect(base(message="tell me about Madrid", client=model)))
         second = model.bodies[1]["input"]
-        assert len(second) == 2
-        assert {entry["name"] for entry in second} == {"get_destination", "get_weather"}
+        returned = [e for e in second if e.get("type") == "function_result"]
+        assert len(returned) == 2, "both results ride in the same request"
+        assert {entry["name"] for entry in returned} == {"get_destination", "get_weather"}
+        # And each result is preceded by the call it answers, because the API
+        # refuses a result whose call it cannot see.
+        asked = [e for e in second if e.get("type") == "function_call"]
+        assert {entry["name"] for entry in asked} == {"get_destination", "get_weather"}
 
     def test_a_runaway_tool_loop_stops(self) -> None:
         import asyncio
@@ -611,7 +700,7 @@ class TestFailures:
         assert any(event["type"] == "ui_error" for event in events)
         assert any(event["type"] == "retry" for event in events)
         assert len(model.bodies) == 2
-        assert "did not compile" in model.bodies[1]["input"][0]["content"][0]["text"]
+        assert "did not compile" in last_user_text(model.bodies[1])
 
     def test_a_broken_block_in_a_round_that_called_tools_is_reported_too(self) -> None:
         """The hole: the repair branch only ran when the model had stopped.
@@ -648,11 +737,7 @@ class TestFailures:
             for entry in sent
         ), "the lookup still comes home"
 
-        complaint = next(
-            (entry for entry in sent if entry.get("type") == "user_input"), None
-        )
-        assert complaint, "the model was told what the lookup found and nothing else"
-        text = complaint["content"][0]["text"]
+        text = last_user_text(model.bodies[1])
         assert "did not compile" in text
         assert "NoSuchComponent" in text, "the compiler's own words"
         assert "root = NoSuchComponent" in text, "and the block it wrote"
@@ -865,7 +950,11 @@ class TestWhatTheHostAlreadyDrew:
         )
 
         sent = model.bodies[1]["input"]
-        result = next(entry for entry in sent if entry.get("name") == "search_flights")
+        result = next(
+            entry
+            for entry in sent
+            if entry.get("type") == "function_result" and entry.get("name") == "search_flights"
+        )
         said = json.loads(result["result"][0]["text"])
         assert said["alreadyOnScreen"]["path"] == "/flights"
         assert said["alreadyOnScreen"]["rows"] > 0
@@ -980,7 +1069,7 @@ def test_a_surface_written_as_json_never_reaches_the_traveller() -> None:
     assert retries, "the model was never told it used the wrong notation"
     assert "Express" in retries[0]["reason"]
 
-    told = model.bodies[-1]["input"][0]["content"][0]["text"]
+    told = last_user_text(model.bodies[-1])
     assert "<a2ui>" in told, "the retry has to name the notation that does work"
     assert "host:render" in told, "and quote back what it actually wrote"
 
@@ -1018,7 +1107,7 @@ def test_a_turn_that_promises_and_draws_nothing_is_handed_back() -> None:
     assert "promised" in retries[0]["reason"]
     assert [event for event in events if event["type"] == "ui"], "the second attempt drew"
 
-    told = model.bodies[-1]["input"][0]["content"][0]["text"]
+    told = last_user_text(model.bodies[-1])
     assert "DateRangePicker" in told, "the nudge names the controls the turn needed"
 
 
@@ -1083,7 +1172,7 @@ def test_a_dashboard_drawn_on_a_blocked_turn_is_sent_back() -> None:
     assert retries, "a surface with nowhere to answer went out as if it helped"
     assert "asks for nothing" in retries[0]["reason"]
 
-    told = model.bodies[-1]["input"][0]["content"][0]["text"]
+    told = last_user_text(model.bodies[-1])
     assert "startDate" in told, "the retry has to name what the trip is waiting on"
 
     # And it was *drawn*, not swallowed. Rejecting it outright turned a useless
@@ -1418,3 +1507,47 @@ def test_a_tool_in_an_earlier_round_does_not_block_the_restart() -> None:
         TestTheModelDropsTheStreamMidSentence(), client
     )
     assert [e for e in events if e["type"] == "tool"], "the tool ran, as it does every opening"
+
+
+def test_a_restart_after_a_tool_has_run_is_refused() -> None:
+    """The 400 that came back as "function response turn comes immediately".
+
+    Removing the `result.tool_calls` guard from `_standby` was right about one
+    thing and wrong about another. Right: a call the model only *asked* for is
+    discarded with the dropped stream and costs nothing. Wrong: once `run_tool`
+    has actually run, the conversation on Google's side is holding a function
+    call that wants its response, and a restarted round sends a fresh turn
+    instead. Measured on the stays turn: search_hotels, save_trip, restart,
+    `400 Please ensure that function response turn comes immediately after a
+    function call turn`.
+
+    So the restart is refused once a tool has run, and still allowed on the
+    opening round, which is the case it was built for and the one that took
+    forms from 2/10 to 8/12.
+    """
+    client = TestTheModelDropsTheStreamMidSentence.Drops(
+        ["Let me look"],
+        [
+            # Round one asks for a tool and finishes cleanly; the tool runs.
+            ([""], [ToolCall(id="c1", name="get_destination", args={"destination": "Madrid"})]),
+            # Round two is the one that drops.
+            (["ignored"], []),
+        ],
+        times=0,
+    )
+    # Drop on the *second* stream, after the tool of round one has run.
+    original = client.create
+
+    async def drop_second(**body):  # noqa: ANN001, ANN202
+        client.times = 1 if len(client.asked) == 1 else 0
+        return await original(**body)
+
+    client.create = drop_second  # type: ignore[method-assign]
+    events = TestTheModelDropsTheStreamMidSentence._run(
+        TestTheModelDropsTheStreamMidSentence(), client
+    )
+
+    assert [e for e in events if e["type"] == "tool"], "the tool really ran"
+    assert not [e for e in events if e["type"] == "restart"], (
+        "a restart here leaves the API waiting for a function response"
+    )

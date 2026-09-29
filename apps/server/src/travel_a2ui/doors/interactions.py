@@ -520,12 +520,44 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         previous_interaction_id = None
     system: str | None = stable
 
-    turn_input: list[dict[str, Any]] = [
+    # This turn's own history, and why the turn carries it rather than the API.
+    #
+    # The Interactions API is stateful: answer a round by posting the function
+    # results with `previous_interaction_id` set to the interaction that asked
+    # for them, and the server supplies everything before it. That is what this
+    # loop used to do, and measured over fourteen continuation rounds it did
+    # not hold. An interaction's id has two halves — the conversation it
+    # belongs to and its own — and in six of those fourteen the reply came back
+    # rooted at *itself*: a brand-new conversation, the previous one silently
+    # dropped. Two things follow from that, and both were reported as bugs in
+    # this app. The model answers the next round having forgotten the trip, so
+    # it draws the opening form again at a traveller who settled their dates
+    # three rounds ago — "it asks me things I already told it". And a later
+    # round, answering a call the server no longer believes it made, dies on
+    # "please ensure that function response turn comes immediately after a
+    # function call turn", which is the 400 that ended one stays turn in three.
+    #
+    # It is not a race: a 350ms settle before each continuation round made it
+    # worse, not better (eight breaks in thirteen). It is not the system
+    # instruction either — sending that only on the first round took the drawn
+    # surfaces from five in eight to three.
+    #
+    # So the turn stops depending on it. Every round sends the whole turn so
+    # far — the traveller's message, each call the model made, each result that
+    # came back — and `previous_interaction_id` is left pointing at the *last
+    # turn*, the one place server-side state is still worth having and the one
+    # place a break costs only prior context rather than the turn in hand.
+    # A replayed call has to carry its signature, which is why `ToolCall` keeps
+    # one.
+    history: list[dict[str, Any]] = [
         {
             "type": "user_input",
             "content": [{"type": "text", "text": f"{volatile}\n\n---\n\n{opening}"}],
         }
     ]
+    turn_input: list[dict[str, Any]] = list(history)
+    #: The interaction to resume this conversation from, next turn.
+    last_interaction_id: str | None = previous_interaction_id
 
     stop_reason: str | None = None
     # A compile failure the model has not been told about yet. Until this
@@ -558,6 +590,16 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     #: `save_trip` and then lost the stream set `did_something` and drew
     #: nothing, and said so to a traveller looking at an empty space.
     drew_surface = False
+    #: A tool has actually run this turn, so the model owes the API a response.
+    #:
+    #: Separate from `result.tool_calls`, which is only what the model *asked*
+    #: for and is discarded harmlessly when a stream drops. This is the effect:
+    #: once `run_tool` has been called, the conversation on Google's side holds
+    #: a function call waiting on its response, and restarting the round sends
+    #: a fresh turn instead — which the API refuses with "please ensure that
+    #: function response turn comes immediately after a function call turn".
+    #: Seen exactly that way: search_hotels, save_trip, restart, 400.
+    dispatched_a_tool = False
     retried_promise = False
     #: A surface that drew but left the traveller nothing to answer.
     thin: str | None = None
@@ -662,7 +704,13 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 # a tool is still guarded, by `result.tool_calls` in
                 # `_standby`, which is about *this* round rather than the
                 # whole turn.
-                has_drawn=lambda: drew_surface,
+                # Not only "is there a surface": "would starting this round
+                # again break something". A drawn surface would be drawn twice;
+                # a dispatched tool has left the API waiting for a response that
+                # a restarted round never sends. Neither is recoverable, and
+                # neither is `result.tool_calls`, which is a request the drop
+                # threw away with the rest of the turn.
+                has_drawn=lambda: drew_surface or dispatched_a_tool,
                 client=request.client,
             ):
                 if event["type"] == "text":
@@ -728,7 +776,12 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             }
             break
 
-        previous_interaction_id = result.interaction_id or previous_interaction_id
+        # Deliberately *not* `previous_interaction_id = result.interaction_id`.
+        # The chain this turn walks is carried in `history` instead; see the
+        # note on it. What the round's id is good for is the resume point the
+        # client gets at the end, because the last round's interaction holds
+        # the whole turn.
+        last_interaction_id = result.interaction_id or last_interaction_id
         stop_reason = result.status
 
         yield {"type": "usage", **result.usage.as_dict()}
@@ -754,7 +807,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             retried_notation = True
             block, misdrawn = misdrawn, None
             yield {"type": "retry", "reason": "the surface was not written in Express"}
-            turn_input = [
+            history.append(
                 {
                     "type": "user_input",
                     "content": [
@@ -775,7 +828,8 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         }
                     ],
                 }
-            ]
+            )
+            turn_input = list(history)
             continue
 
         if not result.tool_calls and unreported and not retried_compile:
@@ -783,7 +837,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             failure = unreported
             unreported = None
             yield {"type": "retry", "reason": failure["message"]}
-            turn_input = [
+            history.append(
                 {
                     "type": "user_input",
                     "content": [
@@ -800,7 +854,8 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         }
                     ],
                 }
-            ]
+            )
+            turn_input = list(history)
             continue
 
         # Drew, but left nothing to answer. Ask for the controls, once.
@@ -812,7 +867,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             retried_thin = True
             complaint, thin = thin, None
             yield {"type": "retry", "reason": "the surface asks for nothing"}
-            turn_input = [
+            history.append(
                 {
                     "type": "user_input",
                     "content": [
@@ -825,7 +880,8 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         }
                     ],
                 }
-            ]
+            )
+            turn_input = list(history)
             continue
 
         # A turn that said what it was about to do, and did not do it.
@@ -845,9 +901,10 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         ):
             retried_promise = True
             yield {"type": "retry", "reason": "the turn promised and drew nothing"}
-            turn_input = [
+            history.append(
                 {"type": "user_input", "content": [{"type": "text", "text": TYPED_NUDGE}]}
-            ]
+            )
+            turn_input = list(history)
             continue
 
         if not result.tool_calls:
@@ -886,6 +943,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 }
 
             tool_began = time.perf_counter()
+            dispatched_a_tool = True
             output, is_error = await run_tool(call.name, call.args, tool_context)
             marks[f"tool:{call.name}"] = round((time.perf_counter() - tool_began) * 1000, 1)
             yield {
@@ -990,7 +1048,15 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             ]
             unreported = None
 
-        turn_input = [*results, *repair]
+        # The round, both halves of it: what the model asked for and what came
+        # back. The calls have to go in — a result on its own is what the API
+        # refuses once it has lost the interaction that asked. The model's own
+        # prose does not: a replayed `model_output` step is rejected outright,
+        # so what it said this turn is on screen and not in the history.
+        history.extend(call.replayable() for call in result.tool_calls)
+        history.extend(results)
+        history.extend(repair)
+        turn_input = list(history)
         yield {"type": "trip", "trip": dict(trip)}
 
         if round_index == MAX_TOOL_ROUNDS - 1:
@@ -1042,7 +1108,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     yield {
         "type": "__result__",
         "result": TurnResult(
-            interaction_id=previous_interaction_id,
+            interaction_id=last_interaction_id,
             trip=trip,
             stop_reason=stop_reason,
             shape=shape,
