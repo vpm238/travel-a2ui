@@ -92,7 +92,7 @@
     {
       "name": "show_trip_controls",
       "title": "Show trip controls (sidebar)",
-      "description": "Returns the sidebar flow: a panel of controls for the trip as a whole — dates, party size, budget, stop preference — with one commit action. Use it when the user wants to *adjust* the trip rather than discuss it. The panel replaces itself each time; it is not a feed.",
+      "description": "Returns the trip panel: controls for the trip as a whole — dates, party size, budget, stop preference — with one commit action, pre-filled from whatever is already decided. This is how you ask for anything the trip still needs. Somebody who has just said where they want to go and roughly when has not given you their dates or the airport they leave from, so record what they did tell you and call this in the same turn. Asking out loud instead — \"what dates did you have in mind?\" — leaves them saying a date you had a control for, and is the single commonest way this agent wastes a turn. Also for \"move it a week later\", \"make it three of us\" and anything else that changes the trip. The panel replaces itself each time; it is not a feed.",
       "inputSchema": {
         "type": "object",
         "properties": {
