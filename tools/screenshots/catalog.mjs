@@ -215,6 +215,14 @@ async function main() {
       colorScheme: scheme,
       deviceScaleFactor: 2,
     });
+    // `GoogleMap` loads the Maps library from the key the deployment serves.
+    // There is no server here, so it comes from the environment: set
+    // GOOGLE_MAPS_API_KEY and the reference shows a real map; leave it unset
+    // and the component draws its own fallback, which is what a deployment
+    // without a key shows too. Either way the page is honest.
+    await page.addInitScript((key) => {
+      window.__A2UI_MAPS_KEY = key;
+    }, process.env['GOOGLE_MAPS_API_KEY'] || '');
     await page.goto('http://127.0.0.1:4183/gallery.html', { waitUntil: 'networkidle' });
 
     for (const preview of wanted) {
@@ -233,6 +241,31 @@ async function main() {
       // Let webfonts and any image settle, so two runs of this produce the same
       // bytes and `--check` means something.
       await page.waitForTimeout(180);
+
+      // A map is the one component that fetches a library, then tiles, then
+      // paints — seconds after the surface is attached. Screenshot it on the
+      // same 180ms as a `Text` and the reference gets an empty grey rectangle
+      // captioned with the places it was supposed to be showing. So wait for
+      // the element to exist and for its canvas to have something in it,
+      // then give the tiles a moment to finish arriving.
+      if (await article.locator('.a2-map__canvas').count()) {
+        await article
+          .locator('gmp-map-3d')
+          .waitFor({ state: 'attached', timeout: 20_000 })
+          .catch(() => {});
+        await page
+          .waitForFunction(
+            () => {
+              const map = document.querySelector('.a2-map__canvas gmp-map-3d');
+              return Boolean(map && map.shadowRoot?.querySelector('canvas'));
+            },
+            { timeout: 20_000 },
+          )
+          .catch(() => {});
+        // Tiles stream in after the canvas exists. Without a key there is no
+        // canvas and this is the whole wait, which is the fallback settling.
+        await page.waitForTimeout(6000);
+      }
 
       const file = join(OUT, `${preview.name}-${scheme}.png`);
       if (CHECK) {

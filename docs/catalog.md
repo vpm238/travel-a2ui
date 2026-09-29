@@ -1,6 +1,6 @@
 # The travel catalog
 
-23 components, every one drawn here by the renderer that ships — not a
+24 components, every one drawn here by the renderer that ships — not a
 mockup. Each picture is a screenshot of the real component, beside the single line
 of A2UI Express that produced it.
 
@@ -196,6 +196,31 @@ root = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("
 | `selected` | bindable boolean |  | Whether this option is currently chosen. Bind it to the data model so the selection survives a re-render. |
 | `badge` | bindable string |  | Short editorial tag, e.g. 'Cheapest' or 'Fastest'. |
 | `total` | bindable string |  | What this flight costs for everyone on this leg, when that is more than one person — preformatted, e.g. '$522 for 2'. Give it whenever the leg carries a party, and `price` is then read as the per-traveler fare. |
+
+## GoogleMap
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="catalog/GoogleMap-dark.png">
+  <img src="catalog/GoogleMap-light.png" alt="GoogleMap as the renderer draws it" width="560">
+</picture>
+
+```
+root = GoogleMap(center={lat: 40.4168, lng: -3.7038}, zoom=12, markers=[{lat: 40.4260, lng: -3.7040, label: "Malasaña"}, {lat: 40.4110, lng: -3.7100, label: "La Latina"}, {lat: 40.4153, lng: -3.6844, label: "Retiro Park"}])
+```
+
+| prop | type | | what it is |
+| --- | --- | --- | --- |
+| `center` | object | **required** | Where the map is centred. |
+| `zoom` | bindable number | **required** | How close in. 4 spans a continent, 11 a city, 14 a neighbourhood, 16 a street. Above 16 is clamped. |
+| `tilt` | bindable number |  | Degrees of tilt. Only has an effect in satellite mode. |
+| `heading` | bindable number |  | Compass heading, in degrees. |
+| `mode` | `roadmap` \\| `satellite` |  | Map style. |
+| `anchorMarker` | object |  | The one place this map is about, marked apart from the rest. |
+| `markers` | array |  | Pins to drop. Static list — write them out. |
+| `origin` | object |  | Start of a single route. |
+| `destination` | object |  | End of a single route. |
+| `travelMode` | `driving` \\| `walking` \\| `bicycling` \\| `transit` |  | How the route is travelled. |
+| `routes` | array |  | Several legs at once, drawn end to end. |
 
 ## HotelCard
 

@@ -27,6 +27,22 @@ const PREINSTALLED = [
 export const executablePath =
   process.env['CHROMIUM_PATH'] || PREINSTALLED.find((path) => existsSync(path)) || undefined;
 
+/**
+ * Extra flags for machines that need them, space separated.
+ *
+ * A sandbox behind a TLS-terminating proxy is the case this exists for: the
+ * page is fine, the browser simply does not know that CA, and every external
+ * script fails to load with nothing in the page to say why. Passing
+ * `--ignore-certificate-errors-spki-list=<hash>` trusts that one key and
+ * nothing else. It lives in the environment rather than here because it is a
+ * fact about a machine, not about this repository.
+ */
+const extraArgs = (process.env['CHROMIUM_ARGS'] || '').split(' ').filter(Boolean);
+
 /** A browser, with the executable resolved. Options pass straight through. */
 export const launchBrowser = (options = {}) =>
-  chromium.launch({ ...(executablePath ? { executablePath } : {}), ...options });
+  chromium.launch({
+    ...(executablePath ? { executablePath } : {}),
+    ...options,
+    args: [...extraArgs, ...(options.args ?? [])],
+  });
