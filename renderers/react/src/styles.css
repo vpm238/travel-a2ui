@@ -355,6 +355,22 @@
   white-space: nowrap;
 }
 
+/*
+ * A button is as wide as what it says.
+ *
+ * `.a2-button` is already `inline-flex`, but a column stretches its children,
+ * so every commit button on every card came out the full width of the card —
+ * "Search flights" as a 1050px slab of accent blue, the heaviest thing on a
+ * surface whose subject was a list of fares. Google Flights sizes its Search
+ * the same as its label and lets it sit in the space; so does Maps with
+ * Directions. `align-self` rather than a width, so a button that genuinely
+ * wants to fill a row — one of two side by side — still can.
+ */
+.a2-column > .a2-button,
+.a2-column > .a2-field > .a2-button {
+  align-self: flex-start;
+}
+
 .a2-button:hover {
   border-color: var(--tv-ink-faint);
   background: var(--tv-surface-2);
@@ -1259,15 +1275,68 @@
   gap: 6px;
 }
 
+/*
+ * One control, two dates — the way every airline site draws a range.
+ *
+ * This was two `a2-input`s side by side, each `width: 100%` inside a flex row,
+ * so on a conversation card they came out around 550px *each*: a pair of vast
+ * boxes holding eight characters, which is where the surface stopped looking
+ * considered. Google Flights puts the outbound and the return in a single
+ * bordered field with a hairline between them, sized to its content. So does
+ * this now: the border, radius and focus ring move to the row, the inputs go
+ * transparent inside it, and the whole thing stops stretching.
+ */
 .tv-dates__row {
   display: flex;
-  align-items: center;
-  gap: var(--tv-gap-sm);
+  align-items: stretch;
+  width: fit-content;
+  max-width: 100%;
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line-strong);
+  border-radius: var(--tv-radius-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* The ring is drawn once, around the pair, rather than around whichever half
+ * has the caret — two rings meeting at a hairline read as a broken control. */
+.tv-dates__row:focus-within {
+  border-color: var(--tv-accent);
+  box-shadow: 0 0 0 3px var(--tv-accent-soft);
+}
+
+.tv-dates__row .a2-input {
+  border: none;
+  background: none;
+  border-radius: 0;
+  width: auto;
+  min-width: 0;
+}
+
+.tv-dates__row .a2-input:focus {
+  box-shadow: none;
+}
+
+/* `::-webkit-calendar-picker-indicator` is the little glyph at the end of a
+ * native date field. Left in place — it is how people open the picker — but
+ * toned down to the muted ink, because at full strength two of them are the
+ * highest-contrast marks on a card whose subject is a fare. */
+.tv-dates__row .a2-input::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.tv-dates__row .a2-input:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
 }
 
 .tv-dates__arrow {
   color: var(--tv-ink-faint);
   flex: none;
+  display: flex;
+  align-items: center;
+  padding-inline: 2px;
+  /* The hairline that makes it one field instead of two. */
+  border-inline: 1px solid var(--tv-line);
 }
 
 .tv-dates__nights {
@@ -1275,11 +1344,22 @@
   color: var(--tv-ink-muted);
 }
 
+/*
+ * Label and stepper stay within reach of each other.
+ *
+ * `space-between` across a column as wide as a conversation card put
+ * "Travellers" at the left margin and its − 2 + a thousand pixels away, with
+ * nothing in between: two controls that plainly belong together, read as two
+ * unrelated things. Capping the width keeps the pairing — Google Flights does
+ * the same with its passenger control — and `space-between` still does its job
+ * inside that width, so the stepper keeps its own right edge.
+ */
 .tv-counter {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--tv-gap);
+  max-width: 340px;
 }
 
 .tv-counter__labels {

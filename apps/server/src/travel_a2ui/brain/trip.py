@@ -503,10 +503,30 @@ def unskip(trip: Trip, stage: str) -> Trip:
 
 
 def _days_between(later: str, earlier: str) -> int | None:
+    """Days between two dates in whatever shape they arrived in.
+
+    Through `_to_date` rather than `date.fromisoformat` directly, and that is
+    the whole fix. A2UI's `DateRangePicker` binds an RFC 3339 instant, so a trip
+    that came back off a surface holds `2027-04-18T00:00:00Z` — which
+    `date.fromisoformat` rejects outright. This returned None, `nights` returned
+    None, and `problems` reported "2027-04-18T00:00:00Z is not after
+    2027-04-12T00:00:00Z" about a range six days long.
+
+    Which the traveller then met as an agent that would not believe its own
+    trip. Every turn opened by telling the model the dates had been refused and
+    to ask for them again, so "book my flight home" drew an airport picker and
+    a date range — eight times out of eight — instead of the fares home. The
+    docstring on `_to_date` has named this exact failure since the day it was
+    written: storing both shapes and comparing them later is how a range ends
+    up looking invalid when it is not.
+    """
     from datetime import date
 
+    first, second = _to_date(later), _to_date(earlier)
+    if not first or not second:
+        return None
     try:
-        return (date.fromisoformat(later) - date.fromisoformat(earlier)).days
+        return (date.fromisoformat(first) - date.fromisoformat(second)).days
     except ValueError:
         return None
 
@@ -580,7 +600,11 @@ def _route_problems(trip: Trip) -> list[dict[str, str]]:
         if not leg.get("destination"):
             found.append({"field": "legs", "message": f"Stop {index + 1} has no destination."})
 
-        start, end = leg.get("startDate"), leg.get("endDate")
+        # Compared as dates, not as the strings they arrived as. A leg whose
+        # dates came off a `DateRangePicker` holds RFC 3339 instants and the one
+        # before it may hold plain dates, and `"2027-04-18" > "2027-04-12T00:00:00Z"`
+        # is a string comparison that answers a question nobody asked.
+        start, end = _to_date(leg.get("startDate")), _to_date(leg.get("endDate"))
         if start and end and not end > start:
             found.append({"field": "legs", "message": f"In {where}, {end} is not after {start}."})
 
@@ -591,7 +615,7 @@ def _route_problems(trip: Trip) -> list[dict[str, str]]:
         # startDate` so an open-ended previous stop still pins the earliest this
         # one can start.
         previous = route[index - 1]
-        after = previous.get("endDate") or previous.get("startDate")
+        after = _to_date(previous.get("endDate")) or _to_date(previous.get("startDate"))
         if start and after and start < after:
             found.append(
                 {

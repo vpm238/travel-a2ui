@@ -372,3 +372,52 @@ class TestNightsDecideWhatAHopNeeds:
         assert cleared == ["legs/0/travelers"]
         assert model.journey(released)[1]["travelers"] == 1, "back to the trip's number"
         assert released["travelers"] == 1, "the trip's own answer is untouched"
+
+
+class TestDatesInWhateverShapeTheyArriveIn:
+    """A range off a surface is an instant; a range off a model is a date.
+
+    `DateRangePicker` binds RFC 3339, so a trip that has been round a surface
+    holds `2027-04-18T00:00:00Z`. Comparing that with `date.fromisoformat`
+    raised, `nights` went None, and `problems` announced that 18 April is not
+    after 12 April — so every turn opened by telling the model its dates had
+    been refused, and the agent asked for them again instead of getting on
+    with the trip.
+    """
+
+    INSTANTS = {
+        "origin": "JFK",
+        "destination": "Madrid",
+        "startDate": "2027-04-12T00:00:00Z",
+        "endDate": "2027-04-18T00:00:00Z",
+        "travelers": 2,
+    }
+
+    def test_a_range_of_instants_is_six_nights_and_not_a_problem(self) -> None:
+        assert model.nights(self.INSTANTS) == 6
+        assert model.problems(self.INSTANTS, "2026-09-29") == []
+
+    def test_a_range_that_really_is_backwards_is_still_caught(self) -> None:
+        backwards = {**self.INSTANTS, "endDate": "2027-04-05T00:00:00Z"}
+        assert model.nights(backwards) is None
+        assert [p["field"] for p in model.problems(backwards, "2026-09-29")] == ["endDate"]
+
+    def test_a_departure_in_the_past_is_still_caught_as_an_instant(self) -> None:
+        """`days_until` parsed the same way, so this check had gone quiet too."""
+        gone = {**self.INSTANTS, "startDate": "2020-01-02T00:00:00Z", "endDate": "2020-01-08T00:00:00Z"}
+        assert [p["field"] for p in model.problems(gone, "2026-09-29")] == ["startDate"]
+
+    def test_the_two_shapes_can_be_compared_with_each_other_across_legs(self) -> None:
+        """One leg off a picker, the next typed by the model."""
+        mixed = {
+            **self.INSTANTS,
+            "legs": [
+                {
+                    "destination": "Lisbon",
+                    "startDate": "2027-04-18",
+                    "endDate": "2027-04-22",
+                    "travelers": 2,
+                }
+            ],
+        }
+        assert model.problems(mixed, "2026-09-29") == []
