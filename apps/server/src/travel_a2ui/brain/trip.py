@@ -427,6 +427,56 @@ def confirm(trip: Trip, fields: Iterable[str]) -> Trip:
     return nxt
 
 
+#: Trip fields a hop owns for itself, rather than sharing with the trip.
+#:
+#: The flat fields on a trip describe its *first* hop. Everything after it
+#: keeps its own copy on its leg, which is why a second ticket has somewhere to
+#: live at all.
+LEG_OWNED: tuple[str, ...] = (
+    "selectedFlight",
+    "flightPrice",
+    "selectedHotel",
+    "nightlyPrice",
+    "startDate",
+    "endDate",
+    "travelers",
+    "needsStay",
+    "neighborhood",
+)
+
+
+def onto_leg(trip: Trip, patch: dict[str, Any], index: int) -> Trip:
+    """Writes a press's values onto one hop's leg instead of the trip.
+
+    Pressing a fare sends back what was pressed, and the host records it
+    without waking the model. That worked while every trip had one ticket. Give
+    it a second, and the press said only "IB925, $286" — and the only field
+    those fit is the trip's flat `selectedFlight`, which belongs to the
+    *outbound*. So choosing a flight home overwrote the flight out: the
+    traveller watched the fare they had already chosen turn into the one they
+    just picked, and the panel never gained a way home at all.
+
+    The fare now names its hop, and this puts it where the hop keeps it. Only
+    the fields a hop actually owns move; anything else in the press — a budget,
+    a note — is still the trip's and is left alone.
+
+    An index past the end is dropped rather than growing the route. A press
+    cannot invent a hop, and a trip that sprouts an empty leg because a button
+    carried a stale number is a worse answer than a press that did nothing.
+    """
+    legs = [dict(leg) for leg in (trip.get("legs") or []) if isinstance(leg, dict)]
+    if not (0 <= index < len(legs)):
+        return dict(trip)
+
+    moved = {key: patch[key] for key in LEG_OWNED if key in patch}
+    if not moved:
+        return dict(trip)
+
+    legs[index] = {**legs[index], **moved}
+    rest = {key: value for key, value in patch.items() if key not in moved}
+    return {**trip, **rest, "legs": legs}
+
+
 #: What else has to be let go when one decision is released.
 #:
 #: Changing the dates does not just change the dates: the flight was priced

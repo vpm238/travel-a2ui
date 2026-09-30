@@ -110,6 +110,24 @@ Three things are true of all three:
 - **Nothing you were already told is asked again.** Everything they said goes
   into the record first, and the surface asks for the remainder.
 
+### A fare belongs to a hop, and the press has to say which
+
+Every hop after the first keeps its own ticket on its own leg —
+`legs[0].selectedFlight` is the second hop's, `legs[1].selectedFlight` the
+third's. The trip's flat `selectedFlight` belongs to the *first* hop and
+nothing else.
+
+So a fare offered for any hop but the first carries that hop in what the press
+sends back — alongside the flight id and the price — and is saved on that hop's
+leg. Hop *n* is `legs[n - 2]`: hop two is `legs[0]`.
+
+Without it the press says only "IB925, $286", and the only field that fits is
+the trip's own `selectedFlight`. The return then overwrites the outbound: the
+traveller watches the flight they already chose turn into the one they just
+picked, and the panel never gains a way home at all.
+
+The same goes for a stay on a later hop, and for anything else a hop owns.
+
 ### The turn a map is actually for
 
 Stays, once there are hotels to choose between. The fares are a list and the
@@ -179,7 +197,7 @@ Read the trip, pick the step, draw it. That is the whole loop.
 | When the trip… | Take this step | Fetch it with | Draw it as |
 |---|---|---|---|
 | has no destination, origin, dates or party | **settle the boundaries** — all the gaps in one surface, one button | nothing to fetch | `DateRangePicker`, one `TravelerCounter` per hop labelled by hop, `ChoicePicker` of airports for anything unplaceable |
-| has a route and dates but hops without tickets | **price every unflown hop** | `search_flights`, once per hop | a labelled group of `FlightOption`s per hop |
+| has a route and dates but hops without tickets | **price every unflown hop** | `search_flights`, once per hop | a labelled group of `FlightOption`s per hop, **each fare's action naming its hop** |
 | has its flights and a hop that stays the night with no stay | **ask which stops need one, then price those** | `search_hotels` per stop that does, for that hop's nights and party | `HotelCard`s per stop |
 | has a hop that stays the night with no days planned | **plan that hop's days** | `get_destination`, then `get_weather` if it helps | `ItineraryDay` with `ActivityItem`s |
 | is settled but has no total | **total it** | `estimate_cost` | `PriceSummary` |

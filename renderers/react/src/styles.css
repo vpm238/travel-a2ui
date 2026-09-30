@@ -2027,6 +2027,31 @@
   background: var(--tv-panel, rgba(127, 127, 127, 0.08));
 }
 
+/*
+ * A map that cannot load keeps none of the room it was going to need.
+ *
+ * The 8:5 canvas is right for a map and absurd for the sentence that replaces
+ * one: on a route surface it came out around 650px of empty grey, and the
+ * three date inputs and two traveller counters underneath it — the entire
+ * point of the turn — were pushed off the bottom of the screen.
+ *
+ * It fails for ordinary reasons, too, none of them the traveller's fault: no
+ * key configured on that deployment, a referrer restriction, a network that
+ * does not reach Google. The aspect ratio is dropped and the note sits at its
+ * own height, so a missing map costs one line instead of a screen.
+ */
+.a2-map__canvas:has(.a2-map__fallback) {
+  aspect-ratio: auto;
+  min-height: 0;
+}
+
+.a2-map__canvas:has(.a2-map__fallback) .a2-map__fallback {
+  position: static;
+  padding: 14px 16px;
+  text-align: left;
+  place-items: start;
+}
+
 .a2-map__canvas > * {
   width: 100%;
   height: 100%;

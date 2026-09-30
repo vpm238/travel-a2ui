@@ -294,6 +294,14 @@
                   "type": "boolean",
                   "description": "Whether this stop needs somewhere to stay."
                 },
+                "selectedFlight": {
+                  "type": "string",
+                  "description": "The flight chosen for this hop. Every hop after the first keeps its own ticket here — the trip's `selectedFlight` is the first hop's and nothing else."
+                },
+                "flightPrice": {
+                  "type": "number",
+                  "description": "Per-traveler fare of that hop's flight."
+                },
                 "selectedHotel": {
                   "type": "string",
                   "description": "The stay chosen for this stop."

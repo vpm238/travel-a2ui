@@ -274,6 +274,27 @@ class TurnResult:
     setup: str | None = None
 
 
+def _leg_pressed(context: dict[str, Any] | None) -> int | None:
+    """The leg index a press named, if it named one.
+
+    Several spellings, because the model picks one and this is not worth a
+    round trip to correct: `leg` is the index into `legs` and `hop` counts hops
+    from one, so hop two is `legs[0]`. Anything else is not an index.
+    """
+    if not isinstance(context, dict):
+        return None
+    for key, offset in (("leg", 0), ("legIndex", 0), ("hop", -2), ("hopIndex", -1)):
+        value = context.get(key)
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, str) and value.lstrip("-").isdigit():
+            value = int(value)
+        if isinstance(value, int):
+            index = value + offset
+            return index if index >= 0 else None
+    return None
+
+
 def _commit(saved: dict[str, Any], proposed: dict[str, Any], today: str) -> tuple[dict, list[str]]:
     """Applies what a surface sent, minus anything that would break the trip.
 
@@ -356,6 +377,23 @@ def describe_action(action: SurfaceAction) -> str:
             "controls it needs."
         )
 
+    # A press that names a hop is told where the hop keeps things.
+    #
+    # The rule is in the flow brief, and a general rule read four turns ago is
+    # not what gets followed at the moment of a press: measured, the model put
+    # the hop in the context every time and still saved the ticket nowhere.
+    # Saying it here costs a sentence and removes the inference — the traveller
+    # chose a flight home, and it has to land on the hop that flies home rather
+    # than on the trip's own field, which is the outbound's.
+    leg = _leg_pressed(action.context)
+    if leg is not None:
+        return (
+            f"[interface] {action.name} on {where} — context {said}. "
+            f"That is hop {leg + 2}, so whatever it settled belongs on "
+            f"`legs[{leg}]` — save it there, and leave the trip's own fields "
+            "alone: those are the first hop's."
+        )
+
     return f"[interface] {action.name} on {where} — context {said}"
 
 
@@ -402,9 +440,22 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     # set that no binding named.
     from_surface = model.normalize((request.action.data_model or {}).get("trip") if request.action else None)
     from_context = model.normalize(request.action.context if request.action else None)
-    trip, refused = _commit(
-        request.trip, {**request.trip, **from_surface, **from_context}, today
-    )
+
+    # Which hop was pressed, when the press says so.
+    #
+    # A fare for the second hop carries its leg, because the second hop keeps
+    # its own ticket and the trip's flat `selectedFlight` is the first hop's.
+    # Without this the return landed on the trip and overwrote the outbound —
+    # see `onto_leg`. Read off the raw context rather than the normalised trip,
+    # because `leg` is not a trip field and normalising drops it.
+    leg_index = _leg_pressed(request.action.context if request.action else None)
+
+    proposed = {**request.trip, **from_surface, **from_context}
+    if leg_index is not None:
+        proposed = model.onto_leg(
+            {**request.trip, **from_surface}, dict(from_context), leg_index
+        )
+    trip, refused = _commit(request.trip, proposed, today)
 
     # Pressing a button *is* saying so. Whatever the surface sent stops being a
     # guess, however it got into the control — the agent's suggestion, a value
