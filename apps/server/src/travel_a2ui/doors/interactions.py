@@ -55,13 +55,14 @@ from ..brain.providers.fixture import FixtureProvider  # noqa: E402
 from ..brain.providers.types import TravelProvider  # noqa: E402
 from ..brain.skeleton import pending_surface_for  # noqa: E402
 from ..brain.skills import build_prompt_parts, build_system_prompt  # noqa: E402
-from ..brain.surface import (
+from ..brain.surface import (  # noqa: E402
     REBUILT_IN_A_TURN,
     STANDING_SURFACES,
     finish,
     panel_events,
+    stack_blocks,
     trip_updates,
-)  # noqa: E402
+)
 from ..brain.tools import ToolContext, gemini_tools, grounding_tools, run_tool  # noqa: E402
 
 _ROOT = ROOT
@@ -684,6 +685,12 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # so it is always a mistake, and the only question is whether it is one
         # worth telling the model about.
         gate = FenceGate()
+        #: This turn's blocks on the answering surface, and the paths they ask
+        #: about. Both span the turn rather than the block, because a turn that
+        #: writes two blocks still owes the traveller one surface and one
+        #: button that sends all of it. See `stack_blocks`.
+        blocks: dict[str, Any] = {}
+        carried: dict[str, dict[str, None]] = {}
 
         def rendered(events: Sequence[Any], source: str) -> list[dict[str, Any]]:
             """Splitter events, as events for the browser."""
@@ -716,7 +723,20 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         {
                             "type": "ui",
                             "surfaceId": request.surface_id,
-                            "messages": finish(event.messages, trip),
+                            # Two blocks in one turn compose onto one surface
+                            # instead of the second replacing the first, and
+                            # `carried` makes the one button carry what both
+                            # asked. See `stack_blocks`.
+                            "messages": finish(
+                                stack_blocks(
+                                    event.messages,
+                                    request.surface_id,
+                                    event.block_index,
+                                    blocks,
+                                ),
+                                trip,
+                                carried=carried,
+                            ),
                             "done": event.done,
                         }
                     )
