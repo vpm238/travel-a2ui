@@ -634,3 +634,68 @@ class TestAPropertyTheCatalogRequires:
         assert "label, value" in message, "and the order to pass them in"
         # The thing this replaced: an unreadable dump of the whole message.
         assert "is not valid under any of the given schemas" not in message
+
+
+#: Exactly what reached a traveller's screen, pasted from the report.
+LEAKED_JSX = '''Let me set up your dates.
+
+<DateRangePicker 
+    label="Travel Dates" 
+    startDate="$/trip/startDate" 
+    endDate="$/trip/endDate" 
+    nightsLabel={formatString({
+      startDate: $/trip/startDate, 
+      endDate: $/trip/endDate
+    })} 
+  />
+'''
+
+
+class TestMarkupNeverReachesTheTranscript:
+    """The same mistake as a fenced block, wearing JSX.
+
+    A fence has a closing delimiter and the gate already handled it. A
+    component tag written straight into prose has none, and nothing was
+    watching for it — so this went to the screen as text, tag by tag, while
+    the surface it was meant to be never appeared.
+    """
+
+    @pytest.mark.parametrize("size", [1, 2, 3, 7, 40, 1000])
+    def test_no_bracket_of_it_reaches_the_traveller(self, size: int) -> None:
+        prose, fences = through_the_gate(LEAKED_JSX, size)
+        assert "<DateRangePicker" not in prose
+        assert "startDate" not in prose
+        assert "/>" not in prose
+        assert prose.strip() == "Let me set up your dates."
+        assert len(fences) == 1
+
+    @pytest.mark.parametrize("size", [1, 2, 3, 7, 40, 1000])
+    def test_the_model_is_told_it_wrote_the_wrong_notation(self, size: int) -> None:
+        """Which is what makes it a retry rather than a silent swallow."""
+        _, fences = through_the_gate(LEAKED_JSX, size)
+        assert fences[0].looks_like_a_surface, (
+            "a component tag has to read as a surface, or the 'write it as "
+            "Express' retry never fires and the turn just goes quiet"
+        )
+
+    def test_a_tag_split_across_deltas_is_still_caught(self) -> None:
+        """`<` and `DateRangePicker` arriving separately is the ordinary case."""
+        gate = FenceGate()
+        said_one, _ = gate.feed("Here you go: <")
+        said_two, _ = gate.feed("DateRangePicker label=\"x\" />")
+        tail, fences = gate.flush()
+        assert "<" not in (said_one + said_two + tail)
+        assert (said_one + said_two + tail).strip() == "Here you go:"
+        assert len(fences) == 1
+
+    def test_ordinary_prose_with_a_bracket_survives(self) -> None:
+        """A `<` that never becomes a tag belongs in its sentence."""
+        text = "Anything under <500 dollars works, and 3 < 4 is still true."
+        for size in (1, 3, 1000):
+            prose, fences = through_the_gate(text, size)
+            assert prose == text
+            assert fences == []
+
+    def test_prose_before_the_tag_is_still_spoken(self) -> None:
+        prose, _ = through_the_gate("Two options.\n\n<HotelCard price=\"$96\" />", 5)
+        assert prose.strip() == "Two options."

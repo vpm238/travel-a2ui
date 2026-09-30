@@ -28,17 +28,41 @@ dependencies = [
   # the tests passed, the checks passed, the deploy went green, and the thing
   # that reached users was the only build that had ever installed 0.2.0.
   #
-  # Adopting 0.2.0 is real work — the call sites have to move from one
-  # whole-payload check to per-component and per-function ones — and it is not
-  # work to do while the service is down. The pin comes first.
+  # Held at 0.6.0/0.1.1, deliberately, and this is the note for whoever moves
+  # it. 0.7.0/0.2.0 was tried and is not a version bump. Rewiring the validator
+  # is trivial — `validate(messages)` moved from `catalog.validator` up onto
+  # the catalog, which `_VALIDATOR` in `doors/interactions.py` now finds either
+  # way — but underneath it core 0.2.0 reads a component differently. Our
+  # `{"id": …, "component": "Text", "text": …}` comes back as
+  #
+  #     components.title: 'text' is a required property
+  #     components.title: Unevaluated properties are not allowed
+  #       ('component', 'weight' were unexpected)
+  #
+  # on the same protocol version, v0.9.1, which both releases still declare. So
+  # it is the catalog build and the component envelope that moved, not the
+  # protocol: 41 server tests fail, and the compiler, the two renderers and the
+  # goldens all sit downstream of that shape. Real work, worth doing on its own
+  # branch against the upstream changelog.
+  #
+  # Pinned exactly either way, because both are pre-1.0 and ship in the same
+  # minute as each other: an unbounded range makes every image build a silent
+  # upgrade nobody reviewed, which is precisely how this got found.
   "a2ui-agent-sdk==0.6.0",
   "a2ui-core==0.1.1",
   # Both Gemini surfaces this app uses: `client.interactions` for the typed
   # loop, `client.aio.live` for voice. The voice half replaces a hand-rolled
   # relay that had four bugs in it, three of them silent.
-  "google-genai>=2.23.0",
-  "fastapi>=0.115",
-  "uvicorn[standard]>=0.30",
+  # Capped rather than pinned exactly. These keep compatibility across a minor,
+  # and holding them at one patch means never getting a security fix without a
+  # commit. Having a cap at all is what the A2UI pair above did not.
+  "google-genai>=2.25.0,<3",
+  # Not 0.142, and the ceiling is load-bearing: FastAPI 0.142 wants
+  # `opentelemetry-api>=1.44`, while `google-adk` — which arrives under
+  # `a2ui-agent-sdk` — still caps it at `<=1.42.1`. Taking the newer FastAPI
+  # makes the dependency set unresolvable. Raise this when adk's cap moves.
+  "fastapi>=0.115,<0.142",
+  "uvicorn[standard]>=0.54,<1",
 ]
 
 [project.optional-dependencies]

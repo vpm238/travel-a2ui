@@ -313,14 +313,21 @@ class ExpressStream:
     parser: ExpressParser
     #: Component names the catalog defines, for the check the SDK does not do.
     components: frozenset[str] = frozenset()
-    #: The catalog's own validator, for the checks the *compiler* does not do.
+    #: Anything exposing `validate(messages)`, for the checks the *compiler*
+    #: does not do.
     #:
     #: Compiling answers "is this Express?". It does not answer "is this a
     #: surface?" — a `Column([header, footer])` whose `footer` was never defined
-    #: compiles happily and renders as a box with a hole in it. The SDK ships a
-    #: validator that walks the compiled messages and says so, and running it is
-    #: the difference between the model finding out and the traveller finding
-    #: out.
+    #: compiles happily and renders as a box with a hole in it. The SDK walks
+    #: the compiled messages and says so, and running it is the difference
+    #: between the model finding out and the traveller finding out.
+    #:
+    #: Typed by the call it makes rather than by the class it expects, because
+    #: the class moved: through agent-sdk 0.6 this was `catalog.validator`, and
+    #: in 0.7 `validator` became a bare `PayloadValidator` (per-component and
+    #: per-function only) while `validate(messages)` moved up onto the catalog
+    #: itself. Callers now pass the catalog. Nothing here had to change, which
+    #: is the argument for describing the contract instead of the type.
     validator: Any = None
     #: What the trip is still waiting on, if the caller knows.
     #:
@@ -502,8 +509,30 @@ class ExpressStream:
 #: again. This is the same failure one step earlier, and it was the one case
 #: that reached the screen instead.
 _SURFACE_SHAPED = re.compile(
-    r'"(?:components|call|surfaceId|surface)"\s*:|"(?:root|catalog|catalogId)"\s*:',
+    r'"(?:components|call|surfaceId|surface)"\s*:|"(?:root|catalog|catalogId)"\s*:'
+    # …or the same mistake wearing JSX. This reached a traveller as text on
+    # screen:
+    #
+    #     <DateRangePicker
+    #       label="Travel Dates"
+    #       startDate="$/trip/startDate"
+    #       endDate="$/trip/endDate" />
+    #
+    # Note `startDate`/`endDate`, which are not even this component's property
+    # names — they are `start` and `end`. The model was not writing a surface
+    # in a notation we could read; it was writing React from memory. The JSON
+    # alternation above could not see it, so `looks_like_a_surface` was false,
+    # the "write it as Express" retry never fired, and the markup went to the
+    # transcript as prose.
+    r"|<\s*[A-Z][A-Za-z0-9]*(?:\s|/?>)",
 )
+
+#: The opening of a component tag, for the gate below.
+#:
+#: Deliberately just `<` and a capital: by the time those two characters are on
+#: the wire the turn has already gone wrong, and waiting to see which component
+#: it is only decides how much markup reaches the screen first.
+_MARKUP_OPENS = re.compile(r"<\s*[A-Z]")
 
 
 @dataclass(frozen=True)
@@ -539,9 +568,29 @@ class FenceGate:
         self._inside = False
         self._carry = ""
         self._block: list[str] = []
+        #: Latched the moment prose turns into markup, never unlatched.
+        #:
+        #: A fence has a closing delimiter; a component tag written into prose
+        #: has nothing reliable to close on — the leak that prompted this ran
+        #: across several lines and trailed off in the middle of a function
+        #: call. Rather than parse JSX to find its end, the gate takes the
+        #: view that a round which has started writing components has stopped
+        #: writing prose: everything after the tag is held back too.
+        #:
+        #: The cost of being wrong is the tail of one sentence. The cost of the
+        #: alternative is markup on screen, which is what happened.
+        self._markup = False
+        self._markup_src: list[str] = []
+        #: A lone trailing `<`, held in case the next delta brings the capital.
+        self._edge = ""
 
     def feed(self, delta: str) -> tuple[str, list[Fenced]]:
         """Returns the prose to emit, and any fences that closed."""
+        if self._markup:
+            # Nothing more from this round is prose.
+            self._markup_src.append(delta)
+            return "", []
+
         buffer = self._carry + delta
         self._carry = ""
         out: list[str] = []
@@ -567,11 +616,49 @@ class FenceGate:
                 self._block = []
             self._inside = not self._inside
 
-        return "".join(out), closed
+        return self._without_markup("".join(out)), closed
+
+    def _without_markup(self, said: str) -> str:
+        """Prose up to the point it became a component tag.
+
+        The `<` is held back on its own when it lands at the end of a delta,
+        because `<` and `Date` arriving separately is the ordinary case on a
+        streamed response and a gate that tested each delta alone would put the
+        bracket on screen and catch only the rest.
+        """
+        said = self._edge + said
+        self._edge = ""
+        if not said:
+            return ""
+
+        found = _MARKUP_OPENS.search(said)
+        if found:
+            self._markup = True
+            self._markup_src.append(said[found.start() :])
+            return said[: found.start()]
+
+        # `<` last, or `<` then whitespace: either could still become a tag.
+        stripped = said.rstrip()
+        if stripped.endswith("<"):
+            keep = len(said) - said.rindex("<")
+            self._edge = said[-keep:]
+            return said[:-keep]
+        return said
 
     def flush(self) -> tuple[str, list[Fenced]]:
         """End of the round. An unclosed fence still counts as one."""
+        if self._markup:
+            block = Fenced(source="".join(self._markup_src))
+            self._markup_src = []
+            self._markup = False
+            self._carry = ""
+            self._edge = ""
+            return "", [block]
+
         tail, self._carry = self._carry, ""
+        # A `<` that never became a tag is just a character the traveller typed
+        # their way into, and it belongs in the sentence it came from.
+        tail, self._edge = self._edge + tail, ""
         if self._inside:
             self._block.append(tail)
             block = Fenced(source="".join(self._block))

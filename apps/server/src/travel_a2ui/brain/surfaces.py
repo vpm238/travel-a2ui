@@ -191,10 +191,10 @@ def compile_surface(surface: Surface) -> list[dict[str, Any]]:
     compiles without complaint and renders as a box with a hole in it. The
     streaming path runs the same check on every finished block.
     """
-    from ..doors.interactions import _CATALOG, _parser
+    from ..doors.interactions import _VALIDATOR, _parser
 
     messages = _parser(surface.surface_id).compile(surface.express, is_final=True)
-    _CATALOG.validator.validate(messages)
+    _VALIDATOR.validate(messages)
     return messages
 
 

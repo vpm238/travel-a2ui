@@ -18,25 +18,25 @@ from __future__ import annotations
 
 import pytest
 
-from travel_a2ui.doors.interactions import _CATALOG
+from travel_a2ui.doors.interactions import _CATALOG, _VALIDATOR
 
 
-def test_the_catalog_exposes_a_validator() -> None:
-    assert _CATALOG.validator is not None
+def test_something_still_validates_a_whole_payload() -> None:
+    """Asserted by the call, not by where the call currently lives.
 
-
-def test_the_validator_still_takes_a_whole_payload() -> None:
-    """`express.py` and `surfaces.py` both call `.validate(messages)`.
-
-    Core 0.2.0 split this into `validate_component` and `validate_function`.
-    Moving to those is real work; until it is done, this is the contract.
+    It sat on `catalog.validator` through agent-sdk 0.6 and moved onto the
+    catalog in 0.7. `_VALIDATOR` resolves whichever is present; what must never
+    happen again is *neither*, which is what a 0.x upgrade did silently.
     """
-    validate = getattr(_CATALOG.validator, "validate", None)
-    assert callable(validate), (
-        "a2ui-core dropped PayloadValidator.validate — every surface this "
-        "server draws goes through it. Either pin core back, or move "
-        "express.py and surfaces.py onto validate_component/validate_function."
+    assert callable(getattr(_VALIDATOR, "validate", None)), (
+        "no whole-payload validate() anywhere — every surface this server "
+        "draws goes through it, and without it malformed ones reach the "
+        "traveller. Find where it moved and teach _VALIDATOR about it."
     )
+
+
+def test_the_catalog_is_still_the_thing_the_compiler_is_given() -> None:
+    assert _CATALOG is not None
 
 
 def test_a_real_compiled_surface_passes_and_a_broken_one_raises() -> None:
@@ -52,7 +52,7 @@ def test_a_real_compiled_surface_passes_and_a_broken_one_raises() -> None:
     good = _parser("inline-1").compile(
         'title = Text("Madrid")\nroot = Column([title])', is_final=True
     )
-    _CATALOG.validator.validate(good)
+    _VALIDATOR.validate(good)
 
     # A child that was never defined: compiles, and renders as a box with a
     # hole in it. Catching that is what the validator is for.
@@ -60,4 +60,4 @@ def test_a_real_compiled_surface_passes_and_a_broken_one_raises() -> None:
         'title = Text("Madrid")\nroot = Column([title, missing])', is_final=True
     )
     with pytest.raises(Exception):
-        _CATALOG.validator.validate(broken)
+        _VALIDATOR.validate(broken)
