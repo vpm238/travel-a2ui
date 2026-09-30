@@ -1272,7 +1272,7 @@
                 },
                 "label": {
                   "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
-                  "description": "What the pin says on the map."
+                  "description": "What the pin says on the map. Worth giving on a marker, which is a place somebody is choosing between; unnecessary on the ends of a route, which are just the ends of a line."
                 },
                 "placeId": {
                   "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
@@ -1281,8 +1281,7 @@
               },
               "required": [
                 "lat",
-                "lng",
-                "label"
+                "lng"
               ],
               "additionalProperties": false
             },
@@ -1303,7 +1302,7 @@
                   },
                   "label": {
                     "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
-                    "description": "What the pin says on the map."
+                    "description": "What the pin says on the map. Worth giving on a marker, which is a place somebody is choosing between; unnecessary on the ends of a route, which are just the ends of a line."
                   },
                   "placeId": {
                     "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
@@ -1312,8 +1311,7 @@
                 },
                 "required": [
                   "lat",
-                  "lng",
-                  "label"
+                  "lng"
                 ],
                 "additionalProperties": false
               }
@@ -1386,7 +1384,7 @@
                       },
                       "label": {
                         "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
-                        "description": "What the pin says on the map."
+                        "description": "What the pin says on the map. Worth giving on a marker, which is a place somebody is choosing between; unnecessary on the ends of a route, which are just the ends of a line."
                       },
                       "placeId": {
                         "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
@@ -1395,8 +1393,7 @@
                     },
                     "required": [
                       "lat",
-                      "lng",
-                      "label"
+                      "lng"
                     ],
                     "additionalProperties": false
                   },
@@ -1414,7 +1411,7 @@
                       },
                       "label": {
                         "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
-                        "description": "What the pin says on the map."
+                        "description": "What the pin says on the map. Worth giving on a marker, which is a place somebody is choosing between; unnecessary on the ends of a route, which are just the ends of a line."
                       },
                       "placeId": {
                         "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString",
@@ -1423,8 +1420,7 @@
                     },
                     "required": [
                       "lat",
-                      "lng",
-                      "label"
+                      "lng"
                     ],
                     "additionalProperties": false
                   }

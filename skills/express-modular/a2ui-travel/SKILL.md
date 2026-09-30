@@ -101,13 +101,13 @@ Use these exact positional signatures to instantiate components. Do not output p
     Map keys:
     * lat - Latitude, in degrees.
     * lng - Longitude, in degrees.
-    * label - What the pin says on the map.
+    * label - What the pin says on the map. Worth giving on a marker, which is a place somebody is choosing between; unnecessary on the ends of a route, which are just the ends of a line.
     * placeId - Google place id, when one is known.
   - markers: Pins to drop. Static list — write them out.
     List of maps keys:
     * lat - Latitude, in degrees.
     * lng - Longitude, in degrees.
-    * label - What the pin says on the map.
+    * label - What the pin says on the map. Worth giving on a marker, which is a place somebody is choosing between; unnecessary on the ends of a route, which are just the ends of a line.
     * placeId - Google place id, when one is known.
   - origin: Start of a single route.
     Map keys:

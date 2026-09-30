@@ -124,16 +124,42 @@ def _lat_lng(desc: str) -> dict[str, Any]:
 
 
 def _map_pin(desc: str) -> dict[str, Any]:
+    """A point on the map. Coordinates are required; the label is not.
+
+    `label` used to be required, and it cost a turn every time somebody asked
+    for a multi-city route. A marker wants a label — it is a place, and an
+    unnamed pin says nothing — but the ends of a `routes` leg are the two ends
+    of a drawn line, and the model writes them the obvious way:
+
+        routes=[{origin: {lat: 37.62, lng: -122.38},
+                 destination: {lat: 41.98, lng: -87.90}}]
+
+    That failed, and failed badly. One missing `label` inside `routes[0]` takes
+    down the whole `GoogleMap` branch of `allOf`, so `unevaluatedProperties`
+    then reports `center`, `zoom` and `routes` as unexpected too — an error
+    naming four things when one was wrong. And because a message fails whole,
+    the surface with it: the traveller watched the entire form — three date
+    inputs, two traveller counters — get drawn, vanish and be asked again.
+
+    So the renderer's own view wins, because it was always the honest one: it
+    reads `label` through `resolveText`, which yields an empty string when
+    there is none, and route ends are already drawn with `label: ''`. An
+    unlabelled point is a point.
+    """
     return {
         "type": "object",
         "description": desc,
         "properties": {
             "lat": dyn_num("Latitude, in degrees."),
             "lng": dyn_num("Longitude, in degrees."),
-            "label": dyn_str("What the pin says on the map."),
+            "label": dyn_str(
+                "What the pin says on the map. Worth giving on a marker, which"
+                " is a place somebody is choosing between; unnecessary on the"
+                " ends of a route, which are just the ends of a line."
+            ),
             "placeId": dyn_str("Google place id, when one is known."),
         },
-        "required": ["lat", "lng", "label"],
+        "required": ["lat", "lng"],
         "additionalProperties": False,
     }
 
