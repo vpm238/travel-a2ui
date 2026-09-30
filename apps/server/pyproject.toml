@@ -9,7 +9,30 @@ dependencies = [
   # and generating the skills all go through it rather than through a port —
   # which is the reason this server is Python: `agent_sdks/` upstream contains
   # exactly one language, and it is this one.
-  "a2ui-agent-sdk>=0.6.0",
+  #
+  # Pinned exactly, both of them, and the second one is the point: `a2ui-core`
+  # is a *transitive* dependency, and it is the one that broke us.
+  #
+  # `>=0.6.0` was an open upper bound, so every image build resolved to
+  # whatever had shipped that morning. On 2026-09-28 at 17:39 UTC, agent-sdk
+  # 0.7.0 and core 0.2.0 went out in the same minute; core 0.2.0 removes
+  # `PayloadValidator.validate` — the whole-payload entry point — and splits it
+  # into `validate_component` and `validate_function`. Both `express.py` and
+  # `surfaces.py` call `.validate(messages)`, so every surface on the deployed
+  # service died with "'PayloadValidator' object has no attribute 'validate'"
+  # and the app drew nothing at all.
+  #
+  # Nothing caught it, and that is the more useful half of the story. A
+  # developer machine and a CI runner with a warm environment both keep the
+  # versions they already have; only a clean image build resolves afresh. So
+  # the tests passed, the checks passed, the deploy went green, and the thing
+  # that reached users was the only build that had ever installed 0.2.0.
+  #
+  # Adopting 0.2.0 is real work — the call sites have to move from one
+  # whole-payload check to per-component and per-function ones — and it is not
+  # work to do while the service is down. The pin comes first.
+  "a2ui-agent-sdk==0.6.0",
+  "a2ui-core==0.1.1",
   # Both Gemini surfaces this app uses: `client.interactions` for the typed
   # loop, `client.aio.live` for voice. The voice half replaces a hand-rolled
   # relay that had four bugs in it, three of them silent.
