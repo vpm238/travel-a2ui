@@ -28,28 +28,23 @@ dependencies = [
   # the tests passed, the checks passed, the deploy went green, and the thing
   # that reached users was the only build that had ever installed 0.2.0.
   #
-  # Held at 0.6.0/0.1.1, deliberately, and this is the note for whoever moves
-  # it. 0.7.0/0.2.0 was tried and is not a version bump. Rewiring the validator
-  # is trivial — `validate(messages)` moved from `catalog.validator` up onto
-  # the catalog, which `_VALIDATOR` in `doors/interactions.py` now finds either
-  # way — but underneath it core 0.2.0 reads a component differently. Our
-  # `{"id": …, "component": "Text", "text": …}` comes back as
+  # On 0.7.0/0.2.0, which is a much larger release than the number suggests:
+  # the v1.0 protocol schema, per-version processing adapters, the typed
+  # `a2ui.builder` tree, `a2ui.skill.SkillGenerator` published at last, an
+  # expression parser and an RPC handler. Sixty-one new modules.
   #
-  #     components.title: 'text' is a required property
-  #     components.title: Unevaluated properties are not allowed
-  #       ('component', 'weight' were unexpected)
+  # Two things had to move for it. `_VALIDATOR` in `doors/interactions.py`
+  # finds `validate(messages)` wherever this SDK keeps it — it was on
+  # `catalog.validator` and is now on the catalog. And `scripts/build_catalog.py`
+  # puts each component's own properties first in `allOf`, because core 0.2.0
+  # resolves the local `$ref` that 0.1.1 left alone, which silently made
+  # `weight` the first positional argument of every component in the catalog.
   #
-  # on the same protocol version, v0.9.1, which both releases still declare. So
-  # it is the catalog build and the component envelope that moved, not the
-  # protocol: 41 server tests fail, and the compiler, the two renderers and the
-  # goldens all sit downstream of that shape. Real work, worth doing on its own
-  # branch against the upstream changelog.
-  #
-  # Pinned exactly either way, because both are pre-1.0 and ship in the same
-  # minute as each other: an unbounded range makes every image build a silent
-  # upgrade nobody reviewed, which is precisely how this got found.
-  "a2ui-agent-sdk==0.6.0",
-  "a2ui-core==0.1.1",
+  # Pinned exactly, both, because they are pre-1.0 and ship in the same minute
+  # as each other: an unbounded range makes every image build a silent upgrade
+  # nobody reviewed, which is exactly how the last outage happened.
+  "a2ui-agent-sdk==0.7.0",
+  "a2ui-core==0.2.0",
   # Both Gemini surfaces this app uses: `client.interactions` for the typed
   # loop, `client.aio.live` for voice. The voice half replaces a hand-rolled
   # relay that had four bugs in it, three of them silent.

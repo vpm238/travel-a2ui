@@ -47,6 +47,7 @@ from ..brain.express import (  # noqa: E402
     Text,
     Ui,
     required_properties,
+    whole_payload_validator,
 )
 from ..brain.promises import TYPED_NUDGE, promised  # noqa: E402
 from ..gemini import describe_api_error, stream_interaction, supported_level  # noqa: E402
@@ -98,25 +99,7 @@ def _catalog() -> A2uiCatalog:
 
 _CATALOG = _catalog()
 
-#: Whatever, in this SDK version, checks a whole list of messages.
-#:
-#: Through agent-sdk 0.6 that was `catalog.validator`, an `A2uiValidator` with
-#: a `validate(messages)`. In 0.7 `catalog.validator` became a bare
-#: `PayloadValidator` — per component, per function — and `validate(messages)`
-#: moved up onto the catalog itself. Picking it by the method rather than by
-#: the attribute means a version bump does not silently remove the only check
-#: standing between a malformed surface and the traveller, which is exactly
-#: what happened: every turn answered "'PayloadValidator' object has no
-#: attribute 'validate'" and the app drew nothing at all.
-#:
-#: Resolved once, at import, so a missing check is an error on the way up
-#: rather than on the turn somebody was in the middle of.
-_VALIDATOR = _CATALOG if hasattr(_CATALOG, "validate") else _CATALOG.validator
-if not callable(getattr(_VALIDATOR, "validate", None)):  # pragma: no cover - startup guard
-    raise RuntimeError(
-        "This a2ui-agent-sdk exposes no whole-payload validate(); surfaces "
-        "would reach the traveller unchecked. See tests/test_upstream_contract.py."
-    )
+_VALIDATOR = whole_payload_validator(_CATALOG)
 COMPONENT_NAMES = frozenset(_CATALOG.catalog_schema["components"])
 #: What each component cannot be drawn without, for explaining a validator no.
 REQUIRED_PROPERTIES = required_properties(_CATALOG.catalog_schema)

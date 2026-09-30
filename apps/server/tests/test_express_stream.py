@@ -243,12 +243,12 @@ class TestTheGapTheSdkLeaves:
         so — which is the difference between the model finding out, in the same
         turn, and the traveller finding out.
         """
-        from travel_a2ui.doors.interactions import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _VALIDATOR, _parser
 
         stream = ExpressStream(
             parser=_parser("inline-1"),
             components=components,
-            validator=_CATALOG.validator,
+            validator=_VALIDATOR,
         )
         source = 'head = Text("Madrid")\nroot = Column([head, footer])'
         events = stream.feed([OPEN + source + CLOSE])
@@ -258,12 +258,12 @@ class TestTheGapTheSdkLeaves:
 
     def test_a_whole_surface_still_passes(self, components):
         """The check has to let real work through, or it is just an outage."""
-        from travel_a2ui.doors.interactions import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _VALIDATOR, _parser
 
         stream = ExpressStream(
             parser=_parser("inline-1"),
             components=components,
-            validator=_CATALOG.validator,
+            validator=_VALIDATOR,
         )
         source = 'head = Text("Madrid", variant="h3")\nroot = Column([head])'
         events = stream.feed([OPEN + source + CLOSE])
@@ -287,10 +287,10 @@ class TestTheQuestionIsAskable:
     """
 
     def test_a_date_in_a_text_box_is_refused(self, components):
-        from travel_a2ui.doors.interactions import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _VALIDATOR, _parser
 
         stream = ExpressStream(
-            parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
+            parser=_parser("inline-1"), components=components, validator=_VALIDATOR
         )
         source = 'when = TextField("When", $/trip/startDate)\nroot = Column([when])'
         failures = [
@@ -302,10 +302,10 @@ class TestTheQuestionIsAskable:
         assert "DateRangePicker" in failures[0].message
 
     def test_an_airport_in_a_text_box_is_refused(self, components):
-        from travel_a2ui.doors.interactions import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _VALIDATOR, _parser
 
         stream = ExpressStream(
-            parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
+            parser=_parser("inline-1"), components=components, validator=_VALIDATOR
         )
         source = 'from = TextField("From", $/trip/origin)\nroot = Column([from])'
         failures = [
@@ -317,10 +317,10 @@ class TestTheQuestionIsAskable:
         assert "ChoicePicker" in failures[0].message
 
     def test_the_right_controls_pass(self, components):
-        from travel_a2ui.doors.interactions import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _VALIDATOR, _parser
 
         stream = ExpressStream(
-            parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
+            parser=_parser("inline-1"), components=components, validator=_VALIDATOR
         )
         source = (
             'from = ChoicePicker("From", "mutuallyExclusive", '
@@ -334,10 +334,10 @@ class TestTheQuestionIsAskable:
 
     def test_a_text_field_is_still_right_for_prose(self, components):
         """The check is about decisions, not about text boxes."""
-        from travel_a2ui.doors.interactions import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _VALIDATOR, _parser
 
         stream = ExpressStream(
-            parser=_parser("inline-1"), components=components, validator=_CATALOG.validator
+            parser=_parser("inline-1"), components=components, validator=_VALIDATOR
         )
         source = 'why = TextField("What is the trip for?", $/trip/notes)\nroot = Column([why])'
         events = stream.feed([OPEN + source + CLOSE])
@@ -345,10 +345,10 @@ class TestTheQuestionIsAskable:
 
     def test_reading_a_decision_back_is_not_asking_for_one(self, components):
         """A panel that says "12-19 April" as text is correct."""
-        from travel_a2ui.doors.interactions import _CATALOG, _parser
+        from travel_a2ui.doors.interactions import _CATALOG, _VALIDATOR, _parser
 
         stream = ExpressStream(
-            parser=_parser("sidebar"), components=components, validator=_CATALOG.validator
+            parser=_parser("sidebar"), components=components, validator=_VALIDATOR
         )
         source = 'when = Text($/trip/startDate)\nroot = Column([when])'
         events = stream.feed([OPEN + source + CLOSE])
@@ -580,7 +580,7 @@ class TestAPropertyTheCatalogRequires:
 
     def test_the_catalog_requires_the_label_it_asks_for_first(self) -> None:
         """The reorder and the requirement go together, or positions are a guess."""
-        from travel_a2ui.doors.interactions import REQUIRED_PROPERTIES
+        from travel_a2ui.doors.interactions import REQUIRED_PROPERTIES, _VALIDATOR
 
         assert REQUIRED_PROPERTIES["DateTimeInput"] == ("label", "value")
         # Its siblings, which never had this hole, for the same reason.
@@ -592,12 +592,13 @@ class TestAPropertyTheCatalogRequires:
             COMPONENT_NAMES,
             REQUIRED_PROPERTIES,
             _CATALOG,
+            _VALIDATOR,
         )
 
         stream = ExpressStream(
             parser=parser,
             components=COMPONENT_NAMES,
-            validator=_CATALOG.validator,
+            validator=_VALIDATOR,
             required=REQUIRED_PROPERTIES,
         )
         events = list(
@@ -612,12 +613,13 @@ class TestAPropertyTheCatalogRequires:
             COMPONENT_NAMES,
             REQUIRED_PROPERTIES,
             _CATALOG,
+            _VALIDATOR,
         )
 
         stream = ExpressStream(
             parser=parser,
             components=COMPONENT_NAMES,
-            validator=_CATALOG.validator,
+            validator=_VALIDATOR,
             required=REQUIRED_PROPERTIES,
         )
         failures = [

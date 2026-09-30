@@ -11,12 +11,6 @@
       "type": "object",
       "allOf": [
         {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
-        {
           "type": "object",
           "properties": {
             "component": {
@@ -45,6 +39,12 @@
             "component",
             "text"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -52,12 +52,6 @@
     "Image": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "properties": {
@@ -102,6 +96,12 @@
             "component",
             "url"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -109,12 +109,6 @@
     "Icon": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "properties": {
@@ -210,6 +204,12 @@
             "component",
             "name"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -217,12 +217,6 @@
     "Video": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "properties": {
@@ -238,6 +232,12 @@
             "component",
             "url"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -245,12 +245,6 @@
     "AudioPlayer": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "properties": {
@@ -270,6 +264,12 @@
             "component",
             "url"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -277,12 +277,6 @@
     "Row": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.",
@@ -324,6 +318,12 @@
             "component",
             "children"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -331,12 +331,6 @@
     "Column": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.",
@@ -378,6 +372,12 @@
             "component",
             "children"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -385,12 +385,6 @@
     "List": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "properties": {
@@ -426,6 +420,12 @@
             "component",
             "children"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -433,12 +433,6 @@
     "Card": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "properties": {
@@ -454,6 +448,12 @@
             "component",
             "child"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -461,12 +461,6 @@
     "Tabs": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "properties": {
@@ -501,6 +495,12 @@
             "component",
             "tabs"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -508,12 +508,6 @@
     "Modal": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "properties": {
@@ -534,6 +528,12 @@
             "trigger",
             "content"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -541,12 +541,6 @@
     "Divider": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "properties": {
@@ -566,6 +560,12 @@
           "required": [
             "component"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -573,15 +573,6 @@
     "Button": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"
-        },
         {
           "type": "object",
           "properties": {
@@ -611,13 +602,7 @@
             "child",
             "action"
           ]
-        }
-      ],
-      "unevaluatedProperties": false
-    },
-    "TextField": {
-      "type": "object",
-      "allOf": [
+        },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
         },
@@ -626,7 +611,13 @@
         },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"
-        },
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "TextField": {
+      "type": "object",
+      "allOf": [
         {
           "type": "object",
           "properties": {
@@ -661,13 +652,7 @@
             "component",
             "label"
           ]
-        }
-      ],
-      "unevaluatedProperties": false
-    },
-    "CheckBox": {
-      "type": "object",
-      "allOf": [
+        },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
         },
@@ -676,7 +661,13 @@
         },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"
-        },
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "CheckBox": {
+      "type": "object",
+      "allOf": [
         {
           "type": "object",
           "properties": {
@@ -697,13 +688,7 @@
             "label",
             "value"
           ]
-        }
-      ],
-      "unevaluatedProperties": false
-    },
-    "ChoicePicker": {
-      "type": "object",
-      "allOf": [
+        },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
         },
@@ -712,7 +697,13 @@
         },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"
-        },
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "ChoicePicker": {
+      "type": "object",
+      "allOf": [
         {
           "type": "object",
           "description": "A component that allows selecting one or more options from a list.",
@@ -779,13 +770,7 @@
             "options",
             "value"
           ]
-        }
-      ],
-      "unevaluatedProperties": false
-    },
-    "Slider": {
-      "type": "object",
-      "allOf": [
+        },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
         },
@@ -794,7 +779,13 @@
         },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"
-        },
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "Slider": {
+      "type": "object",
+      "allOf": [
         {
           "type": "object",
           "properties": {
@@ -824,13 +815,7 @@
             "value",
             "max"
           ]
-        }
-      ],
-      "unevaluatedProperties": false
-    },
-    "DateTimeInput": {
-      "type": "object",
-      "allOf": [
+        },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
         },
@@ -839,7 +824,13 @@
         },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"
-        },
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "DateTimeInput": {
+      "type": "object",
+      "allOf": [
         {
           "type": "object",
           "properties": {
@@ -922,6 +913,15 @@
             "label",
             "value"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"
         }
       ],
       "unevaluatedProperties": false
@@ -929,12 +929,6 @@
     "FlightOption": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "A single selectable flight itinerary leg. Use one per option when presenting a choice of flights; do not build flight rows by hand out of Row and Text.",
@@ -1016,6 +1010,12 @@
             "price",
             "action"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -1023,12 +1023,6 @@
     "HotelCard": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "A place to stay, presented as a rich card with imagery, rating and nightly price.",
@@ -1082,6 +1076,12 @@
             "price",
             "action"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -1089,12 +1089,6 @@
     "ItineraryDay": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "One day of a trip. Its children are the day's ActivityItem components, in chronological order.",
@@ -1132,6 +1126,12 @@
             "title",
             "children"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -1139,12 +1139,6 @@
     "ActivityItem": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.",
@@ -1204,6 +1198,12 @@
             "component",
             "title"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -1211,12 +1211,6 @@
     "GoogleMap": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "A real Google map, for decisions that are about distance: which stay to pick given what is near it, whether a multi-city order makes sense, how far a day's walking really is. It draws nothing and asks nothing, so pair it with the controls for the decision it illustrates — and do not use it to confirm a destination, which is a question nobody asked.",
@@ -1448,6 +1442,12 @@
             "center",
             "zoom"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -1455,12 +1455,6 @@
     "MapPreview": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "A lightweight schematic map of the places in play. Not a live map — it orients the traveler and is safe to render offline.",
@@ -1506,6 +1500,12 @@
             "component",
             "markers"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -1513,12 +1513,6 @@
     "PriceSummary": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "The money view: an itemized breakdown and a total. Use this instead of a hand-built table whenever you show what a trip costs.",
@@ -1577,6 +1571,12 @@
             "lines",
             "total"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -1584,15 +1584,6 @@
     "DateRangePicker": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"
-        },
         {
           "type": "object",
           "description": "Picks the trip's start and end dates. Both bound values are RFC 3339 timestamps with an offset, e.g. '2026-04-12T00:00:00Z'.",
@@ -1627,13 +1618,7 @@
             "start",
             "end"
           ]
-        }
-      ],
-      "unevaluatedProperties": false
-    },
-    "TravelerCounter": {
-      "type": "object",
-      "allOf": [
+        },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
         },
@@ -1642,7 +1627,13 @@
         },
         {
           "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"
-        },
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "TravelerCounter": {
+      "type": "object",
+      "allOf": [
         {
           "type": "object",
           "description": "A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.",
@@ -1678,6 +1669,15 @@
             "label",
             "value"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/Checkable"
         }
       ],
       "unevaluatedProperties": false
@@ -1685,12 +1685,6 @@
     "StatTile": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "One number that matters, sized for a dashboard grid. Home-surface staple: days until departure, budget left, bookings confirmed.",
@@ -1732,6 +1726,12 @@
             "label",
             "value"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -1739,12 +1739,6 @@
     "ProgressMeter": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "How far along something is — budget spent, packing done, bookings confirmed. `value` and `max` are numbers, not display strings.",
@@ -1787,6 +1781,12 @@
             "value",
             "max"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -1794,12 +1794,6 @@
     "WeatherStrip": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "A short forecast row for the destination. Purely informational.",
@@ -1849,6 +1843,12 @@
             "component",
             "days"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -1856,12 +1856,6 @@
     "ExpenseSplit": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "Splits a shared trip cost between travelers and shows who owes what.",
@@ -1917,6 +1911,12 @@
             "total",
             "participants"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false
@@ -1924,12 +1924,6 @@
     "TripCalendar": {
       "type": "object",
       "allOf": [
-        {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
-        },
-        {
-          "$ref": "#/$defs/CatalogComponentCommon"
-        },
         {
           "type": "object",
           "description": "The trip's dates on a month grid: the travel days drawn as one highlighted band, with a glyph on any day worth marking. Read-only — use it wherever a traveler should *see* when they are going (the panel, the home surface, beside a chosen flight), and DateRangePicker when they are still choosing.",
@@ -1987,6 +1981,12 @@
             "component",
             "start"
           ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
         }
       ],
       "unevaluatedProperties": false

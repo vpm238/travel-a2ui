@@ -535,6 +535,33 @@ _SURFACE_SHAPED = re.compile(
 _MARKUP_OPENS = re.compile(r"<\s*[A-Z]")
 
 
+def whole_payload_validator(catalog: Any) -> Any:
+    """Whatever, in this SDK version, checks a whole list of messages.
+
+    Through agent-sdk 0.6 it was `catalog.validator`, an `A2uiValidator` with a
+    `validate(messages)`. In 0.7 `catalog.validator` became a bare
+    `PayloadValidator` — per component, per function — and `validate(messages)`
+    moved up onto the catalog. Both spellings are alive in the wild, and the
+    difference is invisible until a surface is being compiled for a traveller:
+    the whole app answered "'PayloadValidator' object has no attribute
+    'validate'" and drew nothing at all.
+
+    Resolved by the method rather than the attribute, in one place, so that
+    every caller — the doors, the surface builders and the tests — asks the
+    same question and a future move breaks all of them at once rather than
+    production alone.
+    """
+    if callable(getattr(catalog, "validate", None)):
+        return catalog
+    validator = getattr(catalog, "validator", None)
+    if callable(getattr(validator, "validate", None)):
+        return validator
+    raise RuntimeError(
+        "This a2ui-agent-sdk exposes no whole-payload validate(); surfaces "
+        "would reach the traveller unchecked. See tests/test_upstream_contract.py."
+    )
+
+
 @dataclass(frozen=True)
 class Fenced:
     """A fenced code block, held back rather than spoken.

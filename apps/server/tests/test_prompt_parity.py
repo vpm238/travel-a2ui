@@ -172,6 +172,7 @@ def test_every_example_in_the_prompts_compiles() -> None:
         COMPONENT_NAMES,
         REQUIRED_PROPERTIES,
         _CATALOG,
+        _VALIDATOR,
         _parser,
     )
 
@@ -190,7 +191,7 @@ def test_every_example_in_the_prompts_compiles() -> None:
             stream = ExpressStream(
                 parser=_parser("inline-1"),
                 components=COMPONENT_NAMES,
-                validator=_CATALOG.validator,
+                validator=_VALIDATOR,
                 required=REQUIRED_PROPERTIES,
             )
             failures = [

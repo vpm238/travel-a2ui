@@ -561,6 +561,40 @@ TRAVEL_FUNCTIONS: dict[str, dict[str, Any]] = {
 }
 
 
+def _own_properties_lead(component: dict[str, Any]) -> dict[str, Any]:
+    """Puts a component's own properties ahead of the shared ones in `allOf`.
+
+    `allOf` is unordered as far as JSON Schema is concerned: every branch has to
+    hold and nothing about validation depends on which comes first. What does
+    depend on it is the Express notation — the SDK's schema helper crawls
+    `[schema, *schema["allOf"]]` in order, and that crawl *is* the positional
+    argument order the model is taught. Whichever block comes first owns
+    argument one.
+
+    The `$ref`s came first, here and in the upstream basic catalog, and that was
+    survivable only by accident: a2ui-core 0.1.1 left a local `$ref`
+    unresolved, so `CatalogComponentCommon` contributed no properties and `text`
+    kept first place. Core 0.2.0 resolves it. `weight` — a layout hint nobody
+    passes positionally — became argument one of every component in the
+    catalog, `Text("Madrid")` compiled to `{"component": "Text", "weight":
+    "Madrid"}`, and every surface in the app failed validation at once.
+
+    Applied to the basic catalog's components as well as this one's, because
+    the upstream ones are where `Text` and `Column` come from and they had the
+    same ordering. Stating it here rather than relying on how a dependency
+    treats a `$ref` is the point: `Text` is `text, variant, weight`, `Column` is
+    `children, justify, align, weight`.
+    """
+    out = json.loads(json.dumps(component))
+    all_of = out.get("allOf")
+    if not isinstance(all_of, list):
+        return out
+    own = [s for s in all_of if isinstance(s, dict) and isinstance(s.get("properties"), dict)]
+    shared = [s for s in all_of if s not in own]
+    out["allOf"] = [*own, *shared]
+    return out
+
+
 def _label_leads(component: dict[str, Any]) -> dict[str, Any]:
     """Moves `label` to the front of a component's properties, and requires it.
 
@@ -637,6 +671,13 @@ def build() -> dict[str, Any]:
         },
         "functions": _tag_as_client_side({**basic["functions"], **TRAVEL_FUNCTIONS}),
         "$defs": dict(basic["$defs"]),
+    }
+
+    # Every component, ours and the basic catalog's alike. See the note on the
+    # function: this decides the positional argument order the model is taught,
+    # and leaving it to `allOf` order as written made `weight` argument one.
+    catalog["components"] = {
+        name: _own_properties_lead(schema) for name, schema in catalog["components"].items()
     }
 
     # `anyComponent` / `anyFunction` are the catalog's own union of what it
