@@ -780,3 +780,40 @@ class TestNobodyShouldHaveToHearExpressReadAloud:
     def test_prose_survives_a_block_beside_it(self) -> None:
         heard = self.said('Here they are.\n<a2ui>\nsurface("voice-1")\n')
         assert heard == "Here they are."
+
+
+class TestMarkupNeverReachesTheEar:
+    """A Live turn's text *is* its speech, so a tag in it gets read aloud.
+
+    The Express spellings were caught; JSX was not, and this went out as the
+    agent's own voice: "Let me pull the best JFK to Madrid fares for April,
+    less than List variant equals quote divided quote greater than…"
+    """
+
+    LEAK = (
+        'Let me pull the best JFK to Madrid fares for April.<List variant="divided">\n'
+        '  <FlightOption id="IB8158" airline="Iberia" flightNumber="IB650"'
+    )
+
+    def test_the_sentence_survives_and_the_markup_does_not(self) -> None:
+        from travel_a2ui.doors.live import _without_markup
+
+        said = _without_markup(self.LEAK)
+        assert said == "Let me pull the best JFK to Madrid fares for April."
+        assert "<" not in said
+
+    def test_express_is_still_caught(self) -> None:
+        from travel_a2ui.doors.live import _without_markup
+
+        assert _without_markup("Here you go.\nroot = Column([a])") == "Here you go."
+        assert _without_markup("<a2ui>\nroot = Column([a])\n</a2ui>") == ""
+
+    def test_ordinary_speech_is_untouched(self) -> None:
+        from travel_a2ui.doors.live import _without_markup
+
+        for line in (
+            "Four fares are up; TAP is nonstop and gets in before dinner.",
+            "Anything under <500 dollars works.",
+            "About four hundred and twenty each.",
+        ):
+            assert _without_markup(line) == line

@@ -820,7 +820,17 @@ async def _race(asyncio_module: Any, *coroutines: Any) -> None:
 #: "\"voice-1\")", then the next line. There is no point waiting for a
 #: well-formed block that will never be delivered in one piece.
 _MARKUP = re.compile(
-    r"</?a2ui>|^\s*(?:surface\s*\(|\$/[\w/]+\s*=|\w+\s*=\s*[A-Z]\w*\s*\()",
+    r"</?a2ui>|^\s*(?:surface\s*\(|\$/[\w/]+\s*=|\w+\s*=\s*[A-Z]\w*\s*\()"
+    # …or a component tag. The Express alternatives above were the whole list,
+    # and a Live turn said this out loud instead:
+    #
+    #     Let me pull the best JFK to Madrid fares for April.<List
+    #     variant="divided"><FlightOption id="IB8158" airline="Iberia" …
+    #
+    # `<` and a capital is enough, as in the typed gate: by the time those two
+    # characters are on the wire the turn has gone wrong, and waiting to see
+    # which component it is only decides how much of it gets spoken.
+    r"|<\s*[A-Z][A-Za-z0-9]*(?:\s|/?>)",
     re.MULTILINE,
 )
 
@@ -839,10 +849,14 @@ def _without_markup(text: str) -> str:
     no surface id to trust, no guarantee the fragment is whole, and drawing
     something half-said is worse than drawing nothing.
     """
-    if not _MARKUP.search(text):
+    found = _MARKUP.search(text)
+    if not found:
         return text
-    kept = [line for line in text.split("\n") if not _MARKUP.search(line)]
-    return "\n".join(kept).strip()
+    # Truncated at the first tag rather than filtered line by line. The leak
+    # that prompted this put the sentence and the markup on one line — "…fares
+    # for April.<List variant=…" — so dropping whole lines threw away the one
+    # thing worth saying. Nothing after the first tag is speech.
+    return text[: found.start()].strip()
 
 
 def _b64(data: Any) -> str:
