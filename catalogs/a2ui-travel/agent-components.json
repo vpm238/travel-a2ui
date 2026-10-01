@@ -1,5 +1,5 @@
 {
-  "$comment": "What the travel agent is allowed to draw. This prunes the PROMPT, not any renderer — every client keeps its full component registry, so nothing about a Web, Swift, Kotlin or Flutter client changes when a name leaves this list. Applied by `skillgen --prune`, which mirrors A2uiCatalog.with_pruning from the Python agent SDK.",
+  "$comment": "What the travel agent is allowed to draw. This prunes the PROMPT, not any renderer — every client keeps its full component registry, so nothing about a Web, Swift, Kotlin or Flutter client changes when a name leaves this list. Applied by `skillgen --prune`, which mirrors A2uiCatalog.with_pruning from the Python agent SDK. GoogleMap is deliberately absent: the component, its renderers and its catalog entry all remain, so bringing it back is adding the name here again — but while it is off this list the model is never shown it and cannot draw one.",
   "why": "What the agent may draw. Everything else is pruned out of the prompt before the model ever sees it — the renderers keep their full registries, so nothing about a client changes. The rule is that a basic component survives only when no travel component already does its job: layout and input primitives stay, and the generic display containers go, because the travel catalog exists precisely so the model says *what* it is showing rather than how to draw it.",
   "allowedComponents": [
     "ActivityItem",
@@ -14,7 +14,6 @@
     "HotelCard",
     "ItineraryDay",
     "List",
-    "GoogleMap",
     "MapPreview",
     "PriceSummary",
     "ProgressMeter",

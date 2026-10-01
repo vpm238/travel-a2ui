@@ -82,18 +82,13 @@ hop, and a `TravelerCounter` on each hop whose party differs:
 
     <a2ui>
     heading = Text("Three hops — when does each one leave?", variant="h3")
-    map = GoogleMap(center={lat: 41.5, lng: -95.0}, zoom=4, routes=[
-      {origin: {lat: 37.62, lng: -122.38, label: "SFO"},
-       destination: {lat: 41.98, lng: -87.90, label: "ORD"}},
-      {origin: {lat: 41.98, lng: -87.90, label: "ORD"},
-       destination: {lat: 40.64, lng: -73.78, label: "JFK"}}])
     out = DateTimeInput("Leaving San Francisco", $/trip/startDate)
     onward = DateTimeInput("Chicago to New York", $/trip/legs/0/startDate)
     home = DateTimeInput("New York home", $/trip/legs/1/startDate)
     first = TravelerCounter("To Chicago", $/trip/travelers, min=1, max=8)
     rest = TravelerCounter("From Chicago on", $/trip/legs/0/travelers, min=1, max=8)
     go = Button(Text("Find flights"), action=Event("search"), variant="primary")
-    root = Column([heading, map, out, onward, home, first, rest, go])
+    root = Column([heading, out, onward, home, first, rest, go])
     </a2ui>
 
 The range picker in the first example is for **there and back, and nothing
@@ -128,35 +123,19 @@ picked, and the panel never gains a way home at all.
 
 The same goes for a stay on a later hop, and for anything else a hop owns.
 
-### The turn a map is actually for
+### Stays, once there are hotels to choose between
 
-Stays, once there are hotels to choose between. The fares are a list and the
-dates are a range, but "which of these" is a question about *distance* — twenty
-minutes from the Prado is a different trip from four minutes — and that is the
-one thing a list of cards cannot show.
+The fares are a list and the dates are a range, and "which of these" is mostly
+about where it is and what it costs. Draw the `HotelCard`s and let the
+neighbourhood and the rate do the work:
 
     <a2ui>
-    where = GoogleMap(center={lat: 40.4150, lng: -3.6950}, zoom=14,
-      anchorMarker={lat: 40.4180, lng: -3.6920, label: "Hotel Villa Real"},
-      markers=[
-        {lat: 40.4138, lng: -3.6921, label: "Museo del Prado"},
-        {lat: 40.4153, lng: -3.6844, label: "Retiro Park"},
-        {lat: 40.4110, lng: -3.7100, label: "La Latina"}])
     a = HotelCard("Hotel Villa Real", "$210", rating="4.6", neighborhood="Retiro",
       action=Event("pick_stay", {id: "villa-real"}))
     b = HotelCard("Hostal Persal", "$96", rating="4.1", neighborhood="La Latina",
       action=Event("pick_stay", {id: "persal"}))
-    root = Column([where, a, b])
+    root = Column([a, b])
     </a2ui>
-
-The `anchorMarker` is the stay; the `markers` are what they said they wanted to
-do. The host fits the map to all of it, so how far apart they are is the first
-thing on screen.
-
-Two more turns are worth a map, for the same reason — both are comparisons:
-several stops, where the *order* is the question, and a day's plan, where the
-walking is. A destination is not one of them: somebody who said Madrid does not
-need to be shown Madrid.
 
 ### Never say what you are about to do
 
