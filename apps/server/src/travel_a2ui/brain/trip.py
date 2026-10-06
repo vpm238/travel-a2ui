@@ -761,7 +761,14 @@ def sieve(saved: Trip, proposed: Trip, today: str | None = None) -> tuple[Trip, 
 
 
 def missing_for(trip: Trip, goal: str) -> list[str]:
-    """The fields a goal needs and does not have."""
+    """The fields a goal needs and does not have.
+
+    Strict, including on a one-way trip: pricing a stay or totalling a journey
+    needs a length, and a tool that cannot find one must say so rather than
+    invent five nights. What a one-way trip should not be *told*, every turn, is
+    that it is missing a return date — and that is `summarize` below, which is
+    what reaches the prompt.
+    """
     return [key for key in REQUIREMENTS[goal] if _blank(trip.get(key))]
 
 
@@ -787,10 +794,23 @@ def summarize(trip: Trip, today: str | None = None) -> dict[str, Any]:
         if not _blank(trip.get(field["key"]))
     ]
 
+    # What the trip is still waiting on, as the prompt and `save_trip` report
+    # it — minus anything the trip has ruled out.
+    #
+    # `endDate` on a one-way journey is the case. There is no day they come
+    # back, so every goal that wants one reported it missing on every turn for
+    # the rest of the conversation: the route said nothing was wanted and the
+    # line beside it said "endDate", and the agent went looking for a return
+    # date on a trip that had told it twice there was not one. The goals
+    # themselves stay strict — `missing_for` is what stops a total inventing a
+    # length — so a tool that needs nights still asks for the nights it is
+    # pricing, which is a question with an answer.
+    ruled_out = {"endDate"} if trip.get("oneWay") is True else set()
     missing: dict[str, None] = {}
     for goal in REQUIREMENTS:
         for key in missing_for(trip, goal):
-            missing[key] = None
+            if key not in ruled_out:
+                missing[key] = None
 
     night_count = nights(trip)
     out: dict[str, Any] = {"decided": decided, "missing": list(missing)}

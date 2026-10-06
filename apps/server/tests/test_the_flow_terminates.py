@@ -534,3 +534,45 @@ class TestAnAssumptionSomebodyActedOn:
             "origin",
             "startDate",
         ]
+
+
+class TestAOneWayTripStopsBeingAskedForAReturn:
+    """The other half of the one-way story.
+
+    `journey` was taught that a journey which does not come back is not missing
+    a hop. The summary beside it was not: every goal that wants an `endDate`
+    reported one missing, on every turn, and that line is what reaches the
+    prompt and what `save_trip` hands back as `stillNeeded`. So the route said
+    nothing was wanted and the summary said "endDate", and the agent went
+    looking for a return date on a trip that had told it twice there was not
+    one.
+    """
+
+    ONE_WAY = {
+        "destination": "MAD",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "travelers": 1,
+        "oneWay": True,
+    }
+
+    def test_the_summary_stops_asking_for_a_return_date(self):
+        assert model.summarize(self.ONE_WAY, TODAY)["missing"] == []
+
+    def test_a_round_trip_is_untouched(self):
+        there_and_back = {key: value for key, value in self.ONE_WAY.items() if key != "oneWay"}
+        assert "endDate" in model.summarize(there_and_back, TODAY)["missing"]
+
+    def test_but_a_total_still_refuses_to_invent_a_length(self):
+        # The goals stay strict on purpose. Without this, `estimate_cost` would
+        # price a one-way trip against five nights nobody mentioned and present
+        # the figure as the answer.
+        assert model.can_do(self.ONE_WAY, "priceFlights") is True
+        assert model.can_do(self.ONE_WAY, "totalTrip") is False
+        assert model.can_do(self.ONE_WAY, "priceStay") is False
+
+    def test_and_says_so_when_asked_to_total_one(self):
+        trip = dict(self.ONE_WAY)
+        result, _ = _save("estimate_cost", {}, _ctx(trip))
+        assert "needs" in result
+        assert "endDate" in result["needs"]
