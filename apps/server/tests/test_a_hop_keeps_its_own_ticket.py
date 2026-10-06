@@ -95,3 +95,45 @@ class TestTheTicketLandsOnTheHop:
     def test_a_trip_with_no_legs_at_all_is_left_alone(self) -> None:
         flat = {"origin": "JFK", "destination": "Madrid", "selectedFlight": "IB6250"}
         assert model.onto_leg(flat, {"selectedFlight": "IB925"}, 0) == flat
+
+
+class TestThePanelIsToldAboutIt:
+    """A ticket bought for a hop is a decision, wherever it is recorded.
+
+    `decision_shape` is what decides whether the panel is rebuilt, and it
+    watched the trip's flat fields — which are the *first* hop's. So choosing
+    the flight home moved nothing in it, the panel declined to rebuild, and it
+    went on reading "Flight · Awaiting selection" under a hop whose flight the
+    traveller had just picked, beside an itinerary that already had the flight
+    number in it.
+    """
+
+    TRIP = {
+        "origin": "CPH",
+        "destination": "BER",
+        "startDate": "2026-10-12",
+        "endDate": "2026-10-15",
+        "travelers": 2,
+        "selectedFlight": "SK8603",
+        "legs": [
+            {"origin": "BER", "destination": "CPH", "startDate": "2026-10-15", "travelers": 1}
+        ],
+    }
+
+    def test_the_flight_home_changes_the_shape(self) -> None:
+        after = model.onto_leg(self.TRIP, {"selectedFlight": "DY1242"}, 0)
+        assert model.decision_shape(after) != model.decision_shape(self.TRIP)
+
+    def test_so_does_a_stay_booked_against_a_hop(self) -> None:
+        after = model.onto_leg(self.TRIP, {"selectedHotel": "h_CPH_nyhavn"}, 0)
+        assert model.decision_shape(after) != model.decision_shape(self.TRIP)
+
+    def test_and_swapping_it_for_another_changes_it_again(self) -> None:
+        one = model.onto_leg(self.TRIP, {"selectedFlight": "DY1242"}, 0)
+        two = model.onto_leg(one, {"selectedFlight": "SK503"}, 0)
+        assert model.decision_shape(two) != model.decision_shape(one)
+
+    def test_but_a_price_on_its_own_does_not(self) -> None:
+        """The fingerprint is decisions, not values: a fare is shown live."""
+        after = model.onto_leg(self.TRIP, {"flightPrice": 71}, 0)
+        assert model.decision_shape(after) == model.decision_shape(self.TRIP)

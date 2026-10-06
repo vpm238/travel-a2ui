@@ -1138,6 +1138,18 @@ def decision_shape(trip: Trip) -> str:
             trip.get("selectedFlight") or "",
             trip.get("selectedHotel") or "",
             ">".join(leg.get("destination", "") for leg in (trip.get("legs") or [])),
+            # A hop's own ticket and stay, which are decisions wherever they are
+            # recorded. Only the trip's flat fields were watched, and those are
+            # the *first* hop's — so choosing the flight home, which is saved on
+            # the leg, moved nothing in this fingerprint. The panel declined to
+            # rebuild and went on saying "Flight · Awaiting selection" under a
+            # hop whose flight the traveller had just picked, beside an
+            # itinerary that already had its flight number in it. Same for a
+            # stay booked against a later hop.
+            ">".join(
+                f"{leg.get('selectedFlight') or ''}/{leg.get('selectedHotel') or ''}"
+                for leg in (trip.get("legs") or [])
+            ),
             # Who is on which hop, once they stop being the same number.
             #
             # This is the definition of "needing different controls": one

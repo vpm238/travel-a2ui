@@ -155,6 +155,26 @@ if (process.env.THROUGH_TO_HOTEL) {
   await pick('flight', 'return flights');
   await pick('hotel', 'stays');
   await page.screenshot({ path: `${shot}/3-after-hotel.png`, fullPage: true });
+
+  // The panel catches up in a request of its own, fired once the turn is over,
+  // so a screenshot taken the moment the Stop button goes can still show the
+  // panel as it was two decisions ago. Give it time and read it again: if it
+  // still says a flight is awaited after one was chosen, that is the panel
+  // being stale rather than the shot being early.
+  await page.waitForTimeout(25000);
+  await page.screenshot({ path: `${shot}/4-settled.png`, fullPage: true });
+  const settledPanel = await page
+    .locator('aside, [class*="sidebar" i]')
+    .first()
+    .innerText()
+    .catch(() => '');
+  console.log('\n=== the panel, once everything has settled ===');
+  console.log(settledPanel.slice(0, 700) || '(nothing)');
+  console.log(
+    /awaiting selection|selecting hotel/i.test(settledPanel)
+      ? 'FAIL — the panel still says a decision is outstanding that was made'
+      : 'ok — the panel has caught up with both choices',
+  );
 }
 
 console.log('\n=== what the browser sent ===');
