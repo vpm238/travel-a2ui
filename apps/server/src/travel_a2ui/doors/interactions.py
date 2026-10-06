@@ -82,8 +82,9 @@ PROTOCOL_VERSION = "v0.9.1"
 #: Tool loops need a ceiling: a model that keeps calling tools should stop, not bill.
 MAX_TOOL_ROUNDS = 6
 
-#: Values a commit is not allowed to corrupt the trip with.
-REFUSABLE = ("startDate", "endDate", "travelers", "legs")
+#: Values a commit is not allowed to corrupt the trip with. One table, in the
+#: model, so a press and a `save_trip` are refused for the same reasons.
+REFUSABLE = model.REFUSABLE
 
 #: What a panel redraw asks for.
 #:
@@ -304,49 +305,13 @@ def _commit(saved: dict[str, Any], proposed: dict[str, Any], today: str) -> tupl
     traveller's own values were merged straight in, and a picker handing back
     20 April → 12 April priced four flights against a trip with negative nights.
 
-    A refused field reverts to what was saved — deleting outright would lose a
-    value they had already agreed to, which is a second wrong answer — and the
-    model is told which and why, so the next surface re-asks instead of the
-    traveller wondering why their dates did not stick.
+    The rule itself is `model.sieve`, so a value arriving from a press is held
+    to exactly what a value arriving from the model is held to. It used to live
+    here, and `save_trip` had its own stricter one — refuse the call, not the
+    field — which is how a stay the traveller had chosen was lost to a hop's
+    dates being a day out.
     """
-    def refusable(candidate: dict[str, Any]) -> list[dict[str, str]]:
-        return [
-            problem
-            for problem in model.problems(candidate, today)
-            if problem["field"] in REFUSABLE
-        ]
-
-    found = refusable(proposed)
-    if not found:
-        return proposed, []
-
-    def revert(candidate: dict[str, Any], fields: Sequence[str]) -> dict[str, Any]:
-        out = dict(candidate)
-        for name in fields:
-            if name in saved:
-                out[name] = saved[name]
-            else:
-                out.pop(name, None)
-        return out
-
-    trip = revert(proposed, [problem["field"] for problem in found])
-
-    # Reverting the field that *reported* the problem is not always enough, and
-    # the date pair is the case that proves it. `problems` names `endDate` for a
-    # range that runs backwards, so a commit of 20 Apr → 12 Apr over a saved
-    # 1 Apr → 8 Apr reverts only the end and leaves 20 Apr → 8 Apr: still
-    # backwards, still negative nights, and now a pair the traveller never
-    # typed. A range is one decision, so when one end is refused and putting it
-    # back does not settle it, the whole decision goes back.
-    if refusable(trip):
-        changed = [
-            name
-            for name in REFUSABLE
-            if proposed.get(name) != saved.get(name)
-        ]
-        trip = revert(proposed, changed)
-
-    return trip, [problem["message"] for problem in found]
+    return model.sieve(saved, proposed, today)
 
 
 def describe_action(action: SurfaceAction) -> str:
@@ -396,6 +361,23 @@ def describe_action(action: SurfaceAction) -> str:
         )
 
     return f"[interface] {action.name} on {where} — context {said}"
+
+
+def _party_paths(trip: dict[str, Any]) -> tuple[str, ...]:
+    """Where each hop's party lives, in route order.
+
+    The trip's own `travelers` is the first hop's; every hop after it keeps its
+    own on its leg. A surface asking who is on the journey has to ask it once
+    per hop, and these are the paths those counters bind to.
+    """
+    legs = trip.get("legs")
+    count = len(legs) if isinstance(legs, list) else 0
+    paths = [model.binding_for("travelers")] if trip.get("destination") else []
+    paths += [f"/trip/legs/{index}/travelers" for index in range(count)]
+    # Mirrors `stops`: the flat fields are the first hop when there is a
+    # destination to be the first hop, and `legs` is everything after it. One
+    # hop has nothing to be inconsistent about.
+    return tuple(paths) if len(paths) > 1 else ()
 
 
 def _still_owed(trip: dict[str, Any]) -> list[str]:
@@ -678,6 +660,10 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             validator=_VALIDATOR,
             required=REQUIRED_PROPERTIES,
             missing=tuple(_still_owed(trip)),
+            # And a party asked per hop has to be asked of every hop: a route
+            # of three asked about twice is a hop flying home with a party
+            # nobody confirmed. See `half_asked`.
+            hops=_party_paths(trip),
         )
 
         # Fenced blocks never reach the transcript. This agent answers in

@@ -77,6 +77,9 @@ DECISIONS: tuple[str, ...] = (
     "planned",
     "skip",
     "legs",
+    # A journey that does not come back needs a different panel: no return
+    # date, no way-home fares, nothing waiting on a hop that is not coming.
+    "oneWay",
 )
 
 _DATE_ONLY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -654,9 +657,21 @@ def _route_problems(trip: Trip) -> list[dict[str, str]]:
         # dates came off a `DateRangePicker` holds RFC 3339 instants and the one
         # before it may hold plain dates, and `"2027-04-18" > "2027-04-12T00:00:00Z"`
         # is a string comparison that answers a question nobody asked.
+        #
+        # **A hop that arrives and leaves the same day is legal**, and it is the
+        # commonest hop there is: the way home. `journey` has always read it
+        # that way — `_nights_of` allows a span of nought — and the brief tells
+        # the model in as many words to record the hop home as `startDate` and
+        # `endDate` on the same day. This refused exactly that, and because
+        # `save_trip` refused the whole call rather than the field, the trip
+        # lost its dates, its party and anything else in the same breath. One
+        # conversation in the measurements opened by being told "In JFK,
+        # 2027-04-19 is not after 2027-04-19" and spent the next turn asking
+        # again for dates it had just been given. Only a hop that ends *before*
+        # it begins is wrong.
         start, end = _to_date(leg.get("startDate")), _to_date(leg.get("endDate"))
-        if start and end and not end > start:
-            found.append({"field": "legs", "message": f"In {where}, {end} is not after {start}."})
+        if start and end and end < start:
+            found.append({"field": "legs", "message": f"In {where}, {end} is before {start}."})
 
         if leg.get("travelers") is not None and leg["travelers"] < 1:
             found.append({"field": "legs", "message": f"{where} needs at least one traveler."})
@@ -679,6 +694,70 @@ def _route_problems(trip: Trip) -> list[dict[str, str]]:
             )
 
     return found
+
+
+#: Fields a trip will turn away rather than record.
+#:
+#: Everything downstream prices against these, so a range that ends before it
+#: starts produces numbers that look authoritative and are not. Everything
+#: *else* is recorded as given: an over-budget trip is a real state, not a
+#: mistake.
+#:
+#: One table, read by every path a value can arrive on — a press committed by
+#: the host and a `save_trip` the model made — because two copies of this list
+#: is two rules, and the one that drifts is the one nobody is testing.
+REFUSABLE: tuple[str, ...] = ("startDate", "endDate", "travelers", "legs")
+
+
+def sieve(saved: Trip, proposed: Trip, today: str | None = None) -> tuple[Trip, list[str]]:
+    """What of `proposed` can be recorded, and what had to be turned away.
+
+    **Field by field, never the whole call.** `save_trip` used to refuse
+    everything the moment any part of it was wrong, which sounds careful and is
+    not: a model saving a chosen hotel, the party and the route in one call —
+    which is what it does, because the call takes the whole trip — lost the
+    hotel because a hop's dates were a day out. Measured in a real
+    conversation: the traveller pressed a stay, the save was refused whole, the
+    next turn read a trip with no stay in it and drew the fares again. "It does
+    not save the hotel" was this.
+    A refused field goes back to what was saved rather than being deleted —
+    dropping it outright would lose a value they had already agreed to, which
+    is a second wrong answer — and the messages go back to the model so the
+    next surface re-asks for it, with everything else they said still in place.
+    """
+    def refusable(candidate: Trip) -> list[dict[str, str]]:
+        return [
+            problem
+            for problem in problems(candidate, today)
+            if problem["field"] in REFUSABLE
+        ]
+
+    found = refusable(proposed)
+    if not found:
+        return proposed, []
+
+    def revert(candidate: Trip, fields: Iterable[str]) -> Trip:
+        out = dict(candidate)
+        for name in fields:
+            if name in saved:
+                out[name] = saved[name]
+            else:
+                out.pop(name, None)
+        return out
+
+    trip = revert(proposed, [problem["field"] for problem in found])
+
+    # Reverting the field that *reported* the problem is not always enough, and
+    # the date pair is the case that proves it. `problems` names `endDate` for a
+    # range that runs backwards, so a commit of 20 Apr → 12 Apr over a saved
+    # 1 Apr → 8 Apr reverts only the end and leaves 20 Apr → 8 Apr: still
+    # backwards, still negative nights, and now a pair the traveller never
+    # typed. A range is one decision, so when one end is refused and putting it
+    # back does not settle it, the whole decision goes back.
+    if refusable(trip):
+        trip = revert(proposed, [name for name in REFUSABLE if proposed.get(name) != saved.get(name)])
+
+    return trip, [problem["message"] for problem in found]
 
 
 def missing_for(trip: Trip, goal: str) -> list[str]:
@@ -815,6 +894,20 @@ def stops(trip: Trip) -> list[Leg]:
         travelers = leg.get("travelers") if leg.get("travelers") is not None else trip.get("travelers")
         if travelers is not None:
             out["travelers"] = travelers
+        # **A hop ends when they leave it, which is the day the next hop
+        # departs.** Nobody says "I leave Chicago on the 12th and also arrive in
+        # New York on the 12th" — they say it once, and the second date is the
+        # same fact written twice. Derived here so nothing downstream has to ask
+        # for it: a stop whose nights were unknown had no nights, so it was
+        # never offered a stay or a plan, and `journey` reported it as wanting
+        # dates it had already been given.
+        #
+        # The last hop keeps no end, because it has none. It is where the
+        # journey stops.
+        if out.get("endDate") is None and index + 1 < len(all_legs):
+            following = _to_date(all_legs[index + 1].get("startDate"))
+            if following:
+                out["endDate"] = following
         # The trip's own choices belong to the first stop, which is what the
         # flat fields describe.
         #
@@ -840,6 +933,20 @@ def stops(trip: Trip) -> list[Leg]:
         resolved.append(out)
 
     return resolved
+
+
+def _own_leg(trip: Trip, hop: int) -> Leg | None:
+    """The `legs` entry a hop is stored in, or None when it is the flat fields.
+
+    The route is the flat fields followed by `legs`, so hop *n* is `legs[n - 1]`
+    — except on a trip with no destination, where there are no flat fields to
+    describe a first hop and the route starts at `legs[0]`. Getting that offset
+    wrong reads one hop's answer off the hop beside it, which is the whole class
+    of bug this app keeps finding.
+    """
+    legs = _legs_of(trip)
+    index = hop - 1 if trip.get("destination") else hop
+    return legs[index] if 0 <= index < len(legs) else None
 
 
 def party_varies(trip: Trip) -> bool:
@@ -903,14 +1010,24 @@ def journey(trip: Trip) -> list[dict[str, Any]]:
     lands and leaves the same day wants neither, and asking about a hotel for
     nought nights is the question that makes an agent look like a form.
     """
+    route = stops(trip)
     out: list[dict[str, Any]] = []
-    for index, leg in enumerate(stops(trip)):
+    for index, leg in enumerate(route):
         nights_here = _nights_of(leg)
         planned = _planned_days(trip, leg)
         flown = leg.get("mode") in (None, "", "air")
+        last = index == len(route) - 1
 
         wants: list[str] = []
-        if not leg.get("startDate") or not leg.get("endDate"):
+        # **A hop is dated by when it leaves.** It used to want an end date too,
+        # and the last hop of every route can never have one — so every trip
+        # ever recorded ended with a hop reporting, on every turn for the rest
+        # of the conversation, that it was still waiting for dates. Measured:
+        # the model was told a hop wanted dates, reached for the one tool that
+        # asks for dates, and drew the date picker again over the hotels
+        # somebody had just chosen. "It gets the dates thing again" is this
+        # line.
+        if not leg.get("startDate"):
             wants.append("dates")
         if leg.get("travelers") is None:
             wants.append("who is on it")
@@ -933,6 +1050,24 @@ def journey(trip: Trip) -> list[dict[str, Any]]:
             "to": leg["destination"],
             "wants": wants,
         }
+        # Where the journey stops, said rather than inferred. A hop with no
+        # `endDate` is either the last one or an open-ended stay, and those are
+        # different answers to "when do they leave": the first needs nothing,
+        # the second needs asking.
+        if last:
+            hop["last"] = True
+        # Whether this hop's party is its own answer or the trip's, carried over.
+        #
+        # `stops` fills a leg's missing party from the trip, which is what
+        # anybody means when they leave it out — and it means a hop nobody has
+        # been asked about is indistinguishable here from one they answered.
+        # So the surface never asked: three hops, two counters, and the party
+        # flying home was whatever the first hop said. It is one word to say
+        # which, and the brief can then ask for the hops that have not been
+        # answered.
+        own = _own_leg(trip, index)
+        if own is not None and own.get("travelers") is None and leg.get("travelers") is not None:
+            hop["partyInherited"] = True
         if nights_here is not None:
             hop["nights"] = nights_here
         if planned:

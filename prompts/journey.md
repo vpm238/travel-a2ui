@@ -18,10 +18,22 @@ Start at `origin`, walk the legs in order, look at where the last one lands.
 - Lands back at `origin` → the journey is closed. Price the hops.
 - Lands anywhere else → a hop is missing, and it is usually the way home.
   Record it before you search: `save_trip({legs: [{origin: "MAD", destination:
-  "JFK", startDate: "<the day they leave>", endDate: "<the same day>"}]})`. Now
-  it is a hop like any other, in the route and on the panel.
+  "JFK", startDate: "<the day they leave>"}]})`. Now it is a hop like any
+  other, in the route and on the panel.
 - Unless they are not coming back. "One-way", "I'm staying on", "I'll sort the
-  way back later" → `save_trip({skip: ["return"]})`, and stop asking.
+  way back later" → `save_trip({oneWay: true})`, and stop asking. The route
+  then ends where it ends and nothing is missing from it.
+
+**A hop is dated by when it leaves.** One date each, and the day they leave a
+stop is the day the next hop departs — you do not write that twice. The host
+reads a hop's end off the hop that follows it, so a three-stop route is three
+departure dates and nothing else. Give a hop its own `endDate` only when
+nothing follows it and they still want a stay priced: "a week in Madrid, then
+I'm staying on" is 12 Apr to 19 Apr with no hop after it.
+
+**The last hop has no end date, and is not missing one.** It is where the
+journey stops. It wants a ticket and nothing else — no stay, no days, no second
+date — and `journey` marks it `last` so you can tell.
 
 Do this the moment you know the dates, not after a fare is chosen. A traveler
 who has picked a flight to Madrid and is being shown hotels has been left in
@@ -34,6 +46,20 @@ own button — not one search, then a separate conversation about getting back.
 `search_flights` prices a hop, so call it once per hop in the same round,
 passing that hop's `origin`, `destination` and `date`. Several calls in one
 round is normal and fast.
+
+**A press settles one hop, not the surface.** Four fares for two hops is one
+choice made and one still open, so say which — "one more to pick, the way home"
+— and the next surface holds *only* the hops still without a ticket. Never
+redraw a fare somebody already chose: a traveller who picks a flight and is
+shown the same flights again cannot tell whether their press registered, and
+they will press it again.
+
+**Answer the question they asked, and never walk back.** Asked for stays, draw
+stays — a gap somewhere else is not a reason to withhold the thing they asked
+for, and "we need to lock in the flight first" is a turn that answers nobody.
+Say the gap in one line *beside* the answer instead: "here are the stays — the
+flight out is the one thing still open". Once something is recorded, the next
+turn is about what it makes possible, not about it again.
 
 Draw it as a list, not as two hand-built blocks. Bind the hops to the route and
 let the surface grow with the trip: a four-city journey and a there-and-back are
@@ -52,8 +78,14 @@ someone flies home early, two go out and three come back.
   for the hop by exactly as many tickets as the difference, and it looks
   entirely plausible while being wrong.
 - When they say so, record it on the leg: `legs: [{…, travelers: 3}]`.
-- If you do not know who is on a hop, ask — a `TravelerCounter` per hop, every
-  hop in one surface, one button. Not one counter for the journey.
+- **Ask every hop, or ask none of them.** One `TravelerCounter` per hop — every
+  hop, including the last one home — on one surface with one button. A route of
+  three asked about twice leaves a hop flying home with whatever the hop before
+  it said, and nobody was shown it. The host checks this and sends the surface
+  back naming the hops you left out.
+- A hop whose party you were never told carries the one before it, and
+  `journey` marks it `partyInherited`. That is a sensible default and not an
+  answer: those are the hops to put a counter in front of, pre-filled.
 - When a hop's party differs from the hop before it, say so on the surface — "3
   travelers on the way back", beside that hop's fares — so nobody has to work
   out why the price moved.

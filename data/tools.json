@@ -261,6 +261,10 @@
             },
             "description": "Fields in this call the traveler did not actually state — your best guess rather than their answer. They pre-fill the control and the question stays open, so you still ask."
           },
+          "oneWay": {
+            "type": "boolean",
+            "description": "True when the journey does not come back — one way, staying on, sorting the way home later. Record it and stop looking for the missing hop home."
+          },
           "legs": {
             "type": "array",
             "description": "Stops after the first, in order. The top-level fields are the first leg.",

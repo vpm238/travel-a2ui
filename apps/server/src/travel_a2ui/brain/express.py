@@ -335,6 +335,12 @@ class ExpressStream:
     #: dashboard drawn on a turn that needed a date picker. Empty means the
     #: caller is not making that claim, and the check does not run.
     missing: tuple[str, ...] = ()
+    #: Every path a per-hop party counter would bind to, in route order.
+    #:
+    #: Lets a finished block be checked for asking *some* of the hops who is on
+    #: them — see `half_asked`. Empty, or a single hop, and the check does not
+    #: run.
+    hops: tuple[str, ...] = ()
     #: Per component, what the catalog requires — for explaining a validator no.
     required: dict[str, tuple[str, ...]] = field(default_factory=dict)
     _buffer: str = ""
@@ -457,7 +463,7 @@ class ExpressStream:
             if done:
                 # And the question has to be askable. A date in a text box is a
                 # date the traveller can get wrong — see `controls.py`.
-                from .controls import asks_nothing, wrong_controls
+                from .controls import asks_nothing, half_asked, wrong_controls
 
                 wrong = wrong_controls(messages)
                 if wrong:
@@ -468,6 +474,9 @@ class ExpressStream:
                 # catches not asking at all.
                 # Not raised. See `Ui.incomplete`.
                 incomplete = asks_nothing(messages, self.missing)
+                # And a question asked per hop has to be asked of every hop.
+                if incomplete is None:
+                    incomplete = half_asked(messages, self.hops)
         except Exception as error:  # noqa: BLE001 - any parse failure, same handling
             # Mid-stream failures are the normal case: half a constructor is not
             # valid Express. Only a failure on a finished block is news.

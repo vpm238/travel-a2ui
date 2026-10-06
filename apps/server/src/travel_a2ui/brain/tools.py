@@ -42,8 +42,9 @@ TOOLS: list[dict[str, Any]] = json.loads(
 #: Fields a surface may not quietly change, even by pressing a button.
 #:
 #: `save_trip` validates; a button press used to not, so a picker sending
-#: 20 Apr → 12 Apr priced four flights against negative nights.
-REFUSABLE = ("startDate", "endDate", "travelers", "legs")
+#: 20 Apr → 12 Apr priced four flights against negative nights. The table lives
+#: in the model, with the sieve that applies it.
+REFUSABLE = model.REFUSABLE
 
 
 @dataclass
@@ -805,40 +806,52 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
     if name == "save_trip":
         # Normalised on the way in, so what is stored is in the trip's own
         # shapes rather than whatever the model happened to type.
-        proposed = model.merge(model.normalize(context.trip), args)
+        current = model.normalize(context.trip)
+        proposed = model.merge(current, args)
         today = context.day()
-        wrong = model.problems(proposed, today)
 
-        # Refused rather than recorded: everything downstream prices against
-        # these, and a range that ends before it starts produces numbers that
-        # look authoritative and are not. An over-budget trip is a real state,
-        # not a mistake, so it is reported and saved.
-        blocking = [problem for problem in wrong if problem["field"] != "spent"]
-        if blocking:
-            return (
-                {
-                    "saved": False,
-                    "problems": blocking,
-                    "message": (
-                        "Not saved: "
-                        + " ".join(problem["message"] for problem in blocking)
-                        + " Ask the traveler to confirm."
-                    ),
-                },
-                # An error, unlike a search that found nothing: the model asked
-                # for something to be stored and it was not.
-                True,
-            )
+        # **What is sound is recorded; only the offending field is turned away.**
+        #
+        # This used to refuse the whole call, and `save_trip` takes the whole
+        # trip — so one hop's dates being a day out threw away the chosen stay,
+        # the party and the route that came with them. The model then read a
+        # trip with no stay in it and drew the fares again at somebody who had
+        # just picked a hotel.
+        #
+        # The sieve is the model's, the same one a button press goes through,
+        # so a value is refused for the same reason wherever it came from.
+        kept, refused = model.sieve(current, proposed, today)
+        if refused:
+            # A refused field goes back to what it was, and putting a value
+            # *back* is not something a patch can express — a field that had no
+            # value has to end with none. So the trip is rewritten in place, the
+            # way `release_decision` rewrites it, and the save is announced with
+            # nothing in it.
+            context.trip.clear()
+            context.trip.update(kept)
+            context.save({})
+        else:
+            context.save(model.normalize(args))
 
-        context.save(model.normalize(args))
         saved = model.merge(model.normalize(context.trip), {})
         result: dict[str, Any] = {
             "saved": True,
             "trip": saved,
             "stillNeeded": model.summarize(saved, today)["missing"],
         }
-        if wrong:
-            result["warnings"] = wrong
+        if refused:
+            # Named, so the next surface asks for it again rather than the model
+            # believing it holds a value the trip turned down.
+            result["refused"] = refused
+            result["message"] = (
+                "Saved, except: "
+                + " ".join(refused)
+                + " That field is still what it was — ask the traveler for it again, "
+                "and keep everything else they said."
+            )
+        warnings = [problem for problem in model.problems(saved, today) if problem["field"] == "spent"]
+        if warnings:
+            result["warnings"] = warnings
         return result, False
 
     if name == "release_decision":

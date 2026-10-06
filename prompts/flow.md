@@ -86,10 +86,17 @@ hop, and a `TravelerCounter` on each hop whose party differs:
     onward = DateTimeInput("Chicago to New York", $/trip/legs/0/startDate)
     home = DateTimeInput("New York home", $/trip/legs/1/startDate)
     first = TravelerCounter("To Chicago", $/trip/travelers, min=1, max=8)
-    rest = TravelerCounter("From Chicago on", $/trip/legs/0/travelers, min=1, max=8)
+    second = TravelerCounter("Chicago to New York", $/trip/legs/0/travelers, min=1, max=8)
+    third = TravelerCounter("Flying home", $/trip/legs/1/travelers, min=1, max=8)
     go = Button(Text("Find flights"), action=Event("search"), variant="primary")
-    root = Column([heading, out, onward, home, first, rest, go])
+    root = Column([heading, out, onward, home, first, second, third, go])
     </a2ui>
+
+**Three hops, three dates, three counters.** Count them against the route every
+time: this example asked two of the three hops who was on them for months, and
+the hop flying home was priced for whoever was on the hop before it with nobody
+ever seeing the number. The host now counts them too and sends the surface back
+if they do not match.
 
 The range picker in the first example is for **there and back, and nothing
 else**. The moment there is a third city, it cannot hold the answer, and

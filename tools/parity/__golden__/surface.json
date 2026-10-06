@@ -194,8 +194,8 @@
           "place": "San Francisco",
           "from": "New York",
           "nights": 0,
-          "detail": "2× · dates, a ticket",
-          "line": "San Francisco — 2× · dates, a ticket",
+          "detail": "2× · a ticket",
+          "line": "San Francisco — 2× · a ticket",
           "decisions": [
             {
               "key": "legs/1/travelers",
@@ -205,7 +205,6 @@
             }
           ],
           "wants": [
-            "dates",
             "a ticket"
           ]
         }
@@ -588,8 +587,8 @@
                 "place": "San Francisco",
                 "from": "New York",
                 "nights": 0,
-                "detail": "2× · dates, a ticket",
-                "line": "San Francisco — 2× · dates, a ticket",
+                "detail": "2× · a ticket",
+                "line": "San Francisco — 2× · a ticket",
                 "decisions": [
                   {
                     "key": "legs/1/travelers",
@@ -599,7 +598,6 @@
                   }
                 ],
                 "wants": [
-                  "dates",
                   "a ticket"
                 ]
               }

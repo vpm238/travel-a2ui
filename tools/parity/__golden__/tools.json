@@ -2661,21 +2661,30 @@
       "origin": "JFK"
     },
     "result": {
-      "saved": false,
-      "problems": [
-        {
-          "field": "endDate",
-          "message": "2027-04-12 is not after 2027-04-20."
-        }
+      "saved": true,
+      "trip": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-20"
+      },
+      "stillNeeded": [
+        "endDate",
+        "travelers"
       ],
-      "message": "Not saved: 2027-04-12 is not after 2027-04-20. Ask the traveler to confirm."
+      "refused": [
+        "2027-04-12 is not after 2027-04-20."
+      ],
+      "message": "Saved, except: 2027-04-12 is not after 2027-04-20. That field is still what it was — ask the traveler for it again, and keep everything else they said."
     },
-    "isError": true,
+    "isError": false,
     "trip": {
       "destination": "Madrid",
-      "origin": "JFK"
+      "origin": "JFK",
+      "startDate": "2027-04-20"
     },
-    "saved": []
+    "saved": [
+      {}
+    ]
   },
   "saving a date already past": {
     "tool": "save_trip",
@@ -2686,20 +2695,28 @@
       "destination": "Madrid"
     },
     "result": {
-      "saved": false,
-      "problems": [
-        {
-          "field": "startDate",
-          "message": "2020-01-01 is in the past."
-        }
+      "saved": true,
+      "trip": {
+        "destination": "Madrid"
+      },
+      "stillNeeded": [
+        "origin",
+        "startDate",
+        "endDate",
+        "travelers"
       ],
-      "message": "Not saved: 2020-01-01 is in the past. Ask the traveler to confirm."
+      "refused": [
+        "2020-01-01 is in the past."
+      ],
+      "message": "Saved, except: 2020-01-01 is in the past. That field is still what it was — ask the traveler for it again, and keep everything else they said."
     },
-    "isError": true,
+    "isError": false,
     "trip": {
       "destination": "Madrid"
     },
-    "saved": []
+    "saved": [
+      {}
+    ]
   },
   "saving a trip that is over budget, which is a real state and not a mistake": {
     "tool": "save_trip",

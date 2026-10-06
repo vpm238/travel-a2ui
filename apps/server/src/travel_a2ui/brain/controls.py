@@ -151,6 +151,55 @@ def wrong_controls(messages: Iterable[dict[str, Any]]) -> list[str]:
     return said
 
 
+def half_asked(messages: Iterable[dict[str, Any]], hops: Iterable[str]) -> str | None:
+    """Why this surface asks some hops a question and not the others, or None.
+
+    A party size belongs to a hop, not to a journey — somebody joins in Chicago,
+    somebody flies home early — so a route of three hops is three counters. The
+    brief says so, and its worked example drew two counters over three hops for
+    months, which is what the model copied: on a measured SFO → Chicago → New
+    York → home conversation the opening surface asked who was going to Chicago
+    and who was going on from there, and never asked who was flying home. The
+    hop home carried whatever the hop before it said, nobody was shown it, and
+    the fares home were priced for a party nobody had confirmed.
+
+    A prompt cannot guarantee this and has already failed to. This can: either
+    the surface asks every hop or it asks none of them, and a surface that asks
+    some is sent back naming the ones it left out.
+
+    `hops` is every path a counter would bind to, in route order. One hop means
+    nothing to be inconsistent about and the check does not run.
+    """
+    expected = [str(path) for path in hops]
+    if len(expected) < 2:
+        return None
+
+    asked: set[str] = set()
+    for message in messages:
+        update = message.get("updateComponents") or {}
+        for node in update.get("components") or []:
+            if not isinstance(node, dict):
+                continue
+            if str(node.get("component") or "") not in ASKING:
+                continue
+            for path in _bound_paths(node):
+                asked.add(path)
+
+    answered = [path for path in expected if path in asked]
+    if not answered or len(answered) == len(expected):
+        return None
+
+    absent = [path for path in expected if path not in asked]
+    return (
+        f"That surface asks who is on {len(answered)} of the {len(expected)} hops and "
+        f"leaves out {', '.join(f'`{path}`' for path in absent)}. Every hop has its own "
+        "party — somebody joins, somebody flies home early — so the hops you did not ask "
+        "about will be priced for whatever the hop before them said, and nobody will have "
+        "seen it. Draw one `TravelerCounter` per hop, labelled by hop and pre-filled from "
+        "the trip, on the same surface with the same button."
+    )
+
+
 class AsksNothing(Exception):
     """A surface drawn on a turn that needed to ask, which asks for nothing."""
 

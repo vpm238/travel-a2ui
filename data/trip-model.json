@@ -159,6 +159,13 @@
       "note": "Set once the itinerary has been drawn and the traveler is happy with it."
     },
     {
+      "key": "oneWay",
+      "kind": "flag",
+      "label": "whether the journey comes back",
+      "stage": "route",
+      "note": "True when it does not: one way, staying on, sorting the way home later. The route then ends where it ends, and nothing should go looking for the missing hop. The brief used to say to record this as `skip: ['return']`, which was not a stage and was dropped on the way in — so the agent read the route again on the next turn, found it landing somewhere other than home, and asked about the way back it had just been told not to ask about."
+    },
+    {
       "key": "skip",
       "kind": "stages",
       "label": "the parts that do not apply",

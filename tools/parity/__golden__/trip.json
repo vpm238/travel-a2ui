@@ -148,6 +148,13 @@
         "note": "Set once the itinerary has been drawn and the traveler is happy with it."
       },
       {
+        "key": "oneWay",
+        "kind": "flag",
+        "label": "whether the journey comes back",
+        "stage": "route",
+        "note": "True when it does not: one way, staying on, sorting the way home later. The route then ends where it ends, and nothing should go looking for the missing hop. The brief used to say to record this as `skip: ['return']`, which was not a stage and was dropped on the way in — so the agent read the route again on the next turn, found it landing somewhere other than home, and asked about the way back it had just been told not to ask about."
+      },
+      {
         "key": "skip",
         "kind": "stages",
         "label": "the parts that do not apply",
@@ -190,6 +197,7 @@
       "notes",
       "days",
       "planned",
+      "oneWay",
       "skip",
       "assumed",
       "legs"
@@ -238,6 +246,7 @@
       "notes": "/trip/notes",
       "days": "/trip/days",
       "planned": "/trip/planned",
+      "oneWay": "/trip/oneWay",
       "skip": "/trip/skip",
       "assumed": "/trip/assumed",
       "legs": "/trip/legs"
@@ -469,6 +478,7 @@
             "who is on it",
             "a ticket"
           ],
+          "last": true,
           "decisions": []
         }
       ]
@@ -549,6 +559,7 @@
             "somewhere to stay",
             "things to do"
           ],
+          "last": true,
           "nights": 7,
           "startDate": "2027-04-12",
           "endDate": "2027-04-19",
@@ -646,6 +657,7 @@
           "wants": [
             "a ticket"
           ],
+          "last": true,
           "startDate": "2027-04-19",
           "endDate": "2027-04-12",
           "travelers": 2,
@@ -745,6 +757,7 @@
             "somewhere to stay",
             "things to do"
           ],
+          "last": true,
           "nights": 7,
           "startDate": "2020-04-12",
           "endDate": "2020-04-19",
@@ -843,6 +856,7 @@
             "dates",
             "a ticket"
           ],
+          "last": true,
           "travelers": 2,
           "decisions": [
             {
@@ -956,6 +970,7 @@
           "wants": [
             "things to do"
           ],
+          "last": true,
           "nights": 7,
           "startDate": "2027-04-12",
           "endDate": "2027-04-19",
@@ -1122,6 +1137,7 @@
             "somewhere to stay",
             "things to do"
           ],
+          "partyInherited": true,
           "nights": 4,
           "startDate": "2027-04-12",
           "endDate": "2027-04-16",
@@ -1139,9 +1155,9 @@
           "from": "New York",
           "to": "SFO",
           "wants": [
-            "dates",
             "a ticket"
           ],
+          "last": true,
           "startDate": "2027-04-16",
           "travelers": 2,
           "decisions": [
@@ -1230,6 +1246,7 @@
             "somewhere to stay",
             "things to do"
           ],
+          "last": true,
           "nights": 7,
           "startDate": "2027-04-12",
           "endDate": "2027-04-19",
