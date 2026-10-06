@@ -402,3 +402,73 @@ class TestTheRefinePanelKnowsTheRoute:
             "who1",
             "who2",
         ]
+
+
+class TestThePanelWillNotAskTwice:
+    """"Why is it asking me for dates again after I select the flights."
+
+    The trip panel is composed on the server, so reaching for it draws a date
+    picker whether or not the dates are settled. Its own description has asked
+    the model not to do that for as long as it has existed, and a description is
+    a hope. This is a refusal — and it has to be narrow, because the panel is
+    also how somebody moves their trip a week later.
+    """
+
+    SETTLED = {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2,
+        "selectedFlight": "IB426",
+    }
+
+    def draw(self, asked: dict, trip: dict | None):
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
+        from travel_a2ui.brain.surfaces import build_surface
+
+        return asyncio.run(
+            build_surface("show_trip_controls", dict(asked), FixtureProvider(), TODAY, trip=trip)
+        )
+
+    def refusal(self, asked: dict, trip: dict | None) -> str | None:
+        try:
+            self.draw(asked, trip)
+        except ValueError as refused:
+            return str(refused)
+        return None
+
+    def test_a_redraw_over_settled_answers_is_turned_away(self):
+        said = self.refusal({}, self.SETTLED)
+        assert said is not None
+        assert "already settled" in said
+
+    def test_and_so_is_one_that_only_echoes_the_trip_back(self):
+        assert self.refusal(dict(self.SETTLED), self.SETTLED) is not None
+
+    def test_the_refusal_says_what_is_actually_open(self):
+        said = self.refusal({}, self.SETTLED) or ""
+        # The outbound is chosen, so what is open is the stay and the days.
+        assert "somewhere to stay" in said
+        assert "show_hotel_options" in said
+
+    def test_moving_the_dates_still_draws(self):
+        assert self.refusal({"startDate": "2027-04-19", "endDate": "2027-04-26"}, self.SETTLED) is None
+
+    def test_changing_the_party_still_draws(self):
+        assert self.refusal({"travelers": 3}, self.SETTLED) is None
+
+    def test_refining_a_fare_cap_still_draws(self):
+        assert self.refusal({"maxPrice": 400}, self.SETTLED) is None
+
+    def test_a_half_settled_trip_still_draws(self):
+        assert self.refusal({}, {"destination": "Madrid", "origin": "JFK"}) is None
+
+    def test_a_caller_with_no_session_trip_is_untouched(self):
+        # An MCP host calls this tool cold. Nothing is settled, so nothing is
+        # refused, and it gets the panel it has always got.
+        assert self.refusal({"destination": "Madrid"}, None) is None
+
+    def test_a_one_way_trip_counts_as_settled(self):
+        one_way = {key: value for key, value in self.SETTLED.items() if key != "endDate"}
+        assert self.refusal({}, {**one_way, "oneWay": True}) is not None

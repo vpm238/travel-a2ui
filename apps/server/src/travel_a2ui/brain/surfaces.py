@@ -246,6 +246,7 @@ async def build_surface(
     args: dict[str, Any],
     provider: TravelProvider,
     today: str | None = None,
+    trip: dict[str, Any] | None = None,
 ) -> Surface:
     """One surface, by tool name.
 
@@ -253,13 +254,21 @@ async def build_surface(
     now. It is a parameter at all because two of these read the clock — the
     countdown on the dashboard and an itinerary with no start date — so what
     they produce otherwise depends on the day they run.
+
+    `trip` is the session's own record, kept *apart* from `args` rather than
+    merged into them by the caller. Every builder still sees the merge, which is
+    what they have always been given; the one that needed the difference is the
+    trip panel, which cannot otherwise tell a traveller changing their dates
+    from a model redrawing the form over dates they already gave.
     """
+    asked = dict(args)
+    args = {**(trip or {}), **args}
     if name == "show_flight_options":
         return await _flights(args, provider)
     if name == "show_hotel_options":
         return await _hotels(args, provider)
     if name == "show_trip_controls":
-        return await _controls(args, provider)
+        return await _controls(args, provider, asked=asked, trip=trip)
     if name == "show_itinerary":
         return await _itinerary(args, provider, today)
     if name == "show_trip_dashboard":
@@ -458,13 +467,82 @@ async def _hotels(args: dict[str, Any], provider: TravelProvider) -> Surface:
     )
 
 
-async def _controls(args: dict[str, Any], provider: TravelProvider) -> Surface:
+#: The boundaries this panel exists to settle.
+_BOUNDARIES = ("destination", "origin", "startDate", "endDate", "travelers")
+
+
+def _already_settled(asked: dict[str, Any], trip: dict[str, Any]) -> str | None:
+    """Why this panel should not be drawn at all, or None.
+
+    **A settled boundary is not a question.** This panel is the one that asks
+    where, from where, when and how many — and it is composed here, so when the
+    model reaches for it the traveller gets a date picker whether or not the
+    dates were settled three turns ago. "Why is it asking me for dates again
+    after I select the flights" is that, and the tool's own description has
+    asked the model not to for as long as it has existed. A description is a
+    hope; this is a refusal.
+
+    The test is mechanical. `asked` is what the *model* passed and `trip` is
+    what the session already holds — kept apart on purpose, because they used to
+    arrive merged and then nothing could tell a change from an echo. A call that
+    proposes a new value for a boundary is a real change and is drawn. A call
+    that proposes nothing the trip does not already say is a form drawn over its
+    own answers, and it is turned away with what is actually open, so the turn
+    moves forward instead of circling.
+    """
+    settled = model.normalize(trip)
+    if not (settled.get("destination") and settled.get("origin") and settled.get("startDate")):
+        return None
+    if not (settled.get("endDate") or settled.get("oneWay") is True):
+        return None
+
+    wanted = model.normalize({key: asked.get(key) for key in _BOUNDARIES})
+    proposes = any(wanted[key] != settled.get(key) for key in wanted)
+    # A cap or a stop preference is a refinement, and refining is what this
+    # panel is for once the boundaries are done.
+    refines = asked.get("maxPrice") is not None or asked.get("nonstopOnly") is not None
+    if proposes or refines:
+        return None
+
+    open_now = [
+        f"{hop.get('from') or '?'} → {hop['to']}: {', '.join(hop['wants'])}"
+        for hop in model.journey(settled)
+        if hop.get("wants")
+    ]
+    return (
+        "The boundaries are already settled — "
+        f"{model.basis_of(settled)} — so this panel would ask for answers you have. "
+        + (
+            "What is actually open: " + "; ".join(open_now) + ". "
+            if open_now
+            else "Nothing on the route is open. "
+        )
+        + "Draw the step that is open instead: fares are show_flight_options, "
+        "stays are show_hotel_options, the days are show_itinerary, the total is "
+        "show_price_summary. Call this one again only when they ask to change a "
+        "boundary, and pass the new value."
+    )
+
+
+async def _controls(
+    args: dict[str, Any],
+    provider: TravelProvider,
+    asked: dict[str, Any] | None = None,
+    trip: dict[str, Any] | None = None,
+) -> Surface:
     """The sidebar flow: controls, not content.
 
     Everything is bound into the data model, so the host reads the traveller's
     choices out of the surface rather than parsing them from a sentence, and one
     commit action carries them all in its context.
     """
+    # Only when the caller kept the two apart. An MCP host calling this tool
+    # cold passes no trip, nothing is settled, and the panel is drawn as always.
+    if trip:
+        refusal = _already_settled(asked or {}, trip)
+        if refusal:
+            raise ValueError(refusal)
+
     destination = _str(args.get("destination"))
     place = await _place(provider, destination) if destination else destination
     travelers = _int(args.get("travelers"), 2)

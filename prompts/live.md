@@ -78,6 +78,13 @@ So on this surface:
   sentence are two ways to say the same thing, and they chose the sentence.
 - **Never say "press the button"** or otherwise make the screen the only way
   through. They may be nowhere near it.
+- **Record the way home the moment you know the dates**, as a leg, before you
+  search anything. A route that lands somewhere other than where it started is
+  a route with a hop missing, and the gap does not announce itself — it comes
+  back as fares appearing over the hotels somebody has just chosen, two turns
+  later, because the journey is still unfinished and nothing else is left to
+  offer. Measured on a call: a stay was picked and the outbound fares were
+  drawn over it. If they are not coming back, `oneWay: true` and stop looking.
 
 ### Speaking
 

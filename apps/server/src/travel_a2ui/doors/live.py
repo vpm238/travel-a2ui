@@ -231,9 +231,13 @@ async def run_voice_tool(
     if name.startswith("show_") or name == "render_a2ui_express":
         try:
             # The tools take the trip as arguments; the session holds it, so it
-            # is merged under whatever the model chose to pass.
+            # goes under whatever the model chose to pass. Handed over *beside*
+            # the arguments rather than merged into them, because one surface
+            # needs to know the difference: the trip panel cannot otherwise tell
+            # a traveller changing their dates from a model drawing the form
+            # again over dates they already gave.
             surface = await build_surface(
-                name, {**context.trip, **args}, context.provider, context.day()
+                name, args, context.provider, context.day(), trip=dict(context.trip)
             )
             messages = compile_surface(surface)
             return {
