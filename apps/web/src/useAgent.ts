@@ -367,6 +367,23 @@ export function useAgent() {
    */
   const resumeRef = useRef<Resume | undefined>(undefined);
 
+  /**
+   * The shape of the decisions, and the shape the panel on screen was drawn for.
+   *
+   * The panel is redrawn by the agent when the trip's decisions change — a new
+   * control is needed, not just a new value — and the server does that in the
+   * tail of a turn, after the answer has painted. Which is precisely when a
+   * traveller presses the fare they have just been shown: the press aborts the
+   * stream, and the rebuild goes with it. The panel was then permanently one
+   * press behind — nothing at all until a flight was chosen, then nothing again
+   * until a hotel was, and then everything at once.
+   *
+   * So the client keeps both shapes and asks for the panel itself when they
+   * disagree. That request is its own, and no press can cancel it.
+   */
+  const tripShapeRef = useRef<string | undefined>(undefined);
+  const panelShapeRef = useRef<string | undefined>(undefined);
+
   const [prefs, setPrefsState] = useState<Prefs>(() => {
     try {
       const stored = readStored(PREFS_KEY);
@@ -615,6 +632,8 @@ export function useAgent() {
             // the server seeds `/trip` into the surface it creates and sends
             // `updateDataModel` for the panels. Applying them is the whole job.
             store.apply(event.messages);
+            // A panel that arrives is the panel for the decisions as they stand.
+            if (STANDING.has(event.surfaceId)) panelShapeRef.current = tripShapeRef.current;
             if (!options.silent) {
               patchTurn(assistantId, (turn) => ({
                 parts: withSurface(turn.parts, event.surfaceId),
@@ -665,6 +684,9 @@ export function useAgent() {
             break;
           case 'trip':
             setTrip(event.trip);
+            // What the panel would have to be redrawn for, noted while the turn
+            // is still streaming. See `panelShapeRef`.
+            if (event.shape !== undefined) tripShapeRef.current = event.shape;
             break;
           case 'resume':
             // Kept, not read. See `resumeRef`.
@@ -731,6 +753,28 @@ export function useAgent() {
         setBusy(false);
         setLiveSurface(null);
         abortRef.current = null;
+        // The panel, if this turn did not get round to drawing it.
+        //
+        // The server redraws the standing surfaces in the tail of a turn, after
+        // the answer has painted — and that is exactly when somebody presses
+        // the fare they were just shown, which aborts the stream and takes the
+        // rebuild with it. Asking here puts the request on its own connection,
+        // where no press can reach it. It fires only when the decisions have
+        // actually moved since the panel was drawn, so a turn whose tail
+        // finished costs nothing extra.
+        //
+        // Marked only when the panel actually arrives, by the `ui` handler
+        // above — not optimistically here. `send` declines while another turn
+        // is running, which is exactly the case this exists for: the press that
+        // cancelled the rebuild is already in flight. Claiming the panel was
+        // current would mean never asking again.
+        if (
+          !options.silent &&
+          tripShapeRef.current !== undefined &&
+          tripShapeRef.current !== panelShapeRef.current
+        ) {
+          void drawSurfaceRef.current?.('sidebar');
+        }
       }
     },
     [busy, patchTurn, sessionId, store],
@@ -769,6 +813,12 @@ export function useAgent() {
       send(note ?? '', { surface, surfaceId: surface, silent: true }),
     [send],
   );
+
+  // `send` catches up a stale panel when a turn ends, and is defined above
+  // this. A ref rather than reordering the two: they are mutually recursive by
+  // nature — drawing a panel is itself a turn — and a ref says so plainly.
+  const drawSurfaceRef = useRef<typeof drawSurface | undefined>(undefined);
+  drawSurfaceRef.current = drawSurface;
 
 
   const handleSurfaceEvent = useCallback(

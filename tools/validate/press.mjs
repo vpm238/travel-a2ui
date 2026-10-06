@@ -68,6 +68,12 @@ await page.screenshot({ path: `${shot}/1-outbound.png`, fullPage: true });
 
 const fares = page.locator('.a2-flight, [class*="flight" i]');
 console.log('fare cards on screen:', await fares.count());
+
+// The panel *before* anything is pressed. "Why does the sidebar not start to
+// build until I select the first flight" is this line coming back empty.
+const before = await page.locator('aside, [class*="sidebar" i]').first().innerText().catch(() => '');
+console.log('\n=== the panel, before the press ===');
+console.log(before.slice(0, 260) || '(nothing)');
 await fares.first().click();
 
 await page.waitForTimeout(25000);
@@ -92,6 +98,11 @@ for (const [index, body] of sent.entries()) {
 const text = await page.locator('body').innerText();
 console.log('\n=== the turn after the press, as text ===');
 console.log(text.split('FROM THE INTERFACE').pop()?.slice(0, 700));
+// Is there a panel beside the conversation, and does it know the trip?
+const panel = await page.locator('aside, [class*="sidebar" i]').first().innerText().catch(() => '');
+console.log('\n=== the panel, right after the press ===');
+console.log(panel.slice(0, 420) || '(nothing)');
+
 // Only the conversation column. The panel's calendar is the *record* of the
 // dates — read-only, and the right thing to show — so looking at the whole page
 // reports a question wherever the trip has dates at all.

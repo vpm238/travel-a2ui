@@ -1092,7 +1092,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         history.extend(results)
         history.extend(repair)
         turn_input = list(history)
-        yield {"type": "trip", "trip": dict(trip)}
+        yield {"type": "trip", "trip": dict(trip), "shape": model.decision_shape(trip)}
 
         if round_index == MAX_TOOL_ROUNDS - 1:
             yield {
@@ -1101,7 +1101,20 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 "retryable": True,
             }
 
-    yield {"type": "trip", "trip": dict(trip)}
+    # The decisions' shape travels with the trip.
+    #
+    # The panel is redrawn when the trip's *decisions* change — a new control is
+    # needed, not just a new value — and that judgement is the trip model's, so
+    # it has to reach the client as a fact rather than as a rule the client
+    # reimplements. It rides the trip event because that event arrives while the
+    # turn is still streaming: the rebuild below happens in the tail, after the
+    # answer, and a traveller who presses a fare the moment it appears cancels
+    # the stream and the rebuild with it. The client compares this against the
+    # shape its panel was drawn for and asks for a redraw on a request of its
+    # own — which no press can cancel. Without it the panel was permanently one
+    # press behind: nothing until a flight was chosen, then nothing again until
+    # a hotel was.
+    yield {"type": "trip", "trip": dict(trip), "shape": model.decision_shape(trip)}
 
     # The panels outlive the turn that drew them, so the trip reaches them as
     # ordinary A2UI rather than as something the client works out for itself.

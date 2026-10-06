@@ -40,7 +40,10 @@ export type AgentEvent =
   | { type: 'served_by'; model: string }
   | { type: 'tool'; name: string; input: unknown; status: 'running' }
   | { type: 'tool_result'; name: string; result: unknown; isError: boolean }
-  | { type: 'trip'; trip: Record<string, unknown> }
+  // `shape` is the fingerprint of the trip's *decisions* — what makes the panel
+  // need different controls rather than different values. The server computes
+  // it; the client only compares it with the one its panel was drawn for.
+  | { type: 'trip'; trip: Record<string, unknown>; shape?: string }
   | {
       type: 'usage';
       inputTokens: number;
