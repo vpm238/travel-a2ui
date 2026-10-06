@@ -467,61 +467,19 @@ async def _hotels(args: dict[str, Any], provider: TravelProvider) -> Surface:
     )
 
 
-#: The boundaries this panel exists to settle.
-_BOUNDARIES = ("destination", "origin", "startDate", "endDate", "travelers")
-
-
-def _already_settled(asked: dict[str, Any], trip: dict[str, Any]) -> str | None:
-    """Why this panel should not be drawn at all, or None.
-
-    **A settled boundary is not a question.** This panel is the one that asks
-    where, from where, when and how many — and it is composed here, so when the
-    model reaches for it the traveller gets a date picker whether or not the
-    dates were settled three turns ago. "Why is it asking me for dates again
-    after I select the flights" is that, and the tool's own description has
-    asked the model not to for as long as it has existed. A description is a
-    hope; this is a refusal.
-
-    The test is mechanical. `asked` is what the *model* passed and `trip` is
-    what the session already holds — kept apart on purpose, because they used to
-    arrive merged and then nothing could tell a change from an echo. A call that
-    proposes a new value for a boundary is a real change and is drawn. A call
-    that proposes nothing the trip does not already say is a form drawn over its
-    own answers, and it is turned away with what is actually open, so the turn
-    moves forward instead of circling.
-    """
-    settled = model.normalize(trip)
-    if not (settled.get("destination") and settled.get("origin") and settled.get("startDate")):
-        return None
-    if not (settled.get("endDate") or settled.get("oneWay") is True):
-        return None
-
-    wanted = model.normalize({key: asked.get(key) for key in _BOUNDARIES})
-    proposes = any(wanted[key] != settled.get(key) for key in wanted)
-    # A cap or a stop preference is a refinement, and refining is what this
-    # panel is for once the boundaries are done.
-    refines = asked.get("maxPrice") is not None or asked.get("nonstopOnly") is not None
-    if proposes or refines:
-        return None
-
-    open_now = [
-        f"{hop.get('from') or '?'} → {hop['to']}: {', '.join(hop['wants'])}"
-        for hop in model.journey(settled)
-        if hop.get("wants")
-    ]
-    return (
-        "The boundaries are already settled — "
-        f"{model.basis_of(settled)} — so this panel would ask for answers you have. "
-        + (
-            "What is actually open: " + "; ".join(open_now) + ". "
-            if open_now
-            else "Nothing on the route is open. "
-        )
-        + "Draw the step that is open instead: fares are show_flight_options, "
-        "stays are show_hotel_options, the days are show_itinerary, the total is "
-        "show_price_summary. Call this one again only when they ask to change a "
-        "boundary, and pass the new value."
-    )
+#: Why this panel is drawn whenever it is asked for.
+#:
+#: There was a refusal here, added the same day it was removed. If the trip's
+#: boundaries were settled and the call proposed nothing new, the panel was not
+#: built: the model was told what was actually open and which tool draws it.
+#:
+#: It was written for "why is it asking me for dates again", and it was the
+#: wrong suspect — that was `asks_nothing` in the typed door, which overruled
+#: the agent's own surface. Removing this one is the same principle applied to
+#: the same mistake: whether this turn should be the boundaries panel is the
+#: agent's call, and a tool that refuses the call it was made for is the host
+#: deciding what the turn is for. The tool's description says when to reach for
+#: it, which is the honest channel.
 
 
 async def _controls(
@@ -536,13 +494,6 @@ async def _controls(
     choices out of the surface rather than parsing them from a sentence, and one
     commit action carries them all in its context.
     """
-    # Only when the caller kept the two apart. An MCP host calling this tool
-    # cold passes no trip, nothing is settled, and the panel is drawn as always.
-    if trip:
-        refusal = _already_settled(asked or {}, trip)
-        if refusal:
-            raise ValueError(refusal)
-
     destination = _str(args.get("destination"))
     place = await _place(provider, destination) if destination else destination
     travelers = _int(args.get("travelers"), 2)
