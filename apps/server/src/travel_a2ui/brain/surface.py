@@ -372,6 +372,68 @@ def _components_in(message: A2uiMessage) -> tuple[str, list[dict[str, Any]]] | N
     return None
 
 
+def _addressed_to(value: Any, surface_id: str) -> Any:
+    """The same message, with every `surfaceId` in it set to this turn's."""
+    if isinstance(value, dict):
+        return {
+            key: surface_id
+            if key == "surfaceId" and isinstance(item, str)
+            else _addressed_to(item, surface_id)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_addressed_to(item, surface_id) for item in value]
+    return value
+
+
+def on_its_own_surface(
+    messages: Iterable[A2uiMessage], surface_id: str
+) -> list[A2uiMessage]:
+    """A turn's messages, readdressed to the card the turn was given.
+
+    Express lets a block name the surface it draws into — `surface("sidebar")`
+    — because a surface id is how you say "the persistent panel, not a new
+    card". Nothing stopped a block naming a *spent* one, and the renderer's two
+    rules then did the rest: it merges components by id, and it draws whichever
+    component is called `root`. So a block that says `surface("inline-2")` and
+    defines a `root` does not add to that card, it **replaces** it.
+
+    Which is what was happening to the hotel. The brief's worked example opens
+    `surface("inline-flights")` — a literal id, the same one every time — so a
+    turn that copied the example rather than the line in "This turn" drew onto
+    a surface it shared with every other turn that copied it. Pick a stay, and
+    the turn that answers the press lands on the same id and its `root` takes
+    the place of the list the traveller just pressed: the hotels vanish. Only
+    sometimes, because it depends on the model copying the example.
+
+    Rewritten rather than refused. The block is a finished interface and the
+    traveller is owed it; the only thing wrong with it is the envelope, and the
+    turn already knows the right address. Dropping it would trade a card that
+    lands in the wrong place for no card at all.
+
+    This is the renderer's contract, not the flow's — the same line `wrong_controls`
+    and `half_asked` sit on. It says nothing about what the turn may draw or when;
+    it says a turn may not draw over the answer to a question already asked, which
+    is the one thing a spent card is for. Everything a turn wants to revisit it can
+    say again on its own card, which is where the traveller is looking.
+    """
+    out: list[A2uiMessage] = []
+    for message in messages:
+        found = _components_in(message)
+        elsewhere = message.get("updateDataModel")
+        target = (
+            found[0]
+            if found
+            else elsewhere.get("surfaceId")
+            if isinstance(elsewhere, dict)
+            else None
+        )
+        out.append(
+            message if target in (None, surface_id) else _addressed_to(message, surface_id)
+        )
+    return out
+
+
 #: Ids that structurally point at another component, rather than holding a value.
 _ID_REFERENCES = ("children", "child", "componentId")
 

@@ -2,14 +2,14 @@
   {
     "version": "v0.9.1",
     "createSurface": {
-      "surfaceId": "inline-flights",
+      "surfaceId": "inline-7",
       "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
     }
   },
   {
     "version": "v0.9.1",
     "updateComponents": {
-      "surfaceId": "inline-flights",
+      "surfaceId": "inline-7",
       "components": [
         {
           "id": "heading",
@@ -110,7 +110,7 @@
   {
     "version": "v0.9.1",
     "updateDataModel": {
-      "surfaceId": "inline-flights",
+      "surfaceId": "inline-7",
       "path": "/",
       "value": {
         "trip": {

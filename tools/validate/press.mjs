@@ -59,15 +59,37 @@ await box.waitFor({ timeout: 20000 });
 await box.fill(PROMPT);
 await page.keyboard.press('Enter');
 
+// Everything pressed here is scoped to the conversation column, and within it
+// to the *live* card: `.turn__surface--spent` is how the client marks a card the
+// turn has moved past. Page-wide selectors read the panel too, which has an
+// "Outbound flight — … Change" row on it, and the first run of this script
+// pressed that Change link instead of the return fare and measured nothing.
+const FEED = '.chat__feed';
+const LIVE = `${FEED} .turn__surface:not(.turn__surface--spent)`;
+const SPENT = `${FEED} .turn__surface--spent`;
+// Option rows, not the boxes around them: the renderer's class names repeat
+// down the tree, so a bare match counts a card several times over.
+const leaf = (word) => `[class*="${word}" i]:not(:has([class*="${word}" i]))`;
+
+/** Wait until the live card holds options of this kind, or give up. */
+async function liveOptions(word, timeout = 240000) {
+  const rows = page.locator(`${LIVE} ${leaf(word)}`);
+  const until = Date.now() + timeout;
+  while (Date.now() < until) {
+    if (await rows.count()) return rows;
+    await page.waitForTimeout(2000);
+  }
+  return null;
+}
+
 // Wait for fares to appear.
-await page.locator('.a2-flight, [class*="flight" i]').first().waitFor({ timeout: 240000 });
+const fares = (await liveOptions('flight')) ?? page.locator(`${LIVE} ${leaf('flight')}`);
 await page.waitForTimeout(6000);
 
 const shot = process.env.SHOTS ?? '/tmp/shots';
 await page.screenshot({ path: `${shot}/1-outbound.png`, fullPage: true });
 
-const fares = page.locator('.a2-flight, [class*="flight" i]');
-console.log('fare cards on screen:', await fares.count());
+console.log('fare cards on the live card:', await fares.count());
 
 // The panel *before* anything is pressed. "Why does the sidebar not start to
 // build until I select the first flight" is this line coming back empty.
@@ -78,6 +100,47 @@ await fares.first().click();
 
 await page.waitForTimeout(25000);
 await page.screenshot({ path: `${shot}/2-after-press.png`, fullPage: true });
+
+// Carry on to the stay, and watch whether the card survives being pressed.
+//
+// "Sometimes selecting the hotel makes the hotel disappear." A turn draws onto
+// the surface it was given, so every card pressed should stay exactly where it
+// is — greyed, with the choice still on it. This walks outbound → return → stay
+// and checks each spent card still holds what was picked from it.
+if (process.env.THROUGH_TO_HOTEL) {
+  /** Press the first option of a kind on the live card; report what survived. */
+  async function pick(word, label) {
+    const rows = await liveOptions(word);
+    if (!rows) {
+      console.log(`\n${label}: nothing to press — the turn never drew one`);
+      return null;
+    }
+    const before = await rows.count();
+    const chosen = ((await rows.first().innerText()) || '').split('\n')[0]?.trim();
+    console.log(`\n${label}: ${before} on the live card, pressing "${chosen}"`);
+    await rows.first().click();
+    // The press ends the turn that drew the card, so the card goes spent. Wait
+    // for that rather than for a fixed number of seconds.
+    await page
+      .locator(SPENT)
+      .last()
+      .waitFor({ timeout: 60000 })
+      .catch(() => {});
+    await page.waitForTimeout(20000);
+    const kept = page.locator(`${SPENT}:has-text("${chosen}") ${leaf(word)}`);
+    const after = await kept.count();
+    console.log(
+      after >= before
+        ? `ok — the card pressed still shows all ${after} of them`
+        : `FAIL — the card pressed went from ${before} to ${after}: ${label} disappeared`,
+    );
+    return chosen;
+  }
+
+  await pick('flight', 'return flights');
+  await pick('hotel', 'stays');
+  await page.screenshot({ path: `${shot}/3-after-hotel.png`, fullPage: true });
+}
 
 console.log('\n=== what the browser sent ===');
 for (const [index, body] of sent.entries()) {

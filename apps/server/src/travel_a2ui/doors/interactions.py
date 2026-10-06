@@ -59,6 +59,7 @@ from ..brain.surface import (  # noqa: E402
     REBUILT_IN_A_TURN,
     STANDING_SURFACES,
     finish,
+    on_its_own_surface,
     panel_events,
     stack_blocks,
     trip_updates,
@@ -685,13 +686,20 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         {
                             "type": "ui",
                             "surfaceId": request.surface_id,
-                            # Two blocks in one turn compose onto one surface
-                            # instead of the second replacing the first, and
-                            # `carried` makes the one button carry what both
+                            # A block that names another surface is readdressed
+                            # to this turn's card before anything else looks at
+                            # it — a turn draws its own card and never over a
+                            # spent one. See `on_its_own_surface`.
+                            #
+                            # Then two blocks in one turn compose onto that one
+                            # surface instead of the second replacing the first,
+                            # and `carried` makes the one button carry what both
                             # asked. See `stack_blocks`.
                             "messages": finish(
                                 stack_blocks(
-                                    event.messages,
+                                    on_its_own_surface(
+                                        event.messages, request.surface_id
+                                    ),
                                     request.surface_id,
                                     event.block_index,
                                     blocks,
@@ -1233,11 +1241,17 @@ async def _rebuild_panels(
         )
 
         def drawn(events: Sequence[Any]) -> list[dict[str, Any]]:
+            # The panel's own id, whatever the block wrote: the brief's examples
+            # name `sidebar` and `home` literally, and a sidebar block that
+            # copied the home one used to draw the sidebar onto the home
+            # surface, leaving the panel the client was waiting for empty.
             return [
                 {
                     "type": "ui",
                     "surfaceId": surface_id,
-                    "messages": finish(event.messages, trip),
+                    "messages": finish(
+                        on_its_own_surface(event.messages, surface_id), trip
+                    ),
                     "done": event.done,
                 }
                 for event in events

@@ -270,7 +270,10 @@ You are composing travel UI. A few house rules that matter more than anything el
 ---BEGIN 10-inline-flight-options---
 # Inline: answering "find me a flight to Madrid" inside the chat feed.
 # One surface, one job — three options and a way to pick one.
-surface("inline-flights")
+# The id is the one this turn was given ("Draw into surface ..."), never an
+# earlier card's. A card already answered is the record of that answer, and a
+# root drawn onto it takes the place of what the traveler picked from.
+surface("inline-7")
 $/trip/selectedOutbound = ""
 heading = Text("Outbound · JFK → MAD · Sun 12 Apr", variant="h3")
 f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("select_flight", {id: "IB6250", price: "$412"}), duration="7h 35m", stops="Nonstop", flightNumber="IB6250", selected=$/trip/selectedOutbound, badge="Cheapest")
