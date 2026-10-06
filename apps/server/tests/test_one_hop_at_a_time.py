@@ -11,8 +11,8 @@ Air France, KLM and TAP, none of which fly it.
 from __future__ import annotations
 
 import asyncio
+import pathlib
 
-from travel_a2ui.brain.controls import two_hops_at_once
 from travel_a2ui.brain.providers.fixture import (
     FixtureProvider,
     _carriers_for,
@@ -21,39 +21,24 @@ from travel_a2ui.brain.providers.fixture import (
 )
 
 
-def fare(component_id: str, hop: int | None) -> dict:
-    event: dict = {"name": "select_flight", "context": {"id": component_id}}
-    if hop is not None:
-        event["context"]["hop"] = hop
-    return {
-        "id": component_id,
-        "component": "FlightOption",
-        "airline": "SAS",
-        "action": {"event": event},
-    }
+class TestOneHopPerCardIsTheBriefsJob:
+    """Where the rule lives, now that the host does not enforce it.
 
+    There was a `two_hops_at_once` check here that rejected a fare card
+    offering more than one hop. It went the same way as `asks_nothing`: "one
+    hop per card" is a flow rule, and in this app flow lives in the skill, not
+    in a host veto over what the agent drew. The brief says it; this checks the
+    brief says it, which is the only honest thing to assert.
+    """
 
-def surface(*nodes: dict) -> list[dict]:
-    return [{"updateComponents": {"surfaceId": "inline-1", "components": list(nodes)}}]
-
-
-class TestOneHopPerCard:
-    def test_two_hops_on_one_card_is_sent_back(self):
-        said = two_hops_at_once(surface(fare("f1", 0), fare("f2", 0), fare("r1", 1)))
-        assert said is not None
-        assert "more than one hop" in said
-        assert "hop=0" in said and "hop=1" in said
-
-    def test_one_hop_is_fine(self):
-        assert two_hops_at_once(surface(fare("f1", 1), fare("f2", 1))) is None
-
-    def test_fares_that_name_no_hop_are_fine(self):
-        # A trip with one hop has nothing to disambiguate.
-        assert two_hops_at_once(surface(fare("f1", None), fare("f2", None))) is None
-
-    def test_a_surface_with_no_fares_is_fine(self):
-        hotels = surface({"id": "h1", "component": "HotelCard", "name": "Hotel Fasanenhof"})
-        assert two_hops_at_once(hotels) is None
+    def test_the_brief_says_one_hop_at_a_time(self):
+        brief = (
+            pathlib.Path(__file__).resolve().parents[3] / "prompts" / "journey.md"
+        ).read_text("utf-8")
+        assert "### One hop at a time" in brief
+        assert "only that hop" in brief
+        # And how to go back, because that is the half that makes it safe.
+        assert "release_decision" in brief
 
 
 class TestTheScheduleReadsLikeOne:

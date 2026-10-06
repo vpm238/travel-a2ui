@@ -380,49 +380,6 @@ def _party_paths(trip: dict[str, Any]) -> tuple[str, ...]:
     return tuple(paths) if len(paths) > 1 else ()
 
 
-def _still_owed(trip: dict[str, Any]) -> list[str]:
-    """What the traveller has not actually told us yet.
-
-    Not the same as what is blank. `save_trip` takes an `assumed` list for
-    values the model guessed — "next weekend" becoming the 24th — and the
-    contract for it is explicit: they pre-fill the control and *the question
-    stays open*. So a guessed date is still owed a date picker.
-
-    This is what made the check stand down on the turn it was written for. The
-    model guessed a date, saved it marked assumed, `missing_for` then reported
-    nothing missing, and a surface with nowhere to answer sailed through while
-    the trip ran on a number nobody had agreed to.
-
-    `priceFlights` is the goal because its requirements are the boundaries —
-    route and dates — and they are what every trip is blocked on first.
-
-    **An assumption somebody has acted on is not a guess any more.** A fare is
-    priced against the dates it was searched on, so choosing one accepts them:
-    the traveller looked at "12–18 April, $348" and pressed it. The mark itself
-    only clears when a field is re-stated, and nothing re-states a date the
-    model guessed three turns ago — so a trip that kept the mark kept owing a
-    date picker, on every turn, for the rest of the conversation. A surface that
-    did not ask for the dates was then "asking for nothing the trip is waiting
-    on" and was sent back to be redrawn *with the date controls on it*, which is
-    a date picker landing over the fares or the hotels somebody has just chosen.
-    Once any hop has a ticket or a stay, the boundaries it was priced against
-    have been answered by the pressing.
-    """
-    owed = list(model.missing_for(trip, "priceFlights"))
-    assumed = trip.get("assumed")
-    if isinstance(assumed, list):
-        acted = any(
-            hop.get("selectedFlight") or hop.get("selectedHotel")
-            for hop in model.journey(trip)
-        )
-        owed += [
-            str(field)
-            for field in assumed
-            if str(field) not in owed and not acted
-        ]
-    return owed
-
-
 async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     """Runs one turn, yielding events as they happen.
 
@@ -679,7 +636,6 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             components=COMPONENT_NAMES,
             validator=_VALIDATOR,
             required=REQUIRED_PROPERTIES,
-            missing=tuple(_still_owed(trip)),
             # And a party asked per hop has to be asked of every hop: a route
             # of three asked about twice is a hop flying home with a party
             # nobody confirmed. See `half_asked`.
@@ -807,8 +763,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         components=COMPONENT_NAMES,
                         validator=_VALIDATOR,
                         required=REQUIRED_PROPERTIES,
-                        missing=tuple(_still_owed(trip)),
-                    )
+                                )
                     gate = FenceGate()
                     spoken = ""
                     yield event

@@ -24,9 +24,17 @@ TODAY = "2027-03-01"
 
 
 def _ctx(trip: dict) -> tools.ToolContext:
-    """A tool context over a trip, recording nothing else."""
+    """A tool context over a trip, saving the way the door saves.
+
+    `merge`, not `update`. One field does not simply overwrite — a patch that
+    states a value for real has to clear the `assumed` mark the guess left — and
+    a harness that used `update` reported the mark surviving a restate, which is
+    a bug in the harness and not in the trip.
+    """
     def save(patch: dict) -> None:
-        trip.update(model.normalize(patch))
+        merged = model.merge(trip, patch)
+        trip.clear()
+        trip.update(merged)
 
     return tools.ToolContext(trip=trip, provider=None, save=save, today=TODAY)
 
@@ -474,19 +482,20 @@ class TestThePanelWillNotAskTwice:
         assert self.refusal({}, {**one_way, "oneWay": True}) is not None
 
 
-class TestAnAssumptionSomebodyActedOn:
-    """A guessed date that was never re-stated owed a date picker forever.
+class TestAGuessIsAnOpenQuestionAndNotAVeto:
+    """What became of the assumed-date rule.
 
-    `save_trip`'s `assumed` list is for a value the model filled in without
-    being told, and its contract is that the question stays open — so the host
-    keeps asking for it. Nothing re-states a date the model guessed three turns
-    ago, so the mark survived the whole conversation: every surface that did not
-    ask for the dates was "asking for nothing the trip is waiting on" and was
-    sent back to be redrawn with the date controls on it. That is a date picker
-    landing over the fares, or over the hotels, after a choice was made.
+    `save_trip` takes an `assumed` list for a value the agent filled in without
+    being told, and the contract is that the question stays open. The host used
+    to *enforce* that: `_still_owed` reported the guess as owed, and a surface
+    that did not ask for it was sent back to be redrawn with a date picker on
+    it. Which is how a date picker landed over the flights one turn after a fare
+    was chosen — the press records nothing host-side, so the guess still read as
+    unanswered at the moment the card was checked.
 
-    A fare is priced against the dates it was searched on. Pressing it accepts
-    them.
+    The enforcement is gone, along with `_still_owed`. The mark itself stays,
+    because it is a true and useful fact: it reaches the agent in the prompt,
+    and the agent decides whether this turn is the one to settle it.
     """
 
     GUESSED = {
@@ -498,42 +507,33 @@ class TestAnAssumptionSomebodyActedOn:
         "assumed": ["startDate", "endDate"],
     }
 
-    def test_a_guess_nobody_has_acted_on_is_still_owed(self):
-        from travel_a2ui.doors.interactions import _still_owed
+    def test_the_mark_survives_a_save(self):
+        trip = dict(self.GUESSED)
+        result, _ = _save("save_trip", {"budget": 3000}, _ctx(trip))
+        assert result["trip"]["assumed"] == ["startDate", "endDate"]
 
-        assert _still_owed(self.GUESSED) == ["startDate", "endDate"]
+    def test_and_is_cleared_by_stating_the_value_for_real(self):
+        trip = dict(self.GUESSED)
+        result, _ = _save("save_trip", {"startDate": "2027-04-14"}, _ctx(trip))
+        assert result["trip"]["assumed"] == ["endDate"]
 
-    def test_pressing_a_fare_answers_the_dates_it_was_priced_against(self):
-        from travel_a2ui.doors.interactions import _still_owed
+    def test_the_host_no_longer_has_a_way_to_force_a_re_ask(self):
+        import travel_a2ui.doors.interactions as door
 
-        assert _still_owed({**self.GUESSED, "selectedFlight": "DL1970"}) == []
+        assert not hasattr(door, "_still_owed"), "the veto grew back"
 
-    def test_so_does_choosing_a_stay(self):
-        from travel_a2ui.doors.interactions import _still_owed
+    def test_the_agent_is_told_instead(self):
+        from travel_a2ui.brain.skills import build_prompt_parts
 
-        assert _still_owed({**self.GUESSED, "selectedHotel": "h_MAD_1"}) == []
-
-    def test_a_ticket_on_a_later_hop_counts_too(self):
-        from travel_a2ui.doors.interactions import _still_owed
-
-        owed = _still_owed(
-            {
-                **self.GUESSED,
-                "legs": [
-                    {"destination": "JFK", "startDate": "2027-04-18", "selectedFlight": "DL1970"}
-                ],
-            }
+        _, volatile = build_prompt_parts(
+            variant="express-modular",
+            surface="inline",
+            surface_id="inline-1",
+            catalog_id="x",
+            trip=dict(self.GUESSED),
+            today=TODAY,
         )
-        assert owed == []
-
-    def test_and_a_boundary_that_is_actually_blank_is_still_owed(self):
-        from travel_a2ui.doors.interactions import _still_owed
-
-        # Acting on a guess answers the guess. It does not invent an airport.
-        assert _still_owed({"destination": "MAD", "selectedFlight": "DL1970"}) == [
-            "origin",
-            "startDate",
-        ]
+        assert "assumed" in volatile
 
 
 class TestAOneWayTripStopsBeingAskedForAReturn:

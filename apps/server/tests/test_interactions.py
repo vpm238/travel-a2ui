@@ -131,11 +131,10 @@ SURFACE = (
 
 #: A trip with its boundaries settled, so a turn is not blocked on anything.
 #:
-#: `asks_nothing` rejects a surface drawn while the trip is waiting on route,
-#: dates or party that asks for none of them — which is right, and which every
-#: test using `SURFACE` would otherwise trip over, because `SURFACE` is a
-#: heading in a column and asks for nothing at all. A test about prose and
-#: Express coming out separately should not also be a test about that.
+#: Kept from when `asks_nothing` would reject a surface drawn over a blocked
+#: trip that asked for none of it. That check is gone — the agent decides what a
+#: turn is for — and a settled trip is still the right backdrop for a test about
+#: prose and Express coming out separately.
 SETTLED = {
     "destination": "Madrid",
     "origin": "JFK",
@@ -1146,14 +1145,26 @@ def test_the_promise_nudge_fires_once() -> None:
     assert len(model.bodies) == 2, "one retry, not a loop"
 
 
-def test_a_dashboard_drawn_on_a_blocked_turn_is_sent_back() -> None:
-    """The surface that looks most like success and helps least.
+def test_a_dashboard_drawn_on_a_blocked_turn_is_the_agents_call() -> None:
+    """The host does not decide what a turn is for.
 
-    Told "plan me a trip from SFO to NYC", the model drew — in separate measured
-    runs — six StatTiles and a ProgressMeter, and a MapPreview with six buttons.
-    Both compiled. Both validated. Neither contained anywhere to put a date, so
-    the traveller had nothing to answer and the turn was spent. A progress meter
-    before anything is decided is a bar at zero.
+    It used to. `asks_nothing` rejected a surface drawn while the trip was
+    waiting on its boundaries that asked for none of them, and sent it back to
+    be redrawn with those controls on it. It was written for a real failure —
+    told "plan me a trip", the model drew six StatTiles and a ProgressMeter over
+    a trip with no dates in it — and it was still the host overruling the agent
+    about its own flow, which is the one thing this app says it does not do.
+
+    And it cost what that costs. A traveller pressed the first fare; a press
+    carries `{id, price, hop}`, none of them trip fields, so nothing is recorded
+    host-side before the surface is checked; this read "still waiting on
+    startDate, endDate" off a date the agent had guessed three turns earlier and
+    nobody had re-stated; the return fares asked for neither, so the card was
+    sent back and redrawn *with a date picker on it* — over the flights, one
+    turn after choosing one.
+
+    The surface now goes out as drawn, and what the trip is waiting on reaches
+    the agent as a fact in the prompt. See the test below.
     """
     import asyncio
 
@@ -1165,23 +1176,38 @@ def test_a_dashboard_drawn_on_a_blocked_turn_is_sent_back() -> None:
         "root = Column([head, t1])\n"
         f"{A2UI_CLOSE}"
     )
-    model = FakeModel([([dashboard], []), ([ASKING], [])])
+    model = FakeModel([([dashboard], [])])
     events = asyncio.run(collect(base(message="plan me a trip to Madrid", client=model)))
 
-    retries = [event for event in events if event["type"] == "retry"]
-    assert retries, "a surface with nowhere to answer went out as if it helped"
-    assert "asks for nothing" in retries[0]["reason"]
+    assert not [
+        event
+        for event in events
+        if event["type"] == "retry" and "asks for nothing" in event["reason"]
+    ], "the host is overruling the agent about what the turn is for"
+    assert [event for event in events if event["type"] == "ui"], "nothing was drawn"
 
-    told = last_user_text(model.bodies[-1])
-    assert "startDate" in told, "the retry has to name what the trip is waiting on"
 
-    # And it was *drawn*, not swallowed. Rejecting it outright turned a useless
-    # dashboard into an empty screen whenever the retry did not recover —
-    # measured over 36 openings, drawing fell from 60% to 47% when this check
-    # rejected rather than annotated. A correction must never leave the screen
-    # emptier than it found it.
-    drawn = [event for event in events if event["type"] == "ui"]
-    assert len(drawn) >= 2, "the first surface never reached the traveller"
+def test_the_prompt_says_what_the_trip_is_waiting_on() -> None:
+    """The same fact, in the channel that leaves the decision with the agent.
+
+    Including a value the agent guessed, which is an open question however good
+    the guess was — that was the hole the first version of the removed check
+    fell through, and it is still worth saying out loud.
+    """
+    from travel_a2ui.brain.skills import build_prompt_parts
+
+    _, volatile = build_prompt_parts(
+        variant="express-modular",
+        surface="inline",
+        surface_id="inline-1",
+        catalog_id="x",
+        trip={"destination": "NYC", "origin": "SFO", "startDate": "2026-09-24",
+              "assumed": ["startDate"]},
+        today="2026-09-01",
+    )
+    assert "Not yet known" in volatile
+    assert "endDate" in volatile
+    assert "assumed" in volatile
 
 
 def test_a_surface_that_asks_for_one_missing_thing_is_fine() -> None:
@@ -1224,32 +1250,6 @@ def test_a_settled_trip_may_draw_whatever_it_likes() -> None:
         )
     )
     assert not [event for event in events if event["type"] == "retry"]
-
-
-def test_a_guessed_date_is_still_owed_a_picker() -> None:
-    """The hole the first version of this check fell through.
-
-    `save_trip` takes an `assumed` list for values the model guessed, and its
-    contract says the question stays open. But `missing_for` reads a guessed
-    date as a date, so a turn could guess "next weekend means the 24th", save
-    it, and then draw a dashboard — with the check standing down, because on
-    paper nothing was missing.
-
-    That is the trip in the reported screenshot: dates of 24–27 September that
-    the traveller never gave, on a panel presented as settled.
-    """
-    from travel_a2ui.doors.interactions import _still_owed
-
-    guessed = {
-        "destination": "NYC",
-        "origin": "SFO",
-        "startDate": "2026-09-24",
-        "assumed": ["startDate"],
-    }
-    assert _still_owed(guessed) == ["startDate"]
-
-    given = {k: v for k, v in guessed.items() if k != "assumed"}
-    assert _still_owed(given) == [], "a date they actually gave is settled"
 
 
 class TestTheModelDropsTheStreamMidSentence:
