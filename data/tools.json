@@ -234,6 +234,61 @@
             "type": "number",
             "description": "What is actually committed, not estimated."
           },
+          "days": {
+            "type": "array",
+            "description": "The day-by-day plan itself, one entry per day, in order — not just the fact that you drew one. Save it in the same call that draws it: the itinerary on the card cannot be shared, edited or read back next turn, and a hop whose days are not recorded goes on asking for things to do after you have planned them.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "What this day is, e.g. 'Old Madrid on foot'."
+                },
+                "date": {
+                  "type": "string",
+                  "description": "YYYY-MM-DD."
+                },
+                "summary": {
+                  "type": "string",
+                  "description": "One line about the shape of the day."
+                },
+                "activities": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string",
+                        "description": "What it is, e.g. 'Prado Museum'."
+                      },
+                      "time": {
+                        "type": "string",
+                        "description": "Start time as shown, e.g. '10:00'."
+                      },
+                      "category": {
+                        "type": "string",
+                        "description": "food, sight, outdoors, transit, free."
+                      },
+                      "location": {
+                        "type": "string"
+                      },
+                      "duration": {
+                        "type": "string",
+                        "description": "e.g. '2h'."
+                      },
+                      "note": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "title"
+                    ]
+                  }
+                }
+              },
+              "required": []
+            }
+          },
           "planned": {
             "type": "boolean",
             "description": "True once the day-by-day plan is drawn and the traveler is happy with it."

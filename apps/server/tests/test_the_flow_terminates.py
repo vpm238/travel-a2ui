@@ -278,3 +278,127 @@ class TestWhoIsOnAHopThatNobodyAsked:
         # Still priced for somebody — the default is sensible, it is just not
         # an answer.
         assert hops[2]["travelers"] == 1
+
+
+class TestTheDaysAreKept:
+    """A plan drawn on a card and nowhere else is a plan nobody can use."""
+
+    PLANNED = {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2,
+        "selectedFlight": "IB426",
+        "selectedHotel": "h_MAD_0",
+    }
+    DAYS = [
+        {
+            "title": "Old Madrid on foot",
+            "date": "2027-04-13",
+            "activities": [
+                {"title": "Prado Museum", "time": "10:00", "category": "sight"},
+                {"title": "Lunch at Sobrino", "time": "14:00", "category": "food"},
+            ],
+        }
+    ]
+
+    def test_the_schema_can_express_a_day_plan(self):
+        # It could not. `days` is a trip field, `share_plan` prints it,
+        # `drop_activity` edits it and `journey` counts it — and `save_trip`
+        # had no property for it, so nothing could ever write one. A rule the
+        # schema cannot express is not a rule anything can follow.
+        schema = next(
+            tool for tool in tools.TOOLS if tool["name"] == "save_trip"
+        )["input_schema"]["properties"]
+        assert "days" in schema
+
+    def test_a_planned_hop_stops_asking_for_things_to_do(self):
+        trip = dict(self.PLANNED)
+        result, is_error = _save("save_trip", {"days": self.DAYS}, _ctx(trip))
+        assert is_error is False
+        assert result["trip"]["days"][0]["activities"][1]["title"] == "Lunch at Sobrino"
+        assert "things to do" not in model.journey(result["trip"])[0]["wants"]
+
+    def test_and_the_shared_page_has_them(self):
+        trip = {**self.PLANNED, "days": self.DAYS}
+        page, _ = _save("share_plan", {}, _ctx(trip))
+        assert "The days" in page["page"]
+        assert "Prado Museum" in page["page"]
+
+    def test_dropping_an_activity_has_somewhere_to_drop_it_from(self):
+        from travel_a2ui.brain import host_actions
+
+        trip = {**self.PLANNED, "days": self.DAYS}
+        patch = host_actions.apply(host_actions.DROP_ACTIVITY, trip, {"day": 0, "index": 0})
+        assert patch is not None
+        assert [item["title"] for item in patch["days"][0]["activities"]] == ["Lunch at Sobrino"]
+
+
+class TestTheRefinePanelKnowsTheRoute:
+    """The one surface a spoken trip refines itself through.
+
+    It is composed here rather than by the model — an MCP host and a voice call
+    get what the server builds — so "one counter per hop" has to hold here too.
+    It held one counter for any journey, so a party that changed along the way
+    was invisible on the only panel that could have corrected it.
+    """
+
+    ROUTE = {
+        "destination": "Chicago",
+        "origin": "SFO",
+        "startDate": "2027-04-10",
+        "travelers": 1,
+        "legs": [
+            {"destination": "New York", "origin": "ORD", "startDate": "2027-04-12", "travelers": 2},
+            {"destination": "San Francisco", "origin": "JFK", "startDate": "2027-04-16", "travelers": 2},
+        ],
+    }
+
+    def panel(self, trip: dict) -> str:
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
+        from travel_a2ui.brain.surfaces import build_surface
+
+        return asyncio.run(
+            build_surface("show_trip_controls", dict(trip), FixtureProvider(), TODAY)
+        ).express
+
+    def test_a_counter_for_every_hop(self):
+        express = self.panel(self.ROUTE)
+        assert express.count("TravelerCounter") == 3
+        assert "$/filters/legs/0/travelers" in express
+        assert "$/filters/legs/1/travelers" in express
+
+    def test_each_one_is_labelled_by_its_hop_and_pre_filled(self):
+        express = self.panel(self.ROUTE)
+        assert 'TravelerCounter("ORD → New York"' in express
+        assert "$/filters/legs/0/travelers = 2" in express
+
+    def test_and_apply_carries_them_back(self):
+        assert "legs: $/filters/legs" in self.panel(self.ROUTE)
+
+    def test_one_hop_is_still_one_counter(self):
+        # An MCP host calling the tool cold passes no legs, and gets exactly
+        # the panel it always got.
+        express = self.panel({"destination": "Madrid", "travelers": 2})
+        assert express.count("TravelerCounter") == 1
+        assert 'TravelerCounter("Travellers"' in express
+        assert "legs:" not in express
+
+    def test_it_compiles(self):
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
+        from travel_a2ui.brain.surfaces import build_surface, compile_surface
+
+        surface = asyncio.run(
+            build_surface("show_trip_controls", dict(self.ROUTE), FixtureProvider(), TODAY)
+        )
+        nodes = [
+            node
+            for message in compile_surface(surface)
+            for node in (message.get("updateComponents") or {}).get("components") or []
+        ]
+        assert [node["id"] for node in nodes if node["component"] == "TravelerCounter"] == [
+            "who0",
+            "who1",
+            "who2",
+        ]

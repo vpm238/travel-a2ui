@@ -129,6 +129,27 @@ def _trip_of(args: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _route_of(args: dict[str, Any]) -> dict[str, Any]:
+    """The trip's route, out of args a caller merged the session trip into.
+
+    `_trip_of` deliberately reads only the fields a *search* is made of, so a
+    panel built from it had no idea the journey had more than one hop. The
+    voice relay merges the whole trip under the model's arguments, so the legs
+    are here when there are any; an MCP host calling the tool cold passes none
+    and gets the single-hop panel it always got.
+    """
+    return model.normalize(
+        {
+            "destination": args.get("destination"),
+            "origin": args.get("origin"),
+            "startDate": args.get("startDate") or args.get("date"),
+            "endDate": args.get("endDate"),
+            "travelers": args.get("travelers"),
+            "legs": args.get("legs"),
+        }
+    )
+
+
 def _flow_of(args: dict[str, Any]) -> str:
     value = _str(args.get("surface"))
     return value if value in ("sidebar", "home") else "inline"
@@ -460,7 +481,36 @@ async def _controls(args: dict[str, Any], provider: TravelProvider) -> Surface:
     def rfc(date: str) -> str:
         return f"{date}T00:00:00Z" if date else ""
 
+    # Who is on each hop, which on a journey of more than one is not one number.
+    #
+    # This panel is composed here rather than by the model — it is what an MCP
+    # host and a voice call get — so "one `TravelerCounter` per hop" has to be
+    # true here too, or the one surface a spoken trip refines itself through is
+    # the one place a party that changes cannot be seen or corrected. The hops
+    # come from the trip the caller merged into these args.
+    route = model.stops(_route_of(args))
+    parties: list[str] = []
+    party_lines: list[str] = []
+    if len(route) > 1:
+        for index, hop in enumerate(route):
+            name = f"who{index}"
+            label = f"{hop.get('origin') or '?'} → {hop.get('destination') or '?'}"
+            path = "$/filters/travelers" if index == 0 else f"$/filters/legs/{index - 1}/travelers"
+            seeded = _int(hop.get("travelers"), travelers)
+            if index > 0:
+                party_lines.append(f"{path} = {seeded}")
+            parties.append(name)
+            party_lines.append(
+                f'{name} = TravelerCounter({_q(label)}, {path}, min=1, max=8)'
+            )
+    else:
+        parties.append("who")
+        party_lines.append('who = TravelerCounter("Travellers", $/filters/travelers, min=1, max=8)')
+
     nights_label = f", nightsLabel={_q(f'{nights} nights')}" if nights > 0 else ""
+    carried = (
+        ", legs: $/filters/legs" if len(route) > 1 else ""
+    )
     lines = [
         'surface("mcp-sidebar")',
         f"$/filters/start = {_q(rfc(start_date))}",
@@ -471,15 +521,16 @@ async def _controls(args: dict[str, Any], provider: TravelProvider) -> Surface:
         f"title = Text({_q(f'Refine {place}' if place else 'Refine the trip')}, variant=\"h3\")",
         'dates = DateRangePicker("Travel dates", $/filters/start, $/filters/end, '
         f'action=Event("dates_changed"){nights_label})',
-        'who = TravelerCounter("Travellers", $/filters/travelers, min=1, max=8)',
+        *party_lines,
         'budget = Slider("Max fare", 150, 2000, $/filters/maxPrice)',
         'stops = ChoicePicker("Stops", "mutuallyExclusive", '
         '[{label: "Any", value: "any"}, {label: "Nonstop only", value: "nonstop"}], '
         "$/filters/stops)",
         'apply = Button(Text("Apply"), "primary", Event("apply_filters", '
         "{destination: $/filters/destination, start: $/filters/start, end: $/filters/end, "
-        "travelers: $/filters/travelers, maxPrice: $/filters/maxPrice, stops: $/filters/stops}))",
-        'root = Column([title, dates, who, budget, stops, apply], align="stretch")',
+        "travelers: $/filters/travelers, maxPrice: $/filters/maxPrice, "
+        f"stops: $/filters/stops{carried}}}))",
+        f'root = Column([title, dates, {", ".join(parties)}, budget, stops, apply], align="stretch")',
     ]
     if place:
         lines.insert(1, f"$/filters/destination = {_q(place)}")

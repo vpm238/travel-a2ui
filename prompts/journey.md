@@ -111,6 +111,12 @@ Hops are tickets; nights are stays. Count the nights on each hop — its
   itinerary is half a plan, and the traveler has to ask for the other half.
   Search the stays for that hop's nights and that hop's party, and plan the days
   it covers — `get_destination` first, so the days name real places.
+- **Record the days in the same call that draws them** — `save_trip({days:
+  [...]})`, the plan itself and not just `planned: true`. A day plan that lives
+  only on the card it was drawn on cannot be shared, cannot be edited, and is
+  gone next turn: the shared page prints the days off the trip, dropping an
+  activity edits the trip, and a hop whose days are not recorded goes on asking
+  for things to do after you have already planned them.
 - **A hop with no nights needs neither.** Landing and leaving the same day is a
   connection: no hotel, no day plan, and asking about either is the question
   that makes an agent look like a form. The hop home is usually one of these.
