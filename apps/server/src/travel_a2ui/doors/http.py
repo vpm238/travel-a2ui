@@ -401,6 +401,19 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
                     setup=result.setup,
                 )
                 continue
+            # The trip, written down the moment it moves.
+            #
+            # The session used to be saved only from the receipt above, which
+            # `run_turn` yields at the very end of a turn. A traveller who
+            # pressed a fare the moment it appeared — the whole point of drawing
+            # it the moment it lands — aborted the stream before that, so this
+            # instance never recorded the trip and the client was left holding
+            # the warm-up receipt, which carries an interaction id and no trip.
+            # The next turn then ran against an empty trip and the agent asked
+            # for the route, the dates and the party again. All of it was on
+            # screen at the time, in a sidebar drawn by the turn before.
+            if event["type"] == "trip" and isinstance(event.get("trip"), dict):
+                sessions.save(session_id, trip=event["trip"])
             yield _sse(event)
 
     return StreamingResponse(

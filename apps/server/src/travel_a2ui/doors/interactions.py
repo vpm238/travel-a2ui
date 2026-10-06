@@ -1110,6 +1110,32 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     for event in panel_events(trip):
         yield event
 
+    # The receipt, handed over *before* the panels rather than after them.
+    #
+    # It used to be yielded once, at the very end of this generator — after the
+    # second model call that rebuilds the sidebar. Everything that remembers the
+    # trip hangs off it: the client keeps it and sends it back, and the door
+    # writes the session from it. So a traveller who pressed a fare the moment
+    # it appeared — which is the entire point of drawing the fares the moment
+    # they land — aborted the stream before either copy was written, and the
+    # next turn began with an empty trip. The agent then asked for the route,
+    # the dates and the party again, which is exactly what it should do when it
+    # has been handed a trip with nothing in it.
+    #
+    # Measured on the real client: pressing the first fare six seconds after it
+    # drew sent `resume.trip: null`, and the turn after it was a boundaries
+    # form. The answer is settled here; the panels are decoration that follows.
+    yield {
+        "type": "__result__",
+        "result": TurnResult(
+            interaction_id=last_interaction_id,
+            trip=trip,
+            stop_reason=stop_reason,
+            shape=request.shape,
+            setup=setup,
+        ),
+    }
+
     # The traveller's answer is finished here. What follows is the panels, and
     # they are not what was asked for.
     mark("answered")
