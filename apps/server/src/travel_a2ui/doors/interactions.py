@@ -395,11 +395,31 @@ def _still_owed(trip: dict[str, Any]) -> list[str]:
 
     `priceFlights` is the goal because its requirements are the boundaries —
     route and dates — and they are what every trip is blocked on first.
+
+    **An assumption somebody has acted on is not a guess any more.** A fare is
+    priced against the dates it was searched on, so choosing one accepts them:
+    the traveller looked at "12–18 April, $348" and pressed it. The mark itself
+    only clears when a field is re-stated, and nothing re-states a date the
+    model guessed three turns ago — so a trip that kept the mark kept owing a
+    date picker, on every turn, for the rest of the conversation. A surface that
+    did not ask for the dates was then "asking for nothing the trip is waiting
+    on" and was sent back to be redrawn *with the date controls on it*, which is
+    a date picker landing over the fares or the hotels somebody has just chosen.
+    Once any hop has a ticket or a stay, the boundaries it was priced against
+    have been answered by the pressing.
     """
     owed = list(model.missing_for(trip, "priceFlights"))
     assumed = trip.get("assumed")
     if isinstance(assumed, list):
-        owed += [str(field) for field in assumed if str(field) not in owed]
+        acted = any(
+            hop.get("selectedFlight") or hop.get("selectedHotel")
+            for hop in model.journey(trip)
+        )
+        owed += [
+            str(field)
+            for field in assumed
+            if str(field) not in owed and not acted
+        ]
     return owed
 
 

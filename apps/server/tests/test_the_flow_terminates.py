@@ -472,3 +472,65 @@ class TestThePanelWillNotAskTwice:
     def test_a_one_way_trip_counts_as_settled(self):
         one_way = {key: value for key, value in self.SETTLED.items() if key != "endDate"}
         assert self.refusal({}, {**one_way, "oneWay": True}) is not None
+
+
+class TestAnAssumptionSomebodyActedOn:
+    """A guessed date that was never re-stated owed a date picker forever.
+
+    `save_trip`'s `assumed` list is for a value the model filled in without
+    being told, and its contract is that the question stays open — so the host
+    keeps asking for it. Nothing re-states a date the model guessed three turns
+    ago, so the mark survived the whole conversation: every surface that did not
+    ask for the dates was "asking for nothing the trip is waiting on" and was
+    sent back to be redrawn with the date controls on it. That is a date picker
+    landing over the fares, or over the hotels, after a choice was made.
+
+    A fare is priced against the dates it was searched on. Pressing it accepts
+    them.
+    """
+
+    GUESSED = {
+        "destination": "MAD",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-18",
+        "travelers": 2,
+        "assumed": ["startDate", "endDate"],
+    }
+
+    def test_a_guess_nobody_has_acted_on_is_still_owed(self):
+        from travel_a2ui.doors.interactions import _still_owed
+
+        assert _still_owed(self.GUESSED) == ["startDate", "endDate"]
+
+    def test_pressing_a_fare_answers_the_dates_it_was_priced_against(self):
+        from travel_a2ui.doors.interactions import _still_owed
+
+        assert _still_owed({**self.GUESSED, "selectedFlight": "DL1970"}) == []
+
+    def test_so_does_choosing_a_stay(self):
+        from travel_a2ui.doors.interactions import _still_owed
+
+        assert _still_owed({**self.GUESSED, "selectedHotel": "h_MAD_1"}) == []
+
+    def test_a_ticket_on_a_later_hop_counts_too(self):
+        from travel_a2ui.doors.interactions import _still_owed
+
+        owed = _still_owed(
+            {
+                **self.GUESSED,
+                "legs": [
+                    {"destination": "JFK", "startDate": "2027-04-18", "selectedFlight": "DL1970"}
+                ],
+            }
+        )
+        assert owed == []
+
+    def test_and_a_boundary_that_is_actually_blank_is_still_owed(self):
+        from travel_a2ui.doors.interactions import _still_owed
+
+        # Acting on a guess answers the guess. It does not invent an airport.
+        assert _still_owed({"destination": "MAD", "selectedFlight": "DL1970"}) == [
+            "origin",
+            "startDate",
+        ]
