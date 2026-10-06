@@ -66,8 +66,40 @@ def _rows(name: str) -> list[dict[str, str]]:
 _DESTINATIONS: list[dict[str, Any]] = json.loads(
     (_DATA / "destinations.json").read_text("utf-8")
 )["destinations"]
-_AIRLINES = [{"code": r["code"], "name": r["name"]} for r in _rows("airlines.csv")]
+_AIRLINES = [
+    {
+        "code": r["code"],
+        "name": r["name"],
+        #: Where it flies from. A carrier is offered on a route when one end is
+        #: one of these, or when one of these is on the way.
+        "hubs": tuple(code for code in (r.get("hubs") or "").split("|") if code),
+        #: Blank means no cap.
+        "maxKm": float(r["maxKm"]) if r.get("maxKm") else None,
+    }
+    for r in _rows("airlines.csv")
+]
 _ORIGINS = [{"code": r["code"], "city": r["city"]} for r in _rows("origins.csv")]
+
+#: Stays somebody wrote down, by airport code. See `data/hotels.json`.
+_HOTELS: dict[str, list[dict[str, Any]]] = json.loads(
+    (_DATA / "hotels.json").read_text("utf-8")
+)["cities"]
+
+
+def _fold(place: str) -> str:
+    """A place name as somebody types it, for comparing two of them.
+
+    "Kurfürstendamm", "kurfurstendamm" and "Kurfürsten-damm" are one avenue.
+    Accents go, case goes, and anything that is not a letter or a digit goes,
+    because the alternative is a neighbourhood filter that works for the people
+    who can reach the u-umlaut.
+    """
+    import unicodedata
+
+    stripped = unicodedata.normalize("NFKD", place)
+    return "".join(
+        char for char in stripped.lower() if char.isalnum() and not unicodedata.combining(char)
+    )
 _ORIGIN_CODES = {entry["code"] for entry in _ORIGINS}
 
 #: Where each airport is, and what part of the world it is in.
@@ -122,6 +154,64 @@ def _distance_km(origin: str, destination: str) -> float | None:
     return 6371.0 * 2 * math.asin(min(1.0, math.sqrt(haversine)))
 
 
+def _hubs_on_the_way(origin: str, destination: str) -> list[str]:
+    """Hubs a flight between these two could plausibly stop at.
+
+    Split out of `_connection` so a carrier's connection can go through a hub
+    that carrier actually has. Pairing them at random is a third of why the
+    fixtures read as invented: "1 stop · CDG" on Iberia, "1 stop · LIS" on
+    Delta. Now TAP connects in Lisbon and Air France in Paris, because that is
+    where their aircraft are.
+    """
+    direct = _distance_km(origin, destination)
+    candidates = [
+        hub
+        for hubs in _HUBS.values()
+        for hub in hubs
+        if hub not in (origin, destination) and hub in _PLACE
+    ]
+    if not direct:
+        pool = sorted(hub for hub in candidates if hub not in (origin, destination))
+        return pool or sorted(_CONNECTIONS)
+
+    detours: list[tuple[float, str]] = []
+    for hub in candidates:
+        first, second = _distance_km(origin, hub), _distance_km(hub, destination)
+        if first is None or second is None:
+            continue
+        detours.append(((first + second) / max(direct, 1.0), hub))
+    # A quarter over the direct distance is about where a real connection stops
+    # being worth it, and it is tight enough to rule out the ones that fly
+    # backwards: San Francisco to Tokyo via Denver is only a third longer and is
+    # still pointed the wrong way.
+    return sorted(hub for ratio, hub in detours if ratio <= 1.25)
+
+
+def _carriers_for(origin: str, destination: str, km: float | None) -> list[dict[str, Any]]:
+    """The carriers that fly this route, and how.
+
+    Each entry is the carrier with the two things the schedule needs: whether it
+    can fly the route nonstop — one end is one of its hubs — and which of its
+    own hubs it could route a connection through.
+
+    This is what stopped Copenhagen to Berlin coming back on Air France, KLM
+    and TAP Air Portugal. All three are European; none of them flies it. SAS and
+    Norwegian are out of Copenhagen and Eurowings is out of Berlin, and those
+    are the three you get.
+    """
+    on_the_way = set(_hubs_on_the_way(origin, destination))
+    offered: list[dict[str, Any]] = []
+    for carrier in _AIRLINES:
+        if carrier["maxKm"] and km and km > carrier["maxKm"]:
+            continue
+        hubs = set(carrier["hubs"])
+        nonstop = bool(hubs & {origin, destination})
+        via = sorted(hubs & on_the_way)
+        if nonstop or via:
+            offered.append({**carrier, "nonstop": nonstop, "via": via})
+    return offered
+
+
 def _connection(origin: str, destination: str, random: Callable[[], float]) -> str | None:
     """Somewhere a flight between these two would plausibly stop, or nothing.
 
@@ -145,34 +235,8 @@ def _connection(origin: str, destination: str, random: Callable[[], float]) -> s
     A route between airports we have no geography for falls back to every hub we
     know, which is the old behaviour and at least claims nothing.
     """
-    direct = _distance_km(origin, destination)
-    candidates = [
-        hub
-        for hubs in _HUBS.values()
-        for hub in hubs
-        if hub not in (origin, destination) and hub in _PLACE
-    ]
-
-    if direct:
-        detours: list[tuple[float, str]] = []
-        for hub in candidates:
-            first, second = _distance_km(origin, hub), _distance_km(hub, destination)
-            if first is None or second is None:
-                continue
-            detours.append(((first + second) / max(direct, 1.0), hub))
-        # A quarter over the direct distance is about where a real connection
-        # stops being worth it, and it is tight enough to rule out the ones that
-        # fly backwards: San Francisco to Tokyo via Denver is only a third
-        # longer and is still pointed the wrong way.
-        #
-        # Sorted so the pick is stable for a seed regardless of dict order.
-        near = sorted(hub for ratio, hub in detours if ratio <= 1.25)
-        return _pick(near, random) if near else None
-
-    pool = sorted(hub for hub in candidates if hub not in (origin, destination))
-    if not pool:
-        pool = sorted(_CONNECTIONS)
-    return _pick(pool, random)
+    near = _hubs_on_the_way(origin, destination)
+    return _pick(near, random) if near else None
 
 
 _CURRENCY_SYMBOL = {r["code"]: r["symbol"] for r in _rows("currencies.csv")}
@@ -514,23 +578,52 @@ class FixtureProvider:
         km = _distance_km(origin, destination["airport"])
         base = (55 + km * 0.055) if km else (280 + random() * 260)
 
+        # What to price in, and why the caller decides.
+        #
+        # A trip used to show its fares in dollars and its stays in the
+        # destination's currency, and then totalled them together: a card
+        # reading "€112 / night" became "$336" three nights later in the same
+        # summary. One currency per trip fixes it, and only the caller knows
+        # what a trip's currency is — the provider is handed one hop and cannot
+        # tell a Copenhagen–Berlin outbound from the Berlin–Copenhagen return.
+        # Unset keeps dollars, which is what every direct caller got before.
+        fare_currency = str(query.get("currency") or "USD")
+
         import math
+
+        # Carriers that actually fly this route, and how — see `_carriers_for`.
+        # An empty pool means a route between airports we have no geography for,
+        # and then every carrier is back in, which claims nothing.
+        pool = _carriers_for(origin, destination["airport"], km) or [
+            {**carrier, "nonstop": True, "via": []} for carrier in _AIRLINES
+        ]
 
         all_flights: list[dict[str, Any]] = []
         used: set[str] = set()
         for index in range(5):
-            airline = _pick(_AIRLINES, random)
+            airline = _pick(pool, random)
             guard = 0
-            while airline["code"] in used and guard < 8:
-                airline = _pick(_AIRLINES, random)
+            # Distinct carriers while the pool has them. A short hop with three
+            # airlines on it legitimately has two SAS departures in a day, and
+            # insisting on five different names is how Delta ended up on it.
+            while airline["code"] in used and guard < 8 and len(used) < len(pool):
+                airline = _pick(pool, random)
                 guard += 1
             used.add(airline["code"])
 
-            # Whether it stops, and where. Asked in that order and then
-            # reconciled: a route with nowhere sensible to stop has no
-            # connecting option at all, however the dice landed.
+            # Whether it stops, and where — through a hub this carrier has.
+            #
+            # The hub used to be picked independently of the airline, so a
+            # quarter of the itineraries were things like Iberia via Paris or
+            # Delta via Lisbon. A carrier that cannot fly the route nonstop
+            # always connects, through its own hub; one that can connects only
+            # when the dice say so and it has a hub on the way.
             wants_stop = index == 4 or random() < 0.28
-            hub = _connection(origin, destination["airport"], random) if wants_stop else None
+            hub = (
+                _pick(airline["via"], random)
+                if airline["via"] and (wants_stop or not airline["nonstop"])
+                else None
+            )
             stops = hub is not None
             depart = math.floor(6 * 60 + random() * 15 * 60)
 
@@ -562,7 +655,7 @@ class FixtureProvider:
                     "arriveTime": _clock(depart + leg),
                     "duration": f"{leg // 60}h {leg % 60}m",
                     "stops": f"1 stop · {hub}" if hub else "Nonstop",
-                    "price": _money(price, "USD"),
+                    "price": _money(price, fare_currency),
                     "priceValue": _js_round(price),
                     "cabin": cabin,
                 }
@@ -601,7 +694,7 @@ class FixtureProvider:
             if part
         )
 
-        return found(shown, FIXTURE_PROVENANCE, note, relaxed, "USD")
+        return found(shown, FIXTURE_PROVENANCE, note, relaxed, fare_currency)
 
     async def search_hotels(self, query: dict[str, Any]) -> Outcome:
         destination = _resolve(query.get("destination") or "")
@@ -616,6 +709,64 @@ class FixtureProvider:
         neighborhood = query.get("neighborhood") or ""
         random = _rng(_seed(f"hotels-{code}-{nights}-{neighborhood}"))
         areas = destination["neighbourhoods"] or ["Centre"]
+
+        # Stays somebody wrote down, where there are any.
+        #
+        # The generated ones below are fine for a city nobody is looking at
+        # closely and poor for the one on screen: "Casa Verano, Salamanca" at a
+        # plausible rate says nothing about why you would take it over the line
+        # above. `data/hotels.json` has real-reading stock for the cities this
+        # demo is driven through — a pension off the avenue, a business hotel by
+        # the station, one place that is too expensive and knows it — and every
+        # other city keeps the picker.
+        curated = _HOTELS.get(code)
+        if curated:
+            listed = [
+                {
+                    "id": hotel["id"],
+                    "name": hotel["name"],
+                    "neighborhood": hotel["neighborhood"],
+                    "rating": hotel["rating"],
+                    "price": f"{_money(float(hotel['nightly']), currency)} / night",
+                    "priceValue": _js_round(float(hotel["nightly"])),
+                    "amenities": list(hotel.get("amenities") or []),
+                    **({"note": hotel["note"]} if hotel.get("note") else {}),
+                }
+                for hotel in curated
+            ]
+            # The neighbourhood *filters* rather than being written onto every
+            # hotel that comes back. It used to be stamped on, so all five
+            # claimed to be exactly where you asked, wherever they actually
+            # were — "close to Kurfürstendamm" was answered by relabelling
+            # Neukölln. A hotel two streets off the avenue is a hit, through its
+            # own `near` list; one across the city is not, and when nothing
+            # matches `_relax_until_non_empty` says so rather than inventing.
+            near_filters: list[tuple[str, Callable[[dict[str, Any]], bool]]] = []
+            if neighborhood:
+                wanted = _fold(neighborhood)
+                places = {
+                    hotel["id"]: {_fold(hotel["neighborhood"]), *(_fold(place) for place in hotel.get("near") or [])}
+                    for hotel in curated
+                }
+                near_filters.append(
+                    (
+                        f"being near {neighborhood}",
+                        lambda hotel: any(
+                            wanted in place or place in wanted
+                            for place in places.get(hotel["id"], set())
+                        ),
+                    )
+                )
+            if query.get("maxNightly"):
+                cap = query["maxNightly"]
+                near_filters.append(
+                    (
+                        f"the {_money(cap, currency)} a night cap",
+                        lambda hotel: hotel["priceValue"] <= cap,
+                    )
+                )
+            items, relaxed = _relax_until_non_empty(listed, near_filters)
+            return self._hotel_outcome(items, relaxed, destination, nights, currency)
 
         all_hotels: list[dict[str, Any]] = []
         for index in range(5):
@@ -657,7 +808,17 @@ class FixtureProvider:
             )
 
         items, relaxed = _relax_until_non_empty(all_hotels, filters)
+        return self._hotel_outcome(items, relaxed, destination, nights, currency)
 
+    def _hotel_outcome(
+        self,
+        items: list[dict[str, Any]],
+        relaxed: list[str],
+        destination: dict[str, Any],
+        nights: Any,
+        currency: str,
+    ) -> Outcome:
+        """The same answer whether the stays were written down or generated."""
         items.sort(key=lambda hotel: hotel["priceValue"])
         items[0]["badge"] = "Best value"
         if len(items) > 2:

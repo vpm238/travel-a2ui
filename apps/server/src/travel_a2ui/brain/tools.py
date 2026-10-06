@@ -191,6 +191,28 @@ def _cannot(outcome: NotFound) -> dict[str, Any]:
     }
 
 
+async def _trip_currency(
+    provider: TravelProvider, context: ToolContext, fallback: dict[str, Any] | None = None
+) -> str:
+    """The one currency this trip's money is quoted in.
+
+    The *trip's* destination, because that is what the stays are quoted in and a
+    trip priced in two currencies cannot be totalled. Dollars when there is no
+    destination yet, which is what every caller got before this existed.
+
+    The session's trip rather than the argument-merged one, and that is the
+    whole subtlety: pricing the way home means calling `search_flights` with
+    `destination: "CPH"`, so a currency read off the merged trip came back as
+    kroner for the return of a Berlin trip whose outbound and hotel were both in
+    euros. The hop is not the trip.
+    """
+    where = (context.trip or {}).get("destination") or (fallback or {}).get("destination")
+    if not where:
+        return "USD"
+    resolved = await provider.resolve_destination(str(where))
+    return str((resolved or {}).get("currency") or "USD")
+
+
 def _effective_trip(args: dict[str, Any], context: ToolContext) -> dict[str, Any]:
     """The trip a tool should reason about: what is saved, plus what this call says.
 
@@ -348,6 +370,7 @@ def _estimate(
     flight_price: float | None,
     nightly_price: float | None,
     legs: list[dict[str, Any]] | None = None,
+    currency: str = "USD",
 ) -> dict[str, Any]:
     """What a trip comes to, line by line.
 
@@ -367,7 +390,8 @@ def _estimate(
     """
     from .providers.fixture import _js_round, _money, _rng, _seed, code_for_seed
 
-    currency = "USD"
+    # The trip's own currency, because the stays are quoted in it. Totalling a
+    # "€112 / night" card as "$336" is the whole reason this is a parameter.
     people = max(1, travelers or 2)
     stay_nights = max(1, nights or 5)
     # Seeded on the resolved airport code, not the text. "Madrid", "madrid" and
@@ -648,6 +672,8 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
                 # generally costs. The provider may answer without a departure
                 # city, but has to say which one it sampled.
                 "indicative": args.get("flexible") is True or bool(missing),
+                # The whole trip in one currency — see `fare_currency`.
+                "currency": await _trip_currency(provider, context, trip),
             }
         )
         if not outcome.ok:
@@ -785,6 +811,7 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
             _num(args.get("flightPrice")) or trip.get("flightPrice"),
             _num(args.get("nightlyPrice")) or trip.get("nightlyPrice"),
             model.stops(trip),
+            await _trip_currency(provider, context, trip),
         )
         return (
             {

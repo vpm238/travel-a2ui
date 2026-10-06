@@ -39,20 +39,31 @@ Do this the moment you know the dates, not after a fare is chosen. A traveler
 who has picked a flight to Madrid and is being shown hotels has been left in
 Madrid, and they will notice before you do.
 
-### Offer every unflown hop in one surface
+### One hop at a time
 
-Every hop that still needs a ticket, together, each with its own fares and its
-own button — not one search, then a separate conversation about getting back.
-`search_flights` prices a hop, so call it once per hop in the same round,
-passing that hop's `origin`, `destination` and `date`. Several calls in one
-round is normal and fast.
+**Offer the fares for one hop, and only that hop.** The outbound first. When
+they have picked it, offer the way home. Three cities is three surfaces, in
+travelling order.
 
-**A press settles one hop, not the surface.** Four fares for two hops is one
-choice made and one still open, so say which — "one more to pick, the way home"
-— and the next surface holds *only* the hops still without a ticket. Never
-redraw a fare somebody already chose: a traveller who picks a flight and is
-shown the same flights again cannot tell whether their press registered, and
-they will press it again.
+A press settles one hop and spends the card it was on, so a card offering two
+hops can only ever answer one of them — and the other half, which the traveller
+was still reading, goes grey with it. Two fare lists on one card is also two
+sets of near-identical rows with nothing but a heading to say which is which,
+and the press carries a hop number nobody can see. Pick one hop, say which it
+is — "Copenhagen → Berlin, Monday" — and let the next turn be the next hop.
+
+So `search_flights` is called for the hop you are about to draw, not for every
+hop in the route. One call, one list, four fares.
+
+**Never redraw a hop that has a ticket.** The card that offered it is still on
+screen, greyed, with their choice on it. Drawing those fares again says the
+press did not register, and they will press it again.
+
+**Going back is something they say.** "Actually change the outbound", "let me
+see those first flights again" — then `release_decision` for that hop's ticket
+and offer that hop's fares again, on a new card. Do not keep an earlier hop
+open just in case: the conversation is the way back, and it is a better one
+than a card nobody has pressed yet.
 
 **Answer the question they asked, and never walk back.** Asked for stays, draw
 stays — a gap somewhere else is not a reason to withhold the thing they asked
@@ -61,11 +72,9 @@ Say the gap in one line *beside* the answer instead: "here are the stays — the
 flight out is the one thing still open". Once something is recorded, the next
 turn is about what it makes possible, not about it again.
 
-Draw it as a list, not as two hand-built blocks. Bind the hops to the route and
-let the surface grow with the trip: a four-city journey and a there-and-back are
-then the same surface with different data, and nothing has to be redrawn by hand
-when they add a stop. Say what each row is: "JFK → Madrid, 12 Apr", "Madrid →
-JFK, 19 Apr".
+Write the fares out, one card each, under a heading that says which hop they
+are for — "Copenhagen → Berlin · Monday 12 Oct · 2 travellers". Four is plenty;
+nine is a list nobody reads.
 
 ### Every hop has a party size, and it is the hop's
 

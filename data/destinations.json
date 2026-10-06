@@ -861,6 +861,226 @@
           "lon": 23.727
         }
       ]
+    },
+    {
+      "airport": "BER",
+      "city": "Berlin",
+      "country": "Germany",
+      "currency": "EUR",
+      "bestMonths": "May–June, September–early October",
+      "summary": "Flat, spread out and cheap to eat in. The S-Bahn makes the distances irrelevant and most of what is worth seeing is outdoors.",
+      "aliases": [
+        "berlin",
+        "germany",
+        "berlin-brandenburg"
+      ],
+      "neighbourhoods": [
+        "Charlottenburg",
+        "Mitte",
+        "Kreuzberg",
+        "Prenzlauer Berg",
+        "Neukölln"
+      ],
+      "highlights": [
+        {
+          "name": "Museum Island",
+          "category": "sight",
+          "note": "The Pergamon is partly shut; the Neues is the one to book"
+        },
+        {
+          "name": "Tempelhofer Feld",
+          "category": "outdoors",
+          "note": "A runway you can walk down. Go at golden hour"
+        },
+        {
+          "name": "Markthalle Neun",
+          "category": "food",
+          "note": "Thursday evening is Street Food Thursday"
+        },
+        {
+          "name": "Kurfürstendamm",
+          "category": "shopping",
+          "note": "The west's main avenue — KaDeWe is ten minutes east"
+        },
+        {
+          "name": "Reichstag dome",
+          "category": "sight",
+          "note": "Free, and booked out two weeks ahead"
+        }
+      ],
+      "places": [
+        {
+          "name": "Berlin",
+          "kind": "city",
+          "lat": 52.52,
+          "lon": 13.405
+        },
+        {
+          "name": "Charlottenburg",
+          "kind": "area",
+          "lat": 52.505,
+          "lon": 13.305
+        },
+        {
+          "name": "Mitte",
+          "kind": "area",
+          "lat": 52.5244,
+          "lon": 13.4105
+        },
+        {
+          "name": "Kreuzberg",
+          "kind": "area",
+          "lat": 52.498,
+          "lon": 13.403
+        },
+        {
+          "name": "Prenzlauer Berg",
+          "kind": "area",
+          "lat": 52.539,
+          "lon": 13.424
+        },
+        {
+          "name": "Neukölln",
+          "kind": "area",
+          "lat": 52.481,
+          "lon": 13.435
+        },
+        {
+          "name": "Kurfürstendamm",
+          "kind": "area",
+          "lat": 52.503,
+          "lon": 13.327
+        },
+        {
+          "name": "Museum Island",
+          "kind": "sight",
+          "lat": 52.5169,
+          "lon": 13.4019
+        },
+        {
+          "name": "Tempelhofer Feld",
+          "kind": "sight",
+          "lat": 52.473,
+          "lon": 13.403
+        },
+        {
+          "name": "Markthalle Neun",
+          "kind": "sight",
+          "lat": 52.502,
+          "lon": 13.433
+        },
+        {
+          "name": "Reichstag dome",
+          "kind": "sight",
+          "lat": 52.5186,
+          "lon": 13.3761
+        }
+      ]
+    },
+    {
+      "airport": "CPH",
+      "city": "Copenhagen",
+      "country": "Denmark",
+      "currency": "DKK",
+      "bestMonths": "May–June, late August–September",
+      "summary": "Small enough to cross by bike in half an hour, and everybody does. Expensive to eat out, cheap to eat well from a market.",
+      "aliases": [
+        "copenhagen",
+        "københavn",
+        "denmark",
+        "kobenhavn"
+      ],
+      "neighbourhoods": [
+        "Indre By",
+        "Vesterbro",
+        "Nørrebro",
+        "Christianshavn",
+        "Frederiksberg"
+      ],
+      "highlights": [
+        {
+          "name": "Torvehallerne",
+          "category": "food",
+          "note": "Two glass halls of it. Breakfast, not lunch"
+        },
+        {
+          "name": "Christianshavn canals",
+          "category": "outdoors",
+          "note": "Rent the boat yourself; no licence needed"
+        },
+        {
+          "name": "Louisiana Museum",
+          "category": "sight",
+          "note": "35 minutes up the coast and worth the whole day"
+        },
+        {
+          "name": "Reffen street food",
+          "category": "food",
+          "note": "Refshaleøen, and the swimming is next door"
+        }
+      ],
+      "places": [
+        {
+          "name": "Copenhagen",
+          "kind": "city",
+          "lat": 55.6761,
+          "lon": 12.5683
+        },
+        {
+          "name": "Indre By",
+          "kind": "area",
+          "lat": 55.6805,
+          "lon": 12.578
+        },
+        {
+          "name": "Vesterbro",
+          "kind": "area",
+          "lat": 55.668,
+          "lon": 12.549
+        },
+        {
+          "name": "Nørrebro",
+          "kind": "area",
+          "lat": 55.693,
+          "lon": 12.552
+        },
+        {
+          "name": "Christianshavn",
+          "kind": "area",
+          "lat": 55.673,
+          "lon": 12.591
+        },
+        {
+          "name": "Frederiksberg",
+          "kind": "area",
+          "lat": 55.678,
+          "lon": 12.532
+        },
+        {
+          "name": "Torvehallerne",
+          "kind": "sight",
+          "lat": 55.683,
+          "lon": 12.569
+        },
+        {
+          "name": "Christianshavn canals",
+          "kind": "sight",
+          "lat": 55.673,
+          "lon": 12.591
+        },
+        {
+          "name": "Louisiana Museum",
+          "kind": "sight",
+          "lat": 55.969,
+          "lon": 12.543
+        },
+        {
+          "name": "Reffen street food",
+          "kind": "sight",
+          "lat": 55.693,
+          "lon": 12.61
+        }
+      ]
     }
   ]
 }

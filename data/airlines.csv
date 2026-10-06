@@ -1,11 +1,29 @@
 # Carriers the fixture provider draws from. Real airlines, invented schedules.
 # Order matters: it seeds the deterministic picker, so re-ordering these rows
 # changes every flight in the demo and every screenshot in the docs.
-code,name
-IB,Iberia
-DL,Delta
-TP,TAP Air Portugal
-AF,Air France
-UA,United
-LH,Lufthansa
-AA,American
+#
+# `hubs` is where a carrier actually flies from, and it is what decides whether
+# it is offered on a route at all: a carrier flies nonstop when one end of the
+# route is one of its hubs, and offers a connection when one of its hubs is on
+# the way. `maxKm` caps the longest route it is offered on, blank for no cap.
+#
+# Region was tried first and is too coarse. Copenhagen to Berlin came back on
+# Air France, KLM and TAP Air Portugal — all European, none of which fly it —
+# and before that on Delta and American. Hubs give exactly the three carriers
+# that do: SAS and Norwegian out of Copenhagen, Eurowings out of Berlin. A fare
+# is only as believable as the name above it.
+#
+# Codes we have no geography for are ignored, so a hub list may name more than
+# origins.csv knows about.
+code,name,hubs,maxKm
+IB,Iberia,MAD,
+DL,Delta,JFK|LAX|ATL|DTW,
+TP,TAP Air Portugal,LIS,
+AF,Air France,CDG,
+UA,United,ORD|SFO|DEN|LAX|EWR,
+LH,Lufthansa,FRA|MUC,
+AA,American,JFK|MIA|ORD|LAX|DFW,
+SK,SAS,CPH|OSL|ARN,4000
+EW,Eurowings,BER|DUS|CGN,2500
+KL,KLM,AMS,4000
+DY,Norwegian,CPH|OSL|BER,3500

@@ -463,7 +463,7 @@ class ExpressStream:
             if done:
                 # And the question has to be askable. A date in a text box is a
                 # date the traveller can get wrong — see `controls.py`.
-                from .controls import asks_nothing, half_asked, wrong_controls
+                from .controls import asks_nothing, half_asked, two_hops_at_once, wrong_controls
 
                 wrong = wrong_controls(messages)
                 if wrong:
@@ -477,6 +477,9 @@ class ExpressStream:
                 # And a question asked per hop has to be asked of every hop.
                 if incomplete is None:
                     incomplete = half_asked(messages, self.hops)
+                # And a card that offers fares offers one hop's worth.
+                if incomplete is None:
+                    incomplete = two_hops_at_once(messages)
         except Exception as error:  # noqa: BLE001 - any parse failure, same handling
             # Mid-stream failures are the normal case: half a constructor is not
             # valid Express. Only a failure on a finished block is news.

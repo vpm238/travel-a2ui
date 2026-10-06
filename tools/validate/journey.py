@@ -179,6 +179,19 @@ SCRIPTS: dict[str, dict[str, Any]] = {
         ],
         "wants": {"hops": 3, "counters": 3},
     },
+    "berlin": {
+        "why": "The demo prompt: two out, one back, a hotel by the Kurfürstendamm.",
+        "steps": [
+            {"say": "A trip for two from Copenhagen to Berlin, leaving next monday, "
+                    "coming back next thursday, but only one person on the way back. "
+                    "Include hotel close to Kurfürstendamm."},
+            {"press": "FlightOption"},
+            {"press": "FlightOption"},
+            {"press": "HotelCard"},
+            {"say": "what does it come to?"},
+        ],
+        "wants": {"tickets": 2, "stay": True},
+    },
     "one-way": {
         "why": "A journey that does not come back is not missing a hop.",
         "steps": [

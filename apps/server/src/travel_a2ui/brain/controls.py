@@ -200,6 +200,53 @@ def half_asked(messages: Iterable[dict[str, Any]], hops: Iterable[str]) -> str |
     )
 
 
+#: Keys a press uses to name the hop it belongs to. Mirrors `_leg_pressed`.
+_HOP_KEYS = ("leg", "legIndex", "hop", "hopIndex")
+
+
+def two_hops_at_once(messages: Iterable[dict[str, Any]]) -> str | None:
+    """Why this surface offers fares for more than one hop, or None.
+
+    A press settles one hop and spends the card it was on. So a card offering
+    two hops can only ever answer one of them, and the other half — which the
+    traveller was still reading — goes grey with it. It is also two sets of
+    near-identical rows with nothing but a heading to say which is which, and a
+    hop number in the press that nobody can see.
+
+    Measured, this is what the model reached for every time the route had a way
+    home: one card, outbound above, return below. The traveller pressed a fare,
+    and which hop they had just chosen was a coin toss.
+
+    Read off the presses rather than off the headings, because the press is
+    where the hop is actually named.
+    """
+    hops: set[str] = set()
+    for message in messages:
+        update = message.get("updateComponents") or {}
+        for node in update.get("components") or []:
+            if not isinstance(node, dict):
+                continue
+            event = ((node.get("action") or {}).get("event")) or {}
+            context = event.get("context")
+            if not isinstance(context, dict):
+                continue
+            for key in _HOP_KEYS:
+                value = context.get(key)
+                if isinstance(value, (int, str)) and not isinstance(value, bool):
+                    hops.add(f"{key}={value}")
+
+    if len(hops) < 2:
+        return None
+
+    return (
+        f"That surface offers fares for more than one hop ({', '.join(sorted(hops))}). "
+        "A press settles one hop and spends the card, so the other hop's fares go grey "
+        "unanswered and the traveller cannot tell which one they just chose. Draw one "
+        "hop — the next one without a ticket — say which it is in the heading, and offer "
+        "the hop after it once they have pressed."
+    )
+
+
 class AsksNothing(Exception):
     """A surface drawn on a turn that needed to ask, which asks for nothing."""
 

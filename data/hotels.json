@@ -1,0 +1,130 @@
+{
+  "$comment": [
+    "Stays worth choosing between, for the cities this demo is driven through.",
+    "",
+    "Everywhere else keeps the generated ones: a name assembled from lodging.csv,",
+    "a rate off the seeded picker, a neighbourhood drawn at random from the city's.",
+    "That is fine for a city nobody is looking at closely and poor for the one on",
+    "screen, where 'Casa Verano, Salamanca' at a plausible rate tells you nothing",
+    "about why you would pick it over the one above.",
+    "",
+    "These are invented properties — the rates, the ratings and the availability",
+    "are all made up, and `Provenance` says so on every surface they reach. They",
+    "are written to read like the real stock of each street: a pension on a side",
+    "road off the avenue, a business hotel by the station, one place that is too",
+    "expensive and knows it.",
+    "",
+    "`near` is what makes 'somewhere close to Kurfürstendamm' answerable. The",
+    "neighbourhood asked for is matched against the hotel's own area *and* this",
+    "list, so a hotel two streets off the avenue is a hit and one in Neukölln is",
+    "not. It used to be neither: the asked-for neighbourhood was written onto",
+    "every hotel that came back, so all five claimed to be exactly where you",
+    "asked, wherever they were."
+  ],
+  "cities": {
+    "BER": [
+      {
+        "id": "h_BER_fasanen",
+        "name": "Hotel Fasanenhof",
+        "neighborhood": "Charlottenburg",
+        "near": ["Kurfürstendamm", "Zoologischer Garten", "Savignyplatz"],
+        "rating": "4.6 (1284)",
+        "nightly": 168,
+        "amenities": ["Breakfast included", "Courtyard garden", "Air conditioning"],
+        "note": "A side street off the Ku'damm, two minutes from the U1"
+      },
+      {
+        "id": "h_BER_kurfurst",
+        "name": "Kurfürst Residenz",
+        "neighborhood": "Charlottenburg",
+        "near": ["Kurfürstendamm", "KaDeWe", "Wittenbergplatz"],
+        "rating": "4.8 (2140)",
+        "nightly": 295,
+        "amenities": ["Rooftop bar", "Spa", "Air conditioning", "Valet parking"],
+        "note": "On the avenue itself, and priced like it"
+      },
+      {
+        "id": "h_BER_savigny",
+        "name": "Pension Savignyplatz",
+        "neighborhood": "Charlottenburg",
+        "near": ["Kurfürstendamm", "Savignyplatz"],
+        "rating": "4.3 (612)",
+        "nightly": 112,
+        "amenities": ["Breakfast included", "Bicycle hire"],
+        "note": "Twelve rooms over a bookshop; cash for the minibar"
+      },
+      {
+        "id": "h_BER_hackescher",
+        "name": "Hof Hackescher Markt",
+        "neighborhood": "Mitte",
+        "near": ["Museum Island", "Hackescher Markt"],
+        "rating": "4.5 (1803)",
+        "nightly": 184,
+        "amenities": ["Breakfast included", "Gym", "Air conditioning"],
+        "note": "Walk to Museum Island in ten minutes"
+      },
+      {
+        "id": "h_BER_oranien",
+        "name": "Oranien Werk",
+        "neighborhood": "Kreuzberg",
+        "near": ["Markthalle Neun", "Görlitzer Park"],
+        "rating": "4.4 (967)",
+        "nightly": 129,
+        "amenities": ["Courtyard garden", "Bicycle hire", "Late check-out"],
+        "note": "A converted workshop; loud on Friday, cheap all week"
+      },
+      {
+        "id": "h_BER_tempelhof",
+        "name": "Feldhaus Tempelhof",
+        "neighborhood": "Neukölln",
+        "near": ["Tempelhofer Feld"],
+        "rating": "4.1 (441)",
+        "nightly": 96,
+        "amenities": ["Bicycle hire", "Shared kitchen"],
+        "note": "Across the road from the old runway"
+      }
+    ],
+    "CPH": [
+      {
+        "id": "h_CPH_torvehallerne",
+        "name": "Hotel Nørreport Hof",
+        "neighborhood": "Indre By",
+        "near": ["Torvehallerne", "Nørreport"],
+        "rating": "4.6 (1522)",
+        "nightly": 1490,
+        "amenities": ["Breakfast included", "Bicycle hire", "Air conditioning"],
+        "note": "Beside the market halls, and the station under them"
+      },
+      {
+        "id": "h_CPH_vesterbro",
+        "name": "Kødbyen Rooms",
+        "neighborhood": "Vesterbro",
+        "near": ["Vesterbro", "Central Station"],
+        "rating": "4.4 (988)",
+        "nightly": 1120,
+        "amenities": ["Bicycle hire", "Courtyard garden"],
+        "note": "In the old meatpacking district, which is now the dinner"
+      },
+      {
+        "id": "h_CPH_christianshavn",
+        "name": "Kanalhuset",
+        "neighborhood": "Christianshavn",
+        "near": ["Christianshavn canals", "Reffen street food"],
+        "rating": "4.7 (734)",
+        "nightly": 1760,
+        "amenities": ["Canal view", "Breakfast included", "Sauna"],
+        "note": "A canal house with eleven rooms and its own jetty"
+      },
+      {
+        "id": "h_CPH_norrebro",
+        "name": "Jægersborg Guesthouse",
+        "neighborhood": "Nørrebro",
+        "near": ["Nørrebro", "Assistens Cemetery"],
+        "rating": "4.2 (505)",
+        "nightly": 860,
+        "amenities": ["Shared kitchen", "Bicycle hire"],
+        "note": "Cheapest decent beds in the city, and the best coffee round the corner"
+      }
+    ]
+  }
+}

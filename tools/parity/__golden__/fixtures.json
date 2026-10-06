@@ -1,63 +1,64 @@
 {
   "flights: madrid, plain": {
+    "ok": true,
     "items": [
       {
-        "id": "DL5054",
-        "airline": "Delta",
-        "flightNumber": "DL437",
+        "id": "TP2754",
+        "airline": "TAP Air Portugal",
+        "flightNumber": "TP558",
         "origin": "JFK",
         "destination": "MAD",
-        "departTime": "20:46",
-        "arriveTime": "07:12 +1",
-        "duration": "10h 26m",
-        "stops": "1 stop · CDG",
-        "price": "$301",
-        "priceValue": 301,
+        "departTime": "12:01",
+        "arriveTime": "22:35",
+        "duration": "10h 34m",
+        "stops": "1 stop · LIS",
+        "price": "$314",
+        "priceValue": 314,
         "cabin": "economy",
         "badge": "Cheapest"
       },
       {
-        "id": "AF5416",
-        "airline": "Air France",
-        "flightNumber": "AF215",
+        "id": "AA3086",
+        "airline": "American",
+        "flightNumber": "AA154",
         "origin": "JFK",
         "destination": "MAD",
-        "departTime": "17:22",
-        "arriveTime": "01:03 +1",
-        "duration": "7h 41m",
+        "departTime": "14:34",
+        "arriveTime": "22:29",
+        "duration": "7h 55m",
         "stops": "Nonstop",
-        "price": "$362",
-        "priceValue": 362,
+        "price": "$346",
+        "priceValue": 346,
+        "cabin": "economy"
+      },
+      {
+        "id": "AF4342",
+        "airline": "Air France",
+        "flightNumber": "AF369",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "08:55",
+        "arriveTime": "19:05",
+        "duration": "10h 10m",
+        "stops": "1 stop · CDG",
+        "price": "$347",
+        "priceValue": 347,
+        "cabin": "economy"
+      },
+      {
+        "id": "DL2029",
+        "airline": "Delta",
+        "flightNumber": "DL856",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "09:05",
+        "arriveTime": "16:47",
+        "duration": "7h 42m",
+        "stops": "Nonstop",
+        "price": "$387",
+        "priceValue": 387,
         "cabin": "economy",
         "badge": "Fastest"
-      },
-      {
-        "id": "TP5023",
-        "airline": "TAP Air Portugal",
-        "flightNumber": "TP297",
-        "origin": "JFK",
-        "destination": "MAD",
-        "departTime": "18:12",
-        "arriveTime": "01:58 +1",
-        "duration": "7h 46m",
-        "stops": "Nonstop",
-        "price": "$388",
-        "priceValue": 388,
-        "cabin": "economy"
-      },
-      {
-        "id": "LH5442",
-        "airline": "Lufthansa",
-        "flightNumber": "LH712",
-        "origin": "JFK",
-        "destination": "MAD",
-        "departTime": "11:04",
-        "arriveTime": "18:54",
-        "duration": "7h 50m",
-        "stops": "Nonstop",
-        "price": "$394",
-        "priceValue": 394,
-        "cabin": "economy"
       }
     ],
     "provenance": {
@@ -66,68 +67,68 @@
       "label": "Sample data",
       "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
     },
-    "relaxed": [],
     "note": "4 option(s) for JFK → MAD.",
-    "currency": "USD",
-    "ok": true
+    "relaxed": [],
+    "currency": "USD"
   },
   "flights: dated and business": {
+    "ok": true,
     "items": [
       {
-        "id": "UA3148",
-        "airline": "United",
-        "flightNumber": "UA730",
-        "origin": "JFK",
-        "destination": "MAD",
-        "departTime": "19:35",
-        "arriveTime": "06:07 +1",
-        "duration": "10h 32m",
-        "stops": "1 stop · LHR",
-        "price": "$974",
-        "priceValue": 974,
-        "cabin": "business",
-        "badge": "Cheapest"
-      },
-      {
-        "id": "AF7008",
-        "airline": "Air France",
-        "flightNumber": "AF622",
+        "id": "TP7008",
+        "airline": "TAP Air Portugal",
+        "flightNumber": "TP622",
         "origin": "JFK",
         "destination": "MAD",
         "departTime": "15:39",
         "arriveTime": "02:30 +1",
         "duration": "10h 51m",
-        "stops": "1 stop · LHR",
+        "stops": "1 stop · LIS",
         "price": "$989",
         "priceValue": 989,
-        "cabin": "business"
+        "cabin": "business",
+        "badge": "Cheapest"
       },
       {
-        "id": "IB8177",
-        "airline": "Iberia",
-        "flightNumber": "IB726",
-        "origin": "JFK",
-        "destination": "MAD",
-        "departTime": "07:57",
-        "arriveTime": "18:06",
-        "duration": "10h 9m",
-        "stops": "1 stop · LIS",
-        "price": "$1,047",
-        "priceValue": 1047,
-        "cabin": "business"
-      },
-      {
-        "id": "AA3236",
-        "airline": "American",
-        "flightNumber": "AA971",
+        "id": "AF3236",
+        "airline": "Air France",
+        "flightNumber": "AF971",
         "origin": "JFK",
         "destination": "MAD",
         "departTime": "18:38",
-        "arriveTime": "02:32 +1",
-        "duration": "7h 54m",
+        "arriveTime": "05:20 +1",
+        "duration": "10h 42m",
+        "stops": "1 stop · CDG",
+        "price": "$1,063",
+        "priceValue": 1063,
+        "cabin": "business"
+      },
+      {
+        "id": "IB4263",
+        "airline": "Iberia",
+        "flightNumber": "IB906",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "19:22",
+        "arriveTime": "03:01 +1",
+        "duration": "7h 39m",
         "stops": "Nonstop",
-        "price": "$1,296",
-        "priceValue": 1296,
+        "price": "$1,194",
+        "priceValue": 1194,
+        "cabin": "business"
+      },
+      {
+        "id": "AA6612",
+        "airline": "American",
+        "flightNumber": "AA348",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "13:52",
+        "arriveTime": "21:30",
+        "duration": "7h 38m",
+        "stops": "Nonstop",
+        "price": "$1,238",
+        "priceValue": 1238,
         "cabin": "business",
         "badge": "Fastest"
       }
@@ -138,28 +139,13 @@
       "label": "Sample data",
       "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
     },
-    "relaxed": [],
     "note": "4 option(s) for JFK → MAD on 2027-04-12.",
-    "currency": "USD",
-    "ok": true
+    "relaxed": [],
+    "currency": "USD"
   },
   "flights: nonstop only": {
+    "ok": true,
     "items": [
-      {
-        "id": "AA6958",
-        "airline": "American",
-        "flightNumber": "AA401",
-        "origin": "LHR",
-        "destination": "LIS",
-        "departTime": "07:14",
-        "arriveTime": "09:56",
-        "duration": "2h 42m",
-        "stops": "Nonstop",
-        "price": "$137",
-        "priceValue": 137,
-        "cabin": "economy",
-        "badge": "Cheapest"
-      },
       {
         "id": "TP8727",
         "airline": "TAP Air Portugal",
@@ -172,7 +158,23 @@
         "stops": "Nonstop",
         "price": "$141",
         "priceValue": 141,
-        "cabin": "economy"
+        "cabin": "economy",
+        "badge": "Cheapest"
+      },
+      {
+        "id": "TP2088",
+        "airline": "TAP Air Portugal",
+        "flightNumber": "TP798",
+        "origin": "LHR",
+        "destination": "LIS",
+        "departTime": "17:11",
+        "arriveTime": "19:57",
+        "duration": "2h 46m",
+        "stops": "Nonstop",
+        "price": "$143",
+        "priceValue": 143,
+        "cabin": "economy",
+        "badge": "Fastest"
       }
     ],
     "provenance": {
@@ -181,28 +183,13 @@
       "label": "Sample data",
       "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
     },
-    "relaxed": [],
     "note": "2 option(s) for LHR → LIS.",
-    "currency": "USD",
-    "ok": true
+    "relaxed": [],
+    "currency": "USD"
   },
   "flights: impossible price cap": {
+    "ok": true,
     "items": [
-      {
-        "id": "IB7402",
-        "airline": "Iberia",
-        "flightNumber": "IB119",
-        "origin": "LAX",
-        "destination": "NRT",
-        "departTime": "16:52",
-        "arriveTime": "07:15 +1",
-        "duration": "14h 23m",
-        "stops": "1 stop · DEN",
-        "price": "$473",
-        "priceValue": 473,
-        "cabin": "economy",
-        "badge": "Cheapest"
-      },
       {
         "id": "DL7277",
         "airline": "Delta",
@@ -215,12 +202,13 @@
         "stops": "Nonstop",
         "price": "$505",
         "priceValue": 505,
-        "cabin": "economy"
+        "cabin": "economy",
+        "badge": "Cheapest"
       },
       {
-        "id": "AF6603",
-        "airline": "Air France",
-        "flightNumber": "AF756",
+        "id": "UA6603",
+        "airline": "United",
+        "flightNumber": "UA756",
         "origin": "LAX",
         "destination": "NRT",
         "departTime": "20:40",
@@ -230,6 +218,21 @@
         "price": "$518",
         "priceValue": 518,
         "cabin": "economy"
+      },
+      {
+        "id": "AA6803",
+        "airline": "American",
+        "flightNumber": "AA222",
+        "origin": "LAX",
+        "destination": "NRT",
+        "departTime": "08:43",
+        "arriveTime": "19:55",
+        "duration": "11h 12m",
+        "stops": "Nonstop",
+        "price": "$550",
+        "priceValue": 550,
+        "cabin": "economy",
+        "badge": "Fastest"
       },
       {
         "id": "UA2393",
@@ -252,14 +255,14 @@
       "label": "Sample data",
       "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
     },
+    "note": "Nothing matched the $1 cap — closest 4 for LAX → NRT.",
     "relaxed": [
       "the $1 cap"
     ],
-    "note": "Nothing matched the $1 cap — closest 4 for LAX → NRT.",
-    "currency": "USD",
-    "ok": true
+    "currency": "USD"
   },
   "flights: no departure city, and not asked to guess": {
+    "ok": false,
     "reason": "unknown-origin",
     "provenance": {
       "source": "fixture",
@@ -275,68 +278,68 @@
       "Denver (DEN)",
       "Los Angeles (LAX)",
       "Miami (MIA)"
-    ],
-    "ok": false
+    ]
   },
   "flights: no departure city, explicitly rough": {
+    "ok": true,
     "items": [
       {
-        "id": "DL5054",
-        "airline": "Delta",
-        "flightNumber": "DL437",
+        "id": "TP2754",
+        "airline": "TAP Air Portugal",
+        "flightNumber": "TP558",
         "origin": "JFK",
         "destination": "MAD",
-        "departTime": "20:46",
-        "arriveTime": "07:12 +1",
-        "duration": "10h 26m",
-        "stops": "1 stop · CDG",
-        "price": "$301",
-        "priceValue": 301,
+        "departTime": "12:01",
+        "arriveTime": "22:35",
+        "duration": "10h 34m",
+        "stops": "1 stop · LIS",
+        "price": "$314",
+        "priceValue": 314,
         "cabin": "economy",
         "badge": "Cheapest"
       },
       {
-        "id": "AF5416",
-        "airline": "Air France",
-        "flightNumber": "AF215",
+        "id": "AA3086",
+        "airline": "American",
+        "flightNumber": "AA154",
         "origin": "JFK",
         "destination": "MAD",
-        "departTime": "17:22",
-        "arriveTime": "01:03 +1",
-        "duration": "7h 41m",
+        "departTime": "14:34",
+        "arriveTime": "22:29",
+        "duration": "7h 55m",
         "stops": "Nonstop",
-        "price": "$362",
-        "priceValue": 362,
+        "price": "$346",
+        "priceValue": 346,
+        "cabin": "economy"
+      },
+      {
+        "id": "AF4342",
+        "airline": "Air France",
+        "flightNumber": "AF369",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "08:55",
+        "arriveTime": "19:05",
+        "duration": "10h 10m",
+        "stops": "1 stop · CDG",
+        "price": "$347",
+        "priceValue": 347,
+        "cabin": "economy"
+      },
+      {
+        "id": "DL2029",
+        "airline": "Delta",
+        "flightNumber": "DL856",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "09:05",
+        "arriveTime": "16:47",
+        "duration": "7h 42m",
+        "stops": "Nonstop",
+        "price": "$387",
+        "priceValue": 387,
         "cabin": "economy",
         "badge": "Fastest"
-      },
-      {
-        "id": "TP5023",
-        "airline": "TAP Air Portugal",
-        "flightNumber": "TP297",
-        "origin": "JFK",
-        "destination": "MAD",
-        "departTime": "18:12",
-        "arriveTime": "01:58 +1",
-        "duration": "7h 46m",
-        "stops": "Nonstop",
-        "price": "$388",
-        "priceValue": 388,
-        "cabin": "economy"
-      },
-      {
-        "id": "LH5442",
-        "airline": "Lufthansa",
-        "flightNumber": "LH712",
-        "origin": "JFK",
-        "destination": "MAD",
-        "departTime": "11:04",
-        "arriveTime": "18:54",
-        "duration": "7h 50m",
-        "stops": "Nonstop",
-        "price": "$394",
-        "priceValue": 394,
-        "cabin": "economy"
       }
     ],
     "provenance": {
@@ -345,12 +348,11 @@
       "label": "Sample data",
       "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
     },
+    "note": "4 option(s) for JFK → MAD. Typical fares: no departure city — sampled from New York (JFK).",
     "relaxed": [
       "no departure city — sampled from New York (JFK)"
     ],
-    "note": "4 option(s) for JFK → MAD. Typical fares: no departure city — sampled from New York (JFK).",
-    "currency": "USD",
-    "ok": true
+    "currency": "USD"
   },
   "hotels: madrid, five nights": {
     "ok": true,
@@ -564,19 +566,20 @@
     "currency": "USD"
   },
   "flights: a departure airport nobody wrote down": {
+    "ok": true,
     "items": [
       {
-        "id": "LH7677",
-        "airline": "Lufthansa",
-        "flightNumber": "LH964",
+        "id": "DL3244",
+        "airline": "Delta",
+        "flightNumber": "DL830",
         "origin": "BOS",
         "destination": "LIS",
-        "departTime": "15:38",
-        "arriveTime": "03:07 +1",
-        "duration": "11h 29m",
-        "stops": "1 stop · SYD",
-        "price": "$321",
-        "priceValue": 321,
+        "departTime": "14:27",
+        "arriveTime": "03:01 +1",
+        "duration": "12h 34m",
+        "stops": "1 stop · JFK",
+        "price": "$313",
+        "priceValue": 313,
         "cabin": "economy",
         "badge": "Cheapest"
       },
@@ -589,37 +592,37 @@
         "departTime": "15:06",
         "arriveTime": "03:21 +1",
         "duration": "12h 15m",
-        "stops": "1 stop · FRA",
+        "stops": "1 stop · CDG",
         "price": "$327",
         "priceValue": 327,
         "cabin": "economy"
       },
       {
-        "id": "IB3174",
-        "airline": "Iberia",
-        "flightNumber": "IB655",
+        "id": "LH4984",
+        "airline": "Lufthansa",
+        "flightNumber": "LH580",
         "origin": "BOS",
         "destination": "LIS",
-        "departTime": "09:58",
-        "arriveTime": "18:17",
-        "duration": "8h 19m",
-        "stops": "Nonstop",
-        "price": "$412",
-        "priceValue": 412,
+        "departTime": "07:21",
+        "arriveTime": "19:29",
+        "duration": "12h 8m",
+        "stops": "1 stop · FRA",
+        "price": "$341",
+        "priceValue": 341,
         "cabin": "economy"
       },
       {
-        "id": "UA7819",
-        "airline": "United",
-        "flightNumber": "UA886",
+        "id": "AA6713",
+        "airline": "American",
+        "flightNumber": "AA100",
         "origin": "BOS",
         "destination": "LIS",
-        "departTime": "07:58",
-        "arriveTime": "15:32",
-        "duration": "7h 34m",
-        "stops": "Nonstop",
-        "price": "$443",
-        "priceValue": 443,
+        "departTime": "11:40",
+        "arriveTime": "22:38",
+        "duration": "10h 58m",
+        "stops": "1 stop · LAX",
+        "price": "$355",
+        "priceValue": 355,
         "cabin": "economy",
         "badge": "Fastest"
       }
@@ -630,13 +633,42 @@
       "label": "Sample data",
       "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
     },
-    "relaxed": [],
     "note": "4 option(s) for BOS → LIS.",
-    "currency": "USD",
-    "ok": true
+    "relaxed": [],
+    "currency": "USD"
   },
   "flights: a destination nobody wrote down": {
+    "ok": true,
     "items": [
+      {
+        "id": "DL1833",
+        "airline": "Delta",
+        "flightNumber": "DL277",
+        "origin": "JFK",
+        "destination": "REY",
+        "departTime": "13:17",
+        "arriveTime": "01:28 +1",
+        "duration": "12h 11m",
+        "stops": "1 stop · LAX",
+        "price": "$251",
+        "priceValue": 251,
+        "cabin": "economy",
+        "badge": "Cheapest"
+      },
+      {
+        "id": "LH8947",
+        "airline": "Lufthansa",
+        "flightNumber": "LH882",
+        "origin": "JFK",
+        "destination": "REY",
+        "departTime": "09:36",
+        "arriveTime": "21:26",
+        "duration": "11h 50m",
+        "stops": "1 stop · FRA",
+        "price": "$259",
+        "priceValue": 259,
+        "cabin": "economy"
+      },
       {
         "id": "TP5237",
         "airline": "TAP Air Portugal",
@@ -646,54 +678,25 @@
         "departTime": "15:18",
         "arriveTime": "01:43 +1",
         "duration": "10h 25m",
-        "stops": "1 stop · NRT",
+        "stops": "1 stop · LIS",
         "price": "$265",
         "priceValue": 265,
         "cabin": "economy",
-        "badge": "Cheapest"
-      },
-      {
-        "id": "AA3177",
-        "airline": "American",
-        "flightNumber": "AA193",
-        "origin": "JFK",
-        "destination": "REY",
-        "departTime": "16:54",
-        "arriveTime": "04:22 +1",
-        "duration": "11h 28m",
-        "stops": "1 stop · CDG",
-        "price": "$281",
-        "priceValue": 281,
-        "cabin": "economy"
-      },
-      {
-        "id": "DL6190",
-        "airline": "Delta",
-        "flightNumber": "DL473",
-        "origin": "JFK",
-        "destination": "REY",
-        "departTime": "17:46",
-        "arriveTime": "01:50 +1",
-        "duration": "8h 4m",
-        "stops": "Nonstop",
-        "price": "$304",
-        "priceValue": 304,
-        "cabin": "economy"
-      },
-      {
-        "id": "AF3102",
-        "airline": "Air France",
-        "flightNumber": "AF772",
-        "origin": "JFK",
-        "destination": "REY",
-        "departTime": "18:21",
-        "arriveTime": "01:52 +1",
-        "duration": "7h 31m",
-        "stops": "Nonstop",
-        "price": "$324",
-        "priceValue": 324,
-        "cabin": "economy",
         "badge": "Fastest"
+      },
+      {
+        "id": "UA1858",
+        "airline": "United",
+        "flightNumber": "UA948",
+        "origin": "JFK",
+        "destination": "REY",
+        "departTime": "13:57",
+        "arriveTime": "00:53 +1",
+        "duration": "10h 56m",
+        "stops": "1 stop · DEN",
+        "price": "$278",
+        "priceValue": 278,
+        "cabin": "economy"
       }
     ],
     "provenance": {
@@ -702,10 +705,9 @@
       "label": "Sample data",
       "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
     },
-    "relaxed": [],
     "note": "4 option(s) for JFK → REY.",
-    "currency": "USD",
-    "ok": true
+    "relaxed": [],
+    "currency": "USD"
   },
   "hotels: a destination nobody wrote down": {
     "ok": true,

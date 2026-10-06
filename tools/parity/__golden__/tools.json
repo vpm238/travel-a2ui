@@ -26,66 +26,66 @@
     "result": {
       "flights": [
         {
-          "id": "DL5054",
-          "airline": "Delta",
-          "flightNumber": "DL437",
+          "id": "TP2754",
+          "airline": "TAP Air Portugal",
+          "flightNumber": "TP558",
           "origin": "JFK",
           "destination": "MAD",
-          "departTime": "20:46",
-          "arriveTime": "07:12 +1",
-          "duration": "10h 26m",
-          "stops": "1 stop · CDG",
-          "price": "$301",
-          "priceValue": 301,
+          "departTime": "12:01",
+          "arriveTime": "22:35",
+          "duration": "10h 34m",
+          "stops": "1 stop · LIS",
+          "price": "€314",
+          "priceValue": 314,
           "cabin": "economy",
           "badge": "Cheapest"
         },
         {
-          "id": "AF5416",
-          "airline": "Air France",
-          "flightNumber": "AF215",
+          "id": "AA3086",
+          "airline": "American",
+          "flightNumber": "AA154",
           "origin": "JFK",
           "destination": "MAD",
-          "departTime": "17:22",
-          "arriveTime": "01:03 +1",
-          "duration": "7h 41m",
+          "departTime": "14:34",
+          "arriveTime": "22:29",
+          "duration": "7h 55m",
           "stops": "Nonstop",
-          "price": "$362",
-          "priceValue": 362,
+          "price": "€346",
+          "priceValue": 346,
+          "cabin": "economy"
+        },
+        {
+          "id": "AF4342",
+          "airline": "Air France",
+          "flightNumber": "AF369",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "08:55",
+          "arriveTime": "19:05",
+          "duration": "10h 10m",
+          "stops": "1 stop · CDG",
+          "price": "€347",
+          "priceValue": 347,
+          "cabin": "economy"
+        },
+        {
+          "id": "DL2029",
+          "airline": "Delta",
+          "flightNumber": "DL856",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "09:05",
+          "arriveTime": "16:47",
+          "duration": "7h 42m",
+          "stops": "Nonstop",
+          "price": "€387",
+          "priceValue": 387,
           "cabin": "economy",
           "badge": "Fastest"
-        },
-        {
-          "id": "TP5023",
-          "airline": "TAP Air Portugal",
-          "flightNumber": "TP297",
-          "origin": "JFK",
-          "destination": "MAD",
-          "departTime": "18:12",
-          "arriveTime": "01:58 +1",
-          "duration": "7h 46m",
-          "stops": "Nonstop",
-          "price": "$388",
-          "priceValue": 388,
-          "cabin": "economy"
-        },
-        {
-          "id": "LH5442",
-          "airline": "Lufthansa",
-          "flightNumber": "LH712",
-          "origin": "JFK",
-          "destination": "MAD",
-          "departTime": "11:04",
-          "arriveTime": "18:54",
-          "duration": "7h 50m",
-          "stops": "Nonstop",
-          "price": "$394",
-          "priceValue": 394,
-          "cabin": "economy"
         }
       ],
       "pricesAre": "One traveller, so `price` is the whole of it.",
-      "currency": "USD",
+      "currency": "EUR",
       "note": "4 option(s) for JFK → MAD. Typical fares: no departure city — sampled from New York (JFK).",
       "provenance": {
         "source": "fixture",
@@ -124,86 +124,86 @@
     "result": {
       "flights": [
         {
-          "id": "AA3229",
-          "airline": "American",
-          "flightNumber": "AA641",
+          "id": "TP2077",
+          "airline": "TAP Air Portugal",
+          "flightNumber": "TP787",
           "origin": "JFK",
           "destination": "MAD",
-          "departTime": "16:17",
-          "arriveTime": "03:05 +1",
-          "duration": "10h 48m",
-          "stops": "1 stop · CDG",
-          "price": "$281",
-          "priceValue": 281,
+          "departTime": "11:00",
+          "arriveTime": "21:44",
+          "duration": "10h 44m",
+          "stops": "1 stop · LIS",
+          "price": "€292",
+          "priceValue": 292,
           "cabin": "economy",
           "badge": "Cheapest",
-          "perUnit": "$281",
+          "perUnit": "€292",
           "units": 2,
-          "total": "$562",
-          "totalValue": 562,
-          "priceLabel": "$281 each · $562 for 2"
+          "total": "€584",
+          "totalValue": 584,
+          "priceLabel": "€292 each · €584 for 2"
         },
         {
-          "id": "UA2118",
-          "airline": "United",
-          "flightNumber": "UA772",
+          "id": "AF2635",
+          "airline": "Air France",
+          "flightNumber": "AF109",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "16:09",
+          "arriveTime": "03:04 +1",
+          "duration": "10h 55m",
+          "stops": "1 stop · CDG",
+          "price": "€346",
+          "priceValue": 346,
+          "cabin": "economy",
+          "perUnit": "€346",
+          "units": 2,
+          "total": "€692",
+          "totalValue": 692,
+          "priceLabel": "€346 each · €692 for 2"
+        },
+        {
+          "id": "AA2236",
+          "airline": "American",
+          "flightNumber": "AA645",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "10:10",
+          "arriveTime": "18:01",
+          "duration": "7h 51m",
+          "stops": "Nonstop",
+          "price": "€353",
+          "priceValue": 353,
+          "cabin": "economy",
+          "perUnit": "€353",
+          "units": 2,
+          "total": "€706",
+          "totalValue": 706,
+          "priceLabel": "€353 each · €706 for 2"
+        },
+        {
+          "id": "IB2118",
+          "airline": "Iberia",
+          "flightNumber": "IB772",
           "origin": "JFK",
           "destination": "MAD",
           "departTime": "18:04",
-          "arriveTime": "04:21 +1",
-          "duration": "10h 17m",
-          "stops": "1 stop · CDG",
-          "price": "$294",
-          "priceValue": 294,
-          "cabin": "economy",
-          "perUnit": "$294",
-          "units": 2,
-          "total": "$588",
-          "totalValue": 588,
-          "priceLabel": "$294 each · $588 for 2"
-        },
-        {
-          "id": "TP3668",
-          "airline": "TAP Air Portugal",
-          "flightNumber": "TP765",
-          "origin": "JFK",
-          "destination": "MAD",
-          "departTime": "13:07",
-          "arriveTime": "20:52",
-          "duration": "7h 45m",
+          "arriveTime": "01:47 +1",
+          "duration": "7h 43m",
           "stops": "Nonstop",
-          "price": "$352",
-          "priceValue": 352,
+          "price": "€358",
+          "priceValue": 358,
           "cabin": "economy",
           "badge": "Fastest",
-          "perUnit": "$352",
+          "perUnit": "€358",
           "units": 2,
-          "total": "$704",
-          "totalValue": 704,
-          "priceLabel": "$352 each · $704 for 2"
-        },
-        {
-          "id": "DL6751",
-          "airline": "Delta",
-          "flightNumber": "DL884",
-          "origin": "JFK",
-          "destination": "MAD",
-          "departTime": "15:50",
-          "arriveTime": "23:36",
-          "duration": "7h 46m",
-          "stops": "Nonstop",
-          "price": "$394",
-          "priceValue": 394,
-          "cabin": "economy",
-          "perUnit": "$394",
-          "units": 2,
-          "total": "$788",
-          "totalValue": 788,
-          "priceLabel": "$394 each · $788 for 2"
+          "total": "€716",
+          "totalValue": 716,
+          "priceLabel": "€358 each · €716 for 2"
         }
       ],
       "pricesAre": "`price` is one ticket. `total` is all 2 on this hop, and `priceLabel` says both — put that on the card, not the bare fare: a per-person figure beside a party of 2 reads as the total and is wrong by 2×.",
-      "currency": "USD",
+      "currency": "EUR",
       "note": "4 option(s) for JFK → MAD on 2027-04-12.",
       "provenance": {
         "source": "fixture",
@@ -248,48 +248,68 @@
     "result": {
       "flights": [
         {
-          "id": "AA3236",
-          "airline": "American",
-          "flightNumber": "AA971",
+          "id": "IB4263",
+          "airline": "Iberia",
+          "flightNumber": "IB906",
           "origin": "JFK",
           "destination": "MAD",
-          "departTime": "18:38",
-          "arriveTime": "02:32 +1",
-          "duration": "7h 54m",
+          "departTime": "19:22",
+          "arriveTime": "03:01 +1",
+          "duration": "7h 39m",
           "stops": "Nonstop",
-          "price": "$1,296",
-          "priceValue": 1296,
+          "price": "€1,194",
+          "priceValue": 1194,
           "cabin": "business",
           "badge": "Cheapest",
-          "perUnit": "$1,296",
+          "perUnit": "€1,194",
           "units": 2,
-          "total": "$2,592",
-          "totalValue": 2592,
-          "priceLabel": "$1,296 each · $2,592 for 2"
+          "total": "€2,388",
+          "totalValue": 2388,
+          "priceLabel": "€1,194 each · €2,388 for 2"
         },
         {
-          "id": "TP3889",
-          "airline": "TAP Air Portugal",
-          "flightNumber": "TP546",
+          "id": "AA6612",
+          "airline": "American",
+          "flightNumber": "AA348",
+          "origin": "JFK",
+          "destination": "MAD",
+          "departTime": "13:52",
+          "arriveTime": "21:30",
+          "duration": "7h 38m",
+          "stops": "Nonstop",
+          "price": "€1,238",
+          "priceValue": 1238,
+          "cabin": "business",
+          "badge": "Fastest",
+          "perUnit": "€1,238",
+          "units": 2,
+          "total": "€2,476",
+          "totalValue": 2476,
+          "priceLabel": "€1,238 each · €2,476 for 2"
+        },
+        {
+          "id": "DL3889",
+          "airline": "Delta",
+          "flightNumber": "DL546",
           "origin": "JFK",
           "destination": "MAD",
           "departTime": "16:23",
           "arriveTime": "00:18 +1",
           "duration": "7h 55m",
           "stops": "Nonstop",
-          "price": "$1,306",
+          "price": "€1,306",
           "priceValue": 1306,
           "cabin": "business",
-          "perUnit": "$1,306",
+          "perUnit": "€1,306",
           "units": 2,
-          "total": "$2,612",
+          "total": "€2,612",
           "totalValue": 2612,
-          "priceLabel": "$1,306 each · $2,612 for 2"
+          "priceLabel": "€1,306 each · €2,612 for 2"
         }
       ],
       "pricesAre": "`price` is one ticket. `total` is all 2 on this hop, and `priceLabel` says both — put that on the card, not the bare fare: a per-person figure beside a party of 2 reads as the total and is wrong by 2×.",
-      "currency": "USD",
-      "note": "2 option(s) for JFK → MAD on 2027-04-12.",
+      "currency": "EUR",
+      "note": "3 option(s) for JFK → MAD on 2027-04-12.",
       "provenance": {
         "source": "fixture",
         "live": false,
@@ -330,86 +350,86 @@
     "result": {
       "flights": [
         {
-          "id": "LH4898",
-          "airline": "Lufthansa",
-          "flightNumber": "LH823",
+          "id": "AA4898",
+          "airline": "American",
+          "flightNumber": "AA823",
           "origin": "LAX",
           "destination": "NRT",
           "departTime": "08:18",
-          "arriveTime": "22:58",
-          "duration": "14h 40m",
-          "stops": "1 stop · DEN",
-          "price": "$435",
-          "priceValue": 435,
+          "arriveTime": "19:39",
+          "duration": "11h 21m",
+          "stops": "Nonstop",
+          "price": "¥531",
+          "priceValue": 531,
           "cabin": "economy",
           "badge": "Cheapest",
-          "perUnit": "$435",
+          "perUnit": "¥531",
           "units": 1,
-          "total": "$435",
-          "totalValue": 435,
-          "priceLabel": "$435"
+          "total": "¥531",
+          "totalValue": 531,
+          "priceLabel": "¥531"
         },
         {
-          "id": "DL2170",
+          "id": "DL8345",
           "airline": "Delta",
-          "flightNumber": "DL494",
+          "flightNumber": "DL954",
           "origin": "LAX",
           "destination": "NRT",
-          "departTime": "10:12",
-          "arriveTime": "01:03 +1",
-          "duration": "14h 51m",
-          "stops": "1 stop · DEN",
-          "price": "$452",
-          "priceValue": 452,
+          "departTime": "13:01",
+          "arriveTime": "00:26 +1",
+          "duration": "11h 25m",
+          "stops": "Nonstop",
+          "price": "¥547",
+          "priceValue": 547,
           "cabin": "economy",
-          "perUnit": "$452",
+          "perUnit": "¥547",
           "units": 1,
-          "total": "$452",
-          "totalValue": 452,
-          "priceLabel": "$452"
+          "total": "¥547",
+          "totalValue": 547,
+          "priceLabel": "¥547"
         },
         {
-          "id": "TP4539",
-          "airline": "TAP Air Portugal",
-          "flightNumber": "TP494",
+          "id": "DL4899",
+          "airline": "Delta",
+          "flightNumber": "DL231",
           "origin": "LAX",
           "destination": "NRT",
-          "departTime": "06:59",
-          "arriveTime": "18:15",
-          "duration": "11h 16m",
+          "departTime": "07:24",
+          "arriveTime": "18:41",
+          "duration": "11h 17m",
           "stops": "Nonstop",
-          "price": "$559",
-          "priceValue": 559,
+          "price": "¥570",
+          "priceValue": 570,
           "cabin": "economy",
           "badge": "Fastest",
-          "perUnit": "$559",
+          "perUnit": "¥570",
           "units": 1,
-          "total": "$559",
-          "totalValue": 559,
-          "priceLabel": "$559"
+          "total": "¥570",
+          "totalValue": 570,
+          "priceLabel": "¥570"
         },
         {
-          "id": "IB2243",
-          "airline": "Iberia",
-          "flightNumber": "IB325",
+          "id": "DL2243",
+          "airline": "Delta",
+          "flightNumber": "DL325",
           "origin": "LAX",
           "destination": "NRT",
           "departTime": "11:40",
           "arriveTime": "23:05",
           "duration": "11h 25m",
           "stops": "Nonstop",
-          "price": "$602",
+          "price": "¥602",
           "priceValue": 602,
           "cabin": "economy",
-          "perUnit": "$602",
+          "perUnit": "¥602",
           "units": 1,
-          "total": "$602",
+          "total": "¥602",
           "totalValue": 602,
-          "priceLabel": "$602"
+          "priceLabel": "¥602"
         }
       ],
       "pricesAre": "One traveller, so `price` is the whole of it.",
-      "currency": "USD",
+      "currency": "JPY",
       "note": "Nothing matched the $1 cap — closest 4 for LAX → NRT on 2027-04-12.",
       "provenance": {
         "source": "fixture",
@@ -460,7 +480,7 @@
           "departTime": "17:58",
           "arriveTime": "05:41 +1",
           "duration": "11h 43m",
-          "stops": "1 stop · SYD",
+          "stops": "1 stop · FRA",
           "price": "$358",
           "priceValue": 358,
           "cabin": "economy",
@@ -472,6 +492,44 @@
           "priceLabel": "$358"
         },
         {
+          "id": "UA2627",
+          "airline": "United",
+          "flightNumber": "UA707",
+          "origin": "JFK",
+          "destination": "ATL",
+          "departTime": "19:09",
+          "arriveTime": "06:26 +1",
+          "duration": "11h 17m",
+          "stops": "1 stop · LAX",
+          "price": "$374",
+          "priceValue": 374,
+          "cabin": "economy",
+          "perUnit": "$374",
+          "units": 1,
+          "total": "$374",
+          "totalValue": 374,
+          "priceLabel": "$374"
+        },
+        {
+          "id": "IB1896",
+          "airline": "Iberia",
+          "flightNumber": "IB779",
+          "origin": "JFK",
+          "destination": "ATL",
+          "departTime": "10:06",
+          "arriveTime": "20:48",
+          "duration": "10h 42m",
+          "stops": "1 stop · MAD",
+          "price": "$402",
+          "priceValue": 402,
+          "cabin": "economy",
+          "perUnit": "$402",
+          "units": 1,
+          "total": "$402",
+          "totalValue": 402,
+          "priceLabel": "$402"
+        },
+        {
           "id": "TP6618",
           "airline": "TAP Air Portugal",
           "flightNumber": "TP859",
@@ -480,7 +538,7 @@
           "departTime": "17:58",
           "arriveTime": "06:14 +1",
           "duration": "12h 16m",
-          "stops": "1 stop · MIA",
+          "stops": "1 stop · LIS",
           "price": "$429",
           "priceValue": 429,
           "cabin": "economy",
@@ -489,45 +547,6 @@
           "total": "$429",
           "totalValue": 429,
           "priceLabel": "$429"
-        },
-        {
-          "id": "IB5830",
-          "airline": "Iberia",
-          "flightNumber": "IB200",
-          "origin": "JFK",
-          "destination": "ATL",
-          "departTime": "11:24",
-          "arriveTime": "19:12",
-          "duration": "7h 48m",
-          "stops": "Nonstop",
-          "price": "$445",
-          "priceValue": 445,
-          "cabin": "economy",
-          "badge": "Fastest",
-          "perUnit": "$445",
-          "units": 1,
-          "total": "$445",
-          "totalValue": 445,
-          "priceLabel": "$445"
-        },
-        {
-          "id": "DL6373",
-          "airline": "Delta",
-          "flightNumber": "DL446",
-          "origin": "JFK",
-          "destination": "ATL",
-          "departTime": "14:35",
-          "arriveTime": "23:33",
-          "duration": "8h 58m",
-          "stops": "Nonstop",
-          "price": "$465",
-          "priceValue": 465,
-          "cabin": "economy",
-          "perUnit": "$465",
-          "units": 1,
-          "total": "$465",
-          "totalValue": 465,
-          "priceLabel": "$465"
         }
       ],
       "pricesAre": "One traveller, so `price` is the whole of it.",
@@ -586,86 +605,86 @@
     "result": {
       "flights": [
         {
-          "id": "DL2692",
-          "airline": "Delta",
-          "flightNumber": "DL224",
+          "id": "IB2692",
+          "airline": "Iberia",
+          "flightNumber": "IB224",
           "origin": "MAD",
           "destination": "LIS",
           "departTime": "15:02",
           "arriveTime": "16:33",
           "duration": "1h 31m",
           "stops": "Nonstop",
-          "price": "$81",
+          "price": "€81",
           "priceValue": 81,
           "cabin": "economy",
           "badge": "Cheapest",
-          "perUnit": "$81",
+          "perUnit": "€81",
           "units": 3,
-          "total": "$243",
+          "total": "€243",
           "totalValue": 243,
-          "priceLabel": "$81 each · $243 for 3"
+          "priceLabel": "€81 each · €243 for 3"
         },
         {
-          "id": "AA1703",
-          "airline": "American",
-          "flightNumber": "AA602",
+          "id": "TP6829",
+          "airline": "TAP Air Portugal",
+          "flightNumber": "TP896",
           "origin": "MAD",
           "destination": "LIS",
-          "departTime": "11:22",
-          "arriveTime": "12:44",
-          "duration": "1h 22m",
+          "departTime": "14:21",
+          "arriveTime": "15:54",
+          "duration": "1h 33m",
           "stops": "Nonstop",
-          "price": "$81",
-          "priceValue": 81,
+          "price": "€83",
+          "priceValue": 83,
+          "cabin": "economy",
+          "perUnit": "€83",
+          "units": 3,
+          "total": "€249",
+          "totalValue": 249,
+          "priceLabel": "€83 each · €249 for 3"
+        },
+        {
+          "id": "IB7177",
+          "airline": "Iberia",
+          "flightNumber": "IB913",
+          "origin": "MAD",
+          "destination": "LIS",
+          "departTime": "07:19",
+          "arriveTime": "08:54",
+          "duration": "1h 35m",
+          "stops": "Nonstop",
+          "price": "€84",
+          "priceValue": 84,
+          "cabin": "economy",
+          "perUnit": "€84",
+          "units": 3,
+          "total": "€252",
+          "totalValue": 252,
+          "priceLabel": "€84 each · €252 for 3"
+        },
+        {
+          "id": "IB6877",
+          "airline": "Iberia",
+          "flightNumber": "IB417",
+          "origin": "MAD",
+          "destination": "LIS",
+          "departTime": "08:47",
+          "arriveTime": "10:12",
+          "duration": "1h 25m",
+          "stops": "Nonstop",
+          "price": "€89",
+          "priceValue": 89,
           "cabin": "economy",
           "badge": "Fastest",
-          "perUnit": "$81",
+          "perUnit": "€89",
           "units": 3,
-          "total": "$243",
-          "totalValue": 243,
-          "priceLabel": "$81 each · $243 for 3"
-        },
-        {
-          "id": "AF2116",
-          "airline": "Air France",
-          "flightNumber": "AF701",
-          "origin": "MAD",
-          "destination": "LIS",
-          "departTime": "07:48",
-          "arriveTime": "09:16",
-          "duration": "1h 28m",
-          "stops": "Nonstop",
-          "price": "$82",
-          "priceValue": 82,
-          "cabin": "economy",
-          "perUnit": "$82",
-          "units": 3,
-          "total": "$246",
-          "totalValue": 246,
-          "priceLabel": "$82 each · $246 for 3"
-        },
-        {
-          "id": "LH8089",
-          "airline": "Lufthansa",
-          "flightNumber": "LH446",
-          "origin": "MAD",
-          "destination": "LIS",
-          "departTime": "13:02",
-          "arriveTime": "14:32",
-          "duration": "1h 30m",
-          "stops": "Nonstop",
-          "price": "$90",
-          "priceValue": 90,
-          "cabin": "economy",
-          "perUnit": "$90",
-          "units": 3,
-          "total": "$270",
-          "totalValue": 270,
-          "priceLabel": "$90 each · $270 for 3"
+          "total": "€267",
+          "totalValue": 267,
+          "priceLabel": "€89 each · €267 for 3"
         }
       ],
       "pricesAre": "`price` is one ticket. `total` is all 3 on this hop, and `priceLabel` says both — put that on the card, not the bare fare: a per-person figure beside a party of 3 reads as the total and is wrong by 3×.",
-      "currency": "USD",
+      "currency": "EUR",
       "note": "4 option(s) for MAD → LIS on 2027-04-16.",
       "provenance": {
         "source": "fixture",
@@ -1972,6 +1991,215 @@
               "lon": 23.727
             }
           ]
+        },
+        {
+          "city": "Berlin",
+          "country": "Germany",
+          "airport": "BER",
+          "currency": "EUR",
+          "bestMonths": "May–June, September–early October",
+          "summary": "Flat, spread out and cheap to eat in. The S-Bahn makes the distances irrelevant and most of what is worth seeing is outdoors.",
+          "highlights": [
+            {
+              "name": "Museum Island",
+              "category": "sight",
+              "note": "The Pergamon is partly shut; the Neues is the one to book"
+            },
+            {
+              "name": "Tempelhofer Feld",
+              "category": "outdoors",
+              "note": "A runway you can walk down. Go at golden hour"
+            },
+            {
+              "name": "Markthalle Neun",
+              "category": "food",
+              "note": "Thursday evening is Street Food Thursday"
+            },
+            {
+              "name": "Kurfürstendamm",
+              "category": "shopping",
+              "note": "The west's main avenue — KaDeWe is ten minutes east"
+            },
+            {
+              "name": "Reichstag dome",
+              "category": "sight",
+              "note": "Free, and booked out two weeks ahead"
+            }
+          ],
+          "neighbourhoods": [
+            "Charlottenburg",
+            "Mitte",
+            "Kreuzberg",
+            "Prenzlauer Berg",
+            "Neukölln"
+          ],
+          "places": [
+            {
+              "name": "Berlin",
+              "kind": "city",
+              "lat": 52.52,
+              "lon": 13.405
+            },
+            {
+              "name": "Charlottenburg",
+              "kind": "area",
+              "lat": 52.505,
+              "lon": 13.305
+            },
+            {
+              "name": "Mitte",
+              "kind": "area",
+              "lat": 52.5244,
+              "lon": 13.4105
+            },
+            {
+              "name": "Kreuzberg",
+              "kind": "area",
+              "lat": 52.498,
+              "lon": 13.403
+            },
+            {
+              "name": "Prenzlauer Berg",
+              "kind": "area",
+              "lat": 52.539,
+              "lon": 13.424
+            },
+            {
+              "name": "Neukölln",
+              "kind": "area",
+              "lat": 52.481,
+              "lon": 13.435
+            },
+            {
+              "name": "Kurfürstendamm",
+              "kind": "area",
+              "lat": 52.503,
+              "lon": 13.327
+            },
+            {
+              "name": "Museum Island",
+              "kind": "sight",
+              "lat": 52.5169,
+              "lon": 13.4019
+            },
+            {
+              "name": "Tempelhofer Feld",
+              "kind": "sight",
+              "lat": 52.473,
+              "lon": 13.403
+            },
+            {
+              "name": "Markthalle Neun",
+              "kind": "sight",
+              "lat": 52.502,
+              "lon": 13.433
+            },
+            {
+              "name": "Reichstag dome",
+              "kind": "sight",
+              "lat": 52.5186,
+              "lon": 13.3761
+            }
+          ]
+        },
+        {
+          "city": "Copenhagen",
+          "country": "Denmark",
+          "airport": "CPH",
+          "currency": "DKK",
+          "bestMonths": "May–June, late August–September",
+          "summary": "Small enough to cross by bike in half an hour, and everybody does. Expensive to eat out, cheap to eat well from a market.",
+          "highlights": [
+            {
+              "name": "Torvehallerne",
+              "category": "food",
+              "note": "Two glass halls of it. Breakfast, not lunch"
+            },
+            {
+              "name": "Christianshavn canals",
+              "category": "outdoors",
+              "note": "Rent the boat yourself; no licence needed"
+            },
+            {
+              "name": "Louisiana Museum",
+              "category": "sight",
+              "note": "35 minutes up the coast and worth the whole day"
+            },
+            {
+              "name": "Reffen street food",
+              "category": "food",
+              "note": "Refshaleøen, and the swimming is next door"
+            }
+          ],
+          "neighbourhoods": [
+            "Indre By",
+            "Vesterbro",
+            "Nørrebro",
+            "Christianshavn",
+            "Frederiksberg"
+          ],
+          "places": [
+            {
+              "name": "Copenhagen",
+              "kind": "city",
+              "lat": 55.6761,
+              "lon": 12.5683
+            },
+            {
+              "name": "Indre By",
+              "kind": "area",
+              "lat": 55.6805,
+              "lon": 12.578
+            },
+            {
+              "name": "Vesterbro",
+              "kind": "area",
+              "lat": 55.668,
+              "lon": 12.549
+            },
+            {
+              "name": "Nørrebro",
+              "kind": "area",
+              "lat": 55.693,
+              "lon": 12.552
+            },
+            {
+              "name": "Christianshavn",
+              "kind": "area",
+              "lat": 55.673,
+              "lon": 12.591
+            },
+            {
+              "name": "Frederiksberg",
+              "kind": "area",
+              "lat": 55.678,
+              "lon": 12.532
+            },
+            {
+              "name": "Torvehallerne",
+              "kind": "sight",
+              "lat": 55.683,
+              "lon": 12.569
+            },
+            {
+              "name": "Christianshavn canals",
+              "kind": "sight",
+              "lat": 55.673,
+              "lon": 12.591
+            },
+            {
+              "name": "Louisiana Museum",
+              "kind": "sight",
+              "lat": 55.969,
+              "lon": 12.543
+            },
+            {
+              "name": "Reffen street food",
+              "kind": "sight",
+              "lat": 55.693,
+              "lon": 12.61
+            }
+          ]
         }
       ]
     },
@@ -2396,26 +2624,26 @@
       "lines": [
         {
           "label": "Flights (2 travelers)",
-          "amount": "$1,560"
+          "amount": "€1,560"
         },
         {
           "label": "Stay (7 nights)",
-          "amount": "$1,330"
+          "amount": "€1,330"
         },
         {
           "label": "Food and drink",
-          "amount": "$880",
+          "amount": "€880",
           "note": "estimated"
         },
         {
           "label": "Local transport",
-          "amount": "$192",
+          "amount": "€192",
           "note": "metro and taxis"
         }
       ],
-      "total": "$3,962",
+      "total": "€3,962",
       "totalValue": 3962,
-      "currency": "USD",
+      "currency": "EUR",
       "basis": {
         "summary": "JFK → Madrid · 12–19 Apr · 2 travellers",
         "nights": 7,
@@ -2451,26 +2679,26 @@
       "lines": [
         {
           "label": "Flights (2 travelers)",
-          "amount": "$1,280"
+          "amount": "€1,280"
         },
         {
           "label": "Stay (4 nights)",
-          "amount": "$600"
+          "amount": "€600"
         },
         {
           "label": "Food and drink",
-          "amount": "$550",
+          "amount": "€550",
           "note": "estimated"
         },
         {
           "label": "Local transport",
-          "amount": "$120",
+          "amount": "€120",
           "note": "metro and taxis"
         }
       ],
-      "total": "$2,550",
+      "total": "€2,550",
       "totalValue": 2550,
-      "currency": "USD",
+      "currency": "EUR",
       "basis": {
         "summary": "Madrid",
         "nights": 4,
@@ -2495,26 +2723,26 @@
       "lines": [
         {
           "label": "Flights (2 travelers)",
-          "amount": "$1,051"
+          "amount": "€1,051"
         },
         {
           "label": "Stay (5 nights)",
-          "amount": "$837"
+          "amount": "€837"
         },
         {
           "label": "Food and drink",
-          "amount": "$660",
+          "amount": "€660",
           "note": "estimated"
         },
         {
           "label": "Local transport",
-          "amount": "$144",
+          "amount": "€144",
           "note": "metro and taxis"
         }
       ],
-      "total": "$2,692",
+      "total": "€2,692",
       "totalValue": 2692,
-      "currency": "USD",
+      "currency": "EUR",
       "basis": {
         "summary": "Madrid",
         "nights": null,
@@ -2539,26 +2767,26 @@
       "lines": [
         {
           "label": "Flights (2 travelers)",
-          "amount": "$1,051"
+          "amount": "€1,051"
         },
         {
           "label": "Stay (5 nights)",
-          "amount": "$837"
+          "amount": "€837"
         },
         {
           "label": "Food and drink",
-          "amount": "$660",
+          "amount": "€660",
           "note": "estimated"
         },
         {
           "label": "Local transport",
-          "amount": "$144",
+          "amount": "€144",
           "note": "metro and taxis"
         }
       ],
-      "total": "$2,692",
+      "total": "€2,692",
       "totalValue": 2692,
-      "currency": "USD",
+      "currency": "EUR",
       "basis": {
         "summary": "MAD",
         "nights": null,
