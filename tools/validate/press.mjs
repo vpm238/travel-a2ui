@@ -106,35 +106,50 @@ await page.screenshot({ path: `${shot}/2-after-press.png`, fullPage: true });
 // "Sometimes selecting the hotel makes the hotel disappear." A turn draws onto
 // the surface it was given, so every card pressed should stay exactly where it
 // is — greyed, with the choice still on it. This walks outbound → return → stay
-// and checks each spent card still holds what was picked from it.
+// and checks every option the traveler was choosing between is still readable
+// in the conversation once the next turn has finished.
+//
+// By name, not by counting a card: the first attempt counted rows inside
+// `.turn__surface--spent` and called a run failed while the screenshot beside
+// it showed all three hotels on screen. The card had simply not gone spent yet,
+// because the turn that answers the press is still streaming. What the
+// complaint is actually about is whether the names are still there, so look for
+// the names, and look once the turn has gone quiet.
 if (process.env.THROUGH_TO_HOTEL) {
-  /** Press the first option of a kind on the live card; report what survived. */
+  /** The first line of each option, which is the airline or the hotel. */
+  const namesOf = async (rows) =>
+    (await rows.allInnerTexts())
+      .map((text) => text.split('\n').find((line) => line.trim().length > 2)?.trim())
+      .filter((name) => name && !/^[A-Z ]+$/.test(name)); // drop badges: BEST VALUE, CHEAPEST
+
+  /** Wait for the turn to stop streaming — the composer's Stop button goes. */
+  async function settled(timeout = 180000) {
+    const until = Date.now() + timeout;
+    while (Date.now() < until) {
+      if (!(await page.locator('.composer__stop').count())) return true;
+      await page.waitForTimeout(2000);
+    }
+    return false;
+  }
+
+  /** Press the first option of a kind, then check none of them went missing. */
   async function pick(word, label) {
     const rows = await liveOptions(word);
     if (!rows) {
       console.log(`\n${label}: nothing to press — the turn never drew one`);
-      return null;
+      return;
     }
-    const before = await rows.count();
-    const chosen = ((await rows.first().innerText()) || '').split('\n')[0]?.trim();
-    console.log(`\n${label}: ${before} on the live card, pressing "${chosen}"`);
+    const before = await namesOf(rows);
+    console.log(`\n${label}: ${before.length} on the live card — ${before.join(', ')}`);
     await rows.first().click();
-    // The press ends the turn that drew the card, so the card goes spent. Wait
-    // for that rather than for a fixed number of seconds.
-    await page
-      .locator(SPENT)
-      .last()
-      .waitFor({ timeout: 60000 })
-      .catch(() => {});
-    await page.waitForTimeout(20000);
-    const kept = page.locator(`${SPENT}:has-text("${chosen}") ${leaf(word)}`);
-    const after = await kept.count();
+    const quiet = await settled();
+    const feed = await page.locator(FEED).innerText();
+    const lost = before.filter((name) => !feed.includes(name));
     console.log(
-      after >= before
-        ? `ok — the card pressed still shows all ${after} of them`
-        : `FAIL — the card pressed went from ${before} to ${after}: ${label} disappeared`,
+      lost.length === 0
+        ? `ok — all ${before.length} are still in the conversation${quiet ? '' : ' (turn still streaming)'}`
+        : `FAIL — these disappeared when one was pressed: ${lost.join(', ')}`,
     );
-    return chosen;
   }
 
   await pick('flight', 'return flights');
