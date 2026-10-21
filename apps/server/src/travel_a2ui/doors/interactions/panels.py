@@ -145,4 +145,22 @@ async def _rebuild_panels(
         for event in panel:
             yield event
 
-    yield {"type": "__shape__", "shape": shape}
+    # The shape the panels are *actually* at, which is not the same as the shape
+    # of the trip whenever a draw came back empty.
+    #
+    # A failed panel is silent by design — the traveller's answer already
+    # arrived and painted, and an error banner over a conversation that went
+    # fine is worse than a panel one turn behind. But this line used to report
+    # the new shape regardless, and that is what turned "one turn behind" into
+    # "behind until something else changes": the shape is written to the session
+    # and handed to the client as a receipt, so the next turn compares the trip
+    # against a shape the panels never reached, sees no change, and declines to
+    # rebuild. The panel kept saying "Stay in Berlin · Awaiting selection" with
+    # the stay booked, on a deployment where the panel model had been busy once.
+    #
+    # Reporting the shape we came in on costs one extra rebuild attempt on the
+    # next turn, and that is exactly what a failed draw should cost. The two
+    # `return`s above are different and stay as they are: declining to draw a
+    # panel of a trip that has no destination yet is not a failure, and the
+    # panels really are current with respect to it.
+    yield {"type": "__shape__", "shape": shape if any(drawn_panels) else request.shape}

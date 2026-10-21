@@ -196,3 +196,24 @@ export function actionFrom(event: A2uiEvent): SurfaceAction {
     dataModel: event.dataModel ?? {},
   };
 }
+
+/**
+ * Does this batch of A2UI redraw a surface, or only refresh the values in it?
+ *
+ * `updateDataModel` moves a value in a surface that is already on screen —
+ * a price, a night count, the trip's origin — and the host sends a batch of
+ * those to the standing panels at the end of every turn. `createSurface` and
+ * `updateComponents` are the ones that change what the surface *is*.
+ *
+ * The distinction matters to exactly one caller, and it is load-bearing there:
+ * a panel is current for the decisions as they stand only if it was drawn for
+ * them, and a value refresh is not drawing.
+ */
+export function redrawsSurface(messages: unknown[]): boolean {
+  return messages.some(
+    (message) =>
+      typeof message === 'object' &&
+      message !== null &&
+      ('createSurface' in message || 'updateComponents' in message),
+  );
+}

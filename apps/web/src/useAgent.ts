@@ -64,6 +64,7 @@ import {
   STANDING,
   actionFrom,
   describeForTranscript,
+  redrawsSurface,
   withSurface,
   withText,
 } from './conversation.js';
@@ -412,8 +413,21 @@ export function useAgent() {
             // the server seeds `/trip` into the surface it creates and sends
             // `updateDataModel` for the panels. Applying them is the whole job.
             store.apply(event.messages);
-            // A panel that arrives is the panel for the decisions as they stand.
-            if (STANDING.has(event.surfaceId)) panelShapeRef.current = tripShapeRef.current;
+            // A panel that is *redrawn* is the panel for the decisions as they
+            // stand. A panel that is merely refreshed is not.
+            //
+            // This read "any event for a standing surface", and the server
+            // sends one of those at the end of every turn: `panel_events`
+            // pushes the trip's values into the panels as `updateDataModel`,
+            // with no components in it and no model in the path. So the mark
+            // was set on every turn whether or not a panel had been drawn, the
+            // two shapes below could never disagree, and the catch-up this
+            // comment describes had been dead code since it was written. The
+            // panel went stale on the deployed app — "Stay in Berlin ·
+            // Awaiting selection", with the stay booked — and nothing noticed.
+            if (STANDING.has(event.surfaceId) && redrawsSurface(event.messages)) {
+              panelShapeRef.current = tripShapeRef.current;
+            }
             if (!options.silent) {
               patchTurn(assistantId, (turn) => ({
                 parts: withSurface(turn.parts, event.surfaceId),
