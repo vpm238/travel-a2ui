@@ -106,7 +106,7 @@ class TestOneSurfacePerDrawing:
     """A card is a thing that was asked, on every door that has a feed."""
 
     def test_a_call_gives_each_drawing_its_own_id(self) -> None:
-        from travel_a2ui.brain.surfaces import _surface_id_for
+        from travel_a2ui.brain.builders import _surface_id_for
 
         first = _surface_id_for("inline", "mcp-flights", {"surfaceId": "voice-1"})
         second = _surface_id_for("inline", "mcp-flights", {"surfaceId": "voice-2"})
@@ -114,7 +114,7 @@ class TestOneSurfacePerDrawing:
 
     def test_a_panel_is_still_singular(self) -> None:
         """The opposite case, and the reason this is not a blanket rule."""
-        from travel_a2ui.brain.surfaces import _surface_id_for
+        from travel_a2ui.brain.builders import _surface_id_for
 
         assert _surface_id_for("sidebar", "mcp-flights", {"surfaceId": "voice-9"}) == "mcp-sidebar"
 
@@ -128,7 +128,7 @@ class TestOneIdeaOfBroken:
         from travel_a2ui.doors.interactions import COMPONENT_NAMES
         from travel_a2ui.brain.express import unknown_components
         from travel_a2ui.brain.providers.fixture import FixtureProvider
-        from travel_a2ui.brain.surfaces import build_surface
+        from travel_a2ui.brain.builders import build_surface
 
         source = 'root = Colunm([Txt("hi")])'
         assert unknown_components(source, COMPONENT_NAMES), "the stream would reject this"
@@ -191,6 +191,26 @@ class TestBehaviourLivesInMarkdown:
         assert VOICE_BRIEF == (ROOT / "prompts" / "live.md").read_text("utf-8").strip()
 
 
+
+def door_source(module) -> str:
+    """Everything a door is made of, whether it is a file or a package.
+
+    `interactions` is a package — the press, the turn, the panels, the warm-up
+    — and `inspect.getsource` on a package reads its `__init__.py`, which is an
+    address book. The checks below are about what the door *does*, so they have
+    to read what the door is made of.
+    """
+    import inspect
+    import pathlib
+
+    file = pathlib.Path(inspect.getfile(module))
+    if file.name != "__init__.py":
+        return file.read_text("utf-8")
+    return "\n".join(
+        part.read_text("utf-8") for part in sorted(file.parent.glob("*.py"))
+    )
+
+
 class TestOneImplementationNotThree:
     """The steps every door performs are performed by the same code.
 
@@ -210,7 +230,7 @@ class TestOneImplementationNotThree:
         from travel_a2ui.doors import interactions, live
 
         for module in (interactions, live):
-            source = inspect.getsource(module)
+            source = door_source(module)
             assert "panel_events(" in source, f"{module.__name__} does not use it"
             # The loop it replaced. Two copies is how the typed path grew a
             # per-turn surface id and a departure hint that voice did not.
@@ -234,9 +254,9 @@ class TestOneImplementationNotThree:
 
         from travel_a2ui.doors import interactions, live
 
-        assert "compile_surface(" in inspect.getsource(live)
+        assert "compile_surface(" in door_source(live)
         for module in (interactions, live):
-            assert ".compile(surface.express" not in inspect.getsource(module), (
+            assert ".compile(surface.express" not in door_source(module), (
                 f"{module.__name__} compiles a built surface without validating it"
             )
 
@@ -250,9 +270,9 @@ class TestOneImplementationNotThree:
         """
         import inspect
 
-        from travel_a2ui.brain import surfaces
+        from travel_a2ui.brain import builders
 
-        source = inspect.getsource(surfaces)
+        source = inspect.getsource(builders)
         assert "def compile_surface(" in source
         assert "def build_surface(" in source
 
@@ -367,7 +387,7 @@ class TestARefusalCanBeActedOn:
         import asyncio
 
         from travel_a2ui.brain.providers.fixture import FixtureProvider
-        from travel_a2ui.brain.surfaces import build_surface
+        from travel_a2ui.brain.builders import build_surface
 
         provider = FixtureProvider()
         said: list[str] = []

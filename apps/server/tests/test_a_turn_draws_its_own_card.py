@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from travel_a2ui.brain.surface import on_its_own_surface, stack_blocks
+from travel_a2ui.brain.finishing import on_its_own_surface, stack_blocks
 
 TURN = "inline-7"
 

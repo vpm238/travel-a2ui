@@ -162,7 +162,7 @@ that is to replace them:
 | To change… | Edit | And then |
 | --- | --- | --- |
 | what the agent can draw | `catalogs/a2ui-travel/catalog.json` | write the React component, register it |
-| what it can look up | `data/tools.json` | one `switch` in `brain/tools.py` |
+| what it can look up | `data/tools.json` | one `switch` in `brain/tools/run.py` |
 | how it decides what is next | `prompts/flow.md` | nothing — it is markdown |
 | what the model is told about components | *nothing* | `npm run generate` writes it from the catalog |
 
@@ -292,7 +292,7 @@ itself from it without costing a turn.
 
 **What is open decides what is drawn.** The trip is not a form with a progress
 bar; it is a record with open questions in it, and the interface is the
-projection of those questions. `journey()` in `brain/trip.py` walks the route and
+projection of those questions. `journey()` in `brain/trip/route.py` walks the route and
 reports, hop by hop, what that hop still wants: a date, a party size, a ticket, a
 place to stay *only if somebody sleeps there*, something to do *only if they stay
 more than a night*. Four hops with three parties and two stays is not a special
@@ -497,7 +497,7 @@ the component documentation the model reads — the catalog is the source, and a
 component you add documents itself.
 
 **Change the tools.** `data/tools.json` is one array of
-`{name, description, input_schema}`, and `brain/tools.py` is one `switch` over
+`{name, description, input_schema}`, and `brain/tools/run.py` is one `switch` over
 it. The contracts are provider-neutral on purpose: `gemini_tools()` is a
 six-line adapter over it, so a second provider costs six lines rather than a
 second copy of the schemas.
@@ -874,6 +874,33 @@ travel-a2ui/
 └── skills/                     generated SKILL.md files, checked in
 ```
 
+Inside the server, the same two packages, and what is in them:
+
+```
+apps/server/src/travel_a2ui/
+├── brain/
+│   ├── catalog.py      the components that exist, loaded once
+│   ├── skills.py       the contract the model is given, assembled
+│   ├── trip/           fields · values · route · problems · asking · edits · shape
+│   ├── tools/          contracts · answers · share · run
+│   ├── finishing.py    the four passes every surface goes through on its way out
+│   ├── builders.py     the surfaces this app draws without a model
+│   ├── controls.py     which control a decision may be asked in
+│   ├── express.py      compiling the A2UI the model emits, as it streams
+│   └── providers/
+│       └── fixture/    tables · numbers · routes · places · provider
+└── doors/
+    ├── settings.py     which model answers, how hard it thinks, and what day it is
+    ├── http.py         the SSE door the web client uses
+    ├── live.py         the websocket door a voice call uses
+    └── interactions/   press · turn · panels · warmup
+```
+
+Nothing in `brain/` imports from `doors/`, which is the one rule that keeps the
+split honest. It was not always true: the catalog and the model choices used to
+live in `doors/interactions.py`, and the brain reached back for them through
+imports written inside function bodies to dodge the resulting cycle.
+
 The Python server is the whole backend, and it is two packages: `brain/` — the
 skills, the tools, the trip record, the surface passes — and `doors/`, which is
 that brain reachable four ways. A second, TypeScript implementation of the agent
@@ -921,10 +948,10 @@ and CI fails if you forget.
 | `fixtures.json` | what the fixtures generate — the same airlines, times and fares |
 | `trip.json` | the trip model: which decisions are open, and what a route's hops need |
 | `tools.json` | the tools' *manners* — how a refusal is worded, which stop of a route a call is about |
-| `surfaces.json` | the six server-composed layouts, as Express, including the refusals |
+| `builders.json` | the six server-composed layouts, as Express, including the refusals |
 | `prompt.json` | the whole system prompt, byte for byte, across seven trips and three surfaces |
 | `skeleton.json` | the compiled skeleton — which also proves the two Express compilers agree |
-| `surface.json` | the four passes the server makes over a surface before it goes out |
+| `finishing.json` | the four passes the server makes over a surface before it goes out |
 
 One of them earned its keep the day this paragraph was written, in a way worth
 repeating: a golden that reads the clock is not a golden. `get_weather` with no

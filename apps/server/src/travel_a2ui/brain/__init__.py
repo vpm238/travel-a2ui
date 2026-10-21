@@ -15,8 +15,9 @@ What lives here:
   `trip`          the record a trip is kept in, and the facts derived from it.
   `controls`      which control a decision may be asked in, checked not asked.
   `express`       compiling the A2UI the model emits, as it streams.
-  `surface`       the passes every surface goes through before it goes out.
-  `surfaces`      the surfaces this app draws without a model.
+  `catalog`       the components that exist, loaded once, and what they require.
+  `finishing`     the passes every surface goes through before it goes out.
+  `builders`      the surfaces this app draws without a model.
   `skeleton`      the surface drawn before the data arrives.
   `host_actions`  presses the host answers itself, without waking the model.
   `contract`      a fingerprint of all of the above, for doors that instantiate

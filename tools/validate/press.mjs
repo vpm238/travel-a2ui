@@ -116,11 +116,34 @@ await page.screenshot({ path: `${shot}/2-after-press.png`, fullPage: true });
 // complaint is actually about is whether the names are still there, so look for
 // the names, and look once the turn has gone quiet.
 if (process.env.THROUGH_TO_HOTEL) {
-  /** The first line of each option, which is the airline or the hotel. */
+  /**
+   * A name off each option that will still read the same in ten seconds.
+   *
+   * Not the price. A card re-sends itself as it streams, and the press lands
+   * while it is still doing that: one run pressed a stay showing "€112 / night"
+   * and checked afterwards for a card that by then said "€112 a night". The
+   * cards were all there — the screenshot beside the failure showed three of
+   * them, greyed, with the booking made — and the probe had compared the one
+   * piece of text the model was still editing.
+   *
+   * So: skip badges (all caps), skip anything that opens with a number or a
+   * currency symbol, and keep what is left — "Pension Savignyplatz",
+   * "Norwegian", "Charlottenburg".
+   */
   const namesOf = async (rows) =>
     (await rows.allInnerTexts())
-      .map((text) => text.split('\n').find((line) => line.trim().length > 2)?.trim())
-      .filter((name) => name && !/^[A-Z ]+$/.test(name)); // drop badges: BEST VALUE, CHEAPEST
+      .map((text) =>
+        text
+          .split('\n')
+          .map((line) => line.trim())
+          .find(
+            (line) =>
+              line.length > 2 &&
+              !/^[A-Z ]+$/.test(line) && // BEST VALUE, CHEAPEST
+              !/^[\d€$£¥]/.test(line), // 4.3 (612), €112 a night
+          ),
+      )
+      .filter(Boolean);
 
   /** Wait for the turn to stop streaming — the composer's Stop button goes. */
   async function settled(timeout = 180000) {

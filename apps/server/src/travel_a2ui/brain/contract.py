@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 
-from ..doors.interactions import CATALOG_JSON
+from .catalog import CATALOG_JSON
 from .skills import skill_text
 from ..doors.live import VOICE_MODEL  # re-exported: callers ask the contract what it stamps
 

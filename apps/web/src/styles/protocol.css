@@ -1,0 +1,140 @@
+/* ---------------------------------------------------------------- protocol */
+
+.protocol__tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.protocol__tabs button {
+  appearance: none;
+  font: inherit;
+  font-family: var(--tv-font-mono);
+  font-size: 0.76rem;
+  background: var(--tv-surface);
+  color: var(--tv-ink-muted);
+  border: 1px solid var(--tv-line);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.protocol__tabs button.is-active {
+  border-color: var(--tv-accent);
+  color: var(--tv-accent);
+  background: var(--tv-accent-soft);
+}
+
+.protocol__panes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.protocol__stat {
+  font-family: var(--tv-font-mono);
+  font-size: 0.7rem;
+  color: var(--tv-accent);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.code {
+  margin: 0;
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius-sm);
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-family: var(--tv-font-mono);
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: var(--tv-ink);
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+/* ------------------------------------------------------------------- gate */
+
+.gate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--tv-ink) 42%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.gate__panel {
+  width: min(480px, 100%);
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius-lg);
+  padding: 30px;
+  box-shadow: var(--tv-shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gate__panel h2 {
+  margin: 0;
+  font-family: var(--tv-font-display);
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+
+.gate__panel p {
+  margin: 0;
+  color: var(--tv-ink-muted);
+  font-size: 0.88rem;
+  text-wrap: pretty;
+}
+
+.gate__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gate__field span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tv-ink-faint);
+  font-weight: 640;
+}
+
+.gate__field input {
+  font: inherit;
+  font-family: var(--tv-font-mono);
+  font-size: 0.86rem;
+  color: var(--tv-ink);
+  background: var(--tv-paper);
+  border: 1px solid var(--tv-line-strong);
+  border-radius: var(--tv-radius-sm);
+  padding: 11px 13px;
+}
+
+.gate__field input:focus {
+  outline: none;
+  border-color: var(--tv-accent);
+  box-shadow: 0 0 0 3px var(--tv-accent-soft);
+}
+
+.gate__warn {
+  color: var(--tv-caution);
+  font-size: 0.82rem;
+}
+
+.gate__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.gate__foot {
+  font-size: 0.78rem;
+  color: var(--tv-ink-faint);
+}

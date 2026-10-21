@@ -18,14 +18,26 @@ from .. import ROOT
 
 import json
 import os
-import pathlib
 import re
 from dataclasses import dataclass
 from typing import Any
 
+from ..brain import trip as model
+from ..brain.catalog import (
+    CATALOG_ID,
+    COMPONENT_NAMES,
+    REQUIRED_PROPERTIES,
+    VALIDATOR,
+    parser_for,
+)
+from ..brain.express import ExpressStream, Ui
 from ..brain.promises import SPOKEN_NUDGE as _NUDGE, promised as _promised
-from ..brain.skills import _read
-from ..brain.tools import gemini_tools
+from ..brain.skills import _read, build_system_prompt
+from ..brain.finishing import REBUILT_IN_A_TURN, finish, panel_events
+from ..brain.builders import build_surface, compile_surface
+from ..brain.tools import ToolContext, gemini_tools, run_tool
+from ..gemini import stream_interaction
+from .settings import PANEL_EFFORT, PANEL_MODEL, PANEL_REQUEST, _today
 
 _ROOT = ROOT
 
@@ -225,9 +237,6 @@ async def run_voice_tool(
     surface back to the model would put a flight list in its context and invite
     it to read the list out, which is the one thing this mode is for not doing.
     """
-    from ..brain.surfaces import build_surface, compile_surface
-    from ..brain.tools import run_tool
-
     if name.startswith("show_") or name == "render_a2ui_express":
         try:
             # The tools take the trip as arguments; the session holds it, so it
@@ -359,18 +368,6 @@ async def relay(
     import asyncio
 
     from google.genai import Client
-
-    from ..brain import trip as model
-    from .interactions import CATALOG_ID, _parser, _today
-    from ..brain.skills import build_system_prompt
-    from ..brain.surface import (
-    REBUILT_IN_A_TURN,
-    STANDING_SURFACES,
-    finish,
-    panel_events,
-    trip_updates,
-)
-    from ..brain.tools import ToolContext
 
     today = _today(session.client_hints)
     trip = dict(session.trip)
@@ -732,19 +729,6 @@ async def _redraw_panels(
     answer already arrived. A panel one turn stale is a much smaller problem
     than an error over a call that is going fine.
     """
-    from .interactions import (
-        CATALOG_ID,
-        COMPONENT_NAMES,
-        PANEL_EFFORT,
-        PANEL_MODEL,
-        PANEL_REQUEST,
-        _parser,
-    )
-    from ..brain.express import ExpressStream, Ui
-    from ..gemini import stream_interaction
-    from ..brain.skills import build_system_prompt
-    from ..brain.surface import REBUILT_IN_A_TURN, finish
-
     for surface_id in REBUILT_IN_A_TURN:
         system = build_system_prompt(
             variant=session.skill,
@@ -754,12 +738,10 @@ async def _redraw_panels(
             trip=trip,
             today=today,
         )
-        from .interactions import _VALIDATOR, REQUIRED_PROPERTIES
-
         stream = ExpressStream(
-            parser=_parser(surface_id),
+            parser=parser_for(surface_id),
             components=COMPONENT_NAMES,
-            validator=_VALIDATOR,
+            validator=VALIDATOR,
             required=REQUIRED_PROPERTIES,
         )
         drawn: list[dict[str, Any]] = []

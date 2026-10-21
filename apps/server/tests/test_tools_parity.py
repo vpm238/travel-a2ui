@@ -106,8 +106,15 @@ class TestGrounding:
         ]
 
     def test_a_deployment_can_turn_it_off(self, monkeypatch) -> None:
-        """Reaching the open web is the one thing here that leaves the process."""
-        monkeypatch.setattr(tools, "GROUNDING", False)
+        """Reaching the open web is the one thing here that leaves the process.
+
+        Patched on `tools.contracts`, which is where the flag is read, rather
+        than on `tools`, where it is only re-exported. The package hands its
+        callers a copy of the value; the function reads its own module.
+        """
+        from travel_a2ui.brain.tools import contracts
+
+        monkeypatch.setattr(contracts, "GROUNDING", False)
         assert tools.grounding_tools() == []
 
     def test_the_function_list_stays_functions_only(self) -> None:

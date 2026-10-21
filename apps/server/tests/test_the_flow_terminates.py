@@ -367,7 +367,7 @@ class TestTheRefinePanelKnowsTheRoute:
 
     def panel(self, trip: dict) -> str:
         from travel_a2ui.brain.providers.fixture import FixtureProvider
-        from travel_a2ui.brain.surfaces import build_surface
+        from travel_a2ui.brain.builders import build_surface
 
         return asyncio.run(
             build_surface("show_trip_controls", dict(trip), FixtureProvider(), TODAY)
@@ -397,7 +397,7 @@ class TestTheRefinePanelKnowsTheRoute:
 
     def test_it_compiles(self):
         from travel_a2ui.brain.providers.fixture import FixtureProvider
-        from travel_a2ui.brain.surfaces import build_surface, compile_surface
+        from travel_a2ui.brain.builders import build_surface, compile_surface
 
         surface = asyncio.run(
             build_surface("show_trip_controls", dict(self.ROUTE), FixtureProvider(), TODAY)
@@ -437,7 +437,7 @@ class TestThePanelIsDrawnWhenItIsAskedFor:
 
     def draw(self, asked: dict, trip: dict | None):
         from travel_a2ui.brain.providers.fixture import FixtureProvider
-        from travel_a2ui.brain.surfaces import build_surface
+        from travel_a2ui.brain.builders import build_surface
 
         return asyncio.run(
             build_surface("show_trip_controls", dict(asked), FixtureProvider(), TODAY, trip=trip)
@@ -447,9 +447,9 @@ class TestThePanelIsDrawnWhenItIsAskedFor:
         assert "DateRangePicker" in self.draw({}, self.SETTLED).express
 
     def test_the_host_has_no_way_to_refuse_it(self):
-        from travel_a2ui.brain import surfaces
+        from travel_a2ui.brain import builders
 
-        assert not hasattr(surfaces, "_already_settled"), "the refusal grew back"
+        assert not hasattr(builders, "_already_settled"), "the refusal grew back"
 
     def test_the_tool_still_says_when_to_reach_for_it(self):
         # The guidance moves to where guidance belongs rather than disappearing.

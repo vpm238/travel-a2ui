@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from . import trip as model
+from .catalog import COMPONENT_NAMES, VALIDATOR, parser_for
 from .providers.types import NotFound, TravelProvider
 
 
@@ -212,10 +213,8 @@ def compile_surface(surface: Surface) -> list[dict[str, Any]]:
     compiles without complaint and renders as a box with a hole in it. The
     streaming path runs the same check on every finished block.
     """
-    from ..doors.interactions import _VALIDATOR, _parser
-
-    messages = _parser(surface.surface_id).compile(surface.express, is_final=True)
-    _VALIDATOR.validate(messages)
+    messages = parser_for(surface.surface_id).compile(surface.express, is_final=True)
+    VALIDATOR.validate(messages)
     return messages
 
 
@@ -276,7 +275,6 @@ async def build_surface(
     if name == "show_price_summary":
         return await _price(args, provider)
     if name == "render_a2ui_express":
-        from ..doors.interactions import COMPONENT_NAMES
         from .express import nearest_components, unknown_components
 
         source = _str(args.get("source"))

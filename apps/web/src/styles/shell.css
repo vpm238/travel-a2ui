@@ -1,0 +1,307 @@
+/*
+ * The app shell.
+ *
+ * Deliberately quieter than the surfaces it contains. The generated UI is the
+ * subject; the chrome around it is a frame, so it stays in greys, keeps its
+ * type small, and never competes with a flight card for attention.
+ *
+ * Design tokens come from the renderer's stylesheet (`--tv-*`), so the shell and
+ * the surfaces are the same system in both themes rather than two palettes that
+ * happen to sit next to each other.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--tv-paper);
+  color: var(--tv-ink);
+  font-family: var(--tv-font);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--tv-accent);
+}
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ------------------------------------------------------------------ topbar */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--tv-line);
+  background: color-mix(in srgb, var(--tv-surface) 82%, transparent);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex-wrap: wrap;
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.topbar__mark {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.topbar__brand strong {
+  display: block;
+  font-family: var(--tv-font-display);
+  font-size: 1.02rem;
+  letter-spacing: -0.01em;
+}
+
+.topbar__brand span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--tv-ink-faint);
+}
+
+.topbar__views {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--tv-surface-2);
+  border: 1px solid var(--tv-line);
+}
+
+.topbar__views button {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 560;
+  color: var(--tv-ink-muted);
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.topbar__views button:hover {
+  color: var(--tv-ink);
+}
+
+.topbar__views button.is-active {
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+  box-shadow: var(--tv-shadow-sm);
+}
+
+.topbar__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.select__label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tv-ink-faint);
+  font-weight: 640;
+}
+
+.select select {
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--tv-ink);
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-line-strong);
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  max-width: 170px;
+}
+
+/* ---------------------------------------------------------------- warmth
+ *
+ * Whether the agent has a conversation open. A status, not a gate: it never
+ * disables anything, and when it is cold it becomes the button that fixes it.
+ */
+.warmth {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  color: var(--tv-ink-soft);
+  white-space: nowrap;
+}
+
+.warmth__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.warmth--ready {
+  color: var(--tv-positive, #2f8f5b);
+}
+
+/* Breathing while it works, and still while it waits. */
+.warmth--warming {
+  color: var(--tv-ink-soft);
+}
+
+.warmth--warming .warmth__dot {
+  animation: warmth-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes warmth-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .warmth--warming .warmth__dot {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+.warmth--failed {
+  color: var(--tv-critical, #b4503c);
+}
+
+.warmth button {
+  appearance: none;
+  border: 1px solid var(--tv-line-strong);
+  background: var(--tv-surface);
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.warmth button:hover {
+  border-color: var(--tv-accent, var(--tv-ink));
+  color: var(--tv-ink);
+}
+
+.iconButton {
+  appearance: none;
+  border: 1px solid var(--tv-line-strong);
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.92rem;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease;
+}
+
+.iconButton:hover {
+  background: var(--tv-surface-2);
+}
+
+.banner {
+  padding: 9px 18px;
+  font-size: 0.85rem;
+}
+
+.banner--error {
+  background: var(--tv-critical-soft);
+  color: var(--tv-critical);
+  border-bottom: 1px solid var(--tv-line);
+}
+
+.banner--warn {
+  background: var(--tv-caution-soft);
+  color: var(--tv-caution);
+  border-bottom: 1px solid var(--tv-line);
+}
+
+/* The button inside a banner — the thing the banner is telling you to do. */
+.banner__action {
+  appearance: none;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 2px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.banner__action:hover {
+  background: currentColor;
+  /* The banner's own ground, so the text stays legible when the pill fills. */
+  color: var(--tv-surface);
+}
+
+.banner code {
+  font-family: var(--tv-font-mono);
+  font-size: 0.92em;
+}
+
+/* -------------------------------------------------------------------- main */
+
+.main {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main--chat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 350px);
+}
+
+.main--home,
+.main--catalog,
+.main--protocol {
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .main--chat {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+}

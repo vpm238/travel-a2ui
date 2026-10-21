@@ -45,7 +45,7 @@ from ..brain.providers.fixture import FixtureProvider
 from ..sessions import SessionStore
 from ..brain import host_actions
 from ..brain import trip as model
-from ..brain.surface import STANDING_SURFACES, panel_events, trip_updates
+from ..brain.finishing import STANDING_SURFACES, panel_events, trip_updates
 from .live import VoiceSession, relay
 from ..brain.skills import SKILL_VARIANTS, describe_all_skills, is_skill_variant
 
@@ -66,8 +66,8 @@ FLUTTER_DIST = _ROOT / "renderers" / "flutter" / "build" / "web"
 #: reply but not the panel beside it, which was pinned to the small model with
 #: the picked one wired in as its *fallback* — so choosing the better model
 #: changed half the screen. `DEFAULT_MODEL` decides, `PANEL_MODEL` decides for
-#: the panels, and both live in `interactions.py` next to the loops that use
-#: them. This list stays because a reader of the API should be able to see what
+#: the panels, and both live in `doors/settings.py`, where every door reads the
+#: same answer. This list stays because a reader of the API should be able to see what
 #: the deployment is running without reading its source.
 MODELS = [
     {

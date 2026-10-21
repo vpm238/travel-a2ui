@@ -20,11 +20,11 @@ import pathlib
 import pytest
 
 from travel_a2ui.brain.providers.fixture import FixtureProvider
-from travel_a2ui.brain.surfaces import build_surface
+from travel_a2ui.brain.builders import build_surface
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = json.loads(
-    (ROOT / "tools" / "parity" / "__golden__" / "surfaces.json").read_text("utf-8")
+    (ROOT / "tools" / "parity" / "__golden__" / "builders.json").read_text("utf-8")
 )
 
 #: The same fixed day the golden was captured on, so "12 days to Madrid" does
@@ -182,7 +182,7 @@ class TestWhatTheSurfacesPromise:
 
     def test_a_quote_in_the_data_does_not_break_the_express(self) -> None:
         """Escaping, which fails as a syntax error the model did not make."""
-        from travel_a2ui.brain.surfaces import _q
+        from travel_a2ui.brain.builders import _q
 
         assert _q("O'Neill's") == '"O\'Neill\'s"'
         assert _q('a "quoted" name') == '"a \\"quoted\\" name"'
@@ -288,7 +288,7 @@ class TestALegCarriesItsOwnParty:
         import asyncio
 
         from travel_a2ui.brain.providers.fixture import FixtureProvider
-        from travel_a2ui.brain.surfaces import build_surface
+        from travel_a2ui.brain.builders import build_surface
 
         surface = asyncio.run(
             build_surface(
@@ -327,7 +327,7 @@ class TestALegCarriesItsOwnParty:
 
     def test_it_compiles_and_validates(self) -> None:
         """A new field the catalog does not accept is a surface that never draws."""
-        from travel_a2ui.brain.surfaces import Surface, compile_surface
+        from travel_a2ui.brain.builders import Surface, compile_surface
 
         messages = compile_surface(
             Surface(express=self.express(2), surface_id="mcp-flights", summary="")

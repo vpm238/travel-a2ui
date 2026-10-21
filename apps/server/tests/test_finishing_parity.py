@@ -18,7 +18,7 @@ import pathlib
 
 import pytest
 
-from travel_a2ui.brain.surface import (
+from travel_a2ui.brain.finishing import (
     STANDING_SURFACES,
     bind_commit_context,
     bind_derived_labels,
@@ -30,7 +30,7 @@ from travel_a2ui.brain.surface import (
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = json.loads(
-    (ROOT / "tools" / "parity" / "__golden__" / "surface.json").read_text("utf-8")
+    (ROOT / "tools" / "parity" / "__golden__" / "finishing.json").read_text("utf-8")
 )
 
 TRIPS: dict[str, dict] = {

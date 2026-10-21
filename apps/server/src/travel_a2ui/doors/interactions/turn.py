@@ -1,384 +1,55 @@
-"""One turn of the conversation.
+"""One turn of the conversation: ask the model, draw what it answers.
 
-The shape of a turn, in order:
+The loop, in order:
 
-  1. Take what the traveller set on screen and put it in the trip — *before*
-     asking the model anything, because a value they typed is a fact and should
-     not depend on the model noticing and calling `save_trip`.
-  2. Turn what they pressed into a sentence the model can read.
-  3. Ask the model, streaming. Split prose from A2UI as it arrives, so the
+  1. Ask the model, streaming. Split prose from A2UI as it arrives, so the
      surface paints while the model is still typing.
-  4. When it calls a tool: draw the shape of the answer first, run the tool,
+  2. When it calls a tool: draw the shape of the answer first, run the tool,
      then fill the shape. The screen is busy for the whole wait rather than
      empty for it.
-  5. Bring the standing panels up to date, and rebuild them if the decisions
-     changed shape enough to need different controls.
+  3. Hand back the receipt — the interaction to resume from, and the trip as it
+     now stands — before the panels are redrawn, because a traveller who
+     presses something cancels everything after this point.
+  4. Bring the standing panels up to date.
 
-Everything the browser used to decide for itself is in here now. It used to
-hold a list of trip field names, watch them, and send a prose prompt asking for
-a new panel — a private protocol composed in a client, which meant a Flutter or
-second renderer that did not send it simply never got a panel.
+What the traveller did before any of this is `press.py`; the panels are
+`panels.py`. This is the part that talks to the model.
 """
 
 from __future__ import annotations
 
-from .. import ROOT
-
-import asyncio
-import datetime as _dt
 import hashlib
 import json
-import pathlib
 import time
-import warnings
-from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Callable, Sequence
+from typing import Any, AsyncIterator, Sequence
 
-warnings.filterwarnings("ignore")
-
-from a2ui.inference_formats.experimental.express.parser import ExpressParser  # noqa: E402
-from a2ui.schema.catalog import A2uiCatalog, CatalogConfig  # noqa: E402
-
-from ..brain import trip as model  # noqa: E402
-from ..brain.express import (  # noqa: E402
-    ExpressStream,
-    Failed,
-    FenceGate,
-    Text,
-    Ui,
-    required_properties,
-    whole_payload_validator,
+from ...brain import trip as model
+from ...brain.catalog import (
+    CATALOG_ID,
+    COMPONENT_NAMES,
+    PROTOCOL_VERSION,
+    REQUIRED_PROPERTIES,
+    VALIDATOR,
+    parser_for,
 )
-from ..brain.promises import TYPED_NUDGE, promised  # noqa: E402
-from ..gemini import describe_api_error, stream_interaction, supported_level  # noqa: E402
-from ..brain.providers.fixture import FixtureProvider  # noqa: E402
-from ..brain.providers.types import TravelProvider  # noqa: E402
-from ..brain.skeleton import pending_surface_for  # noqa: E402
-from ..brain.skills import build_prompt_parts, build_system_prompt  # noqa: E402
-from ..brain.surface import (  # noqa: E402
-    REBUILT_IN_A_TURN,
-    STANDING_SURFACES,
-    finish,
-    on_its_own_surface,
-    panel_events,
-    stack_blocks,
-    trip_updates,
+from ...brain.express import ExpressStream, Failed, FenceGate, Text, Ui
+from ...brain.promises import TYPED_NUDGE, promised
+from ...brain.providers.fixture import FixtureProvider
+from ...brain.skeleton import pending_surface_for
+from ...brain.skills import build_prompt_parts
+from ...brain.finishing import finish, on_its_own_surface, panel_events, stack_blocks
+from ...brain.tools import ToolContext, gemini_tools, grounding_tools, run_tool
+from ...gemini import describe_api_error, stream_interaction
+from ..settings import FALLBACK_MODEL, MAX_TOOL_ROUNDS, PANEL_REQUEST, _today
+from .panels import _rebuild_panels
+from .press import (
+    TurnRequest,
+    TurnResult,
+    _commit,
+    _leg_pressed,
+    _party_paths,
+    describe_action,
 )
-from ..brain.tools import ToolContext, gemini_tools, grounding_tools, run_tool  # noqa: E402
-
-_ROOT = ROOT
-CATALOG_PATH = _ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
-CATALOG_JSON: dict[str, Any] = json.loads(CATALOG_PATH.read_text("utf-8"))
-
-#: What the wire calls this catalog.
-#:
-#: `$id` rather than `catalogId` because that is what the SDK puts on
-#: `createSurface`, and the model has to be told the same string the wire
-#: carries. They happen to be identical in this catalog; reading the one the
-#: compiler uses means they stay that way if that ever stops being true.
-CATALOG_ID = CATALOG_JSON["$id"]
-
-PROTOCOL_VERSION = "v0.9.1"
-
-#: Tool loops need a ceiling: a model that keeps calling tools should stop, not bill.
-MAX_TOOL_ROUNDS = 6
-
-#: Values a commit is not allowed to corrupt the trip with. One table, in the
-#: model, so a press and a `save_trip` are refused for the same reasons.
-REFUSABLE = model.REFUSABLE
-
-#: What a panel redraw asks for.
-#:
-#: Short, because the surface brief in the skill already says what a panel is
-#: and what it may contain. This only has to say *now*.
-PANEL_REQUEST = "Redraw this surface for where the trip stands now. Only the surface — no prose."
-
-
-
-def _catalog() -> A2uiCatalog:
-    config = CatalogConfig.from_path("travel", str(CATALOG_PATH))
-    return A2uiCatalog.from_config(config, version="0.9.1")
-
-
-_CATALOG = _catalog()
-
-_VALIDATOR = whole_payload_validator(_CATALOG)
-COMPONENT_NAMES = frozenset(_CATALOG.catalog_schema["components"])
-#: What each component cannot be drawn without, for explaining a validator no.
-REQUIRED_PROPERTIES = required_properties(_CATALOG.catalog_schema)
-
-
-def _parser(surface_id: str) -> ExpressParser:
-    return ExpressParser(catalog=_CATALOG, surface_id=surface_id, version=PROTOCOL_VERSION)
-
-
-#: The model that answers when nobody picks one, and the panel's own model.
-#:
-#: This was Flash Lite, picked on latency: fastest to a first surface, and for a
-#: turn that is mostly recall — the catalog is in the prompt, the job is to bind
-#: three components — that looked like the right trade.
-#:
-#: It was the wrong trade, and the thing that showed it was the way home. A
-#: round trip needs a ticket each way; the skills say so, the route facts say
-#: the journey does not come back, and the `search_flights` result says it again
-#: at the moment the fares arrive. Flash Lite read all three, answered "here are
-#: the *outbound* flights" — so it had understood — and moved on to hotels, with
-#: the traveller still in Madrid. Four attempts, at `minimal` and at `low`, all
-#: four the same. On Flash 3.8, the same prompt and the same tools, first try:
-#: it recorded the hop home as a leg, priced both hops, and had an opinion about
-#: each.
-#:
-#: So the ceiling was never the instructions. A demo that is fast at being wrong
-#: is not fast, and the seconds are worth an agent that finishes the journey.
-#: Flash Lite is still one keystroke away in the header for anyone who wants to
-#: watch the difference.
-#:
-#: The honest caveat, measured on the same eval, is availability. Of twelve
-#: turns on Flash 3.8, four came back with no surface at all — every one of them
-#: "currently experiencing high demand", a capacity spike rather than anything
-#: the model got wrong. Of the eight that ran, eight drew the right thing; Flash
-#: Lite, never once busy, drew it ten times in twelve. That is what
-#: `FALLBACK_MODEL` is for: the turn degrades to the model that is up rather
-#: than ending the conversation, and the traveller is told it happened.
-#:
-#: Lives here rather than in `main.py` because the voice relay redraws the
-#: standing panel with its own model call, and a second opinion about the
-#: default is how two doors quietly end up on two models.
-DEFAULT_MODEL = "gemini-3.8-flash"
-
-#: How hard that model thinks when nobody says. See `supported_level`, which
-#: clamps this to what the chosen model accepts — Flash 3.8 rejects `minimal`
-#: outright, where Flash Lite takes it.
-DEFAULT_EFFORT = "low"
-
-#: Who answers when the chosen model is busy. See `_open` in `gemini.py`.
-#:
-#: Measured on the eval that settled the default: twelve of thirty-six turns on
-#: Flash 3.8 came back with no surface at all, every one of them "currently
-#: experiencing high demand" — the model was not there, rather than wrong. A
-#: capacity spike on Google's side is not something a traveller halfway through
-#: planning a trip can do anything about, and "the model is busy" is a worse
-#: answer than a smaller model's surface. So the turn degrades instead of dying,
-#: and the client is told which model actually answered.
-FALLBACK_MODEL = "gemini-3.5-flash-lite"
-
-
-#: Which model draws the panels, and how hard it thinks — for **every** door.
-#:
-#: Named once because it used to be named twice, differently: the typed door
-#: drew panels with Flash Lite at `minimal` and the Live door drew them with
-#: Flash 3.8 at `low`, off byte-identical prompts. Same brain, same brief, two
-#: different answers, and a traveller who switched runtimes saw the sidebar
-#: change character for no reason they could act on.
-#:
-#: Chosen on numbers. `tools/eval/panels.py`, one fixed trip with two hops and
-#: two party sizes, two passes of four and five runs, after the sidebar brief
-#: stopped asking for Change buttons inside a template:
-#:
-#:     flash-lite/minimal   3/4 then 5/5 drew   ·  5.8 then 12.4 Change  ·  ~3.1s
-#:     flash-3.8/low        4/4 then 5/5 drew   ·  8.0 then  9.6 Change  ·  ~5.6s
-#:
-#: Both are good now, which is the actual finding: the bug was the brief, not
-#: the model — before the fix this cell was 0.0 to 3.3 Change buttons on a
-#: sidebar whose only interaction is Change. Flash 3.8 is 9/9 across the two
-#: passes against 8/9, and the panel is the record of what somebody decided, so
-#: the two and a half seconds buys the run that does not come back thin. Worth
-#: re-running when either model moves; the small one may well win it back.
-PANEL_MODEL = DEFAULT_MODEL
-PANEL_EFFORT = "low"
-
-
-def _today(client: Any = None) -> str:
-    """Today where the traveller is, not where the container is.
-
-    The server runs in UTC, and a trip is planned in a calendar the traveller is
-    holding. At 18:00 in Los Angeles the container has already turned the page:
-    "tomorrow" comes back a day late, and "this Saturday" is the wrong Saturday.
-    The browser is the only party that knows which day it is for them, so it
-    says, and this reads it.
-
-    Read sceptically, because it is untrusted input: a well-formed date within a
-    day of the server's own is the only thing that can move this, which covers
-    every real timezone and nothing else. A client that sends junk — or a clock
-    set to 2019 — gets the server's date, which is what there was before.
-    """
-    here = _dt.date.today()
-    said = client.get("today") if isinstance(client, dict) else None
-    if isinstance(said, str):
-        try:
-            theirs = _dt.date.fromisoformat(said)
-        except ValueError:
-            return here.isoformat()
-        if abs((theirs - here).days) <= 1:
-            return theirs.isoformat()
-    return here.isoformat()
-
-
-@dataclass
-class SurfaceAction:
-    """An interaction on a surface, in A2UI's own shape.
-
-    This is what a renderer produces when someone presses something — any
-    renderer, on any platform, with nothing taught to it. It replaced a sentence
-    the browser used to compose, which was a private protocol wearing the
-    costume of a user message.
-
-    `context` is the answer: the action's bound paths, resolved. `data_model` is
-    the rest of the surface, opaque and optional — it keeps trip state exact
-    without asking any client to know what a trip is, and a client that omits it
-    still works.
-    """
-
-    name: str
-    surface_id: str
-    context: dict[str, Any] = field(default_factory=dict)
-    data_model: dict[str, Any] | None = None
-    source_component_id: str | None = None
-
-
-@dataclass
-class TurnRequest:
-    api_key: str
-    model: str
-    #: What the traveller typed. Empty when `action` carries the turn instead.
-    message: str = ""
-    action: SurfaceAction | None = None
-    #: The last interaction, or None to start a new conversation. The transcript
-    #: lives on the server; this is the thread back to it.
-    interaction_id: str | None = None
-    trip: dict[str, Any] = field(default_factory=dict)
-    surface: str = "inline"
-    surface_id: str = "inline-1"
-    skill: str = "express-modular"
-    effort: str = DEFAULT_EFFORT
-    #: What the browser knows about when the traveller is. See `_today`.
-    client_hints: dict[str, Any] | None = None
-    #: Which setup the conversation was started against, if it was started.
-    #:
-    #: A fingerprint of the stable half of the prompt. When it no longer matches
-    #: — the traveller changed the skill variant, or the deployment shipped a new
-    #: catalog — the conversation is not continued against rules nobody is
-    #: reading any more: the chain is dropped and the new setup is sent.
-    setup: str | None = None
-    #: The decision shape the standing surfaces were last drawn for.
-    shape: str | None = None
-    provider: TravelProvider | None = None
-    #: Injectable so a test can drive the loop from a scripted stream.
-    client: Any | None = None
-
-
-@dataclass
-class TurnResult:
-    interaction_id: str | None
-    trip: dict[str, Any]
-    stop_reason: str | None
-    shape: str | None = None
-    #: The setup this conversation is bound to. See `TurnRequest.setup`.
-    setup: str | None = None
-
-
-def _leg_pressed(context: dict[str, Any] | None) -> int | None:
-    """The leg index a press named, if it named one.
-
-    Several spellings, because the model picks one and this is not worth a
-    round trip to correct: `leg` is the index into `legs` and `hop` counts hops
-    from one, so hop two is `legs[0]`. Anything else is not an index.
-    """
-    if not isinstance(context, dict):
-        return None
-    for key, offset in (("leg", 0), ("legIndex", 0), ("hop", -2), ("hopIndex", -1)):
-        value = context.get(key)
-        if isinstance(value, bool):
-            continue
-        if isinstance(value, str) and value.lstrip("-").isdigit():
-            value = int(value)
-        if isinstance(value, int):
-            index = value + offset
-            return index if index >= 0 else None
-    return None
-
-
-def _commit(saved: dict[str, Any], proposed: dict[str, Any], today: str) -> tuple[dict, list[str]]:
-    """Applies what a surface sent, minus anything that would break the trip.
-
-    `save_trip` has always validated, so a model that invented a return date
-    before the departure was told so. A *commit* went nowhere near it: the
-    traveller's own values were merged straight in, and a picker handing back
-    20 April → 12 April priced four flights against a trip with negative nights.
-
-    The rule itself is `model.sieve`, so a value arriving from a press is held
-    to exactly what a value arriving from the model is held to. It used to live
-    here, and `save_trip` had its own stricter one — refuse the call, not the
-    field — which is how a stay the traveller had chosen was lost to a hop's
-    dates being a day out.
-    """
-    return model.sieve(saved, proposed, today)
-
-
-def describe_action(action: SurfaceAction) -> str:
-    """What the model is told when someone presses something.
-
-    The wire carries an action, not a sentence. The model still needs a
-    sentence, and this is the one place that decides what it says — which is
-    where it belongs: how this agent interprets a tap on a read-only panel is a
-    fact about this agent, not about the tap, and a client should not be in the
-    business of explaining it.
-    """
-    said = json.dumps(action.context or {}, ensure_ascii=False)
-    where = action.surface_id
-
-    # A panel is a record, not a form. An interaction there is a request to
-    # re-open a decision in the conversation, where there is one place to edit
-    # a value and a history of when it changed.
-    if where in STANDING_SURFACES:
-        field_name = (action.context or {}).get("field")
-        if field_name:
-            return (
-                f'[interface] The traveler pressed "{action.name}" on the {where} for '
-                f"`{field_name}`. Release that decision and ask for it again inline, "
-                "pre-filled with what was there, along with anything that depended on it."
-            )
-        return (
-            f'[interface] The traveler pressed "{action.name}" on the {where} (context {said}). '
-            "The panel is read-only — ask them that in the conversation instead, with the "
-            "controls it needs."
-        )
-
-    # A press that names a hop is told where the hop keeps things.
-    #
-    # The rule is in the flow brief, and a general rule read four turns ago is
-    # not what gets followed at the moment of a press: measured, the model put
-    # the hop in the context every time and still saved the ticket nowhere.
-    # Saying it here costs a sentence and removes the inference — the traveller
-    # chose a flight home, and it has to land on the hop that flies home rather
-    # than on the trip's own field, which is the outbound's.
-    leg = _leg_pressed(action.context)
-    if leg is not None:
-        return (
-            f"[interface] {action.name} on {where} — context {said}. "
-            f"That is hop {leg + 2}, so whatever it settled belongs on "
-            f"`legs[{leg}]` — save it there, and leave the trip's own fields "
-            "alone: those are the first hop's."
-        )
-
-    return f"[interface] {action.name} on {where} — context {said}"
-
-
-def _party_paths(trip: dict[str, Any]) -> tuple[str, ...]:
-    """Where each hop's party lives, in route order.
-
-    The trip's own `travelers` is the first hop's; every hop after it keeps its
-    own on its leg. A surface asking who is on the journey has to ask it once
-    per hop, and these are the paths those counters bind to.
-    """
-    legs = trip.get("legs")
-    count = len(legs) if isinstance(legs, list) else 0
-    paths = [model.binding_for("travelers")] if trip.get("destination") else []
-    paths += [f"/trip/legs/{index}/travelers" for index in range(count)]
-    # Mirrors `stops`: the flat fields are the first hop when there is a
-    # destination to be the first hop, and `legs` is everything after it. One
-    # hop has nothing to be inconsistent about.
-    return tuple(paths) if len(paths) > 1 else ()
 
 
 async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
@@ -633,9 +304,9 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # which is right: a flight list answers a question rather than posing
         # one.
         stream = ExpressStream(
-            parser=_parser(request.surface_id),
+            parser=parser_for(request.surface_id),
             components=COMPONENT_NAMES,
-            validator=_VALIDATOR,
+            validator=VALIDATOR,
             required=REQUIRED_PROPERTIES,
             # And a party asked per hop has to be asked of every hop: a route
             # of three asked about twice is a hop flying home with a party
@@ -767,9 +438,9 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                     # splitter still holding half a sentence would glue it to
                     # the front of the new one.
                     stream = ExpressStream(
-                        parser=_parser(request.surface_id),
+                        parser=parser_for(request.surface_id),
                         components=COMPONENT_NAMES,
-                        validator=_VALIDATOR,
+                        validator=VALIDATOR,
                         required=REQUIRED_PROPERTIES,
                                 )
                     gate = FenceGate()
@@ -967,7 +638,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             # the traveller just asked a question about.
             pending = (
                 pending_surface_for(
-                    call.name, request.surface_id, _parser(request.surface_id), PROTOCOL_VERSION
+                    call.name, request.surface_id, parser_for(request.surface_id), PROTOCOL_VERSION
                 )
                 if request.surface == "inline"
                 else None
@@ -1196,213 +867,6 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             shape=shape,
             setup=setup,
         ),
-    }
-
-
-async def _rebuild_panels(
-    request: TurnRequest, trip: dict[str, Any], today: str
-) -> AsyncIterator[dict[str, Any]]:
-    """Redraws the standing surfaces, if the trip's decisions changed shape.
-
-    One extra model turn, and only when the shape moved — which is the same
-    budget the browser was spending, now spent by the thing that knows when it
-    is warranted. What counts as a decision is a fact about a trip, not about a
-    panel, which is why `decision_shape` lives in the trip model.
-
-    A failure here is silent on purpose: the traveller's answer already arrived
-    and painted. A panel that is one turn stale is a much smaller problem than
-    an error banner over a conversation that went fine.
-    """
-    shape = model.decision_shape(trip)
-    if shape == request.shape:
-        yield {"type": "__shape__", "shape": shape}
-        return
-    # Nothing to draw a panel *of* yet. The first turn usually ends with a
-    # question, and a panel saying "no trip" is a panel nobody wants.
-    if not trip.get("destination"):
-        yield {"type": "__shape__", "shape": shape}
-        return
-
-    async def one(surface_id: str) -> list[dict[str, Any]]:
-        """One panel, drawn whole, or nothing if drawing it failed."""
-        system = build_system_prompt(
-            variant=request.skill,
-            surface=surface_id,
-            surface_id=surface_id,
-            catalog_id=CATALOG_ID,
-            trip=trip,
-            today=today,
-        )
-        stream = ExpressStream(
-            parser=_parser(surface_id),
-            components=COMPONENT_NAMES,
-            validator=_VALIDATOR,
-            required=REQUIRED_PROPERTIES,
-        )
-
-        def drawn(events: Sequence[Any]) -> list[dict[str, Any]]:
-            # The panel's own id, whatever the block wrote: the brief's examples
-            # name `sidebar` and `home` literally, and a sidebar block that
-            # copied the home one used to draw the sidebar onto the home
-            # surface, leaving the panel the client was waiting for empty.
-            return [
-                {
-                    "type": "ui",
-                    "surfaceId": surface_id,
-                    "messages": finish(
-                        on_its_own_surface(event.messages, surface_id), trip
-                    ),
-                    "done": event.done,
-                }
-                for event in events
-                if isinstance(event, Ui)
-            ]
-
-        panel: list[dict[str, Any]] = []
-        try:
-            async for event in stream_interaction(
-                api_key=request.api_key,
-                # The fast model, deliberately, whatever is answering the
-                # conversation. The panel is the one surface in this app that
-                # is not a judgement call: it draws the record — these
-                # decisions, this route, a Change button on each — from rows the
-                # host has already composed. That is the work Flash Lite is good
-                # at and quick at, and the thing it was measurably *not* good at
-                # is deciding what comes next, which is not asked of it here.
-                model=PANEL_MODEL,
-                # Not chained to the conversation: a panel redraw is not
-                # something the traveller said, and threading it through
-                # `previous_interaction_id` would put "rebuild the panel" in the
-                # transcript as a user turn.
-                input=[
-                    {"type": "user_input", "content": [{"type": "text", "text": PANEL_REQUEST}]}
-                ],
-                system_instruction=system,
-                thinking_level=supported_level(PANEL_MODEL, PANEL_EFFORT),
-                fallback_model=DEFAULT_MODEL,
-                client=request.client,
-            ):
-                if event["type"] == "text":
-                    panel.extend(drawn(stream.push(event["delta"])))
-            panel.extend(drawn(stream.end()))
-        except Exception:  # noqa: BLE001 - a stale panel beats an error banner
-            return []
-
-        # Collected rather than streamed, unlike the main loop: a panel is one
-        # surface replaced whole, and a half-drawn record on screen beside a
-        # finished answer reads as a bug rather than as progress.
-        return panel
-
-    # Both panels at once. They are two independent model calls with nothing to
-    # say to each other, and doing them in sequence meant the sidebar waited for
-    # the home summary — measured at about four and a half seconds for the pair,
-    # which is most of what is left of a turn once the answer has been sent.
-    #
-    # `request.client` is a single scripted fake in tests, and two coroutines
-    # pulling from one script would interleave into nonsense — so tests, which
-    # pass a client, keep the sequential path.
-    if request.client is not None:
-        drawn_panels = [await one(surface_id) for surface_id in REBUILT_IN_A_TURN]
-    else:
-        drawn_panels = list(
-            await asyncio.gather(*(one(surface_id) for surface_id in REBUILT_IN_A_TURN))
-        )
-
-    for panel in drawn_panels:
-        for event in panel:
-            yield event
-
-    yield {"type": "__shape__", "shape": shape}
-
-
-#: What the warm-up says. Nothing is drawn and nothing is looked up.
-#:
-#: It does enter the conversation, because that is the entire point — the
-#: conversation has to exist for the next turn to resume it — so it is written
-#: to be a turn the model can dispatch in one word and then ignore.
-WARM_INPUT = (
-    "(System warm-up. Do not draw anything, do not call any tool, do not plan "
-    "anything. Reply with the single word: ready.)"
-)
-
-
-@dataclass
-class WarmRequest:
-    """Enough to start a conversation, and nothing about a trip."""
-
-    api_key: str
-    skill: str = "express-modular"
-    model: str = DEFAULT_MODEL
-    client: Any | None = None
-
-
-async def warm(request: WarmRequest) -> dict[str, Any]:
-    """Start the conversation before the traveller has said anything.
-
-    The first interface takes about eight times longer than every one after it,
-    and the reason is not the agent thinking harder — it is the system
-    instruction. The Interactions API is stateful, so the fifteen thousand
-    tokens of role, flow, journey, inventory, controls and catalog go up once
-    when a conversation starts and never again. Measured, same ask, same model
-    (`tools/eval/latency.py`):
-
-        cold     firstWord 5.3s   firstSurface 19.6s   done 29.4s
-        second   firstWord 1.8s   firstSurface  2.4s   done 15.0s
-        warmed   firstWord 5.2s   firstSurface 11.6s   done 13.5s
-
-    So this pays that cost early, against a throwaway turn, and hands back the
-    receipt. The traveller's first message is then a *second* turn: it sends the
-    volatile half and forty-odd tokens rather than five thousand.
-
-    Only the stable half exists at this point, which is the reason this is
-    possible at all — `build_prompt_parts` splits the prompt by what varies, and
-    the stable half depends on the skill variant alone. No surface, no trip, no
-    date is baked in here, so nothing about the warmed conversation is stale by
-    the time somebody types.
-
-    It returns rather than streams: there is no interface coming and nobody
-    waiting to see one. A failure is reported and not raised — a warm-up that
-    did not happen costs the first turn its head start and nothing else.
-    """
-    began = time.perf_counter()
-    stable, _ = build_prompt_parts(
-        variant=request.skill,
-        # Placeholders. None of these reach the stable half; they are here
-        # because the function needs a whole trip's worth of arguments to
-        # compute the volatile one, which is thrown away.
-        surface="inline",
-        surface_id="inline-1",
-        catalog_id=CATALOG_ID,
-        trip={},
-        today=_today(None),
-    )
-    setup = hashlib.sha256(stable.encode("utf-8")).hexdigest()[:16]
-
-    interaction_id: str | None = None
-    error: str | None = None
-    try:
-        async for event in stream_interaction(
-            api_key=request.api_key,
-            model=request.model,
-            input=[{"type": "user_input", "content": [{"type": "text", "text": WARM_INPUT}]}],
-            system_instruction=stable,
-            # No tools on purpose. A warm-up that can call something is a
-            # warm-up that might, and a `search_flights` for a trip nobody has
-            # described is the opposite of fast.
-            thinking_level=supported_level(request.model, "minimal"),
-            fallback_model=FALLBACK_MODEL,
-            client=request.client,
-        ):
-            if event["type"] == "result":
-                interaction_id = event["result"].interaction_id
-    except Exception as problem:  # noqa: BLE001 - a cold first turn, not a failure
-        error = str(problem)[:200]
-
-    return {
-        "interactionId": interaction_id,
-        "setup": setup,
-        "ms": round((time.perf_counter() - began) * 1000, 1),
-        **({"error": error} if error else {}),
     }
 
 

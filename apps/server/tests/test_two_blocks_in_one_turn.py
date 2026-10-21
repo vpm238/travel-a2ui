@@ -12,7 +12,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from travel_a2ui.brain.surface import finish, stack_blocks
+from travel_a2ui.brain.finishing import finish, stack_blocks
 
 SURFACE = "inline-1"
 

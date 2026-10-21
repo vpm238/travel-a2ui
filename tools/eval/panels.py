@@ -40,7 +40,7 @@ sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
 
 from travel_a2ui.brain.express import ExpressStream, Ui  # noqa: E402
 from travel_a2ui.brain.skills import build_system_prompt  # noqa: E402
-from travel_a2ui.brain.surface import finish  # noqa: E402
+from travel_a2ui.brain.finishing import finish  # noqa: E402
 from travel_a2ui.doors.interactions import (  # noqa: E402
     CATALOG_ID,
     COMPONENT_NAMES,
