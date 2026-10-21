@@ -188,7 +188,15 @@ async def call(base: str, key: str, steps: list[dict[str, Any]], quiet: bool) ->
                 }
             )
 
-        await socket.send(json.dumps({"type": "end"}))
+        # Saying goodbye to a relay that has already hung up is not a failed
+        # call. Against the deployed app the socket sometimes closes cleanly
+        # the moment the last turn ends — a normal 1000, after every step had
+        # been answered and both presses recorded — and this line turned that
+        # into a traceback over a call that had passed every check.
+        try:
+            await socket.send(json.dumps({"type": "end"}))
+        except websockets.exceptions.ConnectionClosed:
+            pass
 
     return {"trip": trip, "turns": turns}
 
