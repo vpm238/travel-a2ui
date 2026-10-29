@@ -16,8 +16,15 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  #: The commit that merged SkillGenerator (a2ui-project/a2ui#2516).
-  A2UI_SDK_REF: d27d708
+  #: The published SDK, and the one `apps/server/pyproject.toml` pins.
+  #:
+  #: This used to be a *git commit* — the one that merged `SkillGenerator`,
+  #: because no release carried it. That made CI build the prompt with one SDK
+  #: while the image ran another, which is why `check:skills` reported stale
+  #: for weeks against a repository that was perfectly consistent with itself.
+  #: 0.9.0 carries `SkillGenerator`, so the comment that said "swap this block
+  #: the day a release carries a2ui.skill" has had its day.
+  A2UI_SDK: "a2ui-agent-sdk==0.9.0"
 
 jobs:
   build:
@@ -38,44 +45,17 @@ jobs:
 
       - run: npm ci
 
-      # The skill generator is the SDK's now, and `SkillGenerator` is merged
-      # upstream but not yet in a published wheel — so this pins the commit it
-      # landed in rather than tracking main, where an unrelated change could
-      # rewrite our prompt without a commit here.
+      # The wheel, not a git checkout — so the SDK that generates the prompt
+      # here is the SDK the image runs. The ANTLR toolchain went with the
+      # source build: a published wheel ships its parser already generated,
+      # which also takes a minute and a flaky download out of every run.
       #
-      # It builds from source because the sdist regenerates its ANTLR parser,
-      # which is why antlr4-tools and a JDK are here; ubuntu-latest already has
-      # the JDK. Swap the whole block for `pip install a2ui-agent-sdk` the day
-      # a release carries a2ui.skill.
-      # `antlr4-tools` does not ship the ANTLR jar — it downloads it from
-      # antlr.org the first time the generator runs, which is *inside* the
-      # sdist build. So a flaky minute on the network reads as "ANTLR parser
-      # generation failed (exit code 1)" with nothing about a download in it.
-      # Cached across runs, then warmed with retries, so the usual run fetches
-      # nothing and an unlucky one gets three chances.
-      - name: Cache the ANTLR jar
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository/org/antlr
-          key: antlr-${{ runner.os }}-${{ env.A2UI_SDK_REF }}
-
+      # The server package comes too, because the generators import it now:
+      # one `load_catalog` that knows how this SDK wants a catalog loaded,
+      # rather than the incantation repeated in four scripts.
       - name: A2UI agent SDK
         run: |
-          python3 -m pip install --quiet antlr4-tools hatchling
-
-          for attempt in 1 2 3; do
-            antlr4 2>/dev/null | head -1 && break
-            echo "ANTLR jar not available (attempt $attempt); retrying in $((attempt * 5))s" >&2
-            sleep $((attempt * 5))
-          done
-
-          for attempt in 1 2 3; do
-            python3 -m pip install --quiet --no-build-isolation \
-              "a2ui-agent-sdk @ git+https://github.com/a2ui-project/a2ui@${{ env.A2UI_SDK_REF }}#subdirectory=agent_sdks/python/a2ui_agent" && break
-            echo "SDK build failed (attempt $attempt); retrying in $((attempt * 10))s" >&2
-            sleep $((attempt * 10))
-          done
-
+          python3 -m pip install --quiet "${{ env.A2UI_SDK }}" ./apps/server
           python3 -c "from a2ui.skill import SkillGenerator; print('SkillGenerator ready')"
 
       - name: Typecheck

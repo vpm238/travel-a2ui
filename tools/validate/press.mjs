@@ -196,6 +196,14 @@ if (process.env.THROUGH_TO_HOTEL) {
     .first()
     .innerText()
     .catch(() => '');
+  // The footer carries the turn count and the token split, which is the
+  // cheapest honest measure of whether a change made the agent faster: output
+  // tokens are most of a streaming turn's wall clock.
+  const footer = await page.locator('body').innerText();
+  const counted = footer.match(/(\d+) turns[^\n]*/);
+  console.log('\n=== the footer, as a measurement ===');
+  console.log(counted ? counted[0] : '(no counter on screen)');
+
   console.log('\n=== the panel, once everything has settled ===');
   console.log(settledPanel.slice(0, 700) || '(nothing)');
   console.log(

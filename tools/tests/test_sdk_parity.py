@@ -6,6 +6,15 @@ tooling assumes another — so the two are diffed on the same catalog, and this 
 what keeps the component half a rename the day upstream is enough on its own.
 
 Skips when the SDK is not installed, so the light CI job stays light.
+
+**Against the transformer, since agent-sdk 0.9.** `A2uiCatalog.with_pruning`
+is gone: pruning is a catalog *transformer* now, and messages are pruned by
+the format rather than the catalog. The question this file asks did not change
+with it — do we and upstream agree about which components survive — so it asks
+the new owner. It was written against the old one, and when that disappeared
+the module skipped itself whole and pytest exited 5 for collecting nothing,
+which CI read as a failure and which is the right answer for the wrong reason:
+a parity test that cannot find its reference is not passing.
 """
 
 from __future__ import annotations
@@ -24,7 +33,7 @@ from prune import with_pruning  # noqa: E402
 CATALOG = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
 
 pytest.importorskip(
-    "a2ui.schema.catalog",
+    "a2ui.catalog_transformers",
     reason="the reference A2UI SDK is not installed (pip install a2ui-agent-sdk)",
 )
 
@@ -37,16 +46,12 @@ def schema() -> dict:
 
 
 def reference(schema: dict, allowed: list[str]) -> dict:
-    from a2ui.schema.catalog import A2uiCatalog
+    """What upstream's own pruning leaves of this catalog."""
+    from a2ui.catalog_transformers import ComponentPruningTransformer
+    from a2ui.core.catalog import CatalogApi
 
-    catalog = A2uiCatalog(
-        version="v0.9.1",
-        name="travel",
-        s2c_schema={},
-        common_types_schema={},
-        catalog_schema=schema,
-    )
-    return catalog.with_pruning(allowed_components=allowed).catalog_schema
+    catalog = CatalogApi.from_json(schema)
+    return ComponentPruningTransformer(allowed).transform(catalog).catalog_schema
 
 
 def test_same_components_survive(schema):
@@ -69,6 +74,19 @@ def test_same_union_survives(schema):
 
 
 def test_neither_drops_a_structural_definition(schema):
-    assert sorted(with_pruning(schema, allowed_components=ALLOWED)["$defs"]) == sorted(
-        reference(schema, ALLOWED)["$defs"]
-    )
+    """Of what the catalog *declares*, both keep the same definitions.
+
+    Not an equality any more, and the difference is the reference adding
+    rather than us dropping: loading a catalog resolves it against the spec's
+    own common types, so upstream's `$defs` gains `DataBinding`,
+    `AccessibilityAttributes` and — new at 1.0 — `FunctionCommon` and
+    `IndexSystemFunction`, none of which were ever in this file. Comparing the
+    two sets whole asked whether upstream had bundled the spec, which is not a
+    question about pruning.
+
+    What pruning is answerable for is everything the catalog brought with it.
+    """
+    declared = set(schema["$defs"])
+    ours = set(with_pruning(schema, allowed_components=ALLOWED)["$defs"])
+    theirs = set(reference(schema, ALLOWED)["$defs"])
+    assert theirs & declared <= ours, "upstream kept a definition we dropped"
