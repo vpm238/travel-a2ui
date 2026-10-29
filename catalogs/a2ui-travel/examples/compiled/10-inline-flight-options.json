@@ -111,12 +111,8 @@
     "version": "v0.9.1",
     "updateDataModel": {
       "surfaceId": "inline-7",
-      "path": "/",
-      "value": {
-        "trip": {
-          "selectedOutbound": ""
-        }
-      }
+      "path": "/trip/selectedOutbound",
+      "value": ""
     }
   }
 ]

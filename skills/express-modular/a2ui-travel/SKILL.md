@@ -3,7 +3,7 @@ name: a2ui-travel
 description: UI component catalog signatures for a2ui-travel. Use when building a2ui-travel
   user interface components.
 metadata:
-  protocol_version: 0.9.1
+  protocol_version: '1.0'
   inference_format: express
   catalogs:
   - a2ui-travel
@@ -13,7 +13,7 @@ metadata:
 ## Positional Component Signatures
 
 Use these exact positional signatures to instantiate components. Do not output property keys:
-• ActivityItem(title, time?, category? (static), location?, duration?, note?, action? (static), done?, onRemove? (static))
+• ActivityItem(title, time?, category? (static), location?, duration?, note?, action? (static), done?, onRemove? (static), weight? (static))
   - Description: A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.
   - title: What it is, e.g. 'Prado Museum'.
   - time: Start time as a display string, e.g. '10:00'.
@@ -24,13 +24,16 @@ Use these exact positional signatures to instantiate components. Do not output p
   - action: Fired when the traveler taps the activity.
   - done: Whether the traveler has ticked this off.
   - onRemove: Fired when the traveler drops this activity. Give every activity one: a day plan is theirs to edit.
-• Button(child (component ID), variant? (static), action (static), checks? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• Button(child (component ID), variant? (static), action (static), weight? (static), checks? (static))
   - child: The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button.
   - variant: A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link. Must be one of: 'default', 'primary', 'borderless'
-• CheckBox(label, value, checks? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• CheckBox(label, value, weight? (static), checks? (static))
   - label: The text to display next to the checkbox.
   - value: The current state of the checkbox (true for checked, false for unchecked).
-• ChoicePicker(label?, variant? (static), options (static), value, displayStyle? (static), filterable? (static), checks? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• ChoicePicker(label?, variant? (static), options (static), value, displayStyle? (static), filterable? (static), weight? (static), checks? (static))
   - Description: A component that allows selecting one or more options from a list.
   - label: The label for the group of options.
   - variant: A hint for how the choice picker should be displayed and behave. Must be one of: 'multipleSelection', 'mutuallyExclusive'
@@ -41,26 +44,30 @@ Use these exact positional signatures to instantiate components. Do not output p
   - value: The list of currently selected values. This should be bound to a string array in the data model.
   - displayStyle: The display style of the component. Must be one of: 'checkbox', 'chips'
   - filterable: If true, displays a search input to filter the options.
-• Column(children, justify? (static), align? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• Column(children, justify? (static), align? (static), weight? (static))
   - Description: A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
   - justify: Defines the arrangement of children along the main axis (vertically). Use 'spaceBetween' to push items to the edges (e.g. header at top, footer at bottom), or 'start'/'end'/'center' to pack them together. Must be one of: 'start', 'center', 'end', 'spaceBetween', 'spaceAround', 'spaceEvenly', 'stretch'
   - align: Defines the alignment of children along the cross axis (horizontally). This is similar to the CSS 'align-items' property. Must be one of: 'center', 'end', 'start', 'stretch'
-• DateRangePicker(label, start, end, action? (static), nightsLabel?, checks? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• DateRangePicker(label, start, end, action? (static), nightsLabel?, weight? (static), checks? (static))
   - Description: Picks the trip's start and end dates. Both bound values are RFC 3339 timestamps with an offset, e.g. '2026-04-12T00:00:00Z'.
   - label: What the range is for, e.g. 'When are you going?'.
   - start: Bound path for the start date (RFC 3339).
   - end: Bound path for the end date (RFC 3339).
   - action: Fired when the traveler commits a new range.
   - nightsLabel: Derived caption, e.g. '6 nights'.
-• DateTimeInput(label, value, enableDate? (static), enableTime? (static), min?, max?, checks? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• DateTimeInput(label, value, enableDate? (static), enableTime? (static), min?, max?, weight? (static), checks? (static))
   - label: The text label for the input field.
   - value: The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string.
   - enableDate: If true, allows the user to select a date.
   - enableTime: If true, allows the user to select a time.
   - min: The minimum allowed date/time in ISO 8601 format.
   - max: The maximum allowed date/time in ISO 8601 format.
-• ExpenseSplit(title, total, participants (static), action? (static), actionLabel?)
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• ExpenseSplit(title, total, participants (static), action? (static), actionLabel?, weight? (static))
   - Description: Splits a shared trip cost between travelers and shows who owes what.
   - title: What was paid for, e.g. 'Dinner at Sobrino'.
   - total: Preformatted total, e.g. '€96'.
@@ -71,7 +78,8 @@ Use these exact positional signatures to instantiate components. Do not output p
     * status - One of 'paid', 'owes', 'settled'.
   - action: Fired when the traveler settles or edits the split.
   - actionLabel: Label for that action, e.g. 'Settle up'.
-• FlightOption(airline, departTime, arriveTime, origin, destination, price, action (static), duration?, stops?, flightNumber?, cabin? (static), selected?, badge?, total?)
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• FlightOption(airline, departTime, arriveTime, origin, destination, price, action (static), duration?, stops?, flightNumber?, cabin? (static), selected?, badge?, total?, weight? (static))
   - Description: A single selectable flight itinerary leg. Use one per option when presenting a choice of flights; do not build flight rows by hand out of Row and Text.
   - airline: Operating carrier, e.g. 'Iberia' or 'Delta'.
   - departTime: Local departure time as a display string, e.g. '07:15'.
@@ -87,7 +95,8 @@ Use these exact positional signatures to instantiate components. Do not output p
   - selected: Whether this option is currently chosen. Bind it to the data model so the selection survives a re-render.
   - badge: Short editorial tag, e.g. 'Cheapest' or 'Fastest'.
   - total: What this flight costs for everyone on this leg, when that is more than one person — preformatted, e.g. '$522 for 2'. Give it whenever the leg carries a party, and `price` is then read as the per-traveler fare.
-• HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities? (static), selected?, badge?)
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities? (static), selected?, badge?, weight? (static))
   - Description: A place to stay, presented as a rich card with imagery, rating and nightly price.
   - name: Property name.
   - price: Preformatted nightly or total price, e.g. '$186 / night'.
@@ -98,7 +107,15 @@ Use these exact positional signatures to instantiate components. Do not output p
   - amenities: Short amenity labels, at most five. Static values only.
   - selected: Whether this property is currently chosen.
   - badge: Short editorial tag, e.g. 'Walkable' or 'Best value'.
-• ItineraryDay(title, children, date?, summary?, action? (static), onAdd? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• Itinerary(heading? (static))
+  - Description: The day plan already recorded on this trip, drawn in full.
+    
+    Write it once in `save_trip({days: [...]})` and then draw it with this,
+    rather than writing every day and every activity a second time as
+    components. Pass a heading to put a line of your own above it.
+  - heading: Optional line above the plan, e.g. 'Four days in Berlin'.
+• ItineraryDay(title, children, date?, summary?, action? (static), onAdd? (static), weight? (static))
   - Description: One day of a trip. Its children are the day's ActivityItem components, in chronological order.
   - title: Day heading, e.g. 'Day 3 — Toledo'.
   - children: The day's activities, earliest first.
@@ -106,11 +123,13 @@ Use these exact positional signatures to instantiate components. Do not output p
   - summary: One-line character of the day, e.g. 'Old town, slow pace'.
   - action: Fired when the traveler opens or edits the whole day.
   - onAdd: Fired when the traveler wants something else in this day.
-• List(children, direction? (static), align? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• List(children, direction? (static), align? (static), weight? (static))
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list.
   - direction: The direction in which the list items are laid out. Must be one of: 'vertical', 'horizontal'
   - align: Defines the alignment of children along the cross axis. Must be one of: 'start', 'center', 'end', 'stretch'
-• MapPreview(markers (static), caption?, action? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• MapPreview(markers (static), caption?, action? (static), weight? (static))
   - Description: A lightweight schematic map of the places in play. Not a live map — it orients the traveler and is safe to render offline.
   - markers: Places to pin. Static values only — the host lays them out relative to each other.
     List of maps keys:
@@ -119,7 +138,8 @@ Use these exact positional signatures to instantiate components. Do not output p
     * day - Optional day number this marker belongs to.
   - caption: One line describing what the map shows.
   - action: Fired when the traveler taps the map.
-• PriceSummary(lines (static), total, totalLabel?, action? (static), actionLabel?, caption?)
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• PriceSummary(lines (static), total, totalLabel?, action? (static), actionLabel?, caption?, weight? (static))
   - Description: The money view: an itemized breakdown and a total. Use this instead of a hand-built table whenever you show what a trip costs.
   - lines: Itemized cost lines in display order. Static values only.
     List of maps keys:
@@ -131,46 +151,54 @@ Use these exact positional signatures to instantiate components. Do not output p
   - action: Primary money action, e.g. hold or book.
   - actionLabel: Label for that action, e.g. 'Hold for 24h'.
   - caption: Fine print, e.g. 'Estimated, taxes included'.
-• ProgressMeter(label, value, max, caption?, tone? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• ProgressMeter(label, value, max, caption?, tone? (static), weight? (static))
   - Description: How far along something is — budget spent, packing done, bookings confirmed. `value` and `max` are numbers, not display strings.
   - label: What is progressing.
   - value: Current amount.
   - max: Amount that counts as complete.
   - caption: Reading in words, e.g. '$1,320 of $2,000'.
   - tone: Colour role for the bar. Must be one of: 'neutral', 'positive', 'caution', 'critical', 'accent'
-• Row(children, justify? (static), align? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• Row(children, justify? (static), align? (static), weight? (static))
   - Description: A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
   - justify: Defines the arrangement of children along the main axis (horizontally). Use 'spaceBetween' to push items to the edges, or 'start'/'end'/'center' to pack them together. Must be one of: 'center', 'end', 'spaceAround', 'spaceBetween', 'spaceEvenly', 'start', 'stretch'
   - align: Defines the alignment of children along the cross axis (vertically). This is similar to the CSS 'align-items' property, but uses camelCase values (e.g., 'start'). Must be one of: 'start', 'center', 'end', 'stretch'
-• Slider(label?, min? (static), max (static), value, checks? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• Slider(label?, min? (static), max (static), value, weight? (static), checks? (static))
   - label: The label for the slider.
   - min: The minimum value of the slider.
   - max: The maximum value of the slider.
   - value: The current value of the slider.
-• StatTile(label, value, caption?, tone? (static), action? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• StatTile(label, value, caption?, tone? (static), action? (static), weight? (static))
   - Description: One number that matters, sized for a dashboard grid. Home-surface staple: days until departure, budget left, bookings confirmed.
   - label: What the number measures.
   - value: The number as a display string, e.g. '17'.
   - caption: Context under the number, e.g. 'until Madrid'.
   - tone: Colour role for the tile. Must be one of: 'neutral', 'positive', 'caution', 'critical', 'accent'
   - action: Fired when the traveler taps the tile.
-• Text(text, variant? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• Text(text, variant? (static), weight? (static))
   - text: The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation.
   - variant: A hint for the base text style. Must be one of: 'h1', 'h2', 'h3', 'h4', 'h5', 'caption', 'body'
-• TextField(label, value?, variant? (static), validationRegexp? (static), checks? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• TextField(label, value?, variant? (static), validationRegexp? (static), weight? (static), checks? (static))
   - label: The text label for the input field.
   - value: The value of the text field.
   - variant: The type of input field to display. Must be one of: 'longText', 'number', 'shortText', 'obscured'
   - validationRegexp: A regular expression used for client-side validation of the input.
-• TravelerCounter(label, value, min? (static), max? (static), caption?, checks? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• TravelerCounter(label, value, min? (static), max? (static), caption?, weight? (static), checks? (static))
   - Description: A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.
   - label: What is being counted, e.g. 'Adults'.
   - value: Bound path holding the current count.
   - min: Lowest allowed count.
   - max: Highest allowed count.
   - caption: Qualifier, e.g. 'Age 12+'.
-• TripCalendar(start, end?, marks? (static), title?, caption?, action? (static))
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• TripCalendar(start, end?, marks? (static), title?, caption?, action? (static), weight? (static))
   - Description: The trip's dates on a month grid: the travel days drawn as one highlighted band, with a glyph on any day worth marking. Read-only — use it wherever a traveler should *see* when they are going (the panel, the home surface, beside a chosen flight), and DateRangePicker when they are still choosing.
   - start: First travel day as yyyy-MM-dd, e.g. '2027-04-12'. Bind it to the trip — `$/trip/startDate` — so the band moves when the dates do.
   - end: Last travel day as yyyy-MM-dd. Omit for a single day; the band runs from `start` to here inclusive.
@@ -182,7 +210,8 @@ Use these exact positional signatures to instantiate components. Do not output p
   - title: Heading, e.g. 'Madrid' or 'Six nights in April'.
   - caption: One line under the grid, e.g. '6 nights · flights booked'.
   - action: Fired when the traveler taps the calendar, e.g. to change the dates.
-• WeatherStrip(days (static), place?, caption?)
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+• WeatherStrip(days (static), place?, caption?, weight? (static))
   - Description: A short forecast row for the destination. Purely informational.
   - days: Forecast entries in date order, at most seven. Static values only.
     List of maps keys:
@@ -192,6 +221,7 @@ Use these exact positional signatures to instantiate components. Do not output p
     * condition - One of 'sun', 'cloud', 'rain', 'storm', 'snow', 'fog'.
   - place: Where the forecast is for.
   - caption: One line of interpretation, e.g. 'Pack a light jacket'.
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
 
 ## Positional Function Signatures
 
@@ -267,91 +297,75 @@ You are composing travel UI. A few house rules that matter more than anything el
 
 ### Examples:
 
----BEGIN 10-inline-flight-options---
-# Inline: answering "find me a flight to Madrid" inside the chat feed.
-# One surface, one job — three options and a way to pick one.
+<a2ui>
 surface("inline-7")
-# That id is the one this turn was given ("Draw into surface ..."), never an
-# earlier card's. A card already answered is the record of that answer, and a
-# root drawn onto it takes the place of what the traveler picked from.
-$/trip/selectedOutbound = ""
-heading = Text("Outbound · JFK → MAD · Sun 12 Apr", variant="h3")
-f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("select_flight", {id: "IB6250", price: "$412"}), duration="7h 35m", stops="Nonstop", flightNumber="IB6250", selected=$/trip/selectedOutbound, badge="Cheapest")
-f2 = FlightOption("Delta", "21:10", "10:50 +1", "JFK", "MAD", "$468", Event("select_flight", {id: "DL126", price: "$468"}), duration="7h 40m", stops="Nonstop", flightNumber="DL126")
-f3 = FlightOption("TAP", "17:25", "11:05 +1", "JFK", "MAD", "$367", Event("select_flight", {id: "TP208", price: "$367"}), duration="11h 40m", stops="1 stop · LIS", flightNumber="TP208", badge="Lowest fare")
+heading = Text("Outbound · JFK → MAD · Sun 12 Apr", "h3")
+f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("select_flight", {id: "IB6250", price: "$412"}), "7h 35m", "Nonstop", "IB6250", _, $/trip/selectedOutbound, "Cheapest")
+f2 = FlightOption("Delta", "21:10", "10:50 +1", "JFK", "MAD", "$468", Event("select_flight", {id: "DL126", price: "$468"}), "7h 40m", "Nonstop", "DL126")
+f3 = FlightOption("TAP", "17:25", "11:05 +1", "JFK", "MAD", "$367", Event("select_flight", {id: "TP208", price: "$367"}), "11h 40m", "1 stop · LIS", "TP208", _, _, "Lowest fare")
 note = Text("Prices are per traveler, round trip.")
 root = Column([heading, f1, f2, f3, note])
+surface("inline-7")
+$/trip/selectedOutbound = ""
+</a2ui>
 
----END 10-inline-flight-options---
-
----BEGIN 20-sidebar-refine---
-# Sidebar: controls that refine the trip currently in focus.
-# The sidebar is a persistent surface — target it by id and it replaces itself.
+<a2ui>
 surface("sidebar")
-$/filters/maxPrice = 600
 $/filters/adults = 2
-title = Text("Refine", variant="h3")
-dates = DateRangePicker("Travel dates", $/filters/start, $/filters/end, action=Event("dates_changed"), nightsLabel="6 nights")
-who = TravelerCounter("Adults", $/filters/adults, min=1, max=8)
+$/filters/maxPrice = 600
+title = Text("Refine", "h3")
+dates = DateRangePicker("Travel dates", $/filters/start, $/filters/end, Event("dates_changed"), "6 nights")
+who = TravelerCounter("Adults", $/filters/adults, 1, 8)
 budget = Slider("Max fare", 150, 1500, $/filters/maxPrice)
 stops = ChoicePicker("Stops", "mutuallyExclusive", [{label: "Any", value: "any"}, {label: "Nonstop only", value: "nonstop"}], $/filters/stops)
-apply = Button(Text("Apply"), "primary", Event("apply_filters", {maxPrice: $/filters/maxPrice, adults: $/filters/adults, stops: $/filters/stops}))
-root = Column([title, dates, who, budget, stops, apply], align="stretch")
+apply = Button(apply_child, "primary", Event("apply_filters", {maxPrice: $/filters/maxPrice, adults: $/filters/adults, stops: $/filters/stops}))
+apply_child = Text("Apply")
+root = Column([title, dates, who, budget, stops, apply], _, "stretch")
+</a2ui>
 
----END 20-sidebar-refine---
-
----BEGIN 30-home-dashboard---
-# Home: a generative dashboard, reassembled for what matters today.
-# Stat tiles first, then the thing that needs a decision, then context.
+<a2ui>
 surface("home")
-hello = Text("17 days to Madrid", variant="h1")
-t1 = StatTile("Booked", "3 of 5", caption="flights, hotel, transfer", tone="positive")
-t2 = StatTile("Budget left", "$680", caption="of $2,000", tone="caution")
-t3 = StatTile("Next up", "Pick dinner", caption="Sat 11 Apr", tone="accent", action=Event("open_task", {id: "dinner"}))
+hello = Text("17 days to Madrid", "h1")
+t1 = StatTile("Booked", "3 of 5", "flights, hotel, transfer", "positive")
+t2 = StatTile("Budget left", "$680", "of $2,000", "caution")
+t3 = StatTile("Next up", "Pick dinner", "Sat 11 Apr", "accent", Event("open_task", {id: "dinner"}))
 tiles = Row([t1, t2, t3])
-budget = ProgressMeter("Budget used", 1320, 2000, caption="$1,320 of $2,000", tone="caution")
-when = TripCalendar($/trip/startDate, $/trip/endDate, marks=[{date: "2027-04-12", icon: "plane", label: "Fly out"}, {date: "2027-04-18", icon: "plane", label: "Fly home"}], title="Madrid", caption="6 nights")
-weather = WeatherStrip([{day: "Sun", high: "21°", low: "9°", condition: "sun"}, {day: "Mon", high: "19°", low: "8°", condition: "sun"}, {day: "Tue", high: "16°", low: "7°", condition: "rain"}], place="Madrid", caption="Pack a light jacket for Tuesday")
-map = MapPreview([{label: "Hotel", kind: "stay"}, {label: "Prado", kind: "sight", day: "2"}, {label: "Sobrino", kind: "food", day: "2"}], caption="Everything on day 2 is walkable")
-root = Column([hello, tiles, budget, when, weather, map], align="stretch")
+budget = ProgressMeter("Budget used", 1320, 2000, "$1,320 of $2,000", "caution")
+when = TripCalendar($/trip/startDate, $/trip/endDate, [{date: "2027-04-12", icon: "plane", label: "Fly out"}, {date: "2027-04-18", icon: "plane", label: "Fly home"}], "Madrid", "6 nights")
+weather = WeatherStrip([{day: "Sun", high: "21°", low: "9°", condition: "sun"}, {day: "Mon", high: "19°", low: "8°", condition: "sun"}, {day: "Tue", high: "16°", low: "7°", condition: "rain"}], "Madrid", "Pack a light jacket for Tuesday")
+map = MapPreview([{label: "Hotel", kind: "stay"}, {label: "Prado", kind: "sight", day: "2"}, {label: "Sobrino", kind: "food", day: "2"}], "Everything on day 2 is walkable")
+root = Column([hello, tiles, budget, when, weather, map], _, "stretch")
+</a2ui>
 
----END 30-home-dashboard---
-
----BEGIN 40-itinerary-day---
-# A day of the itinerary, plus a template-driven packing list bound to data.
+<a2ui>
 surface("itinerary")
-$/packing/0/item = "Passport"
 $/packing/0/done = true
-$/packing/1/item = "Adapter"
+$/packing/0/item = "Passport"
 $/packing/1/done = false
-a1 = ActivityItem("Prado Museum", "10:00", category="sight", location="Paseo del Prado 23", duration="2h", note="Book the timed entry", action=Event("open_activity", {id: "prado"}))
-a2 = ActivityItem("Lunch at Sobrino", "13:30", category="food", location="Calle de Cuchilleros 17", duration="1h 30m")
-a3 = ActivityItem("Retiro Park", "16:00", category="outdoors", duration="1h 30m", note="Rowboats until 19:00")
-day2 = ItineraryDay("Day 2 — Old Madrid", [a1, a2, a3], date="Mon 13 Apr", summary="Art in the morning, a long lunch, green afternoon")
+$/packing/1/item = "Adapter"
+a1 = ActivityItem("Prado Museum", "10:00", "sight", "Paseo del Prado 23", "2h", "Book the timed entry", Event("open_activity", {id: "prado"}))
+a2 = ActivityItem("Lunch at Sobrino", "13:30", "food", "Calle de Cuchilleros 17", "1h 30m")
+a3 = ActivityItem("Retiro Park", "16:00", "outdoors", _, "1h 30m", "Rowboats until 19:00")
+day2 = ItineraryDay("Day 2 — Old Madrid", [a1, a2, a3], "Mon 13 Apr", "Art in the morning, a long lunch, green afternoon")
 packingRow = CheckBox($item, $done)
 packing = List(_template($/packing, packingRow))
-packingTitle = Text("Packing", variant="h4")
+packingTitle = Text("Packing", "h4")
 root = Column([day2, packingTitle, packing])
+</a2ui>
 
----END 40-itinerary-day---
-
----BEGIN 50-traveler-form---
-# Several things to set, one button. Every edited path is bound into its context.
+<a2ui>
 surface("inline-traveler")
-title = Text("Who is travelling?", variant="h3")
+title = Text("Who is travelling?", "h3")
 name = TextField("Full name (as on passport)", $/traveler/name)
 email = TextField("Email", $/traveler/email, "shortText")
 seat = ChoicePicker("Seat", "mutuallyExclusive", [{label: "Window", value: "window"}, {label: "Aisle", value: "aisle"}], $/traveler/seat)
-save = Button(Text("Save traveller"), "primary", Event("save_traveler", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))
-root = Column([title, name, email, seat, save], align="stretch")
+save = Button(save_child, "primary", Event("save_traveler", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))
+save_child = Text("Save traveller")
+root = Column([title, name, email, seat, save], _, "stretch")
+</a2ui>
 
----END 50-traveler-form---
-
----BEGIN 60-incremental-update---
-# Changing one value on a surface that is already on screen.
-# No components, no root — just the data. The host re-renders in place.
+<a2ui>
 surface("home")
-$/home/budgetUsed = 1480
 $/home/budgetCaption = "$1,480 of $2,000"
-
----END 60-incremental-update---
+$/home/budgetUsed = 1480
+</a2ui>

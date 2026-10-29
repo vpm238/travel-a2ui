@@ -94,6 +94,8 @@ interface CompileContext {
   extraComponents: ComponentNode[];
   inlineCounter: number;
   activeValuePath: Json | null;
+  /** Which protocol is being written, because 1.0 spells bindings `@path`. */
+  version: ProtocolVersion;
 }
 
 class SurfaceScope {
@@ -165,7 +167,12 @@ export class ExpressCompiler {
     options: { surfaceId: string; catalogId: string; version: ProtocolVersion },
   ): A2uiMessage[] {
     const { surfaceId, catalogId, version } = options;
-    const ctx: CompileContext = { extraComponents: [], inlineCounter: 0, activeValuePath: null };
+    const ctx: CompileContext = {
+      extraComponents: [],
+      inlineCounter: 0,
+      activeValuePath: null,
+      version,
+    };
 
     const scopes: SurfaceScope[] = [];
     let currentScope: SurfaceScope | null = null;
@@ -496,6 +503,17 @@ export class ExpressCompiler {
   }
 
   /** Compiles any value position: literals, bindings, references, calls. */
+
+  /** A data binding, spelled the way this protocol version spells it. */
+  private bindingFor(path: string, ctx: CompileContext): JsonObject {
+    return ctx.version === 'v1.0' ? { '@path': path } : { path };
+  }
+
+  /** A dynamic function call, likewise. */
+  private callFor(name: string, args: Json, ctx: CompileContext): JsonObject {
+    return ctx.version === 'v1.0' ? { '@call': name, args } : { call: name, args };
+  }
+
   private compileValue(
     value: AstValue,
     symbols: Map<string, AstValue>,
@@ -508,7 +526,11 @@ export class ExpressCompiler {
 
     if (value === null || typeof value !== 'object') return value as Json;
 
-    if (isPath(value)) return { ...value } as Json;
+    // A2UI 1.0 reserves `@` for directives: a binding is `{"@path": …}` and a
+    // plain `{"path": …}` is ordinary data. The AST keeps the unprefixed name
+    // because that is what the DSL writes; the prefix is a wire spelling and
+    // belongs here, where the wire is produced.
+    if (isPath(value)) return this.bindingFor(value.path, ctx) as Json;
 
     if (isVariable(value)) {
       const referenced = symbols.get(value.variable);
@@ -532,7 +554,7 @@ export class ExpressCompiler {
         ctx.activeValuePath,
         { skippedBecomesNull: false, isAction },
       );
-      return { call: value.check, args };
+      return this.callFor(value.check, args, ctx) as Json;
     }
 
     if (isCall(value)) return this.compileCall(value, symbols, ctx, isAction);

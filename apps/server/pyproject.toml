@@ -43,8 +43,26 @@ dependencies = [
   # Pinned exactly, both, because they are pre-1.0 and ship in the same minute
   # as each other: an unbounded range makes every image build a silent upgrade
   # nobody reviewed, which is exactly how the last outage happened.
-  "a2ui-agent-sdk==0.7.0",
-  "a2ui-core==0.2.0",
+  # On 0.9.0/0.4.0, which is where A2UI 1.0 becomes reachable: `a2ui-core`
+  # 0.4.0 ships the 1.0 schema, the 1.0 basic catalog and a 1.0 processing
+  # adapter, and the agent SDK's Express compiler emits 1.0 envelopes — one
+  # `createSurface` carrying its own components *and* data model, where 0.9.1
+  # needed three messages for the same surface.
+  #
+  # Two things moved with it and are worth knowing before the next bump. The
+  # Express format graduated out of `inference_formats.experimental`. And the
+  # whole-payload validator is gone: `PayloadValidator` now checks one
+  # component at a time, so `whole_payload_validator` composes the old question
+  # out of the new answer — the third shape that API has had in three releases.
+  #
+  # The pin is load-bearing in a way it has not been before. This SDK stamps
+  # `"v1.0"` on an envelope; upstream has already merged the rename that makes
+  # it `"1.0"` (a2ui#3726) and it is sitting unreleased. An unbounded range
+  # would pick that up on the next image build and every message would be
+  # rejected by a renderer expecting the other spelling — the same shape of
+  # outage as 0.7.0/0.2.0, which is the story above.
+  "a2ui-agent-sdk==0.9.0",
+  "a2ui-core==0.4.0",
   # Both Gemini surfaces this app uses: `client.interactions` for the typed
   # loop, `client.aio.live` for voice. The voice half replaces a hand-rolled
   # relay that had four bugs in it, three of them silent.

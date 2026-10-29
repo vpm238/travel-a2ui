@@ -398,6 +398,7 @@ class TestTheRefinePanelKnowsTheRoute:
     def test_it_compiles(self):
         from travel_a2ui.brain.providers.fixture import FixtureProvider
         from travel_a2ui.brain.builders import build_surface, compile_surface
+        from travel_a2ui.brain.wire import components_of
 
         surface = asyncio.run(
             build_surface("show_trip_controls", dict(self.ROUTE), FixtureProvider(), TODAY)
@@ -405,7 +406,7 @@ class TestTheRefinePanelKnowsTheRoute:
         nodes = [
             node
             for message in compile_surface(surface)
-            for node in (message.get("updateComponents") or {}).get("components") or []
+            for node in components_of(message)
         ]
         assert [node["id"] for node in nodes if node["component"] == "TravelerCounter"] == [
             "who0",

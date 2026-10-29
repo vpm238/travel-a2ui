@@ -21,6 +21,7 @@ import pytest
 
 from travel_a2ui.brain.providers.fixture import FixtureProvider
 from travel_a2ui.brain.builders import build_surface
+from travel_a2ui.brain.wire import components_of
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 GOLDEN = json.loads(
@@ -335,7 +336,7 @@ class TestALegCarriesItsOwnParty:
         flights = [
             component
             for message in messages
-            for component in (message.get("updateComponents") or {}).get("components", [])
+            for component in components_of(message)
             if component.get("component") == "FlightOption"
         ]
         assert flights, "no flight cards compiled"

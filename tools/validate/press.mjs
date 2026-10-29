@@ -184,7 +184,12 @@ if (process.env.THROUGH_TO_HOTEL) {
   // panel as it was two decisions ago. Give it time and read it again: if it
   // still says a flight is awaited after one was chosen, that is the panel
   // being stale rather than the shot being early.
-  await page.waitForTimeout(25000);
+  // Long enough for the turn *after* the last press to finish and the panel
+  // to be redrawn behind it. The itinerary turn is the longest in the app, and
+  // a panel read while it is still running is a panel one press behind — which
+  // is a true observation about the clock, not about the panel.
+  await settled();
+  await page.waitForTimeout(40000);
   await page.screenshot({ path: `${shot}/4-settled.png`, fullPage: true });
   const settledPanel = await page
     .locator('aside, [class*="sidebar" i]')
@@ -194,7 +199,11 @@ if (process.env.THROUGH_TO_HOTEL) {
   console.log('\n=== the panel, once everything has settled ===');
   console.log(settledPanel.slice(0, 700) || '(nothing)');
   console.log(
-    /awaiting selection|selecting hotel/i.test(settledPanel)
+    // Every way the panel has been seen to say "not yet", because the check is
+    // only as good as its vocabulary: it read "selection pending" as caught up.
+    /awaiting selection|selecting hotel|selection pending|not booked|needs ticket/i.test(
+      settledPanel,
+    )
       ? 'FAIL — the panel still says a decision is outstanding that was made'
       : 'ok — the panel has caught up with both choices',
   );

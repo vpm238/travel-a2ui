@@ -2,29 +2,10 @@
   "search_flights": {
     "opening": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
-          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateDataModel": {
-          "surfaceId": "inline-1",
-          "path": "/flights",
-          "value": [
-            {},
-            {},
-            {},
-            {}
-          ]
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateComponents": {
-          "surfaceId": "inline-1",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
             {
               "id": "head",
@@ -36,47 +17,47 @@
               "id": "row",
               "component": "FlightOption",
               "airline": {
-                "path": "airline"
+                "@path": "airline"
               },
               "departTime": {
-                "path": "departTime"
+                "@path": "departTime"
               },
               "arriveTime": {
-                "path": "arriveTime"
+                "@path": "arriveTime"
               },
               "origin": {
-                "path": "origin"
+                "@path": "origin"
               },
               "destination": {
-                "path": "destination"
+                "@path": "destination"
               },
               "price": {
-                "path": "price"
+                "@path": "price"
               },
               "action": {
                 "event": {
                   "name": "select_flight",
                   "context": {
                     "id": {
-                      "path": "id"
+                      "@path": "id"
                     },
                     "price": {
-                      "path": "price"
+                      "@path": "price"
                     }
                   }
                 }
               },
               "duration": {
-                "path": "duration"
+                "@path": "duration"
               },
               "stops": {
-                "path": "stops"
+                "@path": "stops"
               },
               "flightNumber": {
-                "path": "flightNumber"
+                "@path": "flightNumber"
               },
               "badge": {
-                "path": "badge"
+                "@path": "badge"
               }
             },
             {
@@ -95,58 +76,41 @@
                 "list"
               ]
             }
-          ]
-        }
-      }
-    ],
-    "filled": {
-      "withRows": [
-        {
-          "version": "v0.9.1",
-          "updateDataModel": {
-            "surfaceId": "inline-1",
-            "path": "/flights",
-            "value": [
-              {
-                "id": "a",
-                "airline": "Iberia",
-                "price": "$257",
-                "name": "Hotel One"
-              }
+          ],
+          "dataModel": {
+            "flights": [
+              {},
+              {},
+              {},
+              {}
             ]
           }
         }
-      ],
-      "withNothing": null,
-      "withGarbage": null
-    }
+      }
+    ],
+    "filled": [
+      {
+        "version": "v1.0",
+        "updateDataModel": {
+          "surfaceId": "inline-1",
+          "path": "/flights",
+          "value": [
+            {
+              "id": "IB1",
+              "airline": "Iberia"
+            }
+          ]
+        }
+      }
+    ]
   },
   "search_hotels": {
     "opening": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
-          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateDataModel": {
-          "surfaceId": "inline-1",
-          "path": "/hotels",
-          "value": [
-            {},
-            {},
-            {},
-            {}
-          ]
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateComponents": {
-          "surfaceId": "inline-1",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
             {
               "id": "head",
@@ -158,32 +122,32 @@
               "id": "row",
               "component": "HotelCard",
               "name": {
-                "path": "name"
+                "@path": "name"
               },
               "price": {
-                "path": "price"
+                "@path": "price"
               },
               "action": {
                 "event": {
                   "name": "select_hotel",
                   "context": {
                     "id": {
-                      "path": "id"
+                      "@path": "id"
                     },
                     "name": {
-                      "path": "name"
+                      "@path": "name"
                     }
                   }
                 }
               },
               "neighborhood": {
-                "path": "neighborhood"
+                "@path": "neighborhood"
               },
               "rating": {
-                "path": "rating"
+                "@path": "rating"
               },
               "badge": {
-                "path": "badge"
+                "@path": "badge"
               }
             },
             {
@@ -202,31 +166,33 @@
                 "list"
               ]
             }
-          ]
-        }
-      }
-    ],
-    "filled": {
-      "withRows": [
-        {
-          "version": "v0.9.1",
-          "updateDataModel": {
-            "surfaceId": "inline-1",
-            "path": "/hotels",
-            "value": [
-              {
-                "id": "a",
-                "airline": "Iberia",
-                "price": "$257",
-                "name": "Hotel One"
-              }
+          ],
+          "dataModel": {
+            "hotels": [
+              {},
+              {},
+              {},
+              {}
             ]
           }
         }
-      ],
-      "withNothing": null,
-      "withGarbage": null
-    }
+      }
+    ],
+    "filled": [
+      {
+        "version": "v1.0",
+        "updateDataModel": {
+          "surfaceId": "inline-1",
+          "path": "/hotels",
+          "value": [
+            {
+              "id": "h1",
+              "name": "Hotel One"
+            }
+          ]
+        }
+      }
+    ]
   },
   "estimate_cost": null
 }

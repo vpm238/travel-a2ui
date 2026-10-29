@@ -254,6 +254,12 @@ async def run_voice_tool(
                 "ui": {"surfaceId": surface.surface_id, "messages": messages},
             }
         except Exception as error:  # noqa: BLE001 - the model gets the sentence
+            # And the log gets the rest of it. The model is told a surface did
+            # not draw, in a sentence it can act on, which is right — and for a
+            # long time that was the *only* place it was said, so a surface
+            # that stopped drawing on this door looked from the outside like a
+            # model that had decided not to draw one.
+            print(f"voice surface {name} failed: {error!r}", flush=True)
             return {"response": {"shown": False, "error": str(error)}}
 
     result, is_error = await run_tool(name, args, context)

@@ -16,6 +16,7 @@ import { ExpressDecompiler, type CatalogSchema } from '@travel-a2ui/express';
 import { useSurface } from '@travel-a2ui/renderer';
 
 import { catalogUrl } from '../api.js';
+import type { ProtocolVersion } from '@travel-a2ui/express';
 import type { Agent } from '../useAgent.js';
 import { Code, Empty } from './bits.js';
 
@@ -40,7 +41,9 @@ export function Protocol({ agent }: { agent: Agent }) {
     if (!surface) return { json: '', express: '' };
 
     const envelope = {
-      version: 'v0.9.1',
+      // The server's own version, not a literal: the wire view exists to
+      // show what really went over the wire.
+      version: (agent.meta?.protocolVersion as ProtocolVersion) ?? 'v1.0',
       createSurface: {
         surfaceId: surface.id,
         catalogId: surface.catalogId || catalog?.catalogId || '',

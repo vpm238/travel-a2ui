@@ -33,6 +33,10 @@ import json
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from .bindings import PATH_KEY
+from .catalog import PROTOCOL_VERSION
+from .express import as_wire
+
 A2uiMessage = dict[str, Any]
 
 #: How many blank rows to lay out.
@@ -141,11 +145,47 @@ class PendingSurface:
         ]
 
 
+
+def _seeded(messages: list[A2uiMessage], seed: A2uiMessage) -> list[A2uiMessage] | None:
+    """The same surface with the blank rows folded into its `createSurface`.
+
+    1.0 lets a surface arrive whole — components and data model in the one
+    message — and a skeleton is the clearest case for it: the rows it lays out
+    and the blank rows it lays them out over are the same thought, and sending
+    them apart is what made a half-drawn list possible at all.
+
+    Returns None if this surface does not create one, which leaves the caller
+    on the two-message path.
+    """
+    folded: list[A2uiMessage] = []
+    done = False
+    for message in messages:
+        create = message.get("createSurface")
+        if not done and isinstance(create, dict):
+            model = dict(create.get("dataModel") or {})
+            update = seed.get("updateDataModel") or {}
+            path = str(update.get("path") or "/").strip("/")
+            value = update.get("value")
+            if not path:
+                model.update(value if isinstance(value, dict) else {})
+            else:
+                here = model
+                parts = path.split("/")
+                for part in parts[:-1]:
+                    here = here.setdefault(part, {})
+                here[parts[-1]] = value
+            folded.append({**message, "createSurface": {**create, "dataModel": model}})
+            done = True
+            continue
+        folded.append(message)
+    return folded if done else None
+
+
 def pending_surface_for(
     tool_name: str,
     surface_id: str,
     parser: Any,
-    version: str = "v0.9.1",
+    version: str | None = None,
 ) -> PendingSurface | None:
     """The surface a tool is about to fill, if it is one that fills a surface.
 
@@ -158,14 +198,15 @@ def pending_surface_for(
         return None
 
     try:
-        messages = parser.compile(blueprint.express(surface_id), is_final=True)
+        messages = as_wire(parser.compile(blueprint.express(surface_id), is_final=True))
     except Exception:  # noqa: BLE001 - any compile failure, same handling
         # A skeleton that will not compile is not worth failing a turn over:
         # the model's own surface still arrives, just without the head start.
         return None
 
+    wire = version or PROTOCOL_VERSION
     seed: A2uiMessage = {
-        "version": version,
+        "version": wire,
         "updateDataModel": {
             "surfaceId": surface_id,
             "path": blueprint.path,
@@ -173,15 +214,22 @@ def pending_surface_for(
         },
     }
 
-    # `createSurface` first, then the blank rows, then the components — so the
-    # layout never paints against a data model that does not exist yet.
-    created = [message for message in messages if "createSurface" in message]
-    rest = [message for message in messages if "createSurface" not in message]
+    # The layout must never paint against a data model that does not exist
+    # yet, and 1.0 changed where that is arranged. At 0.9 a surface arrived as
+    # `createSurface`, then components, so the blank rows went between them. At
+    # 1.0 the create carries its components, so there is no between: the rows
+    # go *inside* the create, in its own `dataModel`, and arrive in the same
+    # message as the layout that reads them.
+    opening = _seeded(messages, seed) if PATH_KEY == "@path" else None
+    if opening is None:
+        created = [message for message in messages if "createSurface" in message]
+        rest = [message for message in messages if "createSurface" not in message]
+        opening = [*created, seed, *rest]
 
     return PendingSurface(
-        opening=[*created, seed, *rest],
+        opening=opening,
         _path=blueprint.path,
         _key=blueprint.key,
         _surface_id=surface_id,
-        _version=version,
+        _version=wire,
     )

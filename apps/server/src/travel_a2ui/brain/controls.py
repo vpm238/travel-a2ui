@@ -26,6 +26,8 @@ model's judgement belongs and where it is good.
 from __future__ import annotations
 
 from .. import ROOT
+from .bindings import path_of
+from .wire import components_of
 
 import json
 import pathlib
@@ -110,8 +112,8 @@ def _bound_paths(node: dict[str, Any]) -> Iterable[str]:
     for key, value in node.items():
         if key not in ANSWER_KEYS or not isinstance(value, dict):
             continue
-        path = value.get("path")
-        if isinstance(path, str):
+        path = path_of(value)
+        if path is not None:
             yield path
 
 
@@ -126,8 +128,7 @@ def wrong_controls(messages: Iterable[dict[str, Any]]) -> list[str]:
     seen: set[str] = set()
 
     for message in messages:
-        update = message.get("updateComponents") or {}
-        for node in update.get("components") or []:
+        for node in components_of(message):
             if not isinstance(node, dict):
                 continue
             component = str(node.get("component") or "")
@@ -176,8 +177,7 @@ def half_asked(messages: Iterable[dict[str, Any]], hops: Iterable[str]) -> str |
 
     asked: set[str] = set()
     for message in messages:
-        update = message.get("updateComponents") or {}
-        for node in update.get("components") or []:
+        for node in components_of(message):
             if not isinstance(node, dict):
                 continue
             if str(node.get("component") or "") not in ASKING:

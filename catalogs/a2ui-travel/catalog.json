@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
   "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+  "protocolVersion": "1.0",
   "title": "A2UI Travel Catalog",
   "description": "Plans trips as interactive UI: flight and hotel options, day-by-day itineraries, price breakdowns, and trip dashboards.",
   "instructions": "You are composing travel UI. A few house rules that matter more than anything else:\n\n- Prefer a travel component over hand-assembling one out of Row/Column/Text. If\n  you are showing a flight, use FlightOption. If you are showing a night's stay,\n  use HotelCard. The host styles these natively and they carry semantics the\n  plain layout primitives do not.\n- Every option the user could plausibly act on needs an `action`. A flight the\n  user cannot select is a screenshot, not an interface.\n- Money is always a preformatted display string (\"$412\", \"€1,180 total\"). Do not\n  emit bare numbers and hope the host formats them.\n- Times are display strings in the traveler's local time (\"07:15\", \"Tue 14 Apr\").\n  The one exception is DateRangePicker, whose bound values are RFC 3339.\n- When you present a set of options, bind the user's current choice into the data\n  model so a later turn can read it back — e.g. `$/trip/selectedOutbound`.\n- Keep a surface to one job. An inline card answers the message it is attached\n  to; the sidebar refines the trip in flight; the home surface summarizes.",

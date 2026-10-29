@@ -20,15 +20,16 @@ import pytest
 
 warnings.filterwarnings("ignore")
 
-from a2ui.inference_formats.experimental.express.parser import (  # noqa: E402
+from a2ui.inference_formats.express.parser import (  # noqa: E402
     A2UI_INFERENCE_CLOSE_TAG,
     A2UI_INFERENCE_OPEN_TAG,
     ExpressParser,
 )
-from a2ui.schema.catalog import A2uiCatalog, CatalogConfig  # noqa: E402
 
+from travel_a2ui.brain.catalog import PROTOCOL_VERSION, load_catalog  # noqa: E402
 from travel_a2ui.brain.express import (  # noqa: F401
     FenceGate,  # noqa: E402
+    as_wire,
     ExpressStream,
     Failed,
     Text,
@@ -46,18 +47,17 @@ SURFACE = 'surface("inline-1")\nhead = Text("Madrid", variant="h2")\nroot = Colu
 
 
 @pytest.fixture(scope="module")
-def catalog() -> A2uiCatalog:
-    config = CatalogConfig.from_path("travel", str(CATALOG))
-    return A2uiCatalog.from_config(config, version="0.9.1")
+def catalog():
+    return load_catalog(CATALOG)
 
 
 @pytest.fixture(scope="module")
-def parser(catalog: A2uiCatalog) -> ExpressParser:
-    return ExpressParser(catalog=catalog, surface_id="inline-1", version="v0.9.1")
+def parser(catalog) -> ExpressParser:
+    return ExpressParser(catalogs=[catalog], surface_id="inline-1", version=PROTOCOL_VERSION)
 
 
 @pytest.fixture(scope="module")
-def components(catalog: A2uiCatalog) -> frozenset[str]:
+def components(catalog) -> frozenset[str]:
     return frozenset(catalog.catalog_schema["components"])
 
 
@@ -170,7 +170,7 @@ class TestAgreementWithTheReference:
     """A streamed block compiles to what the SDK compiles in one go."""
 
     def test_streamed_and_whole_produce_the_same_messages(self, parser):
-        whole = parser.compile(SURFACE, is_final=True)
+        whole = as_wire(parser.compile(SURFACE, is_final=True))
 
         chunk = stream(parser)
         events = []
@@ -182,21 +182,27 @@ class TestAgreementWithTheReference:
 
 
 class TestTheGapTheSdkLeaves:
-    """An invented component name, which the SDK compiles to silence.
+    """An invented component name — which the SDK used to compile to silence.
 
-    Every other mistake the reference compiler catches and explains: a property
+    Every other mistake the reference compiler caught and explained: a property
     that is not on the component, a static property handed a binding, a syntax
-    error. An unknown *component* it drops — so a surface made of invented
-    components compiles to `components: []` and the traveller gets a blank box
-    with no error anywhere. That is the one check this server adds.
+    error. An unknown *component* it dropped, so a surface made of invented
+    components compiled to `components: []` and the traveller got a blank box
+    with no error anywhere. That was the one check this server added.
+
+    **Upstream closed the gap in agent-sdk 0.9**, which the test below now
+    records: the compiler raises rather than shrugging. The check here stays,
+    for two reasons that outlive the gap. It runs *before* the compiler, so it
+    answers mid-stream rather than at the end of a block; and it names the
+    nearest real component, where the SDK can only say the name was unknown.
+    What it is no longer is load-bearing — which is worth knowing the day
+    somebody wants to delete it.
     """
 
-    def test_the_sdk_really_does_compile_an_invented_component_to_nothing(self, parser):
-        # Asserted rather than asserted-about, because the moment upstream fixes
-        # this the extra check here should be deleted, and this test is what
-        # will say so.
-        messages = parser.compile("root = NoSuchComponent()", is_final=True)
-        assert messages[-1]["updateComponents"]["components"] == []
+    def test_the_sdk_now_refuses_an_invented_component(self, parser):
+        with pytest.raises(Exception) as refused:
+            parser.compile("root = NoSuchComponent()", is_final=True)
+        assert "NoSuchComponent" in str(refused.value)
 
     def test_reports_an_invented_component_instead(self, parser, components):
         events = stream(parser, components).feed([OPEN + "root = NoSuchComponent()" + CLOSE])
@@ -492,7 +498,7 @@ class TestATagWrittenNearlyRight:
         [
             "<a2ui>",
             '<a2ui surface="inline-1">',
-            "<a2ui surface='inline-1' version='v0.9.1'>",
+            "<a2ui surface='inline-1' version='v1.0'>",
             "<A2UI>",
         ],
     )

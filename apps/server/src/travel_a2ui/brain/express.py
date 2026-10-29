@@ -31,11 +31,14 @@ from typing import Any, Iterable, Literal
 
 warnings.filterwarnings("ignore")
 
-from a2ui.inference_formats.experimental.express.parser import (  # noqa: E402
+from a2ui.inference_formats.express.parser import (  # noqa: E402
     A2UI_INFERENCE_CLOSE_TAG,
     A2UI_INFERENCE_OPEN_TAG,
     ExpressParser,
 )
+
+from .macros import expand as expand_macros  # noqa: E402
+from .wire import components_of  # noqa: E402
 
 A2uiMessage = dict[str, Any]
 
@@ -130,6 +133,32 @@ def nearest_components(invented: Iterable[str], known: Iterable[str]) -> str:
     return " ".join(said)
 
 
+def as_wire(messages: Any) -> list[A2uiMessage]:
+    """Compiled messages as the plain dictionaries the rest of this app passes around.
+
+    The SDK changed what `compile` hands back: through agent-sdk 0.7 it was
+    already-plain dicts, and from 0.9 it is a list of typed pydantic models.
+    Everything downstream of here — the surface passes, the SSE encoder, the
+    goldens, the tests — reads messages with `.get("createSurface")`, and a
+    model answers that with an AttributeError at the one moment a traveller is
+    waiting for a surface.
+
+    `by_alias` matters and is easy to miss: 1.0 renamed the data-binding key to
+    `@path`, which is not a legal Python attribute name, so the models carry it
+    under an alias. Dumping without it produces `path` — a 0.9 payload wearing
+    a 1.0 version number, which every renderer then ignores.
+    """
+    out: list[A2uiMessage] = []
+    for message in messages:
+        if isinstance(message, dict):
+            out.append(message)
+        elif hasattr(message, "model_dump"):
+            out.append(message.model_dump(exclude_none=True, by_alias=True))
+        else:  # pragma: no cover - no SDK has returned anything else
+            raise TypeError(f"not an A2UI message: {type(message).__name__}")
+    return out
+
+
 def required_properties(catalog_schema: dict[str, Any]) -> dict[str, tuple[str, ...]]:
     """Per component, the properties the catalog will not validate without.
 
@@ -137,19 +166,47 @@ def required_properties(catalog_schema: dict[str, Any]) -> dict[str, tuple[str, 
     beside `nearest_components` because it exists for the same reason: to answer
     a compile failure in the words the model needs to fix it.
     """
+    #: Not properties anyone passes: `component` is the discriminator and `id`
+    #: is the name the block gave it, both supplied by the compiler.
+    supplied = ("component", "id")
+
     out: dict[str, tuple[str, ...]] = {}
     for name, component in (catalog_schema.get("components") or {}).items():
         needed: list[str] = []
-        for sub in component.get("allOf", []):
-            if not isinstance(sub, dict):
-                continue
-            for prop in sub.get("required") or ():
-                # `component` is the discriminator, not something anyone passes.
-                if prop != "component" and prop not in needed:
+        # Two shapes, because the SDK changed which one a loaded catalog has.
+        # Through agent-sdk 0.7 a component was an `allOf` of its own schema
+        # and the shared ones, and `required` sat inside the first branch. 0.9
+        # flattens that before handing it over, so `required` is on the
+        # component itself. Reading only the old shape found nothing at all —
+        # and "nothing" is indistinguishable here from "this component
+        # requires nothing", so every missing-property complaint quietly became
+        # the compiler's own, without the order to pass them in.
+        branches = [component, *(b for b in component.get("allOf", []) if isinstance(b, dict))]
+        for branch in branches:
+            for prop in branch.get("required") or ():
+                if prop not in supplied and prop not in needed:
                     needed.append(prop)
         if needed:
             out[name] = tuple(needed)
     return out
+
+
+
+def _with_the_order(refused: Exception, required: dict[str, tuple[str, ...]]) -> Exception:
+    """The compiler's complaint, plus the order the properties go in.
+
+    "missing required property 'value'" is true and not actionable in a
+    positional DSL: the model has to know that `DateTimeInput` takes its label
+    first. The component is named in the compiler's own message, so this finds
+    it there rather than re-deriving it from the source.
+    """
+    said = str(refused)
+    for name, properties in required.items():
+        if f"'{name}'" in said or f'"{name}"' in said:
+            return MissingProperty(
+                f"{said} `{name}` takes {', '.join(properties)}, in that order."
+            )
+    return refused
 
 
 def missing_properties(
@@ -172,7 +229,7 @@ def missing_properties(
     """
     said: list[str] = []
     for message in messages:
-        for component in (message.get("updateComponents") or {}).get("components", []):
+        for component in components_of(message):
             name = component.get("component")
             absent = [p for p in required.get(name, ()) if p not in component]
             if absent:
@@ -337,6 +394,8 @@ class ExpressStream:
     hops: tuple[str, ...] = ()
     #: Per component, what the catalog requires — for explaining a validator no.
     required: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    #: The trip this turn's macros expand against. See `brain/macros.py`.
+    trip: dict[str, Any] = field(default_factory=dict)
     _buffer: str = ""
     _inside: bool = False
     _block_source: str = ""
@@ -438,7 +497,23 @@ class ExpressStream:
                         + f"The catalog has {len(self.components)} components; "
                         "use one of them or compose from Row, Column and Text."
                     )
-            messages = self.parser.compile(source, is_final=done)
+            try:
+                compiled = self.parser.compile(source, is_final=done)
+            except Exception as refused:
+                # The compiler checks required properties itself since
+                # agent-sdk 0.9, which it did not before — so this failure now
+                # happens *here* rather than in the validator below, and the
+                # explanation this class adds had quietly stopped being
+                # reached. What it adds is the order: the compiler says which
+                # property is missing, and the model's next attempt needs to
+                # know where it goes, because Express is positional.
+                raise _with_the_order(refused, self.required) from refused
+
+            # A macro is a component the catalog advertises and no renderer
+            # ever sees. Expanded here, before the checks below and before
+            # anything else reads this tree, so every pass sees the real
+            # components and none of them has to know macros exist.
+            messages = as_wire(expand_macros(compiled, self.trip))
             # Only on a finished block. A tree still being written legitimately
             # refers to components a few tokens away from existing, and calling
             # that an error would reject every surface mid-stream.
@@ -533,29 +608,102 @@ _SURFACE_SHAPED = re.compile(
 _MARKUP_OPENS = re.compile(r"<\s*[A-Z]")
 
 
+class _PerComponentValidator:
+    """A whole-payload check composed out of a per-component one.
+
+    Every caller here asks one question — "is this list of messages a surface a
+    renderer will accept?" — and the SDK has answered it in three different
+    shapes across three releases:
+
+      agent-sdk ≤0.6   `catalog.validator.validate(messages)`
+      agent-sdk 0.7    `catalog.validate(messages)`
+      agent-sdk 0.9    neither: `PayloadValidator.validate_component(one)`
+
+    The third is not a rename, it is a narrowing — the whole-payload entry
+    point is gone, and what is left checks one component at a time. So this
+    walks the messages and puts every component through it, which is the same
+    question asked the way the SDK now answers it.
+
+    Worth keeping as an adapter rather than inlining at the call sites: the
+    move from 0.6 to 0.7 reached users as "'PayloadValidator' object has no
+    attribute 'validate'" and an app that drew nothing at all, because the call
+    sites each had their own spelling of it.
+    """
+
+    def __init__(self, validator: Any, catalog: Any) -> None:
+        self._validator = validator
+        self._catalog = catalog
+
+    def validate(self, messages: Iterable[A2uiMessage]) -> None:
+        for message in messages:
+            nodes = [node for node in components_of(message) if isinstance(node, dict)]
+            if not nodes:
+                continue
+            for node in nodes:
+                self._validator.validate_component(node)
+            self._whole(nodes)
+
+    def _whole(self, nodes: list[dict[str, Any]]) -> None:
+        """The checks that are about the surface rather than one component.
+
+        A child that was never defined is the one that matters, because it is
+        the one that does not look like an error: `Column([title, missing])`
+        validates component by component and renders as a box with a hole in
+        it. The old whole-payload validator caught it; the per-component API
+        cannot see it, by construction.
+
+        Skipped rather than failed when a surface updates components without
+        carrying its root — an `updateComponents` that replaces one card in a
+        list is not a surface missing its root, and refusing it would be worse
+        than the hole.
+        """
+        from a2ui.core.state.component_model import ComponentModel
+        from a2ui.core.validation import ValidationConfig, validate_component_integrity
+
+        built: dict[str, Any] = {}
+        for node in nodes:
+            component_id = node.get("id")
+            component_type = node.get("component")
+            if not isinstance(component_id, str) or not isinstance(component_type, str):
+                continue
+            properties = {k: v for k, v in node.items() if k not in ("id", "component")}
+            built[component_id] = ComponentModel(
+                component_id=component_id,
+                component_type=component_type,
+                catalog=self._catalog,
+                properties=properties,
+            )
+        if not built:
+            return
+        validate_component_integrity(
+            built, config=ValidationConfig(allow_missing_root="root" not in built)
+        )
+
+
 def whole_payload_validator(catalog: Any) -> Any:
     """Whatever, in this SDK version, checks a whole list of messages.
-
-    Through agent-sdk 0.6 it was `catalog.validator`, an `A2uiValidator` with a
-    `validate(messages)`. In 0.7 `catalog.validator` became a bare
-    `PayloadValidator` — per component, per function — and `validate(messages)`
-    moved up onto the catalog. Both spellings are alive in the wild, and the
-    difference is invisible until a surface is being compiled for a traveller:
-    the whole app answered "'PayloadValidator' object has no attribute
-    'validate'" and drew nothing at all.
 
     Resolved by the method rather than the attribute, in one place, so that
     every caller — the doors, the surface builders and the tests — asks the
     same question and a future move breaks all of them at once rather than
-    production alone.
+    production alone. See `_PerComponentValidator` for the three shapes this
+    has had.
     """
     if callable(getattr(catalog, "validate", None)):
         return catalog
     validator = getattr(catalog, "validator", None)
     if callable(getattr(validator, "validate", None)):
         return validator
+
+    try:  # agent-sdk 0.9: per component, and nothing above it
+        from a2ui.core.validation import PayloadValidator
+    except ImportError:  # pragma: no cover - older SDKs never get here
+        PayloadValidator = None  # type: ignore[assignment]
+    if PayloadValidator is not None:
+        return _PerComponentValidator(PayloadValidator(catalog), catalog)
+
     raise RuntimeError(
-        "This a2ui-agent-sdk exposes no whole-payload validate(); surfaces "
+        "This a2ui-agent-sdk exposes no way to validate a surface; surfaces "
         "would reach the traveller unchecked. See tests/test_upstream_contract.py."
     )
 

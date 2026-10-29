@@ -31,6 +31,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .interactions import (
     CATALOG_ID,
+    PROTOCOL_VERSION,
     CATALOG_JSON,
     DEFAULT_EFFORT as AGENT_DEFAULT_EFFORT,
     DEFAULT_MODEL as AGENT_DEFAULT_MODEL,
@@ -154,7 +155,7 @@ async def meta() -> JSONResponse:
         {
             "name": os.environ.get("PUBLIC_NAME", "Travel A2UI"),
             "catalogId": CATALOG_ID,
-            "protocolVersion": "v0.9.1",
+            "protocolVersion": PROTOCOL_VERSION,
             "defaultModel": os.environ.get("DEFAULT_MODEL", AGENT_DEFAULT_MODEL),
             "defaultSkill": os.environ.get("DEFAULT_SKILL", "express-modular"),
             "models": MODELS,

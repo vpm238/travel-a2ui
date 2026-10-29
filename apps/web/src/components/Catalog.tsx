@@ -41,11 +41,11 @@ function Preview({
     const express = exampleExpress(catalog, name);
     if (!express) return { store: null, source: '', error: 'No example for this component.' };
     try {
-      const compiler = new ExpressCompiler(catalog, 'v0.9.1');
+      const compiler = new ExpressCompiler(catalog, CATALOG_VERSION);
       const messages = compiler.compile(express, {
         surfaceId: `preview-${name}`,
         catalogId: String(catalog.catalogId),
-        version: 'v0.9.1',
+        version: CATALOG_VERSION,
       });
       const next = new SurfaceStore();
       next.apply(messages);
@@ -96,7 +96,7 @@ interface Signature {
   props: Array<{ name: string; required: boolean; static: boolean; enum?: string[]; description?: string }>;
 }
 
-/** Names in the upstream A2UI v0.9.1 basic catalog, used to tell the two apart. */
+/** Names in the upstream A2UI basic catalog, used to tell the two apart. */
 const BASIC = new Set([
   'Text', 'Image', 'Icon', 'Video', 'AudioPlayer', 'Row', 'Column', 'List', 'Card',
   'Tabs', 'Modal', 'Divider', 'Button', 'TextField', 'CheckBox', 'ChoicePicker',
@@ -156,6 +156,10 @@ function signaturesOf(catalog: CatalogSchema): { components: Signature[]; functi
 
   return { components, functions };
 }
+
+//: The protocol these previews are compiled at. The catalog page draws the
+//: same components the agent draws, so it compiles them the same way.
+const CATALOG_VERSION = 'v1.0' as const;
 
 export function Catalog() {
   const [catalog, setCatalog] = useState<CatalogSchema | null>(null);

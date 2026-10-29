@@ -35,6 +35,8 @@ from typing import Any
 
 from . import trip as model
 from .catalog import COMPONENT_NAMES, VALIDATOR, parser_for
+from .express import as_wire
+from .macros import expand as expand_macros
 from .providers.types import NotFound, TravelProvider
 
 
@@ -213,7 +215,9 @@ def compile_surface(surface: Surface) -> list[dict[str, Any]]:
     compiles without complaint and renders as a box with a hole in it. The
     streaming path runs the same check on every finished block.
     """
-    messages = parser_for(surface.surface_id).compile(surface.express, is_final=True)
+    messages = as_wire(
+        expand_macros(parser_for(surface.surface_id).compile(surface.express, is_final=True))
+    )
     VALIDATOR.validate(messages)
     return messages
 

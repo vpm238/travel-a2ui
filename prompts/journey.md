@@ -120,8 +120,14 @@ Hops are tickets; nights are stays. Count the nights on each hop — its
   itinerary is half a plan, and the traveler has to ask for the other half.
   Search the stays for that hop's nights and that hop's party, and plan the days
   it covers — `get_destination` first, so the days name real places.
-- **Record the days in the same call that draws them** — `save_trip({days:
-  [...]})`, the plan itself and not just `planned: true`. A day plan that lives
+- **Record the days, then draw them with `Itinerary()`** — `save_trip({days:
+  [...]})` carries the plan itself, not just `planned: true`, and `Itinerary()`
+  draws what you just recorded. Write the plan once. Writing every
+  `ItineraryDay` and `ActivityItem` out again as components is the same data in
+  a second notation and about seven hundred tokens the traveler waits through.
+  `Itinerary("Four days in Berlin")` puts a heading of your own above it. The
+  components are still there for a day plan that wants something this does
+  not do. A day plan that lives
   only on the card it was drawn on cannot be shared, cannot be edited, and is
   gone next turn: the shared page prints the days off the trip, dropping an
   activity edits the trip, and a hop whose days are not recorded goes on asking

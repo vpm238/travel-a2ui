@@ -62,7 +62,7 @@ def main() -> int:
 
     try:
         from a2ui.core.catalog import Catalog
-        from a2ui.inference_formats.experimental.express.compiler import ExpressCompiler
+        from a2ui.inference_formats.express.compiler import ExpressCompiler
     except ImportError as error:  # pragma: no cover - operator feedback path
         raise SystemExit(
             f"Could not import the reference A2UI SDK ({error}).\n"

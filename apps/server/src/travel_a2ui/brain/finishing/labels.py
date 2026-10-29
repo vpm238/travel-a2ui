@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ..bindings import is_binding, path_of
 from .shared import A2uiMessage, _components_in
 
 # --------------------------------------------------------------------------
@@ -21,7 +22,7 @@ _COUNT_OF_NIGHTS = re.compile(r"^\d+\s*nights?$", re.IGNORECASE)
 
 
 def _is_path_binding(value: Any) -> bool:
-    return isinstance(value, dict) and isinstance(value.get("path"), str)
+    return is_binding(value)
 
 
 def _is_count_of_nights(value: Any) -> bool:
@@ -73,8 +74,8 @@ def bind_derived_labels(messages: list[A2uiMessage]) -> list[A2uiMessage]:
                 "call": "formatString",
                 "args": {
                     "value": (
-                        "${calcNights(start:${" + start["path"] + "}, "
-                        "end:${" + end["path"] + "})} nights"
+                        "${calcNights(start:${" + (path_of(start) or "") + "}, "
+                        "end:${" + (path_of(end) or "") + "})} nights"
                     )
                 },
             }

@@ -20,7 +20,7 @@ SURFACE = "inline-1"
 def block(components: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
-            "version": "v0.9.1",
+            "version": "v1.0",
             "updateComponents": {"surfaceId": SURFACE, "components": components},
         }
     ]
@@ -32,8 +32,8 @@ ROUTE = block(
             "id": "when",
             "component": "DateRangePicker",
             "label": "Dates",
-            "start": {"path": "/trip/startDate"},
-            "end": {"path": "/trip/endDate"},
+            "start": {"@path": "/trip/startDate"},
+            "end": {"@path": "/trip/endDate"},
         },
         {"id": "root", "component": "Column", "children": ["when"]},
     ]
@@ -45,7 +45,7 @@ PARTY = block(
             "id": "who",
             "component": "TravelerCounter",
             "label": "Travellers",
-            "value": {"path": "/trip/travelers"},
+            "value": {"@path": "/trip/travelers"},
         },
         {"id": "label", "component": "Text", "text": "Search flights"},
         {
@@ -136,9 +136,9 @@ class TestOnePressSendsBoth:
         )
         context = button["action"]["event"]["context"]
         bound = {
-            value["path"]
+            value["@path"]
             for value in context.values()
-            if isinstance(value, dict) and "path" in value
+            if isinstance(value, dict) and "@path" in value
         }
         assert "/trip/travelers" in bound, "its own block"
         assert "/trip/startDate" in bound, "and the block before it"

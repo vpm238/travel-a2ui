@@ -25,8 +25,7 @@ import pytest
 
 warnings.filterwarnings("ignore")
 
-from a2ui.inference_formats.experimental.express.parser import ExpressParser  # noqa: E402
-from a2ui.schema.catalog import A2uiCatalog, CatalogConfig  # noqa: E402
+from a2ui.inference_formats.express.parser import ExpressParser  # noqa: E402
 
 from travel_a2ui.brain.skeleton import PENDING_ROWS, pending_surface_for  # noqa: E402
 
@@ -52,9 +51,11 @@ CATALOG_ID = "catalogId"
 
 @pytest.fixture(scope="module")
 def parser() -> ExpressParser:
-    config = CatalogConfig.from_path("travel", str(CATALOG_PATH))
-    catalog = A2uiCatalog.from_config(config, version="0.9.1")
-    return ExpressParser(catalog=catalog, surface_id="inline-1", version="v0.9.1")
+    from travel_a2ui.brain.catalog import PROTOCOL_VERSION, load_catalog
+
+    return ExpressParser(
+        catalogs=[load_catalog(CATALOG_PATH)], surface_id="inline-1", version=PROTOCOL_VERSION
+    )
 
 
 @pytest.mark.parametrize("tool", list(GOLDEN))
@@ -102,24 +103,31 @@ def test_both_implementations_name_the_catalog_the_same_way(
 class TestTheOpening:
     """What has to be true for the surface to paint empty rather than wrong."""
 
-    def test_the_data_model_is_seeded_before_the_layout_paints(
+    def test_the_layout_and_the_rows_it_reads_arrive_together(
         self, parser: ExpressParser
     ) -> None:
-        # The ordering is the whole thing. Components referencing `/flights`
-        # sent before `/flights` exists is a template with nothing to repeat
-        # over, which renders as an empty list — the exact appearance of a
-        # search that found nothing.
+        """At 1.0 the ordering problem stops being an ordering problem.
+
+        Components referencing `/flights` sent *before* `/flights` exists is a
+        template with nothing to repeat over, which renders as an empty list —
+        the exact appearance of a search that found nothing. At 0.9 that was
+        avoided by ordering three messages carefully: create, then the blank
+        rows, then the components. At 1.0 `createSurface` carries both, so
+        there is no window to get wrong and no second message to lose.
+        """
         pending = pending_surface_for("search_flights", "inline-1", parser)
         assert pending is not None
         kinds = [next(k for k in message if k != "version") for message in pending.opening]
-        assert kinds == ["createSurface", "updateDataModel", "updateComponents"]
+        assert kinds == ["createSurface"]
+
+        create = pending.opening[0]["createSurface"]
+        assert create["components"], "the layout"
+        assert create["dataModel"]["flights"], "and the rows it reads"
 
     def test_it_lays_out_as_many_rows_as_are_coming(self, parser: ExpressParser) -> None:
         pending = pending_surface_for("search_flights", "inline-1", parser)
         assert pending is not None
-        seed = pending.opening[1]["updateDataModel"]
-        assert seed["path"] == "/flights"
-        assert seed["value"] == [{}] * PENDING_ROWS
+        assert pending.opening[0]["createSurface"]["dataModel"]["flights"] == [{}] * PENDING_ROWS
 
     def test_the_blank_rows_hold_nothing_at_all(self, parser: ExpressParser) -> None:
         """Empty objects, not rows of empty strings.
@@ -132,7 +140,8 @@ class TestTheOpening:
         """
         pending = pending_surface_for("search_flights", "inline-1", parser)
         assert pending is not None
-        assert all(row == {} for row in pending.opening[1]["updateDataModel"]["value"])
+        rows = pending.opening[0]["createSurface"]["dataModel"]["flights"]
+        assert all(row == {} for row in rows)
 
 
 class TestFilling:

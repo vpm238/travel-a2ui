@@ -23,14 +23,14 @@ TURN = "inline-7"
 
 def components(surface_id: str, *nodes: dict[str, Any]) -> dict[str, Any]:
     return {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {"surfaceId": surface_id, "components": list(nodes)},
     }
 
 
 def created(surface_id: str) -> dict[str, Any]:
     return {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {"surfaceId": surface_id, "catalogId": "catalog.json"},
     }
 
@@ -49,7 +49,7 @@ def test_a_block_that_names_another_surface_lands_on_this_turns_card() -> None:
     block = [
         created("inline-flights"),
         {
-            "version": "v0.9.1",
+            "version": "v1.0",
             "updateDataModel": {
                 "surfaceId": "inline-flights",
                 "path": "/trip/selectedOutbound",

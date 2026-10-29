@@ -73,8 +73,8 @@ def _surface(surface_id: str, components: list, data_model: dict | None = None) 
     if data_model:
         created["dataModel"] = data_model
     return [
-        {"version": "v0.9.1", "createSurface": created},
-        {"version": "v0.9.1", "updateComponents": {"surfaceId": surface_id, "components": components}},
+        {"version": "v1.0", "createSurface": created},
+        {"version": "v1.0", "updateComponents": {"surfaceId": surface_id, "components": components}},
     ]
 
 
@@ -83,15 +83,15 @@ SURFACES = {
     "editors with a button that binds nothing": lambda: _surface(
         "inline-1",
         [
-            {"id": "from", "component": "TextField", "label": "From", "text": {"path": "/trip/origin"}},
+            {"id": "from", "component": "TextField", "label": "From", "text": {"@path": "/trip/origin"}},
             {
                 "id": "when",
                 "component": "DateRangePicker",
                 "label": "Dates",
-                "start": {"path": "/trip/startDate"},
-                "end": {"path": "/trip/endDate"},
+                "start": {"@path": "/trip/startDate"},
+                "end": {"@path": "/trip/endDate"},
             },
-            {"id": "who", "component": "TravelerCounter", "label": "Travelers", "value": {"path": "/trip/travelers"}},
+            {"id": "who", "component": "TravelerCounter", "label": "Travelers", "value": {"@path": "/trip/travelers"}},
             {"id": "go", "component": "Button", "label": "Search", "action": {"event": {"name": "search_flights", "context": {}}}},
             {"id": "root", "component": "Column", "children": ["from", "when", "who", "go"]},
         ],
@@ -99,13 +99,13 @@ SURFACES = {
     "a button that already bound one thing itself": lambda: _surface(
         "inline-1",
         [
-            {"id": "from", "component": "TextField", "label": "From", "text": {"path": "/trip/origin"}},
-            {"id": "who", "component": "TravelerCounter", "label": "Travelers", "value": {"path": "/trip/travelers"}},
+            {"id": "from", "component": "TextField", "label": "From", "text": {"@path": "/trip/origin"}},
+            {"id": "who", "component": "TravelerCounter", "label": "Travelers", "value": {"@path": "/trip/travelers"}},
             {
                 "id": "go",
                 "component": "Button",
                 "label": "Search",
-                "action": {"event": {"name": "search_flights", "context": {"departingFrom": {"path": "/trip/origin"}}}},
+                "action": {"event": {"name": "search_flights", "context": {"departingFrom": {"@path": "/trip/origin"}}}},
             },
             {"id": "root", "component": "Column", "children": ["from", "who", "go"]},
         ],
@@ -113,8 +113,8 @@ SURFACES = {
     "editors and no button at all, which is a dead end": lambda: _surface(
         "inline-1",
         [
-            {"id": "from", "component": "TextField", "label": "From", "text": {"path": "/trip/origin"}},
-            {"id": "who", "component": "TravelerCounter", "label": "Travelers", "value": {"path": "/trip/travelers"}},
+            {"id": "from", "component": "TextField", "label": "From", "text": {"@path": "/trip/origin"}},
+            {"id": "who", "component": "TravelerCounter", "label": "Travelers", "value": {"@path": "/trip/travelers"}},
             {"id": "root", "component": "Column", "children": ["from", "who"]},
         ],
     ),
@@ -125,8 +125,8 @@ SURFACES = {
                 "id": "when",
                 "component": "DateRangePicker",
                 "label": "Dates",
-                "start": {"path": "/trip/startDate"},
-                "end": {"path": "/trip/endDate"},
+                "start": {"@path": "/trip/startDate"},
+                "end": {"@path": "/trip/endDate"},
             },
             {"id": "a", "component": "Button", "label": "Search flights", "action": {"event": {"name": "search_flights", "context": {}}}},
             {"id": "b", "component": "Button", "label": "Search hotels", "action": {"event": {"name": "search_hotels", "context": {}}}},
@@ -136,8 +136,8 @@ SURFACES = {
     "colliding key names from two different paths": lambda: _surface(
         "inline-1",
         [
-            {"id": "a", "component": "TextField", "label": "From", "text": {"path": "/trip/origin"}},
-            {"id": "b", "component": "TextField", "label": "Leg from", "text": {"path": "/leg/origin"}},
+            {"id": "a", "component": "TextField", "label": "From", "text": {"@path": "/trip/origin"}},
+            {"id": "b", "component": "TextField", "label": "Leg from", "text": {"@path": "/leg/origin"}},
             {"id": "go", "component": "Button", "label": "Go", "action": {"event": {"name": "go", "context": {}}}},
             {"id": "root", "component": "Column", "children": ["a", "b", "go"]},
         ],
@@ -149,8 +149,8 @@ SURFACES = {
                 "id": "when",
                 "component": "DateRangePicker",
                 "label": "Dates",
-                "start": {"path": "/trip/startDate"},
-                "end": {"path": "/trip/endDate"},
+                "start": {"@path": "/trip/startDate"},
+                "end": {"@path": "/trip/endDate"},
                 "nightsLabel": "7 nights",
             },
             {"id": "root", "component": "Column", "children": ["when"]},
@@ -163,8 +163,8 @@ SURFACES = {
                 "id": "when",
                 "component": "DateRangePicker",
                 "label": "Dates",
-                "start": {"path": "/trip/startDate"},
-                "end": {"path": "/trip/endDate"},
+                "start": {"@path": "/trip/startDate"},
+                "end": {"@path": "/trip/endDate"},
                 "nightsLabel": {
                     "call": "formatString",
                     "args": {
@@ -223,8 +223,8 @@ SURFACES = {
                 "id": "when",
                 "component": "DateRangePicker",
                 "label": "Dates",
-                "start": {"path": "/trip/startDate"},
-                "end": {"path": "/trip/endDate"},
+                "start": {"@path": "/trip/startDate"},
+                "end": {"@path": "/trip/endDate"},
             },
             {"id": "root", "component": "Column", "children": ["when"]},
         ],
@@ -233,9 +233,9 @@ SURFACES = {
     "a template row, whose path is a collection and not an answer": lambda: _surface(
         "inline-1",
         [
-            {"id": "row", "component": "Text", "text": {"path": "name"}},
+            {"id": "row", "component": "Text", "text": {"@path": "name"}},
             {"id": "list", "component": "List", "children": {"path": "/hotels", "componentId": "row"}},
-            {"id": "pick", "component": "TextField", "label": "Note", "text": {"path": "/trip/neighborhood"}},
+            {"id": "pick", "component": "TextField", "label": "Note", "text": {"@path": "/trip/neighborhood"}},
             {"id": "go", "component": "Button", "label": "Go", "action": {"event": {"name": "go", "context": {}}}},
             {"id": "root", "component": "Column", "children": ["list", "pick", "go"]},
         ],
@@ -283,7 +283,7 @@ class TestWhatThePassesAreFor:
         commit = next(node for node in components if node["id"] == "__commit")
         # And it carries the answer, or it is a button that sends nothing.
         context = commit["action"]["event"]["context"]
-        assert {binding["path"] for binding in context.values()} == {
+        assert {binding["@path"] for binding in context.values()} == {
             "/trip/origin",
             "/trip/travelers",
         }
@@ -297,9 +297,9 @@ class TestWhatThePassesAreFor:
         # `departingFrom` survives: the model names things better than an
         # algorithm splitting on slashes, and a context that changes shape
         # between turns is worse than an ugly key.
-        assert context["departingFrom"] == {"path": "/trip/origin"}
+        assert context["departingFrom"] == {"@path": "/trip/origin"}
         assert not any(
-            key != "departingFrom" and value == {"path": "/trip/origin"}
+            key != "departingFrom" and value == {"@path": "/trip/origin"}
             for key, value in context.items()
         ), "the same path must not be bound twice under two names"
 
@@ -308,7 +308,7 @@ class TestWhatThePassesAreFor:
         result = GOLDEN["surfaces"]["a template row, whose path is a collection and not an answer"]
         components = result[1]["updateComponents"]["components"]
         context = next(n for n in components if n["id"] == "go")["action"]["event"]["context"]
-        paths = {binding["path"] for binding in context.values()}
+        paths = {binding["@path"] for binding in context.values()}
         assert "/hotels" not in paths
         assert "/trip/neighborhood" in paths
 
@@ -416,7 +416,7 @@ def test_the_passes_do_not_share_state_between_surfaces() -> None:
     panel = _surface(
         "sidebar",
         [
-            {"id": "note", "component": "TextField", "label": "Note", "text": {"path": "/panel/note"}},
+            {"id": "note", "component": "TextField", "label": "Note", "text": {"@path": "/panel/note"}},
             {"id": "go", "component": "Button", "label": "Go", "action": {"event": {"name": "go", "context": {}}}},
             {"id": "root", "component": "Column", "children": ["note", "go"]},
         ],
@@ -430,5 +430,5 @@ def test_the_passes_do_not_share_state_between_surfaces() -> None:
         for node in message["updateComponents"]["components"]
         if node["id"] == "go"
     )
-    paths = {b["path"] for b in inline_button["action"]["event"]["context"].values()}
+    paths = {b["@path"] for b in inline_button["action"]["event"]["context"].values()}
     assert "/panel/note" not in paths

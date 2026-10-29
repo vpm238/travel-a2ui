@@ -56,7 +56,7 @@
         {
           "id": "save",
           "component": "Button",
-          "child": "_inline_1",
+          "child": "save_child",
           "variant": "primary",
           "action": {
             "event": {
@@ -76,6 +76,11 @@
           }
         },
         {
+          "id": "save_child",
+          "component": "Text",
+          "text": "Save traveller"
+        },
+        {
           "id": "root",
           "component": "Column",
           "children": [
@@ -86,11 +91,6 @@
             "save"
           ],
           "align": "stretch"
-        },
-        {
-          "id": "_inline_1",
-          "component": "Text",
-          "text": "Save traveller"
         }
       ]
     }

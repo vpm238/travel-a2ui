@@ -47,17 +47,21 @@ def test_a_real_compiled_surface_passes_and_a_broken_one_raises() -> None:
     here — which is the only version of this test that could have caught the
     outage.
     """
+    from travel_a2ui.brain.express import as_wire
     from travel_a2ui.doors.interactions import _parser
 
-    good = _parser("inline-1").compile(
+    # Through `as_wire`, because that is what production hands the validator:
+    # agent-sdk 0.9 returns typed models from `compile`, and the whole point of
+    # this test is that the payload shape is the real one.
+    good = as_wire(_parser("inline-1").compile(
         'title = Text("Madrid")\nroot = Column([title])', is_final=True
-    )
+    ))
     _VALIDATOR.validate(good)
 
     # A child that was never defined: compiles, and renders as a box with a
     # hole in it. Catching that is what the validator is for.
-    broken = _parser("inline-1").compile(
+    broken = as_wire(_parser("inline-1").compile(
         'title = Text("Madrid")\nroot = Column([title, missing])', is_final=True
-    )
+    ))
     with pytest.raises(Exception):
         _VALIDATOR.validate(broken)

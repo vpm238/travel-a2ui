@@ -217,7 +217,7 @@
   "tripUpdates": {
     "empty": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/plan",
@@ -233,7 +233,7 @@
     ],
     "started": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/destination",
@@ -241,7 +241,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/plan",
@@ -278,7 +278,7 @@
     ],
     "ready": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/destination",
@@ -286,7 +286,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/origin",
@@ -294,7 +294,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/startDate",
@@ -302,7 +302,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/endDate",
@@ -310,7 +310,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/travelers",
@@ -318,7 +318,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/plan",
@@ -380,7 +380,7 @@
     ],
     "skipping": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/destination",
@@ -388,7 +388,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/origin",
@@ -396,7 +396,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/skip",
@@ -407,7 +407,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/plan",
@@ -450,7 +450,7 @@
     ],
     "multiCity": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/destination",
@@ -458,7 +458,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/origin",
@@ -466,7 +466,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/startDate",
@@ -474,7 +474,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/endDate",
@@ -482,7 +482,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/travelers",
@@ -490,7 +490,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/trip/legs",
@@ -511,7 +511,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateDataModel": {
           "surfaceId": "sidebar",
           "path": "/plan",
@@ -613,7 +613,7 @@
   "surfaces": {
     "editors with a button that binds nothing": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -682,7 +682,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -691,7 +691,7 @@
               "component": "TextField",
               "label": "From",
               "text": {
-                "path": "/trip/origin"
+                "@path": "/trip/origin"
               }
             },
             {
@@ -699,10 +699,10 @@
               "component": "DateRangePicker",
               "label": "Dates",
               "start": {
-                "path": "/trip/startDate"
+                "@path": "/trip/startDate"
               },
               "end": {
-                "path": "/trip/endDate"
+                "@path": "/trip/endDate"
               },
               "nightsLabel": {
                 "call": "formatString",
@@ -716,7 +716,7 @@
               "component": "TravelerCounter",
               "label": "Travelers",
               "value": {
-                "path": "/trip/travelers"
+                "@path": "/trip/travelers"
               }
             },
             {
@@ -728,16 +728,16 @@
                   "name": "search_flights",
                   "context": {
                     "origin": {
-                      "path": "/trip/origin"
+                      "@path": "/trip/origin"
                     },
                     "startDate": {
-                      "path": "/trip/startDate"
+                      "@path": "/trip/startDate"
                     },
                     "endDate": {
-                      "path": "/trip/endDate"
+                      "@path": "/trip/endDate"
                     },
                     "travelers": {
-                      "path": "/trip/travelers"
+                      "@path": "/trip/travelers"
                     }
                   }
                 }
@@ -759,7 +759,7 @@
     ],
     "a button that already bound one thing itself": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -828,7 +828,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -837,7 +837,7 @@
               "component": "TextField",
               "label": "From",
               "text": {
-                "path": "/trip/origin"
+                "@path": "/trip/origin"
               }
             },
             {
@@ -845,7 +845,7 @@
               "component": "TravelerCounter",
               "label": "Travelers",
               "value": {
-                "path": "/trip/travelers"
+                "@path": "/trip/travelers"
               }
             },
             {
@@ -857,10 +857,10 @@
                   "name": "search_flights",
                   "context": {
                     "departingFrom": {
-                      "path": "/trip/origin"
+                      "@path": "/trip/origin"
                     },
                     "travelers": {
-                      "path": "/trip/travelers"
+                      "@path": "/trip/travelers"
                     }
                   }
                 }
@@ -881,7 +881,7 @@
     ],
     "editors and no button at all, which is a dead end": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -950,7 +950,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -959,7 +959,7 @@
               "component": "TextField",
               "label": "From",
               "text": {
-                "path": "/trip/origin"
+                "@path": "/trip/origin"
               }
             },
             {
@@ -967,7 +967,7 @@
               "component": "TravelerCounter",
               "label": "Travelers",
               "value": {
-                "path": "/trip/travelers"
+                "@path": "/trip/travelers"
               }
             },
             {
@@ -988,10 +988,10 @@
                   "name": "commit_surface",
                   "context": {
                     "origin": {
-                      "path": "/trip/origin"
+                      "@path": "/trip/origin"
                     },
                     "travelers": {
-                      "path": "/trip/travelers"
+                      "@path": "/trip/travelers"
                     }
                   }
                 }
@@ -1003,7 +1003,7 @@
     ],
     "two buttons, both of which must carry the answer": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -1072,7 +1072,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -1081,10 +1081,10 @@
               "component": "DateRangePicker",
               "label": "Dates",
               "start": {
-                "path": "/trip/startDate"
+                "@path": "/trip/startDate"
               },
               "end": {
-                "path": "/trip/endDate"
+                "@path": "/trip/endDate"
               },
               "nightsLabel": {
                 "call": "formatString",
@@ -1102,10 +1102,10 @@
                   "name": "search_flights",
                   "context": {
                     "startDate": {
-                      "path": "/trip/startDate"
+                      "@path": "/trip/startDate"
                     },
                     "endDate": {
-                      "path": "/trip/endDate"
+                      "@path": "/trip/endDate"
                     }
                   }
                 }
@@ -1120,10 +1120,10 @@
                   "name": "search_hotels",
                   "context": {
                     "startDate": {
-                      "path": "/trip/startDate"
+                      "@path": "/trip/startDate"
                     },
                     "endDate": {
-                      "path": "/trip/endDate"
+                      "@path": "/trip/endDate"
                     }
                   }
                 }
@@ -1144,7 +1144,7 @@
     ],
     "colliding key names from two different paths": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -1213,7 +1213,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -1222,7 +1222,7 @@
               "component": "TextField",
               "label": "From",
               "text": {
-                "path": "/trip/origin"
+                "@path": "/trip/origin"
               }
             },
             {
@@ -1230,7 +1230,7 @@
               "component": "TextField",
               "label": "Leg from",
               "text": {
-                "path": "/leg/origin"
+                "@path": "/leg/origin"
               }
             },
             {
@@ -1242,10 +1242,10 @@
                   "name": "go",
                   "context": {
                     "origin": {
-                      "path": "/trip/origin"
+                      "@path": "/trip/origin"
                     },
                     "legOrigin": {
-                      "path": "/leg/origin"
+                      "@path": "/leg/origin"
                     }
                   }
                 }
@@ -1266,7 +1266,7 @@
     ],
     "a night count written as literal text": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -1335,7 +1335,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -1344,10 +1344,10 @@
               "component": "DateRangePicker",
               "label": "Dates",
               "start": {
-                "path": "/trip/startDate"
+                "@path": "/trip/startDate"
               },
               "end": {
-                "path": "/trip/endDate"
+                "@path": "/trip/endDate"
               },
               "nightsLabel": {
                 "call": "formatString",
@@ -1373,10 +1373,10 @@
                   "name": "commit_surface",
                   "context": {
                     "startDate": {
-                      "path": "/trip/startDate"
+                      "@path": "/trip/startDate"
                     },
                     "endDate": {
-                      "path": "/trip/endDate"
+                      "@path": "/trip/endDate"
                     }
                   }
                 }
@@ -1388,7 +1388,7 @@
     ],
     "a night count the model already wrote as a template": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -1457,7 +1457,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -1466,10 +1466,10 @@
               "component": "DateRangePicker",
               "label": "Dates",
               "start": {
-                "path": "/trip/startDate"
+                "@path": "/trip/startDate"
               },
               "end": {
-                "path": "/trip/endDate"
+                "@path": "/trip/endDate"
               },
               "nightsLabel": {
                 "call": "formatString",
@@ -1495,10 +1495,10 @@
                   "name": "commit_surface",
                   "context": {
                     "startDate": {
-                      "path": "/trip/startDate"
+                      "@path": "/trip/startDate"
                     },
                     "endDate": {
-                      "path": "/trip/endDate"
+                      "@path": "/trip/endDate"
                     }
                   }
                 }
@@ -1510,7 +1510,7 @@
     ],
     "a picker whose ends are literal dates": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -1579,7 +1579,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -1604,7 +1604,7 @@
     ],
     "a change button drawn inline, where it does not belong": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -1673,7 +1673,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -1708,7 +1708,7 @@
     ],
     "a change button alone in a row, which leaves the row empty": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -1777,7 +1777,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -1799,7 +1799,7 @@
     ],
     "the same change button on the panel, where it does": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "sidebar",
           "catalogId": "travel",
@@ -1868,7 +1868,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "sidebar",
           "components": [
@@ -1904,7 +1904,7 @@
     ],
     "a surface that already seeded a value itself": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -1973,7 +1973,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -1982,10 +1982,10 @@
               "component": "DateRangePicker",
               "label": "Dates",
               "start": {
-                "path": "/trip/startDate"
+                "@path": "/trip/startDate"
               },
               "end": {
-                "path": "/trip/endDate"
+                "@path": "/trip/endDate"
               },
               "nightsLabel": {
                 "call": "formatString",
@@ -2011,10 +2011,10 @@
                   "name": "commit_surface",
                   "context": {
                     "startDate": {
-                      "path": "/trip/startDate"
+                      "@path": "/trip/startDate"
                     },
                     "endDate": {
-                      "path": "/trip/endDate"
+                      "@path": "/trip/endDate"
                     }
                   }
                 }
@@ -2026,7 +2026,7 @@
     ],
     "a template row, whose path is a collection and not an answer": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-1",
           "catalogId": "travel",
@@ -2095,7 +2095,7 @@
         }
       },
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "updateComponents": {
           "surfaceId": "inline-1",
           "components": [
@@ -2103,7 +2103,7 @@
               "id": "row",
               "component": "Text",
               "text": {
-                "path": "name"
+                "@path": "name"
               }
             },
             {
@@ -2119,7 +2119,7 @@
               "component": "TextField",
               "label": "Note",
               "text": {
-                "path": "/trip/neighborhood"
+                "@path": "/trip/neighborhood"
               }
             },
             {
@@ -2131,7 +2131,7 @@
                   "name": "go",
                   "context": {
                     "neighborhood": {
-                      "path": "/trip/neighborhood"
+                      "@path": "/trip/neighborhood"
                     }
                   }
                 }

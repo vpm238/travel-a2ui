@@ -13,7 +13,7 @@ from __future__ import annotations
 import copy
 from typing import Any, Iterable
 
-from .shared import VERSION, A2uiMessage, _components_in, _root_of
+from .shared import VERSION, A2uiMessage, _components_in, _named_root
 
 def _addressed_to(value: Any, surface_id: str) -> Any:
     """The same message, with every `surfaceId` in it set to this turn's."""
@@ -144,7 +144,7 @@ def stack_blocks(
 
         _, components = found
         # Found before renaming, while the block still calls it `root`.
-        root = _root_of(components)
+        root = _named_root(components)
         root_id = root.get("id") if isinstance(root, dict) else None
 
         if prefix:

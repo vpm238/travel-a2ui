@@ -52,17 +52,26 @@ half of the build.
 """
 
 
+def as_wire(messages):
+    """Compiled messages as plain dicts — see `travel_a2ui.brain.express`."""
+    from travel_a2ui.brain.express import as_wire as dump
+
+    return dump(messages)
+
+
 def parser_for(surface_id: str):
     """One ExpressParser over the travel catalog, loaded the way the SDK intends."""
     try:
-        from a2ui.inference_formats.experimental.express.parser import ExpressParser
-        from a2ui.schema.catalog import A2uiCatalog, CatalogConfig
+        from a2ui.inference_formats.express.parser import ExpressParser
+
+        from travel_a2ui.brain.catalog import load_catalog
+        from travel_a2ui.brain.express import as_wire  # noqa: F401
     except ImportError as error:  # pragma: no cover - environment, not logic
         raise SystemExit(SDK_MISSING) from error
 
-    config = CatalogConfig.from_path("travel", str(CATALOG))
-    catalog = A2uiCatalog.from_config(config, version=PROTOCOL_VERSION.removeprefix("v"))
-    return ExpressParser(catalog=catalog, surface_id=surface_id, version=PROTOCOL_VERSION)
+    return ExpressParser(
+        catalogs=[load_catalog(CATALOG)], surface_id=surface_id, version=PROTOCOL_VERSION
+    )
 
 
 def compile_all() -> dict[str, str]:
@@ -77,7 +86,7 @@ def compile_all() -> dict[str, str]:
         try:
             # The surface id in the source wins; this is only the fallback for
             # an example that never says `surface(...)`.
-            messages = parser_for(source.stem).compile(text)
+            messages = as_wire(parser_for(source.stem).compile(text))
         except Exception as error:  # noqa: BLE001 - the message is the point
             raise SystemExit(
                 f"{source.name} does not compile:\n  {type(error).__name__}: {error}\n\n"

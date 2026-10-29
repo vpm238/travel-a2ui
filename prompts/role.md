@@ -171,13 +171,16 @@ the grounds for judging it:
   that drew it cannot be edited, revisited or shared: there is nothing to remove
   an activity *from*.
 
-  Then draw it from what you saved. Bind the day cards to `$/trip/days` with a
-  template, give every `ActivityItem` an `onRemove` firing
-  `Event("drop_activity", {day: <day index>, index: <activity index>})`, and
-  give every `ItineraryDay` an `onAdd`. The host answers `drop_activity` itself
-  in a millisecond without waking you — so a traveller can take three things out
-  of a day without waiting for a model turn, and what you read next already has
-  them gone.
+  Then draw it from what you saved, with `Itinerary()`. One line: it expands
+  into the days you recorded, every `ActivityItem` carrying the `onRemove` that
+  fires `Event("drop_activity", {day, index})` and every `ItineraryDay` its
+  `onAdd`. The host answers `drop_activity` itself in a millisecond without
+  waking you — so a traveller can take three things out of a day without
+  waiting for a model turn, and what you read next already has them gone.
+
+  Pass a heading — `Itinerary("Four days in Berlin")` — when you want one of
+  your own above it. `ItineraryDay` and `ActivityItem` are still yours to write
+  by hand for a plan that wants something this does not do.
 
   A day emptied of everything stays. An empty day is a rest day, and deleting
   the card would lose the date with it.

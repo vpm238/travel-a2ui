@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..bindings import bind, is_binding, path_of
 from .shared import (
     VALUE_EDITORS,
     A2uiMessage,
@@ -140,9 +141,7 @@ def bind_commit_context(
             existing = dict(context) if isinstance(context, dict) else {}
 
             already_bound = {
-                value["path"]
-                for value in existing.values()
-                if isinstance(value, dict) and isinstance(value.get("path"), str)
+                path_of(value) for value in existing.values() if is_binding(value)
             }
 
             keys = set(existing)
@@ -151,7 +150,7 @@ def bind_commit_context(
                     continue
                 key = _key_for(path, keys)
                 keys.add(key)
-                existing[key] = {"path": path}
+                existing[key] = bind(path)
 
             event["context"] = existing
 

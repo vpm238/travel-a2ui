@@ -10,9 +10,18 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..bindings import _READ_PATH, is_binding, path_of
+from ..catalog import PROTOCOL_VERSION
+
 A2uiMessage = dict[str, Any]
 
-VERSION = "v0.9.1"
+#: The version stamped on every message this server composes itself.
+#:
+#: Taken from the catalog rather than written here, so the host's own messages
+#: and the compiler's agree by construction. They did not have to: a pass that
+#: stamps 0.9 on a message beside a 1.0 surface produces a payload no renderer
+#: accepts as a whole, and the failure is per-message rather than obvious.
+VERSION = PROTOCOL_VERSION
 
 #: The surfaces that show current state rather than a moment in the past.
 #:
@@ -70,12 +79,12 @@ def _bound_paths(node: dict[str, Any]) -> list[str]:
             return
         if not isinstance(value, dict):
             return
-        # A child-list template's `path` points at a collection to repeat over,
-        # not at a value someone edited.
-        if isinstance(value.get("path"), str) and "componentId" not in value:
-            found.append(value["path"])
+        # A child-list template's path points at a collection to repeat over,
+        # not at a value someone edited — which `is_binding` knows.
+        if is_binding(value):
+            found.append(path_of(value))
         for key, nested in value.items():
-            if key == "path":
+            if key in _READ_PATH:
                 continue
             walk(nested)
 
@@ -84,6 +93,29 @@ def _bound_paths(node: dict[str, Any]) -> list[str]:
             continue
         walk(value)
     return found
+
+
+def _named_root(components: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The component actually called `root`, and nothing else.
+
+    For callers that are watching a block *arrive*. A block streams: the
+    compiler sends the components defined so far, and the one called `root` is
+    by definition the last line of the block, so every message before the final
+    one has no root in it at all. Guessing one from the structure — see
+    `_root_of`, which does — answers "the component nothing claims as a child",
+    and in a half-written block that is simply the first component.
+
+    That is not hypothetical. At 1.0 a flight list streamed as `heading`, then
+    `heading, f1`, then `heading, f1, f2` … and the guess made `heading` the
+    root of a block whose real root arrived four messages later. Both were then
+    composed under a new `root` — `children: ["heading", "root"]`, a root
+    containing itself — and the four fares, claimed by nothing, vanished. The
+    traveller saw a heading over an empty card.
+    """
+    for node in components:
+        if node.get("id") == "root":
+            return node
+    return None
 
 
 def _root_of(components: list[dict[str, Any]]) -> dict[str, Any] | None:

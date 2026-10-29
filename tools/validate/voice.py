@@ -59,11 +59,24 @@ def press_sentence(name: str, context: dict[str, Any]) -> str:
 
 
 def components(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every component in a batch, whichever message carries it.
+
+    Both messages, because A2UI 1.0 lets `createSurface` carry its own
+    components and the whole app now sends surfaces that way. Reading only
+    `updateComponents` does not fail — it finds nothing, and a probe that finds
+    nothing reports a call that drew no fares. Which is what this one did, four
+    checks red, against a relay that was drawing them correctly the whole time.
+    """
     out: list[dict[str, Any]] = []
     for message in messages:
-        for node in (message.get("updateComponents") or {}).get("components") or []:
-            if isinstance(node, dict):
-                out.append(node)
+        for key in ("createSurface", "updateComponents"):
+            body = message.get(key)
+            if not isinstance(body, dict):
+                continue
+            for node in body.get("components") or []:
+                if isinstance(node, dict):
+                    out.append(node)
+            break
     return out
 
 

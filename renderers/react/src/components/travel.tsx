@@ -10,7 +10,7 @@
 
 import type { Json } from '@travel-a2ui/express';
 
-import { isPending, resolveBoolean, resolveNumber, resolveText } from '../binding.js';
+import { isPending, pathOf, resolveBoolean, resolveNumber, resolveText } from '../binding.js';
 import { monthLabel, monthsFor, parseCivil, toIso, weekStartFor, weekdayLetters } from '../calendar.js';
 import { runAction, type ComponentProps } from '../context.js';
 import { isSafeUrl } from '../functions.js';
@@ -765,10 +765,12 @@ export function ExpenseSplit({ node, scope, ctx }: ComponentProps) {
 
 /** Local helper: these components bind several values, not just one. */
 function pointerOf(value: Json | undefined, scope: { itemPointer: string }): string | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value) || !('path' in value)) {
-    return undefined;
-  }
-  const path = String((value as { path: string }).path);
+  // Through `pathOf`, which reads both `@path` (1.0) and `path` (0.9). Spelled
+  // out here once, it would have been the one place in the renderer still
+  // reading the old key — and a binding nobody recognises is not an error, it
+  // is a control that opens empty.
+  const path = pathOf(value);
+  if (path === undefined) return undefined;
   if (path.startsWith('/')) return path;
   return scope.itemPointer ? `${scope.itemPointer}/${path}` : `/${path}`;
 }

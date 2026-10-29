@@ -279,8 +279,12 @@ class TestTheSkeleton:
         opening = next(e for i, e in enumerate(events) if e["type"] == "ui" and i < result_at)
         fill = next(e for i, e in enumerate(events) if e["type"] == "ui" and i > result_at)
 
-        seed = next(m for m in opening["messages"] if "updateDataModel" in m)
-        assert all(row == {} for row in seed["updateDataModel"]["value"])
+        # At 1.0 the blank rows ride inside the `createSurface` that lays them
+        # out, rather than arriving as a second message between the create and
+        # the components. Same guarantee, one message: see `brain/skeleton.py`.
+        created = next(m for m in opening["messages"] if "createSurface" in m)
+        rows = created["createSurface"]["dataModel"]["flights"]
+        assert all(row == {} for row in rows)
 
         filled = fill["messages"][0]["updateDataModel"]["value"]
         assert filled and all(row.get("airline") for row in filled)

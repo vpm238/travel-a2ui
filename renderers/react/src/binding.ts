@@ -4,10 +4,21 @@
  * A component property in A2UI is one of four things, and telling them apart is
  * most of what rendering is:
  *
- *   "Madrid"                              a literal
- *   {"path": "/trip/city"}                a binding into the data model
- *   {"call": "formatCurrency", args: {…}} a dynamic value, computed at render
- *   {"event": {…}} / {"functionCall": {…}} an action, handled on interaction
+ *   "Madrid"                               a literal
+ *   {"@path": "/trip/city"}                a binding into the data model
+ *   {"@call": "formatCurrency", args: {…}} a dynamic value, computed at render
+ *   {"event": {…}} / {"functionCall": {…}}  an action, handled on interaction
+ *
+ * The `@` is A2UI 1.0's reserved prefix, and it exists so that a plain object
+ * with a `path` key is ordinary data rather than a directive — which, before
+ * 1.0, it could not be. Both spellings are read here: a renderer that only
+ * understood the new one would draw nothing at all from a 0.9 agent, and
+ * saying "this is a binding" is cheap enough to do twice.
+ *
+ * Two keys deliberately keep their unprefixed spelling, and the protocol says
+ * so: a child-list template's `path` (it sits beside `componentId`, and means
+ * "repeat over this" rather than "read this"), and `updateDataModel`'s own
+ * `path`, which is a message parameter rather than a binding.
  *
  * Inside a list template, a relative path (`$name` → `{"path": "name"}`)
  * resolves against the current item rather than the model root. That is the
@@ -27,14 +38,21 @@ export interface ResolveScope {
   itemPointer: string;
 }
 
-export function isBinding(value: Json | undefined): value is { path: string } {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    'path' in value &&
-    !('componentId' in value)
-  );
+/** Both spellings of a data binding, newest first. */
+const PATH_KEYS = ['@path', 'path'] as const;
+
+/** The pointer a binding names, whichever spelling it arrived in. */
+export function pathOf(value: Json | undefined): string | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  for (const key of PATH_KEYS) {
+    const found = (value as Record<string, Json>)[key];
+    if (typeof found === 'string') return found;
+  }
+  return undefined;
+}
+
+export function isBinding(value: Json | undefined): boolean {
+  return pathOf(value) !== undefined && !(value as object & { componentId?: unknown }).componentId;
 }
 
 export function isTemplate(
@@ -44,13 +62,26 @@ export function isTemplate(
     !!value &&
     typeof value === 'object' &&
     !Array.isArray(value) &&
-    'path' in value &&
+    pathOf(value) !== undefined &&
     'componentId' in value
   );
 }
 
 export function isCallExpression(value: Json | undefined): value is { call: string; args: Json } {
-  return !!value && typeof value === 'object' && !Array.isArray(value) && 'call' in value;
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    ('@call' in value || 'call' in value)
+  );
+}
+
+/** The function a dynamic value names, whichever spelling it arrived in. */
+export function callOf(value: Json | undefined): string | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const record = value as Record<string, Json>;
+  const named = record['@call'] ?? record['call'];
+  return typeof named === 'string' ? named : undefined;
 }
 
 export function isAction(
@@ -78,7 +109,10 @@ export function resolve(value: Json | undefined, scope: ResolveScope): Json | un
   if (Array.isArray(value)) return value.map((item) => resolve(item, scope) ?? null);
 
   if (typeof value === 'object') {
-    if (isBinding(value)) return readPointer(scope.model, absolutePointer(value.path, scope));
+    const bound = pathOf(value);
+    if (bound !== undefined && !(value as { componentId?: unknown }).componentId) {
+      return readPointer(scope.model, absolutePointer(bound, scope));
+    }
     if (isCallExpression(value)) {
       const args = (value.args ?? {}) as JsonObject;
       const resolved: JsonObject = {};
@@ -90,10 +124,11 @@ export function resolve(value: Json | undefined, scope: ResolveScope): Json | un
       // functions, so it is resolved here, where the model is in scope, rather
       // than in `functions.ts`, which only ever sees resolved arguments.
       const template = resolved['value'] ?? resolved['template'];
-      if (value.call === 'formatString' && typeof template === 'string' && hasExpression(template)) {
+      const named = callOf(value) ?? '';
+      if (named === 'formatString' && typeof template === 'string' && hasExpression(template)) {
         return interpolate(template, lookupFor(scope));
       }
-      return callFunction(value.call, resolved);
+      return callFunction(named, resolved);
     }
     const out: JsonObject = {};
     for (const [key, item] of Object.entries(value as JsonObject)) {
@@ -164,5 +199,6 @@ export function resolveBoolean(value: Json | undefined, scope: ResolveScope): bo
 
 /** The pointer a control writes back to, or undefined if it is not bound. */
 export function bindingPointer(value: Json | undefined, scope: ResolveScope): string | undefined {
-  return isBinding(value) ? absolutePointer(value.path, scope) : undefined;
+  const bound = pathOf(value);
+  return bound !== undefined ? absolutePointer(bound, scope) : undefined;
 }

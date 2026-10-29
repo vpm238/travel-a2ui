@@ -33,6 +33,14 @@ COMMON = "https://a2ui.org/specification/v0_9/common_types.json#/$defs"
 
 CATALOG_ID = "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
 
+#: The protocol this catalog is written against.
+#:
+#: One place, read by everything downstream: the server takes its wire version
+#: from the generated catalog, and the renderer is held to the same number by
+#: `test_upstream_contract`. A catalog that omits this is 0.9 by the spec's
+#: default, which is the quiet way to ship a 1.0 server that speaks 0.9.
+PROTOCOL_VERSION = "1.0"
+
 CATALOG_DESCRIPTION = (
     "Plans trips as interactive UI: flight and hotel options, day-by-day"
     " itineraries, price breakdowns, and trip dashboards."
@@ -686,6 +694,11 @@ def build() -> dict[str, Any]:
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": CATALOG_ID,
         "catalogId": CATALOG_ID,
+        # Which protocol this catalog is written against, and therefore which
+        # protocol the server speaks: `brain/catalog.py` reads it from here
+        # rather than carrying a second copy. A catalog that does not say is
+        # 0.9 by the spec's own default, so saying so is not optional at 1.0.
+        "protocolVersion": PROTOCOL_VERSION,
         "title": "A2UI Travel Catalog",
         "description": CATALOG_DESCRIPTION,
         "instructions": CATALOG_INSTRUCTIONS,

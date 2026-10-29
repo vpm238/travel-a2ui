@@ -312,6 +312,8 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             # of three asked about twice is a hop flying home with a party
             # nobody confirmed. See `half_asked`.
             hops=_party_paths(trip),
+            # What `Itinerary()` expands into: the days this turn recorded.
+            trip=trip,
         )
 
         # Fenced blocks never reach the transcript. This agent answers in
@@ -441,6 +443,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         parser=parser_for(request.surface_id),
                         components=COMPONENT_NAMES,
                         validator=VALIDATOR,
+                        trip=trip,
                         required=REQUIRED_PROPERTIES,
                                 )
                     gate = FenceGate()
