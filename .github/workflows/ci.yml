@@ -53,9 +53,21 @@ jobs:
       # The server package comes too, because the generators import it now:
       # one `load_catalog` that knows how this SDK wants a catalog loaded,
       # rather than the incantation repeated in four scripts.
+      #
+      # `-e`, and not as a preference: `travel_a2ui.ROOT` is four directories up
+      # from `__init__.py`, which is the repository when the package is read
+      # from `apps/server/src` and a path inside the virtualenv when it is
+      # copied into site-packages. `brain/catalog.py` reads the catalog at
+      # import time, so a non-editable install made every generator that
+      # imports it look for `catalogs/a2ui-travel/catalog.json` somewhere that
+      # has no catalogs directory at all — which is what "10-inline-flight-
+      # options.express does not compile: FileNotFoundError" was. The image
+      # installs it `-e` for the same reason (see the Dockerfile), so this is
+      # also the rule the previous commit was applying: install it the way the
+      # image does.
       - name: A2UI agent SDK
         run: |
-          python3 -m pip install --quiet "${{ env.A2UI_SDK }}" ./apps/server
+          python3 -m pip install --quiet "${{ env.A2UI_SDK }}" -e ./apps/server
           python3 -c "from a2ui.skill import SkillGenerator; print('SkillGenerator ready')"
 
       - name: Typecheck
@@ -184,13 +196,16 @@ jobs:
       # Compare the goldens against the *installed* reference compiler. This is
       # what notices when upstream changes, which no offline test can.
       #
-      # Reported rather than enforced, on purpose. The published wheel (0.5.0)
-      # is behind the grammar the skills teach — it rejects keyword arguments
-      # outright — so the goldens cannot match it and the job would be red
-      # forever, which teaches nobody anything. The enforcement lives in
-      # packages/express/test/parity.test.ts, which is green and blocking. This
-      # step exists to make a *new* divergence visible in the log the day the
-      # wheel catches up.
+      # Reported rather than enforced, on purpose, and deliberately *unpinned*:
+      # this is the one step that is supposed to move when upstream does, which
+      # is the whole reason it exists.
+      #
+      # It was written when the published wheel was 0.5.0 and rejected keyword
+      # arguments outright, so the goldens could not match it and the job would
+      # have been red forever. 0.9.0 parses them — the host's own surface
+      # builders are written in them — so a mismatch here is now worth reading
+      # rather than worth ignoring. The enforcement still lives in
+      # packages/express/test/parity.test.ts, which is green and blocking.
       - name: Compare the goldens with the installed reference compiler
         run: |
           python3 scripts/gen_parity.py --check | tee "$GITHUB_STEP_SUMMARY" || true

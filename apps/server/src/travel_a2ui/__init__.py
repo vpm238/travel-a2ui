@@ -35,4 +35,23 @@ __all__ = ["ROOT", "__version__"]
 #: written it down in one place to begin with.
 ROOT = pathlib.Path(__file__).resolve().parents[4]
 
+# Said here, once, because the alternative is what CI actually printed:
+# "10-inline-flight-options.express does not compile: FileNotFoundError:
+# .../scratch/ci312/catalogs/a2ui-travel/catalog.json". Counting four
+# directories up from this file reaches the repository when the package is read
+# out of `apps/server/src` and lands somewhere inside the virtualenv when it has
+# been copied into site-packages — so every data path goes with it, and the
+# first thing that breaks is whichever module reads a file at import time.
+#
+# The image installs this with `-e` (see the Dockerfile) for exactly this
+# reason, and so does CI. This turns the same mistake into a sentence saying so.
+if not (ROOT / "catalogs" / "a2ui-travel").is_dir():
+    raise ImportError(
+        f"travel_a2ui resolved the project root to {ROOT}, which has no "
+        "catalogs/a2ui-travel in it. This package reads catalogs, prompts, "
+        "skills and data from the tree it sits in, so it has to be installed "
+        "from source rather than copied into site-packages: "
+        "`pip install -e ./apps/server`."
+    )
+
 __version__ = "0.1.0"
