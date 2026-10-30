@@ -183,6 +183,39 @@ if (process.env.THROUGH_TO_HOTEL) {
     return false;
   }
 
+  /** The panel's text, for watching a decision arrive in it. */
+  const panelText = () =>
+    page
+      .locator('aside, [class*="sidebar" i]')
+      .first()
+      .innerText()
+      .catch(() => '');
+
+  /**
+   * How long after a press the panel moves.
+   *
+   * The panels are bound to `$/trip/...`, so bringing them up to date is one
+   * `updateDataModel` and no model call — and the host records a press before
+   * the model is even asked. They were only *sent* at the end of the turn,
+   * which left the one surface whose job is showing what has been decided as
+   * the last thing told that anything had been.
+   *
+   * Measured as "the panel's text changed", not "the panel contains the name
+   * of the card I pressed". The first version did the latter and reported the
+   * panel never mentioning `SK502` while the settled check beside it said the
+   * panel had caught up with both choices — because a card's name, as scraped
+   * off the card, is not a string the panel displays. What is being claimed
+   * here is that the panel reacts; that is what this waits for.
+   */
+  async function panelMoves(before, began, budget = 90000) {
+    while (Date.now() - began < budget) {
+      const now = await panelText();
+      if (now && now !== before) return Date.now() - began;
+      await page.waitForTimeout(200);
+    }
+    return null;
+  }
+
   /** Press the first option of a kind, then check none of them went missing. */
   async function pick(word, label) {
     const rows = await liveOptions(word);
@@ -192,7 +225,15 @@ if (process.env.THROUGH_TO_HOTEL) {
     }
     const before = await namesOf(rows);
     console.log(`\n${label}: ${before.length} on the live card — ${before.join(', ')}`);
+    const panelBefore = await panelText();
+    const pressedAt = Date.now();
     await rows.first().click();
+    const moved = await panelMoves(panelBefore, pressedAt);
+    console.log(
+      moved === null
+        ? '   the panel never moved'
+        : `   the panel moved ${(moved / 1000).toFixed(1)}s after the press`,
+    );
     const quiet = await settled();
     const feed = await page.locator(FEED).innerText();
     const lost = before.filter((name) => !feed.includes(name));

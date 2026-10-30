@@ -56,25 +56,28 @@ def as_wire(messages):
 
 
 def parser_for(surface_id: str):
-    """One ExpressParser over the travel catalog, loaded the way the SDK intends."""
-    try:
-        from a2ui.inference_formats.express.parser import ExpressParser
+    """The server's own parser, which is the point.
 
-        from travel_a2ui.brain.catalog import PROTOCOL_VERSION, load_catalog
+    This built its own `ExpressParser` over `load_catalog(CATALOG)` — the
+    *transport* catalog. The model is given the inference catalog, which is the
+    transport one plus the macros, so an example written the way the brief
+    teaches did not compile here: "Unknown component 'Flights'". These examples
+    are the brief's worked examples; they have to compile against the catalog
+    the brief describes.
+
+    `brain.catalog.parser_for` is that parser, and it also carries the version
+    the catalog declares — this script hardcoded `"v0.9.1"` through the whole
+    1.0 migration without failing, because the examples are decompiled back to
+    Express before they reach the brief and a wire stamp never got in front of
+    the model.
+    """
+    try:
+        from travel_a2ui.brain.catalog import parser_for as server_parser
         from travel_a2ui.brain.express import as_wire  # noqa: F401
     except ImportError as error:  # pragma: no cover - environment, not logic
         raise SystemExit(SDK_MISSING) from error
 
-    # The version the *catalog* declares, read back from it rather than written
-    # here. This script carried its own `"v0.9.1"` through the 1.0 migration and
-    # nothing failed: these examples are decompiled back to Express before they
-    # reach the brief, so a 0.9 wire stamp never got in front of the model. It
-    # was still the build compiling at one version for a server that speaks
-    # another, which is a disagreement waiting for the first example that uses
-    # something only 1.0 has.
-    return ExpressParser(
-        catalogs=[load_catalog(CATALOG)], surface_id=surface_id, version=PROTOCOL_VERSION
-    )
+    return server_parser(surface_id)
 
 
 def compile_all() -> dict[str, str]:

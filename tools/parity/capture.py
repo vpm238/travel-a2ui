@@ -9,7 +9,7 @@ to catch, which is a change nobody meant to make.
 
 Only the prompt is re-recorded here, and only because it is assembled from
 markdown that people edit on purpose. The rest — the trip model, the tools, the
-skeleton, the surface passes — are goldens over *code*, and code changing
+the surface passes — are goldens over *code*, and code changing
 without the golden changing is exactly the alarm they exist to raise. Those are
 frozen. If one of them starts failing, the answer is to look at the diff, not to
 re-record it.

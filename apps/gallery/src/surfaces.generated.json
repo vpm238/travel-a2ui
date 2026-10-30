@@ -4,8 +4,8 @@
     "surfaceId": "inline-7",
     "title": "Flight options",
     "flow": "inline",
-    "description": "Inline: answering \"find me a flight to Madrid\" inside the chat feed. One surface, one job — three options and a way to pick one.",
-    "express": "surface(\"inline-7\")\n# That id is the one this turn was given (\"Draw into surface ...\"), never an\n# earlier card's. A card already answered is the record of that answer, and a\n# root drawn onto it takes the place of what the traveler picked from.\n$/trip/selectedOutbound = \"\"\nheading = Text(\"Outbound · JFK → MAD · Sun 12 Apr\", variant=\"h3\")\n# Every fare carries its own sentence. A card is read out in the order it is\n# written — \"Iberia IB6250 18:40 JFK 08:15 +1 MAD 7h 35m Nonstop $412\" — which\n# is every fact and no sentence, and `accessibility.label` *replaces* that, so\n# whatever is written here is the whole of what a traveller using a screen\n# reader gets. Said in the example rather than only in the instructions,\n# because this is the part a model imitates.\nf1 = FlightOption(\"Iberia\", \"18:40\", \"08:15 +1\", \"JFK\", \"MAD\", \"$412\", Event(\"select_flight\", {id: \"IB6250\", price: \"$412\"}), duration=\"7h 35m\", stops=\"Nonstop\", flightNumber=\"IB6250\", selected=$/trip/selectedOutbound, badge=\"Cheapest\", accessibility={label: \"Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412, cheapest\"})\nf2 = FlightOption(\"Delta\", \"21:10\", \"10:50 +1\", \"JFK\", \"MAD\", \"$468\", Event(\"select_flight\", {id: \"DL126\", price: \"$468\"}), duration=\"7h 40m\", stops=\"Nonstop\", flightNumber=\"DL126\", accessibility={label: \"Delta DL126, 21:10 JFK to 10:50 next day MAD, nonstop, $468\"})\nf3 = FlightOption(\"TAP\", \"17:25\", \"11:05 +1\", \"JFK\", \"MAD\", \"$367\", Event(\"select_flight\", {id: \"TP208\", price: \"$367\"}), duration=\"11h 40m\", stops=\"1 stop · LIS\", flightNumber=\"TP208\", badge=\"Lowest fare\", accessibility={label: \"TAP TP208, 17:25 JFK to 11:05 next day MAD, 1 stop via Lisbon, $367, lowest fare\"})\nnote = Text(\"Prices are per traveler, round trip.\")\nroot = Column([heading, f1, f2, f3, note])",
+    "description": "Inline: answering \"find me a flight to Madrid\" inside the chat feed. One surface, one job — the options and a way to pick one.",
+    "express": "surface(\"inline-7\")\n# That id is the one this turn was given (\"Draw into surface ...\"), never an\n# earlier card's. A card already answered is the record of that answer, and a\n# root drawn onto it takes the place of what the traveler picked from.\nheading = Text(\"Outbound · JFK → MAD · Sun 12 Apr\", variant=\"h3\")\n# One call, drawn *before* search_flights is called. The lookup files its rows\n# at /flights and this reads them: bound, labelled, pressable, however many\n# come back. Writing a FlightOption per result instead is three hundred tokens\n# the traveler waits through, and the one part of the turn that can disagree\n# with what was actually found.\nfares = Flights(\"Outbound · JFK → MAD · Sun 12 Apr\", \"/trip/selectedOutbound\")\nnote = Text(\"Prices are per traveler, round trip.\")\nroot = Column([heading, fares, note])",
     "messages": [
       {
         "version": "v1.0",
@@ -20,84 +20,10 @@
               "variant": "h3"
             },
             {
-              "id": "f1",
-              "component": "FlightOption",
-              "airline": "Iberia",
-              "departTime": "18:40",
-              "arriveTime": "08:15 +1",
-              "origin": "JFK",
-              "destination": "MAD",
-              "price": "$412",
-              "action": {
-                "event": {
-                  "name": "select_flight",
-                  "context": {
-                    "id": "IB6250",
-                    "price": "$412"
-                  }
-                }
-              },
-              "duration": "7h 35m",
-              "stops": "Nonstop",
-              "flightNumber": "IB6250",
-              "selected": {
-                "@path": "/trip/selectedOutbound"
-              },
-              "badge": "Cheapest",
-              "accessibility": {
-                "label": "Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412, cheapest"
-              }
-            },
-            {
-              "id": "f2",
-              "component": "FlightOption",
-              "airline": "Delta",
-              "departTime": "21:10",
-              "arriveTime": "10:50 +1",
-              "origin": "JFK",
-              "destination": "MAD",
-              "price": "$468",
-              "action": {
-                "event": {
-                  "name": "select_flight",
-                  "context": {
-                    "id": "DL126",
-                    "price": "$468"
-                  }
-                }
-              },
-              "duration": "7h 40m",
-              "stops": "Nonstop",
-              "flightNumber": "DL126",
-              "accessibility": {
-                "label": "Delta DL126, 21:10 JFK to 10:50 next day MAD, nonstop, $468"
-              }
-            },
-            {
-              "id": "f3",
-              "component": "FlightOption",
-              "airline": "TAP",
-              "departTime": "17:25",
-              "arriveTime": "11:05 +1",
-              "origin": "JFK",
-              "destination": "MAD",
-              "price": "$367",
-              "action": {
-                "event": {
-                  "name": "select_flight",
-                  "context": {
-                    "id": "TP208",
-                    "price": "$367"
-                  }
-                }
-              },
-              "duration": "11h 40m",
-              "stops": "1 stop · LIS",
-              "flightNumber": "TP208",
-              "badge": "Lowest fare",
-              "accessibility": {
-                "label": "TAP TP208, 17:25 JFK to 11:05 next day MAD, 1 stop via Lisbon, $367, lowest fare"
-              }
+              "id": "fares",
+              "component": "Flights",
+              "heading": "Outbound · JFK → MAD · Sun 12 Apr",
+              "selected": "/trip/selectedOutbound"
             },
             {
               "id": "note",
@@ -109,22 +35,15 @@
               "component": "Column",
               "children": [
                 "heading",
-                "f1",
-                "f2",
-                "f3",
+                "fares",
                 "note"
               ]
             }
-          ],
-          "dataModel": {
-            "trip": {
-              "selectedOutbound": ""
-            }
-          }
+          ]
         }
       }
     ],
-    "bytes": 1728
+    "bytes": 513
   },
   {
     "id": "20-sidebar-refine",
@@ -158,8 +77,7 @@
               },
               "action": {
                 "event": {
-                  "name": "dates_changed",
-                  "context": {}
+                  "name": "dates_changed"
                 }
               },
               "nightsLabel": "6 nights"
@@ -206,7 +124,7 @@
             {
               "id": "apply",
               "component": "Button",
-              "child": "_inline_1",
+              "child": "apply_child",
               "variant": "primary",
               "action": {
                 "event": {
@@ -226,6 +144,11 @@
               }
             },
             {
+              "id": "apply_child",
+              "component": "Text",
+              "text": "Apply"
+            },
+            {
               "id": "root",
               "component": "Column",
               "children": [
@@ -237,11 +160,6 @@
                 "apply"
               ],
               "align": "stretch"
-            },
-            {
-              "id": "_inline_1",
-              "component": "Text",
-              "text": "Apply"
             }
           ],
           "dataModel": {
@@ -253,7 +171,7 @@
         }
       }
     ],
-    "bytes": 1326
+    "bytes": 1317
   },
   {
     "id": "30-home-dashboard",
@@ -587,7 +505,7 @@
             {
               "id": "save",
               "component": "Button",
-              "child": "_inline_1",
+              "child": "save_child",
               "variant": "primary",
               "action": {
                 "event": {
@@ -607,6 +525,11 @@
               }
             },
             {
+              "id": "save_child",
+              "component": "Text",
+              "text": "Save traveller"
+            },
+            {
               "id": "root",
               "component": "Column",
               "children": [
@@ -617,16 +540,11 @@
                 "save"
               ],
               "align": "stretch"
-            },
-            {
-              "id": "_inline_1",
-              "component": "Text",
-              "text": "Save traveller"
             }
           ]
         }
       }
     ],
-    "bytes": 1058
+    "bytes": 1060
   }
 ]

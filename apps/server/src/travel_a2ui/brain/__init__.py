@@ -18,7 +18,7 @@ What lives here:
   `catalog`       the components that exist, loaded once, and what they require.
   `finishing`     the passes every surface goes through before it goes out.
   `builders`      the surfaces this app draws without a model.
-  `skeleton`      the surface drawn before the data arrives.
+  `landing`       where a lookup's rows are filed for the agent to draw.
   `host_actions`  presses the host answers itself, without waking the model.
   `contract`      a fingerprint of all of the above, for doors that instantiate
                   against it once and hold it open.

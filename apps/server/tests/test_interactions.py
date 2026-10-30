@@ -6,7 +6,7 @@ wrong in this loop. Those are all about *order* and *when*, and none of them
 throws:
 
   - prose and A2UI arriving interleaved rather than prose-then-everything;
-  - the skeleton going out before the tool runs, and the fill after it;
+  - a lookup's rows being filed where the brief says they land;
   - a value the traveller set reaching the trip without the model being asked;
   - a date range that ends before it starts being refused rather than saved;
   - the panels being redrawn only when the decisions changed shape.
@@ -207,8 +207,17 @@ def test_a_surface_paints_before_the_turn_ends() -> None:
     assert kinds.index("ui") < len(kinds) - 1, "something was still to come after the surface"
 
 
-class TestTheSkeleton:
-    def test_the_shape_goes_out_before_the_tool_runs(self) -> None:
+class TestWhereTheRowsLand:
+    """The host files a lookup's rows and draws nothing.
+
+    It used to draw: Express for a flight list, painted the moment the lookup
+    started, and a tool result telling the model "do not draw this surface
+    again". That is host-driven UI in an agent-driven architecture, and it was
+    the biggest piece of it left. What the host owes the agent is the rows at an
+    address the brief names; the card is the agent's.
+    """
+
+    def test_nothing_is_drawn_before_the_tool_runs(self) -> None:
         import asyncio
 
         model = FakeModel(
@@ -241,20 +250,17 @@ class TestTheSkeleton:
         result_at = kinds.index("tool_result")
         ui_positions = [i for i, kind in enumerate(kinds) if kind == "ui"]
 
-        assert any(tool_at < i < result_at for i in ui_positions), (
-            "the layout must paint while the search is running, not after it"
+        assert not any(tool_at < i < result_at for i in ui_positions), (
+            "the host no longer paints a layout of its own while the tool runs"
         )
-        assert any(i > result_at for i in ui_positions), "and fill once results land"
+        assert any(i > result_at for i in ui_positions), "the rows go out once they land"
 
-    def test_the_opening_is_blank_and_the_fill_has_rows(self) -> None:
+    def test_what_goes_out_is_rows_and_not_components(self) -> None:
         import asyncio
 
         model = FakeModel(
             [
-                (
-                    [],
-                    [ToolCall(id="c1", name="search_flights", args={"destination": "Madrid"})],
-                ),
+                ([], [ToolCall(id="c1", name="search_flights", args={"destination": "Madrid"})]),
                 ([], []),
             ]
         )
@@ -276,31 +282,35 @@ class TestTheSkeleton:
 
         kinds = [event["type"] for event in events]
         result_at = kinds.index("tool_result")
-        opening = next(e for i, e in enumerate(events) if e["type"] == "ui" and i < result_at)
-        fill = next(e for i, e in enumerate(events) if e["type"] == "ui" and i > result_at)
+        landed = next(e for i, e in enumerate(events) if e["type"] == "ui" and i > result_at)
 
-        # At 1.0 the blank rows ride inside the `createSurface` that lays them
-        # out, rather than arriving as a second message between the create and
-        # the components. Same guarantee, one message: see `brain/skeleton.py`.
-        created = next(m for m in opening["messages"] if "createSurface" in m)
-        rows = created["createSurface"]["dataModel"]["flights"]
-        assert all(row == {} for row in rows)
+        assert len(landed["messages"]) == 1, "one message: the rows"
+        body = landed["messages"][0]
+        assert set(body) == {"version", "updateDataModel"}, body
+        assert body["updateDataModel"]["path"] == "/flights"
+        rows = body["updateDataModel"]["value"]
+        assert rows and all(row.get("airline") for row in rows)
 
-        filled = fill["messages"][0]["updateDataModel"]["value"]
-        assert filled and all(row.get("airline") for row in filled)
+    def test_a_lookup_with_no_predictable_shape_files_nothing(self) -> None:
+        """Asking what a trip costs does not tell you what comes back.
 
-    def test_a_tool_with_no_predictable_shape_gets_no_skeleton(self) -> None:
-        import asyncio
+        Asserted at the seam rather than through a turn, because the agent may
+        draw whatever it likes afterwards: what matters is that the host filed
+        nothing of its own.
+        """
+        from travel_a2ui.brain.macros import file_rows, landing_for
 
-        model = FakeModel(
-            [([], [ToolCall(id="c1", name="get_trip", args={})]), ([], [])]
-        )
-        events = asyncio.run(collect(base(message="what do you have", client=model)))
-        kinds = [event["type"] for event in events]
-        tool_at, result_at = kinds.index("tool"), kinds.index("tool_result")
-        assert not any(
-            kinds[i] == "ui" for i in range(tool_at, result_at)
-        ), "nothing to draw, so nothing is drawn"
+        for tool in ("get_trip", "estimate_cost", "save_trip"):
+            assert landing_for(tool) is None, tool
+            assert file_rows(tool, {"trip": {}, "total": 1200}, "inline-1", "v1.0") == [], tool
+
+    def test_a_refusal_does_not_blank_a_card_that_is_already_full(self) -> None:
+        """No rows is a real answer, and an empty array is not the way to say it."""
+        from travel_a2ui.brain.macros import file_rows, rows_in
+
+        for nothing in (None, {}, {"flights": []}, {"flights": "nope"}, "not a dict"):
+            assert rows_in("search_flights", nothing) is None, nothing
+            assert file_rows("search_flights", nothing, "inline-1", "v1.0") == [], nothing
 
 
 class TestWhatTheTravellerSet:
@@ -457,18 +467,24 @@ class TestThePanel:
         )
         assert len(model.bodies) == 1, "the turn itself, and no panel rebuild"
 
-    def test_a_changed_shape_redraws_the_sidebar_and_not_the_home_screen(self) -> None:
-        """A chat turn rebuilds one panel, not two.
+    def test_a_shape_change_costs_no_model_call_at_all(self) -> None:
+        """One model call a turn. The panel is not a second one.
 
-        The home screen used to be rebuilt beside the sidebar on every shape
-        change — a second model call, in parallel, for a surface the traveller
-        is not looking at while they are in the conversation. And it is a
-        *summary*: rebuilding it mid-conversation means composing a dashboard of
-        a trip that is still being decided, which is how `StatTile`,
-        `ProgressMeter` and `MapPreview` ended up in front of a model that
-        needed a date picker.
+        It used to be. A decision that gave the panel something it had no room
+        for changed its shape, and a shape change meant redrawing it: another
+        interaction, another copy of the system prompt, run after the turn had
+        finished. Measured in a browser, 24.8 seconds between pressing a fare
+        and the sidebar moving, and 35.4 for the second press.
 
-        It is built when somebody asks for it now. See `surface.py`.
+        `Trip()` draws the panel complete instead — every slot a decision could
+        fill already there and bound to the record — so settling one is data,
+        and data reaches the panel with no model in the path. Nothing to redraw
+        means nothing to be late, and nothing to fall back to either.
+
+        The home screen was the same argument twice over: it is a *summary*,
+        and rebuilding one mid-conversation is how `StatTile`, `ProgressMeter`
+        and `MapPreview` ended up in front of a model that needed a date
+        picker. It is built when somebody asks for it. See `surface.py`.
         """
         import asyncio
 
@@ -483,9 +499,9 @@ class TestThePanel:
                 )
             )
         )
-        assert len(model.bodies) == 2, "the turn, then the sidebar — and nothing else"
-        # Not chained: a rebuild is not something the traveller said.
-        assert "previous_interaction_id" not in model.bodies[1]
+        assert len(model.bodies) == 1, (
+            f"the turn, and nothing else — {len(model.bodies)} model calls"
+        )
 
     def test_the_home_screen_is_still_drawable_on_request(self) -> None:
         """Out of the turn loop, not out of the product."""
@@ -904,18 +920,22 @@ class TestTheSetupIsSentEveryTurn:
         assert model.bodies[0]["system_instruction"].startswith("You are a travel agent")
 
 
-class TestWhatTheHostAlreadyDrew:
+class TestWhatTheAgentIsToldAboutTheRows:
     """The card that appeared with flights in it and then emptied itself.
 
-    The host draws the results the moment the lookup starts and fills them when
-    it lands. The model knew nothing about that, so it composed its own tree
-    over the same surface, bound to its own paths — and the renderer merges
-    components by id, so the filled rows stayed in the data model with nothing
-    pointing at them. Real flights, then an empty card, while the traveller was
-    looking at it.
+    The host drew the results the moment the lookup started and filled them
+    when they landed. The model knew nothing about that, so it composed its own
+    tree over the same surface, bound to its own paths — and the renderer
+    merges components by id, so the filled rows stayed in the data model with
+    nothing pointing at them. Real flights, then an empty card, while the
+    traveller was looking at it.
+
+    That was first answered by forbidding the model to draw, which left the
+    host owning the interface. The answer now is to tell it the address, so its
+    own tree points at the rows the host filed.
     """
 
-    def test_the_tool_result_says_it_is_already_on_screen(self) -> None:
+    def test_the_tool_result_says_where_the_rows_are(self) -> None:
         import asyncio
         import json
 
@@ -959,9 +979,14 @@ class TestWhatTheHostAlreadyDrew:
             if entry.get("type") == "function_result" and entry.get("name") == "search_flights"
         )
         said = json.loads(result["result"][0]["text"])
-        assert said["alreadyOnScreen"]["path"] == "/flights"
-        assert said["alreadyOnScreen"]["rows"] > 0
-        assert "Do not draw this surface again" in said["alreadyOnScreen"]["note"]
+        assert said["rowsOnScreen"]["path"] == "/flights"
+        assert said["rowsOnScreen"]["rows"] > 0
+        note = said["rowsOnScreen"]["note"]
+        # An address and the macro that reads it — not an instruction to stay
+        # away, and not a template to write out by hand either.
+        assert "Flights()" in note
+        assert "never re-type" in note
+        assert "do not draw" not in note.lower()
         # And the flights themselves are still there to talk about.
         assert said.get("items") or said.get("flights")
 
@@ -1555,3 +1580,126 @@ def test_a_restart_after_a_tool_has_run_is_refused() -> None:
     assert not [e for e in events if e["type"] == "restart"], (
         "a restart here leaves the API waiting for a function response"
     )
+
+
+class TestThePanelHearsAboutAPressStraightAway:
+    """The sidebar said nothing about a fare for as long as the turn took.
+
+    The panels are bound to `$/trip/...`, so bringing them up to date is one
+    `updateDataModel` and no model call. They were only sent at the *end* of the
+    turn — so a traveller pressed a fare, the host recorded it before the model
+    was even asked, and the sidebar went on showing the trip without it for
+    twenty seconds and more.
+    """
+
+    def press(self, name: str, context: dict[str, Any]) -> list[dict[str, Any]]:
+        import asyncio
+
+        model = FakeModel([([], [])])
+        return asyncio.run(
+            collect(
+                base(
+                    trip={
+                        "destination": "Madrid",
+                        "origin": "JFK",
+                        "startDate": "2027-04-12",
+                        "endDate": "2027-04-19",
+                        "travelers": 2,
+                    },
+                    action=SurfaceAction(name=name, surface_id="inline-1", context=context),
+                    client=model,
+                )
+            )
+        )
+
+    def panels(self, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        from travel_a2ui.brain.finishing import STANDING_SURFACES
+
+        return [
+            event
+            for event in events
+            if event["type"] == "ui" and event.get("surfaceId") in STANDING_SURFACES
+        ]
+
+    def test_the_panels_are_told_before_the_model_answers(self) -> None:
+        events = self.press("select_flight", {"id": "IB6250", "price": "$412"})
+        kinds = [event["type"] for event in events]
+        panels = self.panels(events)
+        assert panels, "the press never reached the panels"
+
+        first = next(
+            index
+            for index, event in enumerate(events)
+            if event["type"] == "ui" and event.get("surfaceId") in {p["surfaceId"] for p in panels}
+        )
+        # Before anything the model produced. `text` and `ui` on the answering
+        # surface are the model's; a `trip` event is the host's reconciliation
+        # at the end.
+        model_output = [
+            index
+            for index, event in enumerate(events)
+            if event["type"] == "text"
+            or (event["type"] == "ui" and event.get("surfaceId") == "inline-1")
+        ]
+        if model_output:
+            assert first < min(model_output), (
+                f"panels at {first}, model output at {min(model_output)}: too late"
+            )
+        assert "tool" not in kinds[:first], "and without waking a tool to do it"
+
+    def test_what_they_are_sent_is_data_and_not_a_redraw(self) -> None:
+        """A rebuild is a model call. This must never be one."""
+        panels = self.panels(self.press("select_flight", {"id": "IB6250", "price": "$412"}))
+        assert panels
+        for event in panels:
+            for message in event["messages"]:
+                assert "updateDataModel" in message, message
+                assert "createSurface" not in message and "updateComponents" not in message
+
+
+class TestTheAgentMayRedrawThePanel:
+    """The sidebar is the one surface a turn may address by name.
+
+    Everything else is readdressed to the card the turn was given, so a turn
+    cannot draw over a question already answered. A panel is not an answer, it
+    is the record — and readdressing it away was what stopped a turn that knew
+    a fare had been chosen from saying so. The panel waited for a second model
+    call after the turn instead: 24.8 seconds, measured in a browser, between
+    pressing a fare and the sidebar moving.
+    """
+
+    PANEL = (
+        '<a2ui>\nsurface("sidebar")\n'
+        'title = Text("Your trip", variant="h3")\n'
+        "root = Column([title])\n</a2ui>\n"
+    )
+
+    def turn(self):
+        import asyncio
+
+        model = FakeModel([(["Held it. ", self.PANEL], []), ([], [])])
+        return asyncio.run(
+            collect(
+                base(
+                    message="hold the Iberia fare",
+                    trip={"destination": "Madrid", "origin": "JFK", "travelers": 2},
+                    client=model,
+                )
+            )
+        )
+
+    def test_a_block_naming_the_sidebar_lands_on_the_sidebar(self) -> None:
+        drawn = {
+            body.get("surfaceId")
+            for event in self.turn()
+            if event["type"] == "ui"
+            for message in event["messages"]
+            for body in [
+                message.get("createSurface")
+                or message.get("updateComponents")
+                or message.get("updateDataModel")
+                or {}
+            ]
+            if isinstance(body, dict)
+        }
+        assert "sidebar" in drawn, f"the panel block was readdressed away: {drawn}"

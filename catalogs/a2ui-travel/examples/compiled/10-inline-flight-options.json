@@ -12,84 +12,10 @@
           "variant": "h3"
         },
         {
-          "id": "f1",
-          "component": "FlightOption",
-          "airline": "Iberia",
-          "departTime": "18:40",
-          "arriveTime": "08:15 +1",
-          "origin": "JFK",
-          "destination": "MAD",
-          "price": "$412",
-          "action": {
-            "event": {
-              "name": "select_flight",
-              "context": {
-                "id": "IB6250",
-                "price": "$412"
-              }
-            }
-          },
-          "duration": "7h 35m",
-          "stops": "Nonstop",
-          "flightNumber": "IB6250",
-          "selected": {
-            "@path": "/trip/selectedOutbound"
-          },
-          "badge": "Cheapest",
-          "accessibility": {
-            "label": "Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412, cheapest"
-          }
-        },
-        {
-          "id": "f2",
-          "component": "FlightOption",
-          "airline": "Delta",
-          "departTime": "21:10",
-          "arriveTime": "10:50 +1",
-          "origin": "JFK",
-          "destination": "MAD",
-          "price": "$468",
-          "action": {
-            "event": {
-              "name": "select_flight",
-              "context": {
-                "id": "DL126",
-                "price": "$468"
-              }
-            }
-          },
-          "duration": "7h 40m",
-          "stops": "Nonstop",
-          "flightNumber": "DL126",
-          "accessibility": {
-            "label": "Delta DL126, 21:10 JFK to 10:50 next day MAD, nonstop, $468"
-          }
-        },
-        {
-          "id": "f3",
-          "component": "FlightOption",
-          "airline": "TAP",
-          "departTime": "17:25",
-          "arriveTime": "11:05 +1",
-          "origin": "JFK",
-          "destination": "MAD",
-          "price": "$367",
-          "action": {
-            "event": {
-              "name": "select_flight",
-              "context": {
-                "id": "TP208",
-                "price": "$367"
-              }
-            }
-          },
-          "duration": "11h 40m",
-          "stops": "1 stop · LIS",
-          "flightNumber": "TP208",
-          "badge": "Lowest fare",
-          "accessibility": {
-            "label": "TAP TP208, 17:25 JFK to 11:05 next day MAD, 1 stop via Lisbon, $367, lowest fare"
-          }
+          "id": "fares",
+          "component": "Flights",
+          "heading": "Outbound · JFK → MAD · Sun 12 Apr",
+          "selected": "/trip/selectedOutbound"
         },
         {
           "id": "note",
@@ -101,18 +27,11 @@
           "component": "Column",
           "children": [
             "heading",
-            "f1",
-            "f2",
-            "f3",
+            "fares",
             "note"
           ]
         }
-      ],
-      "dataModel": {
-        "trip": {
-          "selectedOutbound": ""
-        }
-      }
+      ]
     }
   }
 ]

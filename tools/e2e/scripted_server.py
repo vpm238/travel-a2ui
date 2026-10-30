@@ -9,7 +9,7 @@ run.
 The script is deliberately a *whole turn* rather than a single surface: prose,
 then a tool call, then more prose and the answer. That shape is what the browser
 tests are actually about — whether the interface paints while the model is still
-writing, and whether the skeleton goes out before the tool runs.
+writing, and whether a lookup's rows are filed where the brief says they land.
 
     python tools/e2e/scripted_server.py [port]
 """
@@ -32,7 +32,7 @@ A2UI_CLOSE = "</a2ui>"
 #: What the fake model says, in order, one entry per round.
 #:
 #: Round one: a sentence, then a flight search. Round two: a sentence and the
-#: surface. The gap between them is where the skeleton and the fill belong.
+#: surface. The gap between them is where a lookup's rows are filed.
 SCRIPT: list[tuple[list[str], list[ToolCall]]] = [
     (
         ["Looking at flights to Madrid now. "],

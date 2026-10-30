@@ -10,7 +10,7 @@
  * Output: `src/surfaces.generated.json`, imported by the gallery at build time.
  */
 
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -72,11 +72,24 @@ for (const name of readdirSync(examplesDir).filter((file) => file.endsWith('.exp
   const source = readFileSync(join(examplesDir, name), 'utf8');
   const { description, body } = splitExample(source);
 
-  const messages = compiler.compile(source, {
-    surfaceId: stem,
-    catalogId: catalog.catalogId,
-    version: VERSION,
-  });
+  // The messages `build_examples.py` already compiled, not a second compile
+  // here.
+  //
+  // This re-ran the TypeScript compiler over the same Express, which worked
+  // right up to the first example that used a macro: `Flights()` is in the
+  // catalog the *model* is given, expanded host-side on the way out, and this
+  // compiler has no expander — "'Flights' is not a component in this catalog".
+  //
+  // Reading the compiled JSON is also simply more honest. It is what the brief
+  // teaches from and what the server would send; a parallel compile here could
+  // agree with it or not, and nothing would have said which.
+  const compiledPath = join(examplesDir, 'compiled', `${stem}.json`);
+  if (!existsSync(compiledPath)) {
+    console.error(`${stem}: no compiled JSON — run scripts/build_examples.py first.`);
+    process.exitCode = 1;
+    continue;
+  }
+  const messages = JSON.parse(readFileSync(compiledPath, 'utf8'));
 
   // The surface id the Express actually targets, which may differ from the file.
   const created = messages.find((message) => message.createSurface);

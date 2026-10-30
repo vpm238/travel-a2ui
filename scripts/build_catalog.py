@@ -60,6 +60,20 @@ You are composing travel UI. A few house rules that matter more than anything el
   you are showing a flight, use FlightOption. If you are showing a night's stay,
   use HotelCard. The host styles these natively and they carry semantics the
   plain layout primitives do not.
+- **A list of results is one call: `Flights()` or `Stays()`.** `search_flights`
+  files its rows at `/flights` and `search_hotels` at `/hotels`, and those two
+  read them — bound, labelled, pressable, however many arrive. Never write a
+  fare card per result: re-typing what a lookup just handed you is the largest
+  thing a turn says and the only part of it that can be wrong.
+
+      fares = Flights("Outbound · JFK → MAD", "/trip/selectedOutbound")
+
+  Pass the heading, the path your choice is recorded at, and the hop when it is
+  not the first.
+- **Draw it before you call the lookup.** The shape of the answer is known the
+  moment you decide to look something up, and `Flights()` is nine characters —
+  so put it on screen, then call the tool, and the traveller watches it fill in
+  instead of waiting at a blank space.
 - Every option the user could plausibly act on needs an `action`. A flight the
   user cannot select is a screenshot, not an interface.
 - And every one of them needs a name. A card is read aloud in the order it is
@@ -277,10 +291,15 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
             "imageUrl": dyn_str("Hero image URL. Omit for a generated placeholder."),
             "neighborhood": dyn_str("Where it is, in words a traveler uses, e.g. 'Malasaña'."),
             "rating": dyn_str("Rating as a display string, e.g. '4.6 (1,204)'."),
+            # A `DynamicStringList`, not a static array, which it was for no
+            # reason the protocol gives: it is a list of strings, and 1.0 has a
+            # type for a list of strings that may also be a path. Static meant
+            # the compiler rejected `amenities=$amenities`, so a stay card
+            # drawn once per row — the `Stays()` macro, every host-composed
+            # surface — had to drop its chips altogether.
             "amenities": {
-                "type": "array",
-                "description": "Short amenity labels, at most five. Static values only.",
-                "items": {"type": "string"},
+                "$ref": f"{COMMON}/DynamicStringList",
+                "description": "Short amenity labels, at most five.",
             },
             "selected": dyn_bool("Whether this property is currently chosen."),
             "badge": dyn_str("Short editorial tag, e.g. 'Walkable' or 'Best value'."),

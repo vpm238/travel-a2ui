@@ -21,9 +21,9 @@ the journey can actually be finished.
 It costs real money and it is not in CI. It is what you run before believing
 the flow works.
 
-**A press here is a press.** The host draws a skeleton whose rows are bound to
+**A press here is a press.** The agent draws a card whose rows are bound to
 relative paths — `{path: "id"}` resolved against the row being drawn — and the
-model's own cards land over it. A traveller presses the card they can see, so
+host files those rows when the lookup lands. A traveller presses the card they can see, so
 this presses the last matching component and resolves its bindings the way the
 renderer does, against the data model the host filled. Pressing the template
 instead sends `{"id": null}`, which is a different conversation and the reason

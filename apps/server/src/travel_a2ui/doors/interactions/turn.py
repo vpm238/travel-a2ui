@@ -32,16 +32,15 @@ from ...brain.catalog import (
     VALIDATOR,
     parser_for,
 )
-from ...brain.express import ExpressStream, Failed, FenceGate, Text, Ui
+from ...brain.express import ExpressStream, Failed, FenceGate, Text, Ui, as_wire
 from ...brain.promises import TYPED_NUDGE, promised
 from ...brain.providers.fixture import FixtureProvider
-from ...brain.skeleton import pending_surface_for
+from ...brain.macros import expand as expand_macros, file_rows, landing_for, opening_express, rows_in
 from ...brain.skills import build_prompt_parts
 from ...brain.finishing import finish, on_its_own_surface, panel_events, stack_blocks
 from ...brain.tools import ToolContext, gemini_tools, grounding_tools, run_tool
 from ...gemini import describe_api_error, stream_interaction
 from ..settings import FALLBACK_MODEL, MAX_TOOL_ROUNDS, PANEL_REQUEST, _today
-from .panels import _rebuild_panels
 from .press import (
     TurnRequest,
     TurnResult,
@@ -102,6 +101,16 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         confirmed = model.confirm(trip, said)
         trip.clear()
         trip.update(confirmed)
+        # And the panels hear about it now, not at the end of the turn.
+        #
+        # They are bound to `$/trip/...`, so this is one `updateDataModel` and
+        # no model call — the same messages the end of the turn sends. Sending
+        # them only there meant a traveller who pressed a fare watched the
+        # sidebar say nothing about it for as long as the answering turn took,
+        # twenty seconds and more, while the host had the answer before the
+        # model was even asked.
+        for event in panel_events(trip):
+            yield event
 
     def save(patch: dict[str, Any]) -> None:
         # `merge` rather than `update`, because one field does not simply
@@ -639,28 +648,39 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             # Draw the shape of the answer before going to look for it. Only on
             # the surface this turn is answering: a standing panel is not what
             # the traveller just asked a question about.
-            pending = (
-                pending_surface_for(
-                    call.name, request.surface_id, parser_for(request.surface_id), PROTOCOL_VERSION
-                )
-                if request.surface == "inline"
-                else None
-            )
-            if pending:
-                # The skeleton counts. It is a real interface on screen — the
-                # whole point of drawing it — and leaving it out of the mark
-                # measured the *model's* surface instead, which arrives a
-                # tool-round later and made the app look far slower than it is.
-                mark("firstSurface")
-                yield {
-                    "type": "ui",
-                    "surfaceId": request.surface_id,
-                    "messages": pending.opening,
-                    "done": False,
-                }
+            # What the agent asked to have on screen while this runs.
+            #
+            # It says so in the call — `draw: {heading, selected, hop}` — and the
+            # host expands the macro those arguments name. That is one act
+            # rather than two, which is the whole reason it is here: a turn
+            # answering a press records the decision and searches in the same
+            # round, so there is no gap to emit a separate block into, and two
+            # prompt rewrites could not make one. The agent still decides
+            # whether there is a list, what is above it and where the choice
+            # lands; `opening_express` says what the host does and does not
+            # contribute.
+            opening = opening_express(call.name, call.args.get("draw"), request.surface_id)
+            if opening:
+                try:
+                    drawn_now = as_wire(
+                        expand_macros(
+                            parser_for(request.surface_id).compile(opening, is_final=True), trip
+                        )
+                    )
+                except Exception:  # noqa: BLE001 - a bad `draw` must not cost the turn
+                    drawn_now = []
+                if drawn_now:
+                    mark("firstSurface")
+                    yield {
+                        "type": "ui",
+                        "surfaceId": request.surface_id,
+                        "messages": drawn_now,
+                        "done": False,
+                    }
 
             tool_began = time.perf_counter()
             dispatched_a_tool = True
+            before_tool = json.dumps(trip, sort_keys=True, default=str)
             output, is_error = await run_tool(call.name, call.args, tool_context)
             marks[f"tool:{call.name}"] = round((time.perf_counter() - tool_began) * 1000, 1)
             yield {
@@ -670,46 +690,56 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 "isError": is_error,
             }
 
-            # The same components, now with something in them. No recompile and
-            # no second component send: the data model is the only thing that
-            # moved.
+            # A tool that moved the trip — `save_trip`, a release — reaches the
+            # panels straight away, for the same reason as the press above: the
+            # record is what they draw, and they were waiting for the whole
+            # turn to end before hearing that it had changed.
+            if json.dumps(trip, sort_keys=True, default=str) != before_tool:
+                for event in panel_events(trip):
+                    yield event
+
+            # The rows, filed where the brief says they land. One
+            # `updateDataModel` and no components: a card bound to this path
+            # fills in, and one drawn after the fact finds the rows already
+            # there. See `brain/macros.py`, which holds both the address and
+            # the `Flights()` macro that reads it.
             drawn: dict[str, Any] | None = None
-            if pending and not is_error:
-                filled = pending.fill(output)
-                if filled:
+            if not is_error:
+                rows = file_rows(call.name, output, request.surface_id, PROTOCOL_VERSION)
+                if rows:
                     yield {
                         "type": "ui",
                         "surfaceId": request.surface_id,
-                        "messages": filled,
+                        "messages": rows,
                         "done": False,
                     }
-                    # And the model is told, because it could not otherwise know.
-                    #
-                    # The host draws these results the moment the lookup starts
-                    # and fills them when it lands — that is the whole point of
-                    # the skeleton. The model knew nothing about it, so it
-                    # composed its own tree over the top of the same surface,
-                    # bound to its own paths. The renderer merges components by
-                    # id, so the filled list stayed in the data model with
-                    # nothing pointing at it: the card appeared with real
-                    # flights, the model's block landed, and the flights
-                    # vanished while the traveller was looking at them.
                     drawn = {
                         "surfaceId": request.surface_id,
-                        "path": pending.path,
-                        "rows": len(pending.rows(output)),
+                        "path": landing_for(call.name),
+                        "rows": len(rows_in(call.name, output) or []),
                     }
 
             payload: dict[str, Any] = dict(output) if isinstance(output, dict) else {"result": output}
             if drawn:
-                payload["alreadyOnScreen"] = {
+                # Where they are, not what they say.
+                #
+                # This note used to read "Do not draw this surface again",
+                # because the host had drawn the cards itself and a block from
+                # the model landed over them and blanked the list. Telling the
+                # agent the address instead fixes the same collision from the
+                # other side: its tree points at the rows the host filed, and
+                # the cards are its own.
+                #
+                # It also stops the agent re-typing four fares it was just
+                # handed, which is the single largest thing it writes.
+                payload["rowsOnScreen"] = {
                     **drawn,
                     "note": (
-                        "The host has already drawn these on surface "
-                        f"{drawn['surfaceId']} and bound them to {drawn['path']}. "
-                        "Do not draw this surface again — say one line about what "
-                        "came back and let them press. Drawing over it replaces "
-                        "the cards they are looking at with an empty one."
+                        f"These {drawn['rows']} rows are in the data model of surface "
+                        f"{drawn['surfaceId']} at {drawn['path']}. Draw them with "
+                        f"`{'Flights' if drawn['path'] == '/flights' else 'Stays'}()` "
+                        "— one macro, bound to them — and never re-type what a "
+                        "lookup returned."
                     ),
                 }
 
@@ -849,11 +879,21 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # after the turn is answered. The events are ordinary `ui` messages
         # addressed to `sidebar` and `home`, which a client applies whenever
         # they arrive.
-        async for event in _rebuild_panels(request, trip, today):
-            if event["type"] == "__shape__":
-                shape = event["shape"]
-            else:
-                yield event
+        # No rebuild, and no fallback to one.
+        #
+        # The panel was redrawn by a second model call whenever a decision gave
+        # it something it had no room for — 24.8 seconds, measured, between
+        # pressing a fare and the sidebar moving. Letting the agent redraw it
+        # in-turn instead made that possible and not reliable: it did not take
+        # the instruction up, the rebuild fired every time anyway, and the
+        # walkthrough grew four model turns and six thousand output tokens.
+        #
+        # `Trip()` draws the panel complete — every slot a decision could fill
+        # already there, bound to the record, including the empty ones. So a
+        # press only ever changes data, and data reaches the panel with no
+        # model in the path. That is the reliable version: not a redraw that
+        # usually happens, but a panel that cannot go stale.
+        shape = model.decision_shape(trip)
 
     mark("done")
     # Sent before `done` so a client can attach it to the turn it describes

@@ -1,6 +1,7 @@
 """The trip has to survive a traveller who presses before the turn finishes.
 
-The fares are drawn the moment they land — that is the point of the skeleton —
+The fares are drawn the moment they land — a card bound to where the host files
+the rows fills in as they arrive —
 so the obvious thing to do is press one straight away, while the turn is still
 running its sidebar rebuild. Doing that aborted the stream, and everything that
 remembered the trip was written *after* that rebuild: the receipt the client

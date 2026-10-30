@@ -38,7 +38,6 @@ from .catalog import COMPONENT_NAMES, VALIDATOR, parser_for
 from .express import as_wire
 from .macros import expand as expand_macros
 from .providers.types import NotFound, TravelProvider
-from .spoken import flight_label, hotel_label
 
 
 @dataclass(frozen=True)
@@ -365,39 +364,31 @@ async def _flights(args: dict[str, Any], provider: TravelProvider) -> Surface:
     # place this product exists not to put it.
     party = _int(trip.get("travelers"), 1) or 1
 
-    for index, flight in enumerate(flights):
-        badge = f", badge={_q(flight['badge'])}" if flight.get("badge") else ""
-        # Only when it differs from the fare. `total="$261 for 1"` is noise on
-        # every card of every single-traveller trip, which is most of them.
+    # The rows, then the macro that draws them — the same `Flights()` the typed
+    # door writes. This door composes the surface because the Live API gives a
+    # model no way to send Express at all; what it composes is now the agent's
+    # own vocabulary rather than fourteen arguments per fare written out in
+    # Python. One definition of what a fare list is, for both doors.
+    rows = []
+    for flight in flights:
         fare = _number(flight.get("priceValue"))
-        total = (
-            f", total={_q(f'{_money(int(round(fare * party)))} for {party}')}"
+        # Only when it differs from the fare. `total="$261 for 1"` is noise on
+        # every card of every single-traveller trip, which is most of them. The
+        # fare a provider quotes is per traveller either way, so a card showing
+        # `$261` for a leg carrying two is quietly showing half the price.
+        whole_party = (
+            f"{_money(int(round(fare * party)))} for {party}"
             if party > 1 and fare is not None
             else ""
         )
-        # What a screen reader says instead of the card's own text. One
-        # sentence, built in `brain/spoken.py` from the same fields the card
-        # carries — including the party's price rather than one traveller's,
-        # which is why `total` is handed over with the rest.
-        reads = flight_label(
+        rows.append(
             {
-                **flight,
-                "total": (
-                    f"{_money(int(round(fare * party)))} for {party}"
-                    if party > 1 and fare is not None
-                    else ""
-                ),
+                **{k: v for k, v in flight.items() if isinstance(v, (str, bool))},
+                "total": whole_party,
             }
         )
-        lines.append(
-            f"f{index} = FlightOption({_q(flight['airline'])}, {_q(flight['departTime'])}, "
-            f"{_q(flight['arriveTime'])}, {_q(flight['origin'])}, {_q(flight['destination'])}, "
-            f"{_q(flight['price'])}, "
-            f'Event("select_flight", {{id: {_q(flight["id"])}, price: {_q(flight["price"])}}}), '
-            f"duration={_q(flight['duration'])}, stops={_q(flight['stops'])}, "
-            f"flightNumber={_q(flight['flightNumber'])}, cabin={_q(flight['cabin'])}"
-            f"{badge}{total}, accessibility={{label: {_q(reads)}}})"
-        )
+    lines.append(f"$/flights = {json.dumps(rows, ensure_ascii=False)}")
+    lines.append("fares = Flights()")
 
     # The footer says where the numbers came from. On a fixture deployment that
     # reads "Sample data"; on a live one it names the source. Neither is
@@ -413,8 +404,7 @@ async def _flights(args: dict[str, Any], provider: TravelProvider) -> Surface:
         if part
     )
     lines.append(f"foot = Text({_q(caption)}, variant=\"caption\")")
-    body = ", ".join(f"f{index}" for index in range(len(flights)))
-    lines.append(f"root = Column([head, {body}, foot])")
+    lines.append("root = Column([head, fares, foot])")
 
     indicative = " Indicative — no date was given." if missing else ""
     return Surface(
@@ -451,17 +441,17 @@ async def _hotels(args: dict[str, Any], provider: TravelProvider) -> Surface:
         f"surface({_q(surface_id)})",
         f"head = Text({_q(f'Stays in {place}')}, variant={_q('h4' if flow == 'home' else 'h3')})",
     ]
-    for index, hotel in enumerate(hotels):
-        amenities = ", ".join(_q(item) for item in hotel["amenities"])
-        badge = f", badge={_q(hotel['badge'])}" if hotel.get("badge") else ""
-        # See the note on the fare cards.
-        reads = hotel_label(hotel)
-        lines.append(
-            f"h{index} = HotelCard({_q(hotel['name'])}, {_q(hotel['price'])}, "
-            f'Event("select_hotel", {{id: {_q(hotel["id"])}, name: {_q(hotel["name"])}}}), '
-            f"neighborhood={_q(hotel['neighborhood'])}, rating={_q(hotel['rating'])}, "
-            f"amenities=[{amenities}]{badge}, accessibility={{label: {_q(reads)}}})"
-        )
+    # See the note on the fares: the rows, then the macro that draws them.
+    rows = [
+        {
+            key: value
+            for key, value in hotel.items()
+            if isinstance(value, (str, bool)) or key == "amenities"
+        }
+        for hotel in hotels
+    ]
+    lines.append(f"$/hotels = {json.dumps(rows, ensure_ascii=False)}")
+    lines.append("stays = Stays()")
 
     caption = " · ".join(
         part
@@ -473,8 +463,7 @@ async def _hotels(args: dict[str, Any], provider: TravelProvider) -> Surface:
         if part
     )
     lines.append(f"foot = Text({_q(caption)}, variant=\"caption\")")
-    body = ", ".join(f"h{index}" for index in range(len(hotels)))
-    lines.append(f"root = Column([head, {body}, foot])")
+    lines.append("root = Column([head, stays, foot])")
 
     return Surface(
         express="\n".join(lines),

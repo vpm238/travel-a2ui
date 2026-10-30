@@ -269,6 +269,14 @@ export default function App() {
           {agent.usage.turns > 0
             ? `${agent.usage.turns} turn${agent.usage.turns > 1 ? 's' : ''} · ` +
               `${agent.usage.inputTokens.toLocaleString()} in / ${agent.usage.outputTokens.toLocaleString()} out` +
+              // Thinking, which is most of what a turn costs in *time* and was
+              // the one number this line did not carry. `useAgent` has tracked
+              // it all along; a turn asked for `low` has been measured
+              // spending 3,316 thought tokens deciding how to draw a form it
+              // draws every turn, and nothing on screen said so.
+              (agent.usage.thoughtTokens > 0
+                ? ` · ${agent.usage.thoughtTokens.toLocaleString()} thinking`
+                : '') +
               (agent.usage.cacheReadTokens > 0
                 ? ` · ${agent.usage.cacheReadTokens.toLocaleString()} cached`
                 : '')

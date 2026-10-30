@@ -20,7 +20,7 @@ import pathlib
 import pytest
 
 from travel_a2ui.brain.providers.fixture import FixtureProvider
-from travel_a2ui.brain.builders import build_surface
+from travel_a2ui.brain.builders import build_surface, compile_surface
 from travel_a2ui.brain.wire import components_of
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -37,6 +37,19 @@ provider = FixtureProvider()
 
 def run(tool: str, args: dict):
     return asyncio.run(build_surface(tool, args, provider, TODAY))
+
+
+def seeded(express: str, path: str = "/flights") -> list[dict]:
+    """The rows a built surface seeds, parsed back out of its Express.
+
+    These tests used to count `FlightOption(` constructors. There is one now,
+    whatever the lookup returned: the surface seeds its rows and draws them
+    with `Flights()`, so the thing to count is the rows.
+    """
+    for line in express.split("\n"):
+        if line.startswith(f"$ {path} = ".replace("$ ", "$")):
+            return json.loads(line.split(" = ", 1)[1])
+    return []
 
 
 def where(actual: str, expected: str) -> str:
@@ -94,7 +107,7 @@ class TestWhatTheSurfacesPromise:
                 "show_flight_options",
                 {"destination": "Madrid", "origin": "JFK", "date": "2027-04-12", "surface": flow},
             )
-            counts[flow] = surface.express.count("FlightOption(")
+            counts[flow] = len(seeded(surface.express))
             assert counts[flow] == expected, f"{flow} should fit {expected}"
 
     def test_the_panels_are_singular_and_inline_cards_are_not(self) -> None:
@@ -108,32 +121,51 @@ class TestWhatTheSurfacesPromise:
     def test_every_pressable_card_says_what_it_is(self) -> None:
         """A fare card read aloud is otherwise a pile of fragments.
 
-        In DOM order a `FlightOption` is "TAP Air Portugal TP622 15:39 JFK
-        02:30 +1 MAD 10h 51m 1 stop · LIS $989" — every fact, no sentence, the
-        price last. The host has those fields from the provider rather than
-        from prose, so it is the one producer that can name the card exactly,
-        and these are the surfaces the model never writes.
+        In field order a `FlightOption` is "TAP Air Portugal TP622 15:39 JFK
+        02:30 +1 MAD 10h 51m 1 stop \u00b7 LIS $989" \u2014 every fact, no sentence, the
+        price last. The sentence is the `Flights()` macro's, written once as a
+        `formatString` over the row being drawn, so one component names however
+        many fares arrive. The host's share is putting the fields in the rows.
         """
         flights = run(
             "show_flight_options",
             {"destination": "Madrid", "origin": "JFK", "date": "2027-04-12", "travelers": 2},
         )
-        cards = [line for line in flights.express.split("\n") if "FlightOption(" in line]
-        assert cards, "no fare cards to check"
-        for card in cards:
-            assert "accessibility={label:" in card, card
+        rows = seeded(flights.express)
+        assert rows, "no fare rows to check"
+        for row in rows:
+            # Everything the label reads has to be in the row, or it resolves
+            # to a sentence with holes in it.
+            for field in ("airline", "flightNumber", "departTime", "origin", "price"):
+                assert row.get(field), f"{field} missing from {row}"
             # The party's price, not one traveller's: the card puts both on
             # screen and a label carrying only the fare would read the
             # per-person number as the price.
-            assert "for 2" in card.split("accessibility={label:")[1], card
-            # A visual separator, read aloud, is a character or a silence.
-            assert "·" not in card.split("accessibility={label:")[1], card
+            assert "for 2" in row["total"], row
+
+        drawn = [
+            node
+            for message in compile_surface(flights)
+            for node in components_of(message)
+            if node.get("component") == "FlightOption"
+        ]
+        assert len(drawn) == 1, "one template row, however many fares came back"
+        label = drawn[0]["accessibility"]["label"]
+        assert label["@call"] == "formatString"
+        template = label["args"]["value"]
+        assert "${airline}" in template and "${price}" in template
+        assert "${total}" in template, "a party of two must hear what it pays"
 
         stays = run("show_hotel_options", {"destination": "Madrid", "nights": 4})
-        cards = [line for line in stays.express.split("\n") if "HotelCard(" in line]
-        assert cards, "no stays to check"
-        for card in cards:
-            assert "accessibility={label:" in card, card
+        rows = seeded(stays.express, "/hotels")
+        assert rows, "no stays to check"
+        for row in rows:
+            for field in ("name", "neighborhood", "rating", "price"):
+                assert row.get(field), f"{field} missing from {row}"
+            # Dropped by the old row filter, because the catalog had it static
+            # for no reason the protocol gives. A stay with no chips is thinner
+            # than the one this door used to draw.
+            assert row.get("amenities"), row
 
     def test_every_priced_surface_says_where_the_numbers_came_from(self) -> None:
         """A fare with no provenance on screen is what made this untrustworthy."""
@@ -164,7 +196,7 @@ class TestWhatTheSurfacesPromise:
             {"destination": "Madrid", "origin": "JFK", "date": "2027-04-12"},
         )
         # Four flights are drawn; at most one fare is spoken.
-        assert surface.express.count("FlightOption(") == 4
+        assert len(seeded(surface.express)) == 4
         fares = [word for word in surface.summary.split() if word.startswith("$")]
         assert len(fares) <= 1, f"the summary quotes {len(fares)} fares: {surface.summary}"
 
@@ -319,7 +351,7 @@ class TestALegCarriesItsOwnParty:
         import asyncio
 
         from travel_a2ui.brain.providers.fixture import FixtureProvider
-        from travel_a2ui.brain.builders import build_surface
+        from travel_a2ui.brain.builders import build_surface, compile_surface
 
         surface = asyncio.run(
             build_surface(
@@ -337,24 +369,26 @@ class TestALegCarriesItsOwnParty:
         return surface.express
 
     def test_a_party_gets_a_total(self) -> None:
-        express = self.express(2)
-        assert "total=" in express, "two tickets and no total on the card"
-        assert "for 2" in express
+        rows = seeded(self.express(2))
+        assert rows, "no fare rows"
+        assert all("for 2" in row["total"] for row in rows), "two tickets and no total"
 
     def test_one_traveller_gets_none(self) -> None:
-        """`total="$261 for 1"` is noise on most trips."""
-        assert "total=" not in self.express(1)
+        """`total="$261 for 1"` is noise on most trips.
+
+        Empty rather than absent: the card's `total` is bound now, and a row
+        whose field resolves to nothing leaves the card falling back to the
+        cabin \u2014 which is what every single-traveller trip wants.
+        """
+        assert all(row["total"] == "" for row in seeded(self.express(1)))
 
     def test_the_total_is_the_fare_times_the_party(self) -> None:
-        import re
-
-        express = self.express(3)
-        fares = re.findall(r'FlightOption\([^)]*?"(\$[\d,]+)"', express)
-        totals = re.findall(r'total="\$([\d,]+) for 3"', express)
-        assert fares and totals, "expected both a fare and a total on every card"
-        for fare, total in zip(fares, totals):
-            each = int(fare.lstrip("$").replace(",", ""))
-            assert int(total.replace(",", "")) == each * 3, f"{fare} × 3 ≠ ${total}"
+        rows = seeded(self.express(3))
+        assert rows, "no fare rows"
+        for row in rows:
+            each = int(str(row["price"]).lstrip("$").replace(",", ""))
+            whole = int(row["total"].split(" for ")[0].lstrip("$").replace(",", ""))
+            assert whole == each * 3, f"{row['price']} x 3 != {row['total']}"
 
     def test_it_compiles_and_validates(self) -> None:
         """A new field the catalog does not accept is a surface that never draws."""
@@ -369,5 +403,10 @@ class TestALegCarriesItsOwnParty:
             for component in components_of(message)
             if component.get("component") == "FlightOption"
         ]
-        assert flights, "no flight cards compiled"
-        assert all("for 2" in str(card.get("total", "")) for card in flights)
+        assert flights, "no flight card compiled"
+        assert len(flights) == 1, "one template row, however many fares came back"
+        # Bound, not literal: the total the card shows is the row's, and the
+        # rows are checked above. What this asserts is that the binding exists
+        # and the catalog accepts it \u2014 a field it does not accept is a surface
+        # that never draws.
+        assert flights[0]["total"] == {"@path": "total"}

@@ -51,6 +51,24 @@
           "flexible": {
             "type": "boolean",
             "description": "Only when the traveler asked for a rough or seasonal figure rather than their trip. Prices an indicative date, which you must then label as indicative on screen."
+          },
+          "draw": {
+            "type": "object",
+            "description": "What to put on screen *while this runs*, so the traveler watches an interface fill in rather than waiting at an empty space. The list is drawn the moment the lookup starts and the rows land in it when they come back. Omit it only if you are drawing something else yourself.",
+            "properties": {
+              "heading": {
+                "type": "string",
+                "description": "One line above the list, e.g. 'Outbound · JFK → MAD · Sun 12 Apr'."
+              },
+              "selected": {
+                "type": "string",
+                "description": "Data path holding the current choice, e.g. '/trip/selectedOutbound', so the chosen card stays marked."
+              },
+              "hop": {
+                "type": "integer",
+                "description": "Which hop these are for, when it is not the first — hop two is '/legs/0'. The press carries it so the choice lands on that leg."
+              }
+            }
           }
         },
         "required": [
@@ -88,6 +106,24 @@
           "flexible": {
             "type": "boolean",
             "description": "Only for an explicitly rough figure. See search_flights."
+          },
+          "draw": {
+            "type": "object",
+            "description": "What to put on screen *while this runs*, so the traveler watches an interface fill in rather than waiting at an empty space. The list is drawn the moment the lookup starts and the rows land in it when they come back. Omit it only if you are drawing something else yourself.",
+            "properties": {
+              "heading": {
+                "type": "string",
+                "description": "One line above the list, e.g. 'Outbound · JFK → MAD · Sun 12 Apr'."
+              },
+              "selected": {
+                "type": "string",
+                "description": "Data path holding the current choice, e.g. '/trip/selectedOutbound', so the chosen card stays marked."
+              },
+              "hop": {
+                "type": "integer",
+                "description": "Which hop these are for, when it is not the first — hop two is '/legs/0'. The press carries it so the choice lands on that leg."
+              }
+            }
           }
         },
         "required": [

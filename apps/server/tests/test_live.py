@@ -718,13 +718,18 @@ class TestASpokenTurnCannotWriteInterfaceCode:
         spoken = build_system_prompt(**common, draws="tools")
         typed = build_system_prompt(**common)
 
-        # The component signatures and the streaming rules are the contract
-        # that teaches emission. The typed channel has a parser for what they
-        # produce; the spoken one has a loudspeaker.
+        # The contract is what teaches emission: the generated signatures and
+        # the streaming rules. The typed channel has a parser for what they
+        # produce; the spoken conversation has a loudspeaker.
         #
-        # Deliberately not asserting on the literal "<a2ui>": the spoken prompt
-        # contains it too, inside the sentence forbidding it.
-        for taught in ("FlightOption(", "ItineraryDay(", "positional", "sentinel"):
+        # Asserted on the contract rather than on component names, which was
+        # this test's first shape and was checking something else. The shared
+        # flow prose carries worked Express — `HotelCard(`, `ChoicePicker(`,
+        # `<a2ui>` are all in the spoken prompt today and belong there, because
+        # that prose is about how a turn goes and the *panel* pass on this very
+        # door composes in Express. Spot-checking four constructor names made a
+        # realistic example in `flow.md` fail the build for having a fifth.
+        for taught in ("## Positional Component Signatures", "Output Contract", "sentinel"):
             assert taught in typed, taught
             assert taught not in spoken, taught
 

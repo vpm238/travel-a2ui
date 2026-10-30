@@ -1,19 +1,15 @@
 # Inline: answering "find me a flight to Madrid" inside the chat feed.
-# One surface, one job — three options and a way to pick one.
+# One surface, one job — the options and a way to pick one.
 surface("inline-7")
 # That id is the one this turn was given ("Draw into surface ..."), never an
 # earlier card's. A card already answered is the record of that answer, and a
 # root drawn onto it takes the place of what the traveler picked from.
-$/trip/selectedOutbound = ""
 heading = Text("Outbound · JFK → MAD · Sun 12 Apr", variant="h3")
-# Every fare carries its own sentence. A card is read out in the order it is
-# written — "Iberia IB6250 18:40 JFK 08:15 +1 MAD 7h 35m Nonstop $412" — which
-# is every fact and no sentence, and `accessibility.label` *replaces* that, so
-# whatever is written here is the whole of what a traveller using a screen
-# reader gets. Said in the example rather than only in the instructions,
-# because this is the part a model imitates.
-f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("select_flight", {id: "IB6250", price: "$412"}), duration="7h 35m", stops="Nonstop", flightNumber="IB6250", selected=$/trip/selectedOutbound, badge="Cheapest", accessibility={label: "Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412, cheapest"})
-f2 = FlightOption("Delta", "21:10", "10:50 +1", "JFK", "MAD", "$468", Event("select_flight", {id: "DL126", price: "$468"}), duration="7h 40m", stops="Nonstop", flightNumber="DL126", accessibility={label: "Delta DL126, 21:10 JFK to 10:50 next day MAD, nonstop, $468"})
-f3 = FlightOption("TAP", "17:25", "11:05 +1", "JFK", "MAD", "$367", Event("select_flight", {id: "TP208", price: "$367"}), duration="11h 40m", stops="1 stop · LIS", flightNumber="TP208", badge="Lowest fare", accessibility={label: "TAP TP208, 17:25 JFK to 11:05 next day MAD, 1 stop via Lisbon, $367, lowest fare"})
+# One call, drawn *before* search_flights is called. The lookup files its rows
+# at /flights and this reads them: bound, labelled, pressable, however many
+# come back. Writing a FlightOption per result instead is three hundred tokens
+# the traveler waits through, and the one part of the turn that can disagree
+# with what was actually found.
+fares = Flights("Outbound · JFK → MAD · Sun 12 Apr", "/trip/selectedOutbound")
 note = Text("Prices are per traveler, round trip.")
-root = Column([heading, f1, f2, f3, note])
+root = Column([heading, fares, note])

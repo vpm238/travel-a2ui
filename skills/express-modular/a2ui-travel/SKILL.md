@@ -26,6 +26,15 @@ Use these exact positional signatures to instantiate components. Do not output p
   - onRemove: Fired when the traveler drops this activity. Give every activity one: a day plan is theirs to edit.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
+• Ask(heading? (static), label? (static))
+  - Description: Everything the trip still needs, as one surface with one button.
+    
+    The opening turn, and every turn that needs a gap filled: dates, who is
+    going, where they are flying from, per hop, bound to the record and
+    pre-filled from it. Only what is missing — a hop whose date is known gets
+    no date control, and nothing already settled is asked again.
+  - heading: The line at the top, e.g. 'Madrid in April — two travellers'.
+  - label: What the button says. Defaults to 'Find flights'.
 • Button(child (component ID), variant? (static), action (static), weight? (static), accessibility? (static), checks? (static))
   - child: The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button.
   - variant: A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link. Must be one of: 'default', 'primary', 'borderless'
@@ -105,7 +114,16 @@ Use these exact positional signatures to instantiate components. Do not output p
   - total: What this flight costs for everyone on this leg, when that is more than one person — preformatted, e.g. '$522 for 2'. Give it whenever the leg carries a party, and `price` is then read as the per-traveler fare.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
-• HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities? (static), selected?, badge?, weight? (static), accessibility? (static))
+• Flights(heading? (static), selected? (static), hop? (static))
+  - Description: The fares a lookup filed, as a list the traveller can press.
+    
+    Write this instead of a fare card per result. `search_flights` puts its rows
+    at `/flights` and this reads them, so it can go on screen *before* the
+    lookup — draw it, then call the tool, and it fills in as the rows land.
+  - heading: Optional line above the list, e.g. 'Outbound · JFK → MAD'.
+  - selected: Data path holding the current choice, e.g. '/trip/selectedOutbound', so the chosen card stays marked.
+  - hop: Which hop these fares are for, when it is not the first. Hop two is '/legs/0'; the press carries it so the fare lands on that leg.
+• HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities?, selected?, badge?, weight? (static), accessibility? (static))
   - Description: A place to stay, presented as a rich card with imagery, rating and nightly price.
   - name: Property name.
   - price: Preformatted nightly or total price, e.g. '$186 / night'.
@@ -113,7 +131,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - imageUrl: Hero image URL. Omit for a generated placeholder.
   - neighborhood: Where it is, in words a traveler uses, e.g. 'Malasaña'.
   - rating: Rating as a display string, e.g. '4.6 (1,204)'.
-  - amenities: Short amenity labels, at most five. Static values only.
+  - amenities: Short amenity labels, at most five.
   - selected: Whether this property is currently chosen.
   - badge: Short editorial tag, e.g. 'Walkable' or 'Best value'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
@@ -198,6 +216,14 @@ Use these exact positional signatures to instantiate components. Do not output p
   - action: Fired when the traveler taps the tile.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
+• Stays(heading? (static), selected? (static), hop? (static))
+  - Description: The stays a lookup filed, as a list the traveller can press.
+    
+    `search_hotels` puts its rows at `/hotels`. Same shape as `Flights()`: draw
+    it, then call the tool.
+  - heading: Optional line above the list, e.g. 'Stays in Madrid'.
+  - selected: Data path holding the current choice, e.g. '/trip/selectedHotel'.
+  - hop: Which hop is staying the night, when it is not the first.
 • Text(text, variant? (static), weight? (static), accessibility? (static))
   - text: The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation.
   - variant: A hint for the base text style. Must be one of: 'h1', 'h2', 'h3', 'h4', 'h5', 'caption', 'body'
@@ -219,6 +245,14 @@ Use these exact positional signatures to instantiate components. Do not output p
   - caption: Qualifier, e.g. 'Age 12+'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
+• Trip(heading? (static))
+  - Description: The trip as it stands, as the standing panel draws it.
+    
+    One section per hop of the route the trip currently has, every value bound
+    to the record so that what the traveller settles next arrives without
+    another turn. Write it on the panel — `surface("sidebar")` — and nothing
+    needs to redraw it again.
+  - heading: Optional line at the top, e.g. 'Your trip to Madrid'.
 • TripCalendar(start, end?, marks? (static), title?, caption?, action? (static), weight? (static), accessibility? (static))
   - Description: The trip's dates on a month grid: the travel days drawn as one highlighted band, with a glyph on any day worth marking. Read-only — use it wherever a traveler should *see* when they are going (the panel, the home surface, beside a chosen flight), and DateRangePicker when they are still choosing.
   - start: First travel day as yyyy-MM-dd, e.g. '2027-04-12'. Bind it to the trip — `$/trip/startDate` — so the band moves when the dates do.
@@ -307,6 +341,20 @@ You are composing travel UI. A few house rules that matter more than anything el
   you are showing a flight, use FlightOption. If you are showing a night's stay,
   use HotelCard. The host styles these natively and they carry semantics the
   plain layout primitives do not.
+- **A list of results is one call: `Flights()` or `Stays()`.** `search_flights`
+  files its rows at `/flights` and `search_hotels` at `/hotels`, and those two
+  read them — bound, labelled, pressable, however many arrive. Never write a
+  fare card per result: re-typing what a lookup just handed you is the largest
+  thing a turn says and the only part of it that can be wrong.
+
+      fares = Flights("Outbound · JFK → MAD", "/trip/selectedOutbound")
+
+  Pass the heading, the path your choice is recorded at, and the hop when it is
+  not the first.
+- **Draw it before you call the lookup.** The shape of the answer is known the
+  moment you decide to look something up, and `Flights()` is nine characters —
+  so put it on screen, then call the tool, and the traveller watches it fill in
+  instead of waiting at a blank space.
 - Every option the user could plausibly act on needs an `action`. A flight the
   user cannot select is a screenshot, not an interface.
 - And every one of them needs a name. A card is read aloud in the order it is
@@ -331,13 +379,10 @@ You are composing travel UI. A few house rules that matter more than anything el
 
 <a2ui>
 surface("inline-7")
-$/trip/selectedOutbound = ""
 heading = Text("Outbound · JFK → MAD · Sun 12 Apr", "h3")
-f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("select_flight", {id: "IB6250", price: "$412"}), "7h 35m", "Nonstop", "IB6250", _, $/trip/selectedOutbound, "Cheapest", _, _, {label: "Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412, cheapest"})
-f2 = FlightOption("Delta", "21:10", "10:50 +1", "JFK", "MAD", "$468", Event("select_flight", {id: "DL126", price: "$468"}), "7h 40m", "Nonstop", "DL126", _, _, _, _, _, {label: "Delta DL126, 21:10 JFK to 10:50 next day MAD, nonstop, $468"})
-f3 = FlightOption("TAP", "17:25", "11:05 +1", "JFK", "MAD", "$367", Event("select_flight", {id: "TP208", price: "$367"}), "11h 40m", "1 stop · LIS", "TP208", _, _, "Lowest fare", _, _, {label: "TAP TP208, 17:25 JFK to 11:05 next day MAD, 1 stop via Lisbon, $367, lowest fare"})
+fares = Flights("Outbound · JFK → MAD · Sun 12 Apr", "/trip/selectedOutbound")
 note = Text("Prices are per traveler, round trip.")
-root = Column([heading, f1, f2, f3, note])
+root = Column([heading, fares, note])
 </a2ui>
 
 <a2ui>

@@ -13,7 +13,7 @@ from __future__ import annotations
 import copy
 from typing import Any, Iterable
 
-from .shared import VERSION, A2uiMessage, _components_in, _named_root
+from .shared import STANDING_SURFACES, VERSION, A2uiMessage, _components_in, _named_root
 
 def _addressed_to(value: Any, surface_id: str) -> Any:
     """The same message, with every `surfaceId` in it set to this turn's."""
@@ -59,6 +59,13 @@ def on_its_own_surface(
     it says a turn may not draw over the answer to a question already asked, which
     is the one thing a spent card is for. Everything a turn wants to revisit it can
     say again on its own card, which is where the traveller is looking.
+
+    **The standing panels are the exception, and by that same reasoning.** A
+    spent card is an answer; the sidebar is a record, and the one surface in
+    this app that is *meant* to be drawn again. Readdressing it away was how a
+    turn that knew a fare had been chosen was prevented from saying so, and the
+    panel instead waited for a second model call after the turn — measured at
+    24.8 seconds between pressing a fare and the sidebar moving.
     """
     out: list[A2uiMessage] = []
     for message in messages:
@@ -71,9 +78,8 @@ def on_its_own_surface(
             if isinstance(elsewhere, dict)
             else None
         )
-        out.append(
-            message if target in (None, surface_id) else _addressed_to(message, surface_id)
-        )
+        keep = target in (None, surface_id) or target in STANDING_SURFACES
+        out.append(message if keep else _addressed_to(message, surface_id))
     return out
 
 
