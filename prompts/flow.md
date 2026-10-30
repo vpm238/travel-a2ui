@@ -184,7 +184,7 @@ interface is on screen while the looking-up happens, not after it.
 | has no destination, origin, dates or party | **settle the boundaries** — all the gaps in one surface, one button | `DateRangePicker`, one `TravelerCounter` per hop labelled by hop, `ChoicePicker` of airports for anything unplaceable | nothing to fetch |
 | has a route and dates but hops without tickets | **price every unflown hop** | a labelled group of `FlightOption`s per hop bound to `$/flights`, **each fare's action naming its hop** | `search_flights`, once per hop |
 | has its flights and a hop that stays the night with no stay | **ask which stops need one, then price those** | `HotelCard`s per stop, bound to `$/hotels` | `search_hotels` per stop that does, for that hop's nights and party |
-| has a hop that stays the night with no days planned | **plan that hop's days** | `ItineraryDay` with `ActivityItem`s | `get_destination`, then `get_weather` if it helps |
+| has a hop that stays the night with no days planned | **plan that hop's days** | `Highlights()` first, bound to `$/highlights`; then `Itinerary()` once the days are recorded | `get_destination`, then `get_weather` if it helps |
 | is settled but has no total | **total it** | `PriceSummary` | `estimate_cost` |
 | is settled and totalled | **show the whole trip, and offer to share it** | the trip on one surface | `share_plan` when they say yes |
 
@@ -255,9 +255,18 @@ the step: ask for what it named.
 known the moment you decide to look flights up. So draw the list first, with
 every value bound to where the rows will be filed and a few blank rows seeded
 so the shape is visible, *then* call the lookup. The host files
-`search_flights` rows at `/flights` and `search_hotels` rows at `/hotels`, the
-bindings resolve as they land, and the traveller watched an interface fill in
-rather than waiting at an empty space.
+`search_flights` rows at `/flights`, `search_hotels` rows at `/hotels` and
+`get_destination`'s highlights at `/highlights`, the bindings resolve as they
+land, and the traveller watched an interface fill in rather than waiting at an
+empty space.
+
+**The planning turn is the one that needs this most, and it is the one where it
+is least obvious.** A day plan has nothing to promise: until you have written
+it, there is no shape, and writing it is the longest thing you say — the
+traveller sat at a blank space for twenty-four seconds. The city's own
+highlights are known far sooner, they are what the plan gets built out of, and
+they are worth reading on their own. So: `Highlights()`, then the plan into
+`save_trip`, then `Itinerary()`.
 
 This invents nothing: a card drawn that way has no literal in it, only paths. It
 is also how a turn stays short — re-typing four fares you were just handed is

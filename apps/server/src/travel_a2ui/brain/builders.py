@@ -348,7 +348,17 @@ async def _flights(args: dict[str, Any], provider: TravelProvider) -> Surface:
 
     # The heading names what these fares are for. A price with no route, date or
     # party size beside it is the thing that makes an answer untrustworthy.
-    heading = model.basis_of({**trip, "destination": place}) or f"Flights to {place} · indicative"
+    #
+    # The agent's own words when it sent any, which is the voice door's version
+    # of the typed door's `draw: {heading}`: this model cannot send Express, so
+    # a tool argument is the only way it can say what goes above a list. What
+    # the host writes when it does not is the trip's basis — a default, and the
+    # one line here that must never be absent.
+    heading = (
+        _str(args.get("heading"))
+        or model.basis_of({**trip, "destination": place})
+        or f"Flights to {place} · indicative"
+    )
 
     lines = [
         f"surface({_q(surface_id)})",
@@ -437,9 +447,12 @@ async def _hotels(args: dict[str, Any], provider: TravelProvider) -> Surface:
     hotels = outcome.items[: _limit_for(flow)]
     place = await _place(provider, destination)
 
+    # The agent's words when it sent any; `Stays in Madrid` when it did not.
+    # See the note on the fares' heading.
+    heading = _str(args.get("heading")) or f"Stays in {place}"
     lines = [
         f"surface({_q(surface_id)})",
-        f"head = Text({_q(f'Stays in {place}')}, variant={_q('h4' if flow == 'home' else 'h3')})",
+        f"head = Text({_q(heading)}, variant={_q('h4' if flow == 'home' else 'h3')})",
     ]
     # See the note on the fares: the rows, then the macro that draws them.
     rows = [

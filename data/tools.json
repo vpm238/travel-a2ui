@@ -142,6 +142,16 @@
           "destination": {
             "type": "string",
             "description": "City name or airport code. Omit to list all."
+          },
+          "draw": {
+            "type": "object",
+            "description": "What to put on screen *while this runs*. The highlights are drawn the moment the lookup starts and land in the list when they come back. Worth passing on any planning turn: writing the day plan into save_trip is the longest thing you say, and nothing about the plan exists to promise until it is written, so without this the traveler waits at an empty space for all of it.",
+            "properties": {
+              "heading": {
+                "type": "string",
+                "description": "One line above the list, e.g. 'Worth your time in Berlin'."
+              }
+            }
           }
         },
         "required": [],

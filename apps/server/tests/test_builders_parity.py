@@ -410,3 +410,40 @@ class TestALegCarriesItsOwnParty:
         # and the catalog accepts it \u2014 a field it does not accept is a surface
         # that never draws.
         assert flights[0]["total"] == {"@path": "total"}
+
+
+class TestTheVoiceAgentWritesItsOwnHeading:
+    """The voice door's version of the typed door's `draw: {heading}`.
+
+    This model cannot send Express at all — the Live API has no channel for it
+    — so a tool argument is the only way it can say what goes above a list.
+    Without one the host wrote every heading itself, which is the last thing on
+    this door that was composition rather than state.
+
+    The default stays, and is a default rather than a fallback: a fare with no
+    route, date and party size beside it is the thing that makes an answer
+    untrustworthy, so the line is never absent.
+    """
+
+    ASKED = {"destination": "Madrid", "origin": "JFK", "date": "2027-04-12"}
+
+    def test_the_fares_take_the_agents_line(self) -> None:
+        express = run("show_flight_options", {**self.ASKED, "heading": "Back · MAD → JFK"}).express
+        assert "Back · MAD → JFK" in express
+
+    def test_and_the_stays_do(self) -> None:
+        express = run("show_hotel_options", {"destination": "Madrid", "heading": "Three nights in Malasaña"}).express
+        assert "Three nights in Malasaña" in express
+
+    def test_without_one_the_host_still_says_what_it_priced(self) -> None:
+        """Never a bare list of numbers, whatever the agent did or did not send."""
+        express = run("show_flight_options", self.ASKED).express
+        head = [line for line in express.splitlines() if line.startswith("head = Text(")]
+        assert head, express
+        assert head[0] != 'head = Text("", variant="h3")'
+        assert "Madrid" in head[0] or "MAD" in head[0]
+
+    def test_and_an_empty_heading_is_the_same_as_none(self) -> None:
+        """A model that sends `heading: ""` must not blank the line."""
+        blank = run("show_flight_options", {**self.ASKED, "heading": ""}).express
+        assert blank == run("show_flight_options", self.ASKED).express

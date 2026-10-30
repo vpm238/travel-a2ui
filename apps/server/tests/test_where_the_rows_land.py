@@ -19,7 +19,13 @@ from typing import Any
 import pytest
 
 from travel_a2ui.brain.catalog import PROTOCOL_VERSION
-from travel_a2ui.brain.macros import LANDINGS, file_rows, landing_for, rows_in
+from travel_a2ui.brain.macros import (
+    LANDINGS,
+    file_rows,
+    landing_for,
+    opening_express,
+    rows_in,
+)
 
 FOUND: dict[str, Any] = {
     "flights": [
@@ -31,15 +37,26 @@ FOUND: dict[str, Any] = {
 
 
 class TestTheAddress:
-    def test_the_two_lookups_with_a_predictable_shape_have_one(self) -> None:
+    def test_the_lookups_with_a_predictable_shape_have_one(self) -> None:
         assert landing_for("search_flights") == "/flights"
         assert landing_for("search_hotels") == "/hotels"
+        # The planning half's one predictable shape, and the turn that needed
+        # it most: a day plan has nothing to promise until it is written, and
+        # writing it is the longest thing the agent says.
+        assert landing_for("get_destination") == "/highlights"
 
-    @pytest.mark.parametrize(
-        "tool", ["estimate_cost", "get_destination", "get_weather", "save_trip", "get_trip"]
-    )
+    @pytest.mark.parametrize("tool", ["estimate_cost", "get_weather", "save_trip", "get_trip"])
     def test_everything_else_has_none(self, tool: str) -> None:
-        """A shape nobody can predict is a promise the brief cannot make."""
+        """A shape nobody can predict is a promise the brief cannot make.
+
+        `estimate_cost` is the near miss, and it is here rather than above for
+        a reason in the protocol: its answer is a list of `{label, amount}`,
+        which is exactly a shape — but 1.0 has `DynamicStringList` and no
+        dynamic list of *objects*, and `PriceSummary.lines` is static. There is
+        no way to bind an itemised total to rows that have not arrived, so it
+        is not promised. It is also dispatched last on the turn that totals a
+        trip, so promising it would buy nothing.
+        """
         assert landing_for(tool) is None
         assert file_rows(tool, FOUND, "inline-1", "v1.0") == []
 
@@ -124,3 +141,99 @@ class TestALookupThatFoundNothing:
         reason to take the last answer off the screen.
         """
         assert file_rows("search_flights", {"flights": []}, "inline-7", "v1.0") == []
+
+
+class TestTheCardTheAgentAsksFor:
+    """`draw:` on a tool call, turned into the macro call that answers it.
+
+    The arguments are positional, and the macros do not take the same ones, so
+    this is where a mis-filed `selected` would show up: as a heading.
+    """
+
+    def test_a_planning_turn_asks_for_the_highlights(self) -> None:
+        express = opening_express(
+            "get_destination", {"heading": "Worth your time in Berlin"}, "inline-4"
+        )
+        assert 'surface("inline-4")' in express
+        assert 'Highlights("Worth your time in Berlin")' in express
+
+    def test_and_takes_no_second_argument(self) -> None:
+        """A city's highlights have no hop and nowhere to record a choice.
+
+        `Highlights("", "")` is a call the macro cannot accept, so a `draw:`
+        carrying keys this macro does not take must drop them rather than pass
+        them through as empty strings.
+        """
+        express = opening_express(
+            "get_destination",
+            {"heading": "Berlin", "selected": "/trip/selectedHotel", "hop": 2},
+            "inline-4",
+        )
+        assert 'Highlights("Berlin")' in express
+
+    def test_nine_characters_when_there_is_nothing_to_say(self) -> None:
+        """The reason a turn will spend them before a lookup it has not run."""
+        assert "Highlights()" in opening_express("get_destination", {}, "inline-4")
+
+    def test_a_fare_list_keeps_selected_in_its_own_position(self) -> None:
+        """Dropping empties from the end only, never the middle.
+
+        `Flights(selected=…)` with no heading has to stay the *second*
+        argument, or the path it records the choice at is drawn as a title.
+        """
+        express = opening_express(
+            "search_flights", {"selected": "/trip/selectedOutbound"}, "inline-2"
+        )
+        assert 'Flights("", "/trip/selectedOutbound")' in express
+
+    def test_and_a_hop_stays_third(self) -> None:
+        express = opening_express("search_flights", {"heading": "Back", "hop": 2}, "inline-3")
+        assert 'Flights("Back", "", 2)' in express
+
+    def test_a_tool_with_no_promised_shape_draws_nothing(self) -> None:
+        assert opening_express("estimate_cost", {"heading": "What it comes to"}, "inline-5") == ""
+
+    def test_and_neither_does_a_draw_that_is_not_an_object(self) -> None:
+        for bad in [None, "heading", 7, []]:
+            assert opening_express("get_destination", bad, "inline-4") == ""
+
+
+class TestTheHighlightsThemselves:
+    DESTINATION: dict[str, Any] = {
+        "found": True,
+        "city": "Berlin",
+        "highlights": [
+            {"name": "Museum Island", "category": "sight", "note": "Book the Neues"},
+            {"name": "Tempelhofer Feld", "category": "outdoors", "note": "Go at golden hour"},
+        ],
+        "neighbourhoods": ["Mitte"],
+    }
+
+    def test_they_land_where_the_macro_reads_them(self) -> None:
+        update = file_rows("get_destination", self.DESTINATION, "inline-4", PROTOCOL_VERSION)[0][
+            "updateDataModel"
+        ]
+        assert update["path"] == "/highlights"
+        assert update["value"] == self.DESTINATION["highlights"]
+
+    def test_and_nothing_else_on_the_result_goes_with_them(self) -> None:
+        """`neighbourhoods` and `places` are for the agent to read, not to draw."""
+        messages = file_rows("get_destination", self.DESTINATION, "inline-4", PROTOCOL_VERSION)
+        assert len(messages) == 1
+        assert set(messages[0]) == {"version", "updateDataModel"}
+
+    def test_a_destination_nobody_has_heard_of_files_nothing(self) -> None:
+        """A miss leaves the pre-drawn list empty rather than blanked.
+
+        `get_destination` answers an unknown city with `found: False` and a list
+        of the ones it does know — no `highlights`, so nothing is filed, and the
+        agent's own sentence is what tells the traveller.
+        """
+        miss = {"found": False, "message": "No guide for 'Atlantis'.", "available": ["Berlin"]}
+        assert rows_in("get_destination", miss) is None
+        assert file_rows("get_destination", miss, "inline-4", PROTOCOL_VERSION) == []
+
+    def test_and_so_does_the_call_that_only_lists_cities(self) -> None:
+        """`get_destination()` with no argument is a catalogue, not a card."""
+        every = {"destinations": [{"city": "Berlin"}, {"city": "Madrid"}]}
+        assert file_rows("get_destination", every, "inline-4", PROTOCOL_VERSION) == []

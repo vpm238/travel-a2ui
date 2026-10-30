@@ -123,6 +123,20 @@ Use these exact positional signatures to instantiate components. Do not output p
   - heading: Optional line above the list, e.g. 'Outbound · JFK → MAD'.
   - selected: Data path holding the current choice, e.g. '/trip/selectedOutbound', so the chosen card stays marked.
   - hop: Which hop these fares are for, when it is not the first. Hop two is '/legs/0'; the press carries it so the fare lands on that leg.
+• Highlights(heading? (static))
+  - Description: What a destination is worth going for, as the lookup filed it.
+    
+    `get_destination` puts its highlights at `/highlights` and this reads them,
+    so it goes on screen *before* the lookup — draw it, then call the tool.
+    
+    This is the one card to draw on a planning turn, and the reason is the
+    clock. Writing a four-day plan into `save_trip` is the longest thing you
+    say, and nothing about the plan is known until it is written, so there is
+    nothing to promise: the traveller waited twenty-four seconds at a blank
+    space. The city's own highlights are known a great deal sooner, they are
+    what the plan is going to be built out of, and they are worth reading on
+    their own. Draw them, write the plan, then draw `Itinerary()`.
+  - heading: Optional line above the list, e.g. 'Worth your time in Berlin'.
 • HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities?, selected?, badge?, weight? (static), accessibility? (static))
   - Description: A place to stay, presented as a rich card with imagery, rating and nightly price.
   - name: Property name.
@@ -355,6 +369,12 @@ You are composing travel UI. A few house rules that matter more than anything el
   moment you decide to look something up, and `Flights()` is nine characters —
   so put it on screen, then call the tool, and the traveller watches it fill in
   instead of waiting at a blank space.
+- **A planning turn draws `Highlights()` first.** `get_destination` files what
+  a city is worth going for at `/highlights`, and that is the one thing on a
+  planning turn whose shape is known early. Writing the days into `save_trip`
+  is the longest thing you say and nothing about the plan exists until it is
+  written, so draw the highlights, write the plan, then draw `Itinerary()`.
+  Without it the traveller waits at an empty space for the whole plan.
 - Every option the user could plausibly act on needs an `action`. A flight the
   user cannot select is a screenshot, not an interface.
 - And every one of them needs a name. A card is read aloud in the order it is

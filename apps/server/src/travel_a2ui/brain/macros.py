@@ -45,6 +45,7 @@ from a2ui.transformers.macros import MacroExpander, macro
 #: coupling left between the two sides.
 FLIGHTS = "/flights"
 STAYS = "/hotels"
+HIGHLIGHTS = "/highlights"
 
 #: The trip the current turn is expanding against.
 #:
@@ -214,6 +215,25 @@ class FlightRow(ComponentBuilderNode):
     accessibility: Any = None
 
 
+class HighlightRow(ComponentBuilderNode):
+    """One thing a destination is worth going for, bound the same way.
+
+    `category` is missing on purpose: it picks the icon and the colour, and the
+    schema keeps it a plain string rather than a `DynamicString`, so it cannot
+    be bound to a row. The rows carry one anyway and a later turn's hand-written
+    `ActivityItem` can use it; what this draws is the three fields that are
+    bindable, and the host's default icon.
+    """
+
+    component: str = "ActivityItem"
+    title: Any = None
+    note: Any = None
+    location: Any = None
+    duration: Any = None
+    action: Any = None
+    accessibility: Any = None
+
+
 class StayRow(ComponentBuilderNode):
     """One stay, bound the same way."""
 
@@ -356,6 +376,36 @@ def stays(heading: str = "", selected: str = "", hop: Optional[int] = None) -> C
     return Column(children=rows)
 
 
+@macro
+def highlights(heading: str = "") -> Column:
+    """What a destination is worth going for, as the lookup filed it.
+
+    `get_destination` puts its highlights at `/highlights` and this reads them,
+    so it goes on screen *before* the lookup — draw it, then call the tool.
+
+    This is the one card to draw on a planning turn, and the reason is the
+    clock. Writing a four-day plan into `save_trip` is the longest thing you
+    say, and nothing about the plan is known until it is written, so there is
+    nothing to promise: the traveller waited twenty-four seconds at a blank
+    space. The city's own highlights are known a great deal sooner, they are
+    what the plan is going to be built out of, and they are worth reading on
+    their own. Draw them, write the plan, then draw `Itinerary()`.
+
+    Args:
+        heading: Optional line above the list, e.g. 'Worth your time in Berlin'.
+    """
+    row = HighlightRow(
+        title=bind("name"),
+        note=bind("note"),
+        accessibility=_reads("${name}, ${note}"),
+    )
+    rows: list[Any] = []
+    if isinstance(heading, str) and heading.strip():
+        rows.append(Text(text=heading, variant="h3"))
+    rows.append(ListC(children=DynamicChildList(path=HIGHLIGHTS, template=row)))
+    return Column(children=rows)
+
+
 # --------------------------------------------------------------------------
 # And the host's share: the rows themselves
 # --------------------------------------------------------------------------
@@ -367,12 +417,29 @@ def stays(heading: str = "", selected: str = "", hop: Optional[int] = None) -> C
 LANDINGS: dict[str, tuple[str, str]] = {
     "search_flights": (FLIGHTS, "flights"),
     "search_hotels": (STAYS, "hotels"),
+    # The one lookup on the planning half of the trip with a shape worth
+    # promising. It is also the turn that most needed one: writing a four-day
+    # plan into `save_trip` is the largest thing this agent says, and until the
+    # destination's own highlights could go up against it the traveller watched
+    # 23.9 seconds of nothing. These are real content rather than a placeholder
+    # — what the city is worth going for, while the plan that uses them is
+    # being written.
+    "get_destination": (HIGHLIGHTS, "highlights"),
 }
 
 
-#: Which macro draws each lookup's rows. A tautology rather than a decision:
-#: `search_flights` draws `Flights()`.
-DRAWN_BY = {"search_flights": "Flights", "search_hotels": "Stays"}
+#: Which macro draws each lookup's rows, and which `draw:` keys it takes.
+#:
+#: A tautology rather than a decision: `search_flights` draws `Flights()`. The
+#: keys are listed because the macros do not take the same arguments — a list of
+#: fares has a hop and somewhere to record the choice; a city's highlights have
+#: neither, and passing it an empty `selected` would be a second positional
+#: argument the macro does not accept.
+DRAWN_BY: dict[str, tuple[str, tuple[str, ...]]] = {
+    "search_flights": ("Flights", ("heading", "selected", "hop")),
+    "search_hotels": ("Stays", ("heading", "selected", "hop")),
+    "get_destination": ("Highlights", ("heading",)),
+}
 
 
 def opening_express(tool: str, draw: Any, surface_id: str) -> str:
@@ -399,20 +466,31 @@ def opening_express(tool: str, draw: Any, surface_id: str) -> str:
     Returns Express rather than messages because compiling needs the parser,
     and the parser needs the catalog, which is built from this module.
     """
-    macro = DRAWN_BY.get(tool)
-    if not macro or not isinstance(draw, dict):
+    found = DRAWN_BY.get(tool)
+    if not found or not isinstance(draw, dict):
         return ""
-    heading = draw.get("heading")
-    selected = draw.get("selected")
-    hop = draw.get("hop")
+    macro, takes = found
     # `ensure_ascii=False`, or a heading with a `·` in it — which is every
     # heading this app writes — reaches the compiler as `\u00b7`.
     def quoted(value: Any) -> str:
         return json.dumps(value if isinstance(value, str) else "", ensure_ascii=False)
 
-    args: list[str] = [quoted(heading), quoted(selected)]
-    if isinstance(hop, int) and hop > 1:
-        args.append(str(hop))
+    args: list[str] = []
+    for key in takes:
+        value = draw.get(key)
+        if key == "hop":
+            # Only when it is not the first: hop one is the trip's own fields,
+            # and saying so would send the press looking for `legs[-1]`.
+            if isinstance(value, int) and value > 1:
+                args.append(str(value))
+            continue
+        args.append(quoted(value))
+    # Trailing empties only repeat the macro's own defaults. Dropping them from
+    # the end — never the middle — keeps `Flights("", "/trip/selectedOutbound")`
+    # addressing `selected` by position while `Highlights()` stays nine
+    # characters, which is the whole reason a turn will spend them.
+    while args and args[-1] == '""':
+        args.pop()
     return "\n".join(
         [
             f"surface({json.dumps(surface_id, ensure_ascii=False)})",
@@ -715,7 +793,7 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
 
 
 #: Every macro this catalog advertises.
-MACROS = (itinerary, flights, stays, trip, ask)
+MACROS = (itinerary, flights, stays, highlights, trip, ask)
 
 #: One expander, built once: the schemas it synthesises do not depend on the
 #: trip, only the expansion does — which is why the prompt can be cached and

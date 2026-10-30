@@ -150,3 +150,50 @@ class TestWhatTheRendererGets:
             {"day": 0, "index": 1},
             {"day": 1, "index": 0},
         ]
+
+
+class TestHighlightsIsBoundRatherThanLiteral:
+    """The invariant the panel taught us, asserted on the other bound macro.
+
+    `Trip()` was redrawn rather than bound for a while, and the cost was not a
+    wrong pixel: the host filed a pressed fare at `/trip/selectedFlight` and a
+    literal panel could not hear it, so the sidebar sat twenty seconds behind
+    the traveller. `Highlights()` exists to go on screen *before* its rows
+    arrive, which is only true if every field on it is a path.
+    """
+
+    def test_every_field_on_the_row_is_a_path(self) -> None:
+        nodes = drawn("rows = Highlights()\nroot = Column([rows])", trip={})
+        rows = [node for node in nodes if node.get("component") == "ActivityItem"]
+        assert len(rows) == 1, "one template, however many highlights arrive"
+        row = rows[0]
+        for field in ("title", "note"):
+            assert isinstance(row.get(field), dict), f"{field} is literal: {row.get(field)!r}"
+            assert "@path" in row[field], row[field]
+
+    def test_the_list_reads_the_address_the_host_files_to(self) -> None:
+        from travel_a2ui.brain.macros import HIGHLIGHTS, LANDINGS
+
+        nodes = drawn("rows = Highlights()\nroot = Column([rows])", trip={})
+        lists = [node for node in nodes if node.get("component") == "List"]
+        assert len(lists) == 1
+        children = lists[0]["children"]
+        assert children["path"] == HIGHLIGHTS
+        assert LANDINGS["get_destination"][0] == HIGHLIGHTS, "the two sides of one address"
+
+    def test_it_draws_against_an_empty_trip(self) -> None:
+        """Which is the point: it goes up before the lookup has returned.
+
+        `Itinerary()` reads the trip and says "no day plan recorded yet" when
+        there is none, because its data is the agent's own writing. This one's
+        data arrives as rows, so an empty trip is not an empty card — it is a
+        card waiting, and that is the whole reason it can be drawn first.
+        """
+        nodes = drawn("rows = Highlights()\nroot = Column([rows])", trip={})
+        assert kinds(nodes).get("ActivityItem") == 1
+        assert "No day plan recorded yet." not in str(nodes)
+
+    def test_a_heading_is_drawn_and_the_rest_is_not(self) -> None:
+        nodes = drawn('rows = Highlights("Worth your time")\nroot = Column([rows])', trip={})
+        texts = [node for node in nodes if node.get("component") == "Text"]
+        assert [node.get("text") for node in texts] == ["Worth your time"]

@@ -45,6 +45,10 @@
               "home"
             ],
             "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+          },
+          "heading": {
+            "type": "string",
+            "description": "One line above the fares, e.g. 'Outbound · JFK → MAD · Sun 12 Apr'. Omit it and the host writes what the trip is priced on."
           }
         },
         "required": [
@@ -82,6 +86,10 @@
               "home"
             ],
             "description": "Where this surface will be placed. 'inline' (default) answers the current message; 'sidebar' is a persistent panel of controls; 'home' is a standing summary. It changes what is composed, not just where it goes."
+          },
+          "heading": {
+            "type": "string",
+            "description": "One line above the stays, e.g. 'Three nights in Malasaña'. Omit it and the host writes 'Stays in <city>'."
           }
         },
         "required": [
