@@ -220,16 +220,21 @@ if (process.env.THROUGH_TO_HOTEL) {
   await page.waitForTimeout(40000);
   await page.screenshot({ path: `${shot}/4-settled.png`, fullPage: true });
 
-  // Now that nothing is streaming, every card on screen is one the agent
-  // wrote. Naming them is a house rule in the brief rather than anything the
-  // host does, so this number is a measurement of the *prompt*: it read nought
-  // with the rule buried at the end of the catalog's instructions, and reads
-  // every card now that it sits beside the rule about actions and the worked
-  // example shows three labelled fares.
+  // Every fare and stay on screen, once nothing is streaming.
   //
-  // The sentences are printed because they say whose they are. The host writes
-  // the provider's own fields — "Nonstop, €138". The agent writes things the
-  // host never would: "nonstop, €69 each, €138 for 2, cheapest".
+  // These are the *host's* cards and that is by design, which took two wrong
+  // readings to see. A lookup paints a skeleton the instant it starts, fills
+  // it from the data model when it lands, and the model is told in the tool
+  // result not to draw that surface again — "drawing over it replaces the
+  // cards they are looking at with an empty one". So on this door the search
+  // results belong to `skeleton.py`, and their labels come from
+  // `brain/spoken.py` with them.
+  //
+  // What the brief's house rule governs is the surfaces the agent really does
+  // compose: the trip panel, the itinerary, the dashboard. The sentences below
+  // say which kind they are. The host writes the provider's own fields —
+  // "Nonstop, €138", one price, no badge. The agent writes things the host
+  // never would: "nonstop, €69 each, €138 for 2, cheapest".
   {
     const labels = await spokenCards();
     const total = await page
