@@ -430,6 +430,16 @@
           "needsStay": {
             "type": "boolean",
             "description": "Whether the first stop needs somewhere to stay. False when they already have somewhere. Later stops carry this on their leg."
+          },
+          "draw": {
+            "type": "object",
+            "description": "Send this with `days` and the day plan is drawn the moment this call lands, instead of costing you a further round to say `Itinerary()` in. It is the same macro, expanded against the trip you just wrote. The tool result will tell you it is on screen; say your one sentence and end the turn.",
+            "properties": {
+              "heading": {
+                "type": "string",
+                "description": "One line above the plan, e.g. 'Four days in Berlin'."
+              }
+            }
           }
         },
         "required": [],

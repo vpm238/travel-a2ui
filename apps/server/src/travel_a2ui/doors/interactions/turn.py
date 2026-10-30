@@ -35,7 +35,14 @@ from ...brain.catalog import (
 from ...brain.express import ExpressStream, Failed, FenceGate, Text, Ui, as_wire
 from ...brain.promises import TYPED_NUDGE, promised
 from ...brain.providers.fixture import FixtureProvider
-from ...brain.macros import expand as expand_macros, file_rows, landing_for, opening_express, rows_in
+from ...brain.macros import (
+    closing_express,
+    expand as expand_macros,
+    file_rows,
+    landing_for,
+    opening_express,
+    rows_in,
+)
 from ...brain.skills import build_prompt_parts
 from ...brain.finishing import finish, on_its_own_surface, panel_events, stack_blocks
 from ...brain.tools import ToolContext, gemini_tools, grounding_tools, run_tool
@@ -717,6 +724,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             # there. See `brain/macros.py`, which holds both the address and
             # the `Flights()` macro that reads it.
             drawn: dict[str, Any] | None = None
+            on_screen = ""
             if not is_error:
                 rows = file_rows(call.name, output, request.surface_id, PROTOCOL_VERSION)
                 if rows:
@@ -731,6 +739,41 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         "path": landing_for(call.name),
                         "rows": len(rows_in(call.name, output) or []),
                     }
+
+                # And the card for a write, which could not be drawn before it.
+                #
+                # `Itinerary()` reads the trip rather than a path, so at
+                # dispatch it would have said "no day plan recorded yet" — the
+                # days are still in the arguments. Drawn here it reads the trip
+                # the call just wrote.
+                #
+                # This buys a round, not a head start. A planning turn used to
+                # spend 20.6s writing the plan into `save_trip` and then 16.7s
+                # more — 1,158 thought tokens — on a further round whose whole
+                # output was `Itinerary()` and one sentence. The macro was
+                # already doing its job; the round was the cost.
+                closing = closing_express(
+                    call.name, call.args.get("draw"), request.surface_id
+                )
+                if closing:
+                    try:
+                        after = as_wire(
+                            expand_macros(
+                                parser_for(request.surface_id).compile(closing, is_final=True),
+                                trip,
+                            )
+                        )
+                    except Exception:  # noqa: BLE001 - a bad `draw` must not cost the turn
+                        after = []
+                    if after:
+                        mark("firstSurface")
+                        yield {
+                            "type": "ui",
+                            "surfaceId": request.surface_id,
+                            "messages": after,
+                            "done": False,
+                        }
+                        on_screen = closing
 
             payload: dict[str, Any] = dict(output) if isinstance(output, dict) else {"result": output}
             if drawn:
@@ -753,6 +796,20 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         f"`{'Flights' if drawn['path'] == '/flights' else 'Stays'}()` "
                         "— one macro, bound to them — and never re-type what a "
                         "lookup returned."
+                    ),
+                }
+            if on_screen:
+                # The card is up. Saying so is the point of drawing it here: the
+                # round this saves is the one the agent would otherwise spend
+                # deciding to draw what it has already asked for, and an agent
+                # that draws it again replaces an identical card and pays for
+                # the round anyway.
+                payload["onScreen"] = {
+                    "surfaceId": request.surface_id,
+                    "note": (
+                        "Already drawn on that surface, from the heading you sent: "
+                        f"`{on_screen.splitlines()[1].split(' = ', 1)[-1]}`. "
+                        "Do not draw it again — say your one sentence and end the turn."
                     ),
                 }
 

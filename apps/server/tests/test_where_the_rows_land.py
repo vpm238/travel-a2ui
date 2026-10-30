@@ -20,7 +20,10 @@ import pytest
 
 from travel_a2ui.brain.catalog import PROTOCOL_VERSION
 from travel_a2ui.brain.macros import (
+    DRAWN_AFTER,
+    DRAWN_BY,
     LANDINGS,
+    closing_express,
     file_rows,
     landing_for,
     opening_express,
@@ -237,3 +240,42 @@ class TestTheHighlightsThemselves:
         """`get_destination()` with no argument is a catalogue, not a card."""
         every = {"destinations": [{"city": "Berlin"}, {"city": "Madrid"}]}
         assert file_rows("get_destination", every, "inline-4", PROTOCOL_VERSION) == []
+
+
+class TestTheCardThatCouldNotBeDrawnFirst:
+    """`save_trip`'s own `draw:`, which buys a round rather than a head start.
+
+    Every other `draw:` is about getting a card up before its data arrives.
+    This one cannot be: `Itinerary()` reads the trip, so at dispatch it would
+    draw "no day plan recorded yet" — the days are still in the arguments. It
+    is here because the alternative is a whole further model round whose entire
+    output is nine characters and a sentence, measured at 16.7s.
+    """
+
+    def test_a_write_is_drawn_after_it_lands_not_before(self) -> None:
+        draw = {"heading": "Four days in Berlin"}
+        assert opening_express("save_trip", draw, "inline-6") == ""
+        assert 'Itinerary("Four days in Berlin")' in closing_express("save_trip", draw, "inline-6")
+
+    def test_and_a_lookup_is_drawn_before_it_lands_not_after(self) -> None:
+        """The two tables stay disjoint, or a card is drawn twice."""
+        for tool in ("search_flights", "search_hotels", "get_destination"):
+            assert closing_express(tool, {"heading": "x"}, "inline-1") == "", tool
+        assert set(DRAWN_BY) & set(DRAWN_AFTER) == set()
+
+    def test_it_lands_on_the_surface_the_turn_is_answering(self) -> None:
+        express = closing_express("save_trip", {"heading": "Four days"}, "inline-6")
+        assert 'surface("inline-6")' in express
+
+    def test_a_save_that_sent_no_heading_draws_nothing(self) -> None:
+        """Recording a decision is not a request for a card.
+
+        Most `save_trip` calls are a date or a party size, and drawing a day
+        plan over the question that asked for them would be a turn drawing over
+        itself.
+        """
+        assert closing_express("save_trip", None, "inline-6") == ""
+
+    def test_but_an_empty_heading_still_draws_it(self) -> None:
+        """`draw: {}` is "yes, with no line above it" — the macro's default."""
+        assert "Itinerary()" in closing_express("save_trip", {}, "inline-6")

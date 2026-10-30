@@ -442,8 +442,28 @@ DRAWN_BY: dict[str, tuple[str, tuple[str, ...]]] = {
 }
 
 
-def opening_express(tool: str, draw: Any, surface_id: str) -> str:
-    """The surface the agent asked for while its lookup runs, as Express.
+#: The same thing for a tool whose card can only be drawn *after* it runs.
+#:
+#: `save_trip` is the one, and the reason is that `Itinerary()` reads the trip
+#: rather than a data path: drawn at dispatch it would say "no day plan recorded
+#: yet", because the days are in the arguments and have not been applied.
+#:
+#: So this is not here to put a card up early — it is here to spend one model
+#: round instead of two. A planning turn used to end like this: twenty seconds
+#: writing the plan into `save_trip`, the tool returns, and then a whole further
+#: round — 16.7 seconds, 1,158 thought tokens — to emit `Itinerary()` and one
+#: sentence. The macro had already done its job; the round was the cost. With
+#: the heading in the call that wrote the plan, the card lands when `save_trip`
+#: returns and what is left to say is the sentence.
+DRAWN_AFTER: dict[str, tuple[str, tuple[str, ...]]] = {
+    "save_trip": ("Itinerary", ("heading",)),
+}
+
+
+def _macro_call(
+    table: dict[str, tuple[str, tuple[str, ...]]], tool: str, draw: Any, surface_id: str
+) -> str:
+    """The surface the agent asked for in a tool call, as Express.
 
     This is the answer to a question two prompt rewrites could not settle.
     Drawing before the lookup is strictly better — the traveller watches an
@@ -463,10 +483,14 @@ def opening_express(tool: str, draw: Any, surface_id: str) -> str:
     out of the agent's own vocabulary — the same `Flights()` it writes by hand
     when it wants the list somewhere else.
 
+    `table` is which side of the tool call the card belongs on: `DRAWN_BY` for a
+    lookup whose shape is known before it runs, `DRAWN_AFTER` for one whose
+    macro reads the trip and so has to wait for the write to land.
+
     Returns Express rather than messages because compiling needs the parser,
     and the parser needs the catalog, which is built from this module.
     """
-    found = DRAWN_BY.get(tool)
+    found = table.get(tool)
     if not found or not isinstance(draw, dict):
         return ""
     macro, takes = found
@@ -498,6 +522,16 @@ def opening_express(tool: str, draw: Any, surface_id: str) -> str:
             "root = Column([rows])",
         ]
     )
+
+
+def opening_express(tool: str, draw: Any, surface_id: str) -> str:
+    """What to draw the moment a lookup starts. See `_macro_call`."""
+    return _macro_call(DRAWN_BY, tool, draw, surface_id)
+
+
+def closing_express(tool: str, draw: Any, surface_id: str) -> str:
+    """What to draw the moment a write lands. See `_macro_call` and `DRAWN_AFTER`."""
+    return _macro_call(DRAWN_AFTER, tool, draw, surface_id)
 
 
 def landing_for(tool: str) -> Optional[str]:

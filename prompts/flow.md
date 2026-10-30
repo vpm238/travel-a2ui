@@ -265,8 +265,15 @@ is least obvious.** A day plan has nothing to promise: until you have written
 it, there is no shape, and writing it is the longest thing you say — the
 traveller sat at a blank space for twenty-four seconds. The city's own
 highlights are known far sooner, they are what the plan gets built out of, and
-they are worth reading on their own. So: `Highlights()`, then the plan into
-`save_trip`, then `Itinerary()`.
+they are worth reading on their own.
+
+So: `Highlights()` while you look the city up, and then the plan's heading in
+the call that writes it — `save_trip({days: […], draw: {heading: "Four days in
+Berlin"}})`. That draws `Itinerary()` as the write lands. Writing the block
+yourself afterwards draws exactly the same card and costs a further round to
+do it: 16.7 seconds for nine characters, because the round is the cost and the
+macro was never the problem. The result says the card is up; say your one
+sentence and stop.
 
 This invents nothing: a card drawn that way has no literal in it, only paths. It
 is also how a turn stays short — re-typing four fares you were just handed is
