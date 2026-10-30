@@ -113,10 +113,15 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # be answered: what reaches here is what `confirm` could settle from
         # the press, and the value itself only lands on the trip once something
         # records it. `host_actions.HANDLERS` records exactly one press —
-        # `drop_activity` — so a pressed fare still waits for the model to call
-        # `save_trip`, and the panel moves when that returns. Measured at 4.4s,
-        # down from 20.8s when the panel was redrawn instead of bound, and it
-        # would be a frame if `select_flight` were recorded here too.
+        # `drop_activity` — so a pressed fare waits for the model to call
+        # `save_trip`, and the panel moves when that returns: measured at 4.4s,
+        # down from 20.8s when the panel was redrawn rather than bound.
+        #
+        # That 4.4s is chosen, not left over. Recording `select_flight` here
+        # would make it a frame, and the price is Python knowing which field a
+        # fare press sets and which hop it belongs to — a second thing that
+        # writes decisions, disagreeing with `save_trip` the first time a press
+        # means something new. One writer is worth the round trip.
         for event in panel_events(trip):
             yield event
 
