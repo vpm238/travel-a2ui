@@ -40,15 +40,11 @@ CATALOG = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
 EXAMPLES = ROOT / "catalogs" / "a2ui-travel" / "examples"
 COMPILED = EXAMPLES / "compiled"
 
-PROTOCOL_VERSION = "v0.9.1"
-
 SDK_MISSING = """\
 The A2UI agent SDK is not installed, and this script is the reference compiler's
 half of the build.
 
-  pip install antlr4-tools hatchling
-  pip install --no-build-isolation \\
-    "a2ui-agent-sdk @ git+https://github.com/a2ui-project/a2ui@d27d708#subdirectory=agent_sdks/python/a2ui_agent"
+  pip install a2ui-agent-sdk
 """
 
 
@@ -64,11 +60,18 @@ def parser_for(surface_id: str):
     try:
         from a2ui.inference_formats.express.parser import ExpressParser
 
-        from travel_a2ui.brain.catalog import load_catalog
+        from travel_a2ui.brain.catalog import PROTOCOL_VERSION, load_catalog
         from travel_a2ui.brain.express import as_wire  # noqa: F401
     except ImportError as error:  # pragma: no cover - environment, not logic
         raise SystemExit(SDK_MISSING) from error
 
+    # The version the *catalog* declares, read back from it rather than written
+    # here. This script carried its own `"v0.9.1"` through the 1.0 migration and
+    # nothing failed: these examples are decompiled back to Express before they
+    # reach the brief, so a 0.9 wire stamp never got in front of the model. It
+    # was still the build compiling at one version for a server that speaks
+    # another, which is a disagreement waiting for the first example that uses
+    # something only 1.0 has.
     return ExpressParser(
         catalogs=[load_catalog(CATALOG)], surface_id=surface_id, version=PROTOCOL_VERSION
     )

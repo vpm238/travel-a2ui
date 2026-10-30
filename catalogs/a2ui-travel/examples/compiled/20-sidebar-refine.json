@@ -1,15 +1,9 @@
 [
   {
-    "version": "v0.9.1",
+    "version": "v1.0",
     "createSurface": {
       "surfaceId": "sidebar",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "sidebar",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
           "id": "title",
@@ -22,10 +16,10 @@
           "component": "DateRangePicker",
           "label": "Travel dates",
           "start": {
-            "path": "/filters/start"
+            "@path": "/filters/start"
           },
           "end": {
-            "path": "/filters/end"
+            "@path": "/filters/end"
           },
           "action": {
             "event": {
@@ -39,7 +33,7 @@
           "component": "TravelerCounter",
           "label": "Adults",
           "value": {
-            "path": "/filters/adults"
+            "@path": "/filters/adults"
           },
           "min": 1,
           "max": 8
@@ -51,7 +45,7 @@
           "min": 150,
           "max": 1500,
           "value": {
-            "path": "/filters/maxPrice"
+            "@path": "/filters/maxPrice"
           }
         },
         {
@@ -70,7 +64,7 @@
             }
           ],
           "value": {
-            "path": "/filters/stops"
+            "@path": "/filters/stops"
           }
         },
         {
@@ -83,13 +77,13 @@
               "name": "apply_filters",
               "context": {
                 "maxPrice": {
-                  "path": "/filters/maxPrice"
+                  "@path": "/filters/maxPrice"
                 },
                 "adults": {
-                  "path": "/filters/adults"
+                  "@path": "/filters/adults"
                 },
                 "stops": {
-                  "path": "/filters/stops"
+                  "@path": "/filters/stops"
                 }
               }
             }
@@ -113,15 +107,8 @@
           ],
           "align": "stretch"
         }
-      ]
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateDataModel": {
-      "surfaceId": "sidebar",
-      "path": "/",
-      "value": {
+      ],
+      "dataModel": {
         "filters": {
           "maxPrice": 600,
           "adults": 2

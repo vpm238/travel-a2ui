@@ -1,15 +1,9 @@
 [
   {
-    "version": "v0.9.1",
+    "version": "v1.0",
     "createSurface": {
       "surfaceId": "inline-7",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "inline-7",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
           "id": "heading",
@@ -39,7 +33,7 @@
           "stops": "Nonstop",
           "flightNumber": "IB6250",
           "selected": {
-            "path": "/trip/selectedOutbound"
+            "@path": "/trip/selectedOutbound"
           },
           "badge": "Cheapest"
         },
@@ -104,15 +98,12 @@
             "note"
           ]
         }
-      ]
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateDataModel": {
-      "surfaceId": "inline-7",
-      "path": "/trip/selectedOutbound",
-      "value": ""
+      ],
+      "dataModel": {
+        "trip": {
+          "selectedOutbound": ""
+        }
+      }
     }
   }
 ]

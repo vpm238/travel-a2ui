@@ -80,6 +80,37 @@ def components(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def host_cards(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The pressable cards on the surfaces the *host* composed.
+
+    A voice call draws two kinds of surface. The `show_*` tools compose theirs
+    from provider rows in `brain/builders.py`, onto `voice-1`, `voice-2`, … —
+    those are the host's, and what is on them is deterministic. The trip panel
+    on `sidebar` is Express the model wrote, and what is on it is the model
+    following the brief.
+
+    Only the first kind belongs in a check. Asserting the model labelled its
+    own panel makes this probe fail on a house rule rather than on a bug, which
+    it did on the first run of exactly that check.
+    """
+    out: list[dict[str, Any]] = []
+    for message in messages:
+        for key in ("createSurface", "updateComponents"):
+            body = message.get(key)
+            if not isinstance(body, dict):
+                continue
+            if not str(body.get("surfaceId") or "").startswith("voice-"):
+                break
+            for node in body.get("components") or []:
+                if isinstance(node, dict) and node.get("component") in (
+                    "FlightOption",
+                    "HotelCard",
+                ):
+                    out.append(node)
+            break
+    return out
+
+
 def first_press(nodes: list[dict[str, Any]], wanted: str) -> tuple[str, dict[str, Any]] | None:
     """The press on the first card of this kind, with its literal context.
 
@@ -238,6 +269,9 @@ async def main() -> int:
     run = await call(args.base, key, SCRIPT, args.quiet)
     trip = run["trip"]
     drew = [turn for turn in run["turns"] if turn.get("components")]
+    cards = [
+        node for turn in run["turns"] for node in host_cards(turn.get("drawn") or [])
+    ]
 
     checks = [
         (len(run["turns"]) == len(SCRIPT), "every step in the call was answered"),
@@ -261,6 +295,14 @@ async def main() -> int:
                 leg.get("selectedHotel") for leg in (trip.get("legs") or [])
             )),
             "the stay that was pressed is recorded",
+        ),
+        (
+            bool(cards)
+            and all(
+                str((node.get("accessibility") or {}).get("label") or "").strip()
+                for node in cards
+            ),
+            f"all {len(cards)} host-composed cards carry a label for a screen reader",
         ),
     ]
 

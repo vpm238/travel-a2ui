@@ -12,6 +12,7 @@ export {
   resolveText,
   type ResolveScope,
 } from './binding.js';
+export { ariaOf, type AriaProps } from './accessibility.js';
 export { callFunction, isSafeUrl } from './functions.js';
 export { evaluateChecks, type CheckResult } from './checks.js';
 export { runAction, type A2uiEvent, type ComponentProps, type RenderContext } from './context.js';

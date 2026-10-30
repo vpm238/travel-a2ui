@@ -91,6 +91,23 @@ await page.screenshot({ path: `${shot}/1-outbound.png`, fullPage: true });
 
 console.log('fare cards on the live card:', await fares.count());
 
+// How many of them a screen reader would hear as a sentence.
+//
+// Reported rather than asserted, deliberately: on the typed door these cards
+// are Express the *model* wrote, so a label is the model following a house rule
+// in the brief, not the host doing something deterministic. The host's own
+// cards — every surface a voice call draws — are checked properly in
+// `voice.py`, where they are composed from provider fields and a missing label
+// is a bug. Here it is a number worth watching after a brief changes.
+{
+  const cards = page.locator(`${FEED} [class*="tv-flight" i], ${FEED} [class*="tv-hotel" i]`);
+  const labels = await cards.evaluateAll((nodes) =>
+    nodes.filter((node) => node.getAttribute('aria-label')).map((node) => node.getAttribute('aria-label')),
+  );
+  console.log(`cards an agent named: ${labels.length}`);
+  for (const label of labels.slice(0, 3)) console.log(`   "${label}"`);
+}
+
 // The panel *before* anything is pressed. "Why does the sidebar not start to
 // build until I select the first flight" is this line coming back empty.
 const before = await page.locator('aside, [class*="sidebar" i]').first().innerText().catch(() => '');

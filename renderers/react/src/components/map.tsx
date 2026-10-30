@@ -34,6 +34,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Json } from '@travel-a2ui/express';
 
+import { ariaOf } from '../accessibility.js';
 import { resolveNumber, resolveText } from '../binding.js';
 import type { ComponentProps } from '../context.js';
 import type { ResolveScope } from '../binding.js';
@@ -290,7 +291,7 @@ export function GoogleMap({ node, scope }: ComponentProps) {
   }
 
   return (
-    <figure className="a2-map">
+    <figure className="a2-map" {...ariaOf(node, scope, 'group')}>
       <div className="a2-map__canvas" ref={host} aria-label={caption || 'Map'}>
         {ready !== 'ready' ? (
           <div className="a2-map__fallback">

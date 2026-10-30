@@ -1,15 +1,9 @@
 [
   {
-    "version": "v0.9.1",
+    "version": "v1.0",
     "createSurface": {
       "surfaceId": "home",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "home",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
           "id": "hello",
@@ -71,10 +65,10 @@
           "id": "when",
           "component": "TripCalendar",
           "start": {
-            "path": "/trip/startDate"
+            "@path": "/trip/startDate"
           },
           "end": {
-            "path": "/trip/endDate"
+            "@path": "/trip/endDate"
           },
           "marks": [
             {

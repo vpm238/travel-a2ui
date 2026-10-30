@@ -61,6 +61,40 @@ function formatTiming(ms: Record<string, number>): string {
   return `Interface in ${say(surface)}${done === undefined ? '' : ` · ${say(done)} in total`}`;
 }
 
+/**
+ * What is happening, in one line, for somebody who cannot see the screen.
+ *
+ * A generated interface arrives as a card that fills in over several seconds.
+ * Sighted travellers watch that happen; a screen reader is told nothing, so the
+ * reply appears to be a spinner that eventually stops. The per-tool `Spinner`
+ * announces the tools, but not that the agent has finished or that there is now
+ * something on screen to choose from — which is the only part a traveller has
+ * to act on.
+ *
+ * Deliberately coarse. This string lands in a polite live region, and a region
+ * whose text changed on every streamed token would read the reply aloud twice,
+ * interrupting itself. It changes at most three times a turn: the work, then
+ * the writing, then what arrived.
+ */
+function announce(turns: Agent['turns'], busy: boolean): string {
+  const last = turns[turns.length - 1];
+  if (!last) return '';
+  if (last.role === 'user') return busy ? 'Working on it.' : '';
+
+  if (last.streaming) {
+    for (let index = last.tools.length - 1; index >= 0; index--) {
+      const tool = last.tools[index]!;
+      if (tool.result !== undefined || SILENT_TOOLS.has(tool.name)) continue;
+      return `${TOOL_LABELS[tool.name] ?? tool.name.replace(/_/g, ' ')}…`;
+    }
+    return last.parts.length === 0 ? 'Thinking…' : 'Replying…';
+  }
+
+  if (last.error) return 'That turn failed.';
+  const drew = last.parts.some((part) => part.kind === 'surface');
+  return drew ? 'Reply ready, with an interface below it.' : 'Reply ready.';
+}
+
 const OPENERS = [
   'Six days in Madrid in April, two of us, around $2,500 all in',
   'Find me a nonstop to Lisbon and somewhere to stay in Alfama',
@@ -130,6 +164,10 @@ export function Chat({ agent }: { agent: Agent }) {
 
   return (
     <section className="chat" aria-label="Conversation">
+      {/* Outside the feed, so following the stream does not scroll it away. */}
+      <p className="visually-hidden" role="status">
+        {announce(agent.turns, agent.busy)}
+      </p>
       <div className="chat__feed" ref={feedRef}>
         {agent.turns.length === 0 ? (
           <div className="chat__intro">

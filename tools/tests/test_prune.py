@@ -91,9 +91,15 @@ class TestDefinitions:
 
         A reachability sweep that treats "unreferenced" as "unused" deletes
         exactly the definitions that make a catalog a catalog.
+
+        `theme` used to be the third name here and is not a regression: 1.0
+        removed it from the catalog and from `createSurface`, so a catalog
+        declaring 1.0 that still carried it would be advertising a definition
+        nothing may reference.
         """
         pruned = with_pruning(schema, allowed_components=ALLOWED)
-        assert {"anyComponent", "anyFunction", "theme"} <= set(pruned["$defs"])
+        assert {"anyComponent", "anyFunction"} <= set(pruned["$defs"])
+        assert "theme" not in pruned["$defs"], "1.0 has no catalog theme"
 
 
 class TestExamples:

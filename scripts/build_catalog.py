@@ -29,7 +29,14 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 BASIC = ROOT / "catalogs" / "basic" / "catalog.json"
 OUT = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
 
-COMMON = "https://a2ui.org/specification/v0_9/common_types.json#/$defs"
+#: Where the protocol's shared types live, for this catalog's `$ref`s.
+#:
+#: 1.0, because this catalog declares 1.0 — and version-qualified rather than
+#: the relative `common_types.json#/$defs/…` the spec now prefers, because a
+#: relative reference is resolved against wherever the file happens to be, and
+#: this one is read from three places: the SDK, the renderer, and the gallery
+#: build. An absolute reference means the same thing from all of them.
+COMMON = "https://a2ui.org/specification/v1_0/common_types.json#/$defs"
 
 CATALOG_ID = "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
 
@@ -62,7 +69,12 @@ You are composing travel UI. A few house rules that matter more than anything el
 - When you present a set of options, bind the user's current choice into the data
   model so a later turn can read it back — e.g. `$/trip/selectedOutbound`.
 - Keep a surface to one job. An inline card answers the message it is attached
-  to; the sidebar refines the trip in flight; the home surface summarizes.\
+  to; the sidebar refines the trip in flight; the home surface summarizes.
+- Name a card whose own text does not say what it is — a screen reader reads
+  what you wrote there and nothing else:
+  `accessibility={label: "Outbound — Norwegian, 07:15, €281"}`. Add
+  `live: "polite"` to a value that re-reckons itself. Leave it off decoration
+  and off anything whose text already reads as a sentence.\
 """
 
 
@@ -687,6 +699,124 @@ def _label_leads(component: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+#: What 1.0 says a component may carry for assistive technology.
+#:
+#: Copied rather than `$ref`-ed at the spec, because the catalog is read by the
+#: renderer as well as the SDK and the renderer has no schema resolver. The
+#: shape is the spec's `AccessibilityAttributes` exactly — a short `label`, a
+#: longer `description`, an ARIA `live` politeness, and `hidden` for decoration
+#: a screen reader should skip.
+ACCESSIBILITY = {
+    "type": "object",
+    "description": (
+        "Attributes to enhance accessibility when using assistive technologies "
+        "like screen readers."
+    ),
+    "properties": {
+        "label": {
+            "$ref": f"{COMMON}/DynamicString",
+            "description": (
+                "A short string, typically 1 to 3 words, conveying the purpose of "
+                "this element — 'Outbound flight', 'Remove activity'."
+            ),
+        },
+        "description": {
+            "$ref": f"{COMMON}/DynamicString",
+            "description": (
+                "More, where the label is not enough: instructions, a format, or "
+                "what pressing this will do."
+            ),
+        },
+        "live": {
+            "type": "string",
+            "enum": ["off", "polite", "assertive"],
+            "default": "off",
+            "description": (
+                "Announce changes to this element as they happen. `polite` waits "
+                "for a pause, `assertive` interrupts. Use it on something that "
+                "updates by itself — a price that re-reckons, a list that fills."
+            ),
+        },
+        "hidden": {
+            "$ref": f"{COMMON}/DynamicBoolean",
+            "description": "Hide this from assistive technology — decoration only.",
+        },
+    },
+    "additionalProperties": False,
+}
+
+
+#: Where the vendored basic catalog points its shared types, before this fixes it.
+VENDORED_COMMON = "https://a2ui.org/specification/v0_9/common_types.json#/$defs"
+
+
+def _at_declared_version(node: Any) -> Any:
+    """Every `$ref` in this catalog pointed at the version it declares.
+
+    The basic catalog is vendored from 0.9.1, so its component schemas name
+    `v0_9/common_types.json` — 78 references, against a catalog whose header now
+    says 1.0. For most of the shared types that is only untidy: `DynamicString`
+    means the same thing in both.
+
+    `DataBinding` does not. 0.9 spells a binding `{"path": …}` and 1.0 spells it
+    `{"@path": …}`, and everything this app sends has been `@path` since the
+    migration. So a resolver that followed those references would read the
+    catalog as declaring that the one notation the app never emits is the only
+    one allowed, and reject every bound property on every basic component. That
+    is the sort of disagreement nothing complains about until something does.
+
+    Safe as a sweep rather than a per-type decision because 1.0 removed no
+    definition from `common_types` — `set(v0_9) - set(v1_0)` is empty — so every
+    name these references use resolves on the other side.
+    """
+    if isinstance(node, dict):
+        return {
+            key: (
+                value.replace(VENDORED_COMMON, COMMON)
+                if key == "$ref" and isinstance(value, str)
+                else _at_declared_version(value)
+            )
+            for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [_at_declared_version(item) for item in node]
+    return node
+
+
+def _defs_for_1_0(defs: dict[str, Any]) -> dict[str, Any]:
+    """The basic catalog's definitions, brought to 1.0.
+
+    Two changes, both of them the protocol's rather than ours.
+
+    `theme` is gone: 1.0 removed it from the catalog and from `createSurface`,
+    to separate layout from branding. Leaving it in a catalog that declares
+    `protocolVersion: 1.0` is a definition nothing may reference.
+
+    And every component gains `accessibility`. 1.0 made plumbing it normative
+    for renderers, and it is the one thing in the protocol that the agent
+    cannot route around: a traveller using a screen reader gets whatever the
+    agent labelled, and until now the agent had nowhere to put a label.
+    """
+    out = {name: schema for name, schema in defs.items() if name != "theme"}
+    out["AccessibilityAttributes"] = ACCESSIBILITY
+
+    shared = dict(out.get("CatalogComponentCommon") or {"type": "object", "properties": {}})
+    shared["properties"] = {
+        **(shared.get("properties") or {}),
+        "accessibility": {
+            "$ref": "#/$defs/AccessibilityAttributes",
+            # Names the keys rather than describing the idea, because the
+            # positional signature the model is taught shows the argument but
+            # not its shape, and a property you cannot see the shape of is a
+            # property nobody can set. One line, repeated on every component,
+            # so it is worth the four words it costs.
+            "description": "Assistive technology: {label, description, live, hidden}.",
+        },
+    }
+    out["CatalogComponentCommon"] = shared
+    return out
+
+
 def build() -> dict[str, Any]:
     basic = json.loads(BASIC.read_text(encoding="utf-8"))
 
@@ -709,7 +839,7 @@ def build() -> dict[str, Any]:
             **TRAVEL_COMPONENTS,
         },
         "functions": _tag_as_client_side({**basic["functions"], **TRAVEL_FUNCTIONS}),
-        "$defs": dict(basic["$defs"]),
+        "$defs": _defs_for_1_0(basic["$defs"]),
     }
 
     # Every component, ours and the basic catalog's alike. See the note on the
@@ -738,7 +868,10 @@ def build() -> dict[str, Any]:
             if json.dumps(ref, sort_keys=True) not in existing:
                 any_function["oneOf"].append(ref)
 
-    return catalog
+    # Last, so it catches the vendored components, the vendored functions and
+    # the definitions alike. Idempotent on everything written above, which
+    # already points at `COMMON`.
+    return _at_declared_version(catalog)
 
 
 def main() -> int:

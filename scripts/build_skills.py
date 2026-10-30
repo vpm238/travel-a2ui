@@ -225,21 +225,15 @@ def metadata(inference_format: str, catalog_id: str, catalogs: list[str]) -> dic
     }
 
 
-#: The commit that merged SkillGenerator, kept in step with the CI pin.
-SDK_REF = "d27d708"
-
-SDK_MISSING = f"""\
+SDK_MISSING = """\
 The A2UI agent SDK with SkillGenerator is not installed.
 
-`SkillGenerator` is merged upstream but not yet in a published wheel, so it has
-to be built from source — which regenerates an ANTLR parser and therefore wants
-antlr4-tools and a JDK:
+  pip install a2ui-agent-sdk
 
-  pip install antlr4-tools hatchling
-  pip install --no-build-isolation \\
-    "a2ui-agent-sdk @ git+https://github.com/a2ui-project/a2ui@{SDK_REF}#subdirectory=agent_sdks/python/a2ui_agent"
-
-Swap that for `pip install a2ui-agent-sdk` the day a release carries a2ui.skill.
+This used to say "build it from source at commit d27d708", with a JDK and
+antlr4-tools, because `SkillGenerator` was merged upstream and not yet in a
+wheel. 0.9.0 carries it. The pin lives in one place now — the CI workflow —
+and the day that moves, this is a wheel version, not a commit.
 """
 
 

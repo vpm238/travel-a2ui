@@ -105,6 +105,36 @@ class TestWhatTheSurfacesPromise:
         assert run("show_flight_options", {"destination": "Madrid", "origin": "JFK", "date": "2027-04-12"}).surface_id == "mcp-flights"
         assert run("show_hotel_options", {"destination": "Madrid"}).surface_id == "mcp-hotels"
 
+    def test_every_pressable_card_says_what_it_is(self) -> None:
+        """A fare card read aloud is otherwise a pile of fragments.
+
+        In DOM order a `FlightOption` is "TAP Air Portugal TP622 15:39 JFK
+        02:30 +1 MAD 10h 51m 1 stop · LIS $989" — every fact, no sentence, the
+        price last. The host has those fields from the provider rather than
+        from prose, so it is the one producer that can name the card exactly,
+        and these are the surfaces the model never writes.
+        """
+        flights = run(
+            "show_flight_options",
+            {"destination": "Madrid", "origin": "JFK", "date": "2027-04-12", "travelers": 2},
+        )
+        cards = [line for line in flights.express.split("\n") if "FlightOption(" in line]
+        assert cards, "no fare cards to check"
+        for card in cards:
+            assert "accessibility={label:" in card, card
+            # The party's price, not one traveller's: the card puts both on
+            # screen and a label carrying only the fare would read the
+            # per-person number as the price.
+            assert "for 2" in card.split("accessibility={label:")[1], card
+            # A visual separator, read aloud, is a character or a silence.
+            assert "·" not in card.split("accessibility={label:")[1], card
+
+        stays = run("show_hotel_options", {"destination": "Madrid", "nights": 4})
+        cards = [line for line in stays.express.split("\n") if "HotelCard(" in line]
+        assert cards, "no stays to check"
+        for card in cards:
+            assert "accessibility={label:" in card, card
+
     def test_every_priced_surface_says_where_the_numbers_came_from(self) -> None:
         """A fare with no provenance on screen is what made this untrustworthy."""
         for tool, args in (

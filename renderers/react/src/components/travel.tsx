@@ -10,6 +10,7 @@
 
 import type { Json } from '@travel-a2ui/express';
 
+import { ariaOf } from '../accessibility.js';
 import { isPending, pathOf, resolveBoolean, resolveNumber, resolveText } from '../binding.js';
 import { monthLabel, monthsFor, parseCivil, toIso, weekStartFor, weekdayLetters } from '../calendar.js';
 import { runAction, type ComponentProps } from '../context.js';
@@ -191,6 +192,11 @@ export function FlightOption({ node, scope, ctx }: ComponentProps) {
           runAction(node['action'], scope, ctx, node);
         }
       }}
+      // A fare's own text reads as "Norwegian DY1234 07:15 CPH 11:40 BER €281",
+      // which is everything and in no order. `accessibility.label` is where the
+      // agent says what this card *is* — "Outbound, Monday, Norwegian, €281" —
+      // and a pressable card is the one place a name changes the answer.
+      {...ariaOf(node, scope, interactive ? undefined : 'group')}
     >
       <div className="tv-flight__carrier">
         <span className={cx('tv-flight__mark', code && 'is-code')} aria-hidden>
@@ -278,6 +284,7 @@ export function HotelCard({ node, scope, ctx }: ComponentProps) {
       onKeyDown={(event) => {
         if (event.key === 'Enter') runAction(node['action'], scope, ctx, node);
       }}
+      {...ariaOf(node, scope)}
     >
       <div className="tv-hotel__media">
         {isSafeUrl(image) ? <img src={image} alt="" loading="lazy" /> : <Skyline name={name} />}
@@ -312,7 +319,7 @@ export function HotelCard({ node, scope, ctx }: ComponentProps) {
 
 export function ItineraryDay({ node, scope, ctx }: ComponentProps) {
   return (
-    <section className="tv-day">
+    <section className="tv-day" {...ariaOf(node, scope, 'group')}>
       <header className="tv-day__head">
         <div>
           <h3>{resolveText(node['title'], scope)}</h3>
@@ -347,6 +354,7 @@ export function ActivityItem({ node, scope, ctx }: ComponentProps) {
     <div
       className={cx('tv-activity', done && 'is-done', interactive && 'is-interactive')}
       onClick={() => runAction(node['action'], scope, ctx, node)}
+      {...ariaOf(node, scope, 'group')}
     >
       <span className="tv-activity__time">{resolveText(node['time'], scope)}</span>
       <span className={`tv-activity__icon tv-activity__icon--${category}`} aria-hidden>
@@ -418,8 +426,27 @@ export function MapPreview({ node, scope, ctx }: ComponentProps) {
     };
   });
 
+  // A map with an action on it is a control, and a control a keyboard cannot
+  // reach is a picture. The canvas inside is `aria-hidden` either way — pins
+  // laid out on a grid are not a place description — so the name on the root
+  // and the caption under it are the whole of what this reads as.
+  const interactive = Boolean(node['action']);
+
   return (
-    <div className="tv-map" onClick={() => runAction(node['action'], scope, ctx, node)}>
+    <div
+      className="tv-map"
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={() => runAction(node['action'], scope, ctx, node)}
+      onKeyDown={(event) => {
+        if (!interactive) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          runAction(node['action'], scope, ctx, node);
+        }
+      }}
+      {...ariaOf(node, scope, interactive ? undefined : 'group')}
+    >
       <div className="tv-map__canvas" aria-hidden>
         {placed.map((marker, index) => (
           <span
@@ -442,7 +469,7 @@ export function PriceSummary({ node, scope, ctx }: ComponentProps) {
   const actionLabel = resolveText(node['actionLabel'], scope);
 
   return (
-    <div className="tv-price">
+    <div className="tv-price" {...ariaOf(node, scope, 'group')}>
       <ul className="tv-price__lines">
         {lines.map((line, index) => (
           <li key={index}>
@@ -493,7 +520,7 @@ export function DateRangePicker({ node, scope, ctx }: ComponentProps) {
   };
 
   return (
-    <div className="tv-dates">
+    <div className="tv-dates" {...ariaOf(node, scope, 'group')}>
       <span className="a2-field__label">{resolveText(node['label'], scope)}</span>
       <div className="tv-dates__row">
         <input
@@ -534,7 +561,7 @@ export function TravelerCounter({ node, scope, ctx }: ComponentProps) {
   };
 
   return (
-    <div className="tv-counter">
+    <div className="tv-counter" {...ariaOf(node, scope, 'group')}>
       <div className="tv-counter__labels">
         <span className="a2-field__label">{resolveText(node['label'], scope)}</span>
         {node['caption'] ? <span className="tv-counter__caption">{resolveText(node['caption'], scope)}</span> : null}
@@ -561,6 +588,7 @@ export function StatTile({ node, scope, ctx }: ComponentProps) {
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
       onClick={() => runAction(node['action'], scope, ctx, node)}
+      {...ariaOf(node, scope, interactive ? undefined : 'group')}
     >
       <span className="tv-stat__label">{resolveText(node['label'], scope)}</span>
       <strong className="tv-stat__value">{resolveText(node['value'], scope)}</strong>
@@ -575,7 +603,7 @@ export function ProgressMeter({ node, scope }: ComponentProps) {
   const tone = str(node['tone']) || 'accent';
   const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
   return (
-    <div className={`tv-meter tv-meter--${tone}`}>
+    <div className={`tv-meter tv-meter--${tone}`} {...ariaOf(node, scope, 'group')}>
       <div className="tv-meter__head">
         <span>{resolveText(node['label'], scope)}</span>
         {node['caption'] ? <em>{resolveText(node['caption'], scope)}</em> : null}
@@ -596,7 +624,7 @@ export function ProgressMeter({ node, scope }: ComponentProps) {
 export function WeatherStrip({ node, scope }: ComponentProps) {
   const days = rowsOf(node['days']).slice(0, 7);
   return (
-    <div className="tv-weather">
+    <div className="tv-weather" {...ariaOf(node, scope, 'group')}>
       {node['place'] ? <span className="tv-weather__place">{resolveText(node['place'], scope)}</span> : null}
       <ul className="tv-weather__days">
         {days.map((day, index) => (
@@ -656,6 +684,7 @@ export function TripCalendar({ node, scope, ctx }: ComponentProps) {
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
       onClick={() => runAction(node['action'], scope, ctx, node)}
+      {...ariaOf(node, scope, interactive ? undefined : 'group')}
     >
       {title ? <span className="tv-cal__title">{title}</span> : null}
       {start ? (
@@ -733,7 +762,7 @@ function Glyph({ name, className }: { name: string; className?: string }) {
 export function ExpenseSplit({ node, scope, ctx }: ComponentProps) {
   const participants = rowsOf(node['participants']);
   return (
-    <div className="tv-split">
+    <div className="tv-split" {...ariaOf(node, scope, 'group')}>
       <div className="tv-split__head">
         <strong>{resolveText(node['title'], scope)}</strong>
         <span>{resolveText(node['total'], scope)}</span>

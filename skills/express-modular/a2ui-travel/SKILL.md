@@ -13,7 +13,7 @@ metadata:
 ## Positional Component Signatures
 
 Use these exact positional signatures to instantiate components. Do not output property keys:
-• ActivityItem(title, time?, category? (static), location?, duration?, note?, action? (static), done?, onRemove? (static), weight? (static))
+• ActivityItem(title, time?, category? (static), location?, duration?, note?, action? (static), done?, onRemove? (static), weight? (static), accessibility? (static))
   - Description: A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.
   - title: What it is, e.g. 'Prado Museum'.
   - time: Start time as a display string, e.g. '10:00'.
@@ -25,15 +25,18 @@ Use these exact positional signatures to instantiate components. Do not output p
   - done: Whether the traveler has ticked this off.
   - onRemove: Fired when the traveler drops this activity. Give every activity one: a day plan is theirs to edit.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• Button(child (component ID), variant? (static), action (static), weight? (static), checks? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• Button(child (component ID), variant? (static), action (static), weight? (static), accessibility? (static), checks? (static))
   - child: The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button.
   - variant: A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link. Must be one of: 'default', 'primary', 'borderless'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• CheckBox(label, value, weight? (static), checks? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• CheckBox(label, value, weight? (static), accessibility? (static), checks? (static))
   - label: The text to display next to the checkbox.
   - value: The current state of the checkbox (true for checked, false for unchecked).
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• ChoicePicker(label?, variant? (static), options (static), value, displayStyle? (static), filterable? (static), weight? (static), checks? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• ChoicePicker(label?, variant? (static), options (static), value, displayStyle? (static), filterable? (static), weight? (static), accessibility? (static), checks? (static))
   - Description: A component that allows selecting one or more options from a list.
   - label: The label for the group of options.
   - variant: A hint for how the choice picker should be displayed and behave. Must be one of: 'multipleSelection', 'mutuallyExclusive'
@@ -45,13 +48,15 @@ Use these exact positional signatures to instantiate components. Do not output p
   - displayStyle: The display style of the component. Must be one of: 'checkbox', 'chips'
   - filterable: If true, displays a search input to filter the options.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• Column(children, justify? (static), align? (static), weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• Column(children, justify? (static), align? (static), weight? (static), accessibility? (static))
   - Description: A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
   - justify: Defines the arrangement of children along the main axis (vertically). Use 'spaceBetween' to push items to the edges (e.g. header at top, footer at bottom), or 'start'/'end'/'center' to pack them together. Must be one of: 'start', 'center', 'end', 'spaceBetween', 'spaceAround', 'spaceEvenly', 'stretch'
   - align: Defines the alignment of children along the cross axis (horizontally). This is similar to the CSS 'align-items' property. Must be one of: 'center', 'end', 'start', 'stretch'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• DateRangePicker(label, start, end, action? (static), nightsLabel?, weight? (static), checks? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• DateRangePicker(label, start, end, action? (static), nightsLabel?, weight? (static), accessibility? (static), checks? (static))
   - Description: Picks the trip's start and end dates. Both bound values are RFC 3339 timestamps with an offset, e.g. '2026-04-12T00:00:00Z'.
   - label: What the range is for, e.g. 'When are you going?'.
   - start: Bound path for the start date (RFC 3339).
@@ -59,7 +64,8 @@ Use these exact positional signatures to instantiate components. Do not output p
   - action: Fired when the traveler commits a new range.
   - nightsLabel: Derived caption, e.g. '6 nights'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• DateTimeInput(label, value, enableDate? (static), enableTime? (static), min?, max?, weight? (static), checks? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• DateTimeInput(label, value, enableDate? (static), enableTime? (static), min?, max?, weight? (static), accessibility? (static), checks? (static))
   - label: The text label for the input field.
   - value: The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string.
   - enableDate: If true, allows the user to select a date.
@@ -67,7 +73,8 @@ Use these exact positional signatures to instantiate components. Do not output p
   - min: The minimum allowed date/time in ISO 8601 format.
   - max: The maximum allowed date/time in ISO 8601 format.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• ExpenseSplit(title, total, participants (static), action? (static), actionLabel?, weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• ExpenseSplit(title, total, participants (static), action? (static), actionLabel?, weight? (static), accessibility? (static))
   - Description: Splits a shared trip cost between travelers and shows who owes what.
   - title: What was paid for, e.g. 'Dinner at Sobrino'.
   - total: Preformatted total, e.g. '€96'.
@@ -79,7 +86,8 @@ Use these exact positional signatures to instantiate components. Do not output p
   - action: Fired when the traveler settles or edits the split.
   - actionLabel: Label for that action, e.g. 'Settle up'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• FlightOption(airline, departTime, arriveTime, origin, destination, price, action (static), duration?, stops?, flightNumber?, cabin? (static), selected?, badge?, total?, weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• FlightOption(airline, departTime, arriveTime, origin, destination, price, action (static), duration?, stops?, flightNumber?, cabin? (static), selected?, badge?, total?, weight? (static), accessibility? (static))
   - Description: A single selectable flight itinerary leg. Use one per option when presenting a choice of flights; do not build flight rows by hand out of Row and Text.
   - airline: Operating carrier, e.g. 'Iberia' or 'Delta'.
   - departTime: Local departure time as a display string, e.g. '07:15'.
@@ -96,7 +104,8 @@ Use these exact positional signatures to instantiate components. Do not output p
   - badge: Short editorial tag, e.g. 'Cheapest' or 'Fastest'.
   - total: What this flight costs for everyone on this leg, when that is more than one person — preformatted, e.g. '$522 for 2'. Give it whenever the leg carries a party, and `price` is then read as the per-traveler fare.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities? (static), selected?, badge?, weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities? (static), selected?, badge?, weight? (static), accessibility? (static))
   - Description: A place to stay, presented as a rich card with imagery, rating and nightly price.
   - name: Property name.
   - price: Preformatted nightly or total price, e.g. '$186 / night'.
@@ -108,6 +117,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - selected: Whether this property is currently chosen.
   - badge: Short editorial tag, e.g. 'Walkable' or 'Best value'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+  - accessibility: Assistive technology: {label, description, live, hidden}.
 • Itinerary(heading? (static))
   - Description: The day plan already recorded on this trip, drawn in full.
     
@@ -115,7 +125,7 @@ Use these exact positional signatures to instantiate components. Do not output p
     rather than writing every day and every activity a second time as
     components. Pass a heading to put a line of your own above it.
   - heading: Optional line above the plan, e.g. 'Four days in Berlin'.
-• ItineraryDay(title, children, date?, summary?, action? (static), onAdd? (static), weight? (static))
+• ItineraryDay(title, children, date?, summary?, action? (static), onAdd? (static), weight? (static), accessibility? (static))
   - Description: One day of a trip. Its children are the day's ActivityItem components, in chronological order.
   - title: Day heading, e.g. 'Day 3 — Toledo'.
   - children: The day's activities, earliest first.
@@ -124,12 +134,14 @@ Use these exact positional signatures to instantiate components. Do not output p
   - action: Fired when the traveler opens or edits the whole day.
   - onAdd: Fired when the traveler wants something else in this day.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• List(children, direction? (static), align? (static), weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• List(children, direction? (static), align? (static), weight? (static), accessibility? (static))
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list.
   - direction: The direction in which the list items are laid out. Must be one of: 'vertical', 'horizontal'
   - align: Defines the alignment of children along the cross axis. Must be one of: 'start', 'center', 'end', 'stretch'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• MapPreview(markers (static), caption?, action? (static), weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• MapPreview(markers (static), caption?, action? (static), weight? (static), accessibility? (static))
   - Description: A lightweight schematic map of the places in play. Not a live map — it orients the traveler and is safe to render offline.
   - markers: Places to pin. Static values only — the host lays them out relative to each other.
     List of maps keys:
@@ -139,7 +151,8 @@ Use these exact positional signatures to instantiate components. Do not output p
   - caption: One line describing what the map shows.
   - action: Fired when the traveler taps the map.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• PriceSummary(lines (static), total, totalLabel?, action? (static), actionLabel?, caption?, weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• PriceSummary(lines (static), total, totalLabel?, action? (static), actionLabel?, caption?, weight? (static), accessibility? (static))
   - Description: The money view: an itemized breakdown and a total. Use this instead of a hand-built table whenever you show what a trip costs.
   - lines: Itemized cost lines in display order. Static values only.
     List of maps keys:
@@ -152,7 +165,8 @@ Use these exact positional signatures to instantiate components. Do not output p
   - actionLabel: Label for that action, e.g. 'Hold for 24h'.
   - caption: Fine print, e.g. 'Estimated, taxes included'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• ProgressMeter(label, value, max, caption?, tone? (static), weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• ProgressMeter(label, value, max, caption?, tone? (static), weight? (static), accessibility? (static))
   - Description: How far along something is — budget spent, packing done, bookings confirmed. `value` and `max` are numbers, not display strings.
   - label: What is progressing.
   - value: Current amount.
@@ -160,19 +174,22 @@ Use these exact positional signatures to instantiate components. Do not output p
   - caption: Reading in words, e.g. '$1,320 of $2,000'.
   - tone: Colour role for the bar. Must be one of: 'neutral', 'positive', 'caution', 'critical', 'accent'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• Row(children, justify? (static), align? (static), weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• Row(children, justify? (static), align? (static), weight? (static), accessibility? (static))
   - Description: A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
   - justify: Defines the arrangement of children along the main axis (horizontally). Use 'spaceBetween' to push items to the edges, or 'start'/'end'/'center' to pack them together. Must be one of: 'center', 'end', 'spaceAround', 'spaceBetween', 'spaceEvenly', 'start', 'stretch'
   - align: Defines the alignment of children along the cross axis (vertically). This is similar to the CSS 'align-items' property, but uses camelCase values (e.g., 'start'). Must be one of: 'start', 'center', 'end', 'stretch'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• Slider(label?, min? (static), max (static), value, weight? (static), checks? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• Slider(label?, min? (static), max (static), value, weight? (static), accessibility? (static), checks? (static))
   - label: The label for the slider.
   - min: The minimum value of the slider.
   - max: The maximum value of the slider.
   - value: The current value of the slider.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• StatTile(label, value, caption?, tone? (static), action? (static), weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• StatTile(label, value, caption?, tone? (static), action? (static), weight? (static), accessibility? (static))
   - Description: One number that matters, sized for a dashboard grid. Home-surface staple: days until departure, budget left, bookings confirmed.
   - label: What the number measures.
   - value: The number as a display string, e.g. '17'.
@@ -180,17 +197,20 @@ Use these exact positional signatures to instantiate components. Do not output p
   - tone: Colour role for the tile. Must be one of: 'neutral', 'positive', 'caution', 'critical', 'accent'
   - action: Fired when the traveler taps the tile.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• Text(text, variant? (static), weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• Text(text, variant? (static), weight? (static), accessibility? (static))
   - text: The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation.
   - variant: A hint for the base text style. Must be one of: 'h1', 'h2', 'h3', 'h4', 'h5', 'caption', 'body'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• TextField(label, value?, variant? (static), validationRegexp? (static), weight? (static), checks? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• TextField(label, value?, variant? (static), validationRegexp? (static), weight? (static), accessibility? (static), checks? (static))
   - label: The text label for the input field.
   - value: The value of the text field.
   - variant: The type of input field to display. Must be one of: 'longText', 'number', 'shortText', 'obscured'
   - validationRegexp: A regular expression used for client-side validation of the input.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• TravelerCounter(label, value, min? (static), max? (static), caption?, weight? (static), checks? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• TravelerCounter(label, value, min? (static), max? (static), caption?, weight? (static), accessibility? (static), checks? (static))
   - Description: A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.
   - label: What is being counted, e.g. 'Adults'.
   - value: Bound path holding the current count.
@@ -198,7 +218,8 @@ Use these exact positional signatures to instantiate components. Do not output p
   - max: Highest allowed count.
   - caption: Qualifier, e.g. 'Age 12+'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• TripCalendar(start, end?, marks? (static), title?, caption?, action? (static), weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• TripCalendar(start, end?, marks? (static), title?, caption?, action? (static), weight? (static), accessibility? (static))
   - Description: The trip's dates on a month grid: the travel days drawn as one highlighted band, with a glyph on any day worth marking. Read-only — use it wherever a traveler should *see* when they are going (the panel, the home surface, beside a chosen flight), and DateRangePicker when they are still choosing.
   - start: First travel day as yyyy-MM-dd, e.g. '2027-04-12'. Bind it to the trip — `$/trip/startDate` — so the band moves when the dates do.
   - end: Last travel day as yyyy-MM-dd. Omit for a single day; the band runs from `start` to here inclusive.
@@ -211,7 +232,8 @@ Use these exact positional signatures to instantiate components. Do not output p
   - caption: One line under the grid, e.g. '6 nights · flights booked'.
   - action: Fired when the traveler taps the calendar, e.g. to change the dates.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-• WeatherStrip(days (static), place?, caption?, weight? (static))
+  - accessibility: Assistive technology: {label, description, live, hidden}.
+• WeatherStrip(days (static), place?, caption?, weight? (static), accessibility? (static))
   - Description: A short forecast row for the destination. Purely informational.
   - days: Forecast entries in date order, at most seven. Static values only.
     List of maps keys:
@@ -222,6 +244,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - place: Where the forecast is for.
   - caption: One line of interpretation, e.g. 'Pack a light jacket'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+  - accessibility: Assistive technology: {label, description, live, hidden}.
 
 ## Positional Function Signatures
 
@@ -294,19 +317,23 @@ You are composing travel UI. A few house rules that matter more than anything el
   model so a later turn can read it back — e.g. `$/trip/selectedOutbound`.
 - Keep a surface to one job. An inline card answers the message it is attached
   to; the sidebar refines the trip in flight; the home surface summarizes.
+- Name a card whose own text does not say what it is — a screen reader reads
+  what you wrote there and nothing else:
+  `accessibility={label: "Outbound — Norwegian, 07:15, €281"}`. Add
+  `live: "polite"` to a value that re-reckons itself. Leave it off decoration
+  and off anything whose text already reads as a sentence.
 
 ### Examples:
 
 <a2ui>
 surface("inline-7")
+$/trip/selectedOutbound = ""
 heading = Text("Outbound · JFK → MAD · Sun 12 Apr", "h3")
 f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("select_flight", {id: "IB6250", price: "$412"}), "7h 35m", "Nonstop", "IB6250", _, $/trip/selectedOutbound, "Cheapest")
 f2 = FlightOption("Delta", "21:10", "10:50 +1", "JFK", "MAD", "$468", Event("select_flight", {id: "DL126", price: "$468"}), "7h 40m", "Nonstop", "DL126")
 f3 = FlightOption("TAP", "17:25", "11:05 +1", "JFK", "MAD", "$367", Event("select_flight", {id: "TP208", price: "$367"}), "11h 40m", "1 stop · LIS", "TP208", _, _, "Lowest fare")
 note = Text("Prices are per traveler, round trip.")
 root = Column([heading, f1, f2, f3, note])
-surface("inline-7")
-$/trip/selectedOutbound = ""
 </a2ui>
 
 <a2ui>

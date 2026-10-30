@@ -11,6 +11,7 @@
 import { createElement, useId, useState, type ReactNode } from 'react';
 import type { Json } from '@travel-a2ui/express';
 
+import { ariaOf } from '../accessibility.js';
 import {
   bindingPointer,
   resolve,
@@ -45,7 +46,14 @@ export function Text({ node, scope }: ComponentProps) {
   // Headings render as real heading elements so the surface has a document
   // outline a screen reader can navigate, not just larger text.
   const tag = HEADING_TAGS[variant] ?? 'p';
-  return createElement(tag, { className: `a2-text a2-text--${variant}` }, content);
+  return createElement(
+    tag,
+    // No fallback role: a heading is already one, and a paragraph the agent
+    // named reads as its own text. What a `Text` wants from this block is
+    // usually `live` — a price that re-reckons — or `hidden`.
+    { ...ariaOf(node, scope), className: `a2-text a2-text--${variant}` },
+    content,
+  );
 }
 
 export function ImageComponent({ node, scope }: ComponentProps) {
@@ -54,6 +62,8 @@ export function ImageComponent({ node, scope }: ComponentProps) {
   const fit = typeof node['fit'] === 'string' ? node['fit'] : 'cover';
   const variant = typeof node['variant'] === 'string' ? node['variant'] : 'mediumFeature';
   if (!isSafeUrl(url)) return null;
+  // `alt` first, then the block: an `accessibility.label` is the more specific
+  // of the two and should win, which spreading after `alt` arranges.
   return (
     <img
       className={cx('a2-image', `a2-image--${variant}`)}
@@ -61,24 +71,39 @@ export function ImageComponent({ node, scope }: ComponentProps) {
       src={url}
       alt={description}
       loading="lazy"
+      {...ariaOf(node, scope)}
     />
   );
 }
 
 export function IconComponent({ node, scope }: ComponentProps) {
-  return <Icon name={resolveText(node['name'], scope)} className="a2-icon" />;
+  // An icon is decoration until somebody names it, and then it is an image.
+  const aria = ariaOf(node, scope, 'img');
+  return (
+    <Icon
+      name={resolveText(node['name'], scope)}
+      className="a2-icon"
+      {...aria}
+      // `Icon` sets `aria-hidden` itself, which is right for the glyphs inside
+      // a card and wrong for the one component that *is* a glyph: a named icon
+      // would have carried a label and a role into a subtree screen readers
+      // skip, announcing it to nobody. So the name clears it, an explicit
+      // `hidden` still wins, and an unnamed icon keeps the default.
+      aria-hidden={aria['aria-hidden'] ?? (aria.role ? undefined : true)}
+    />
+  );
 }
 
 export function VideoComponent({ node, scope }: ComponentProps) {
   const url = resolveText(node['url'], scope);
   if (!isSafeUrl(url)) return null;
-  return <video className="a2-video" src={url} controls preload="metadata" />;
+  return <video className="a2-video" src={url} controls preload="metadata" {...ariaOf(node, scope)} />;
 }
 
 export function AudioComponent({ node, scope }: ComponentProps) {
   const url = resolveText(node['url'], scope);
   if (!isSafeUrl(url)) return null;
-  return <audio className="a2-audio" src={url} controls preload="metadata" />;
+  return <audio className="a2-audio" src={url} controls preload="metadata" {...ariaOf(node, scope)} />;
 }
 
 function flexStyle(node: ComponentProps['node']) {
@@ -104,7 +129,7 @@ function flexStyle(node: ComponentProps['node']) {
 
 export function Column({ node, scope, ctx }: ComponentProps) {
   return (
-    <div className="a2-column" style={flexStyle(node)}>
+    <div className="a2-column" style={flexStyle(node)} {...ariaOf(node, scope, 'group')}>
       {ctx.renderChildren(node['children'], scope)}
     </div>
   );
@@ -112,7 +137,7 @@ export function Column({ node, scope, ctx }: ComponentProps) {
 
 export function Row({ node, scope, ctx }: ComponentProps) {
   return (
-    <div className="a2-row" style={flexStyle(node)}>
+    <div className="a2-row" style={flexStyle(node)} {...ariaOf(node, scope, 'group')}>
       {ctx.renderChildren(node['children'], scope)}
     </div>
   );
@@ -120,20 +145,30 @@ export function Row({ node, scope, ctx }: ComponentProps) {
 
 export function List({ node, scope, ctx }: ComponentProps) {
   const direction = node['direction'] === 'horizontal' ? 'horizontal' : 'vertical';
+  // `group` rather than `list`: a real list role obliges every child to be a
+  // `listitem`, and the children here are whatever the agent put in it.
   return (
-    <div className={`a2-list a2-list--${direction}`} style={flexStyle(node)}>
+    <div
+      className={`a2-list a2-list--${direction}`}
+      style={flexStyle(node)}
+      {...ariaOf(node, scope, 'group')}
+    >
       {ctx.renderChildren(node['children'], scope)}
     </div>
   );
 }
 
 export function Card({ node, scope, ctx }: ComponentProps) {
-  return <div className="a2-card">{ctx.renderChild(node['child'], scope)}</div>;
+  return (
+    <div className="a2-card" {...ariaOf(node, scope, 'group')}>
+      {ctx.renderChild(node['child'], scope)}
+    </div>
+  );
 }
 
-export function Divider({ node }: ComponentProps) {
+export function Divider({ node, scope }: ComponentProps) {
   const axis = node['axis'] === 'vertical' ? 'vertical' : 'horizontal';
-  return <hr className={`a2-divider a2-divider--${axis}`} />;
+  return <hr className={`a2-divider a2-divider--${axis}`} {...ariaOf(node, scope)} />;
 }
 
 export function Tabs({ node, scope, ctx }: ComponentProps) {
@@ -142,7 +177,7 @@ export function Tabs({ node, scope, ctx }: ComponentProps) {
   if (tabs.length === 0) return null;
   const current = tabs[Math.min(active, tabs.length - 1)] as Record<string, Json> | undefined;
   return (
-    <div className="a2-tabs">
+    <div className="a2-tabs" {...ariaOf(node, scope, 'group')}>
       <div className="a2-tabs__strip" role="tablist">
         {tabs.map((tab, index) => (
           <button
@@ -167,7 +202,7 @@ export function Tabs({ node, scope, ctx }: ComponentProps) {
 export function Modal({ node, scope, ctx }: ComponentProps) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="a2-modal">
+    <div className="a2-modal" {...ariaOf(node, scope, 'group')}>
       <div className="a2-modal__trigger" onClick={() => setOpen(true)}>
         {ctx.renderChild(node['trigger'], scope)}
       </div>
@@ -202,6 +237,7 @@ export function Button({ node, scope, ctx }: ComponentProps) {
       // carries a sourceComponentId, and the agent uses it to tell two buttons
       // on one surface apart.
       onClick={() => runAction(action, scope, ctx, node)}
+      {...ariaOf(node, scope)}
     >
       {label}
     </button>
@@ -226,6 +262,9 @@ export function TextField(props: ComponentProps) {
     onChange: (event: { target: { value: string } }) =>
       pointer && ctx.setValue(pointer, event.target.value),
     'aria-invalid': invalid || undefined,
+    // On the field rather than the wrapper: a name belongs on the thing that
+    // takes the input. No fallback role — this already is a textbox.
+    ...ariaOf(node, scope),
   };
 
   return (
@@ -263,6 +302,7 @@ export function CheckBox(props: ComponentProps) {
           ctx.touch(pointer);
           ctx.setValue(pointer, event.target.checked);
         }}
+        {...ariaOf(node, scope)}
       />
       <label className="a2-check__label" htmlFor={id}>
         {resolveText(node['label'], scope)}
@@ -301,7 +341,11 @@ export function ChoicePicker(props: ComponentProps) {
       {node['label'] ? (
         <span className="a2-field__label">{resolveText(node['label'], scope)}</span>
       ) : null}
-      <div className="a2-choices" role={multiple ? 'group' : 'radiogroup'}>
+      <div
+        className="a2-choices"
+        role={multiple ? 'group' : 'radiogroup'}
+        {...ariaOf(node, scope)}
+      >
         {options.map((option, index) => {
           const value = String(option['value'] ?? index);
           const isSelected = selected.has(value);
@@ -347,6 +391,7 @@ export function Slider(props: ComponentProps) {
         max={max}
         value={value}
         onChange={(event) => pointer && ctx.setValue(pointer, Number(event.target.value))}
+        {...ariaOf(node, scope)}
       />
     </div>
   );
@@ -382,6 +427,7 @@ export function DateTimeInput(props: ComponentProps) {
           const next = event.target.value;
           ctx.setValue(pointer, type === 'date' && next ? `${next}T00:00:00Z` : next);
         }}
+        {...ariaOf(node, scope)}
       />
       <FieldErrors {...props} pointer={pointer} />
     </div>

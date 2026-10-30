@@ -1,15 +1,9 @@
 [
   {
-    "version": "v0.9.1",
+    "version": "v1.0",
     "createSurface": {
       "surfaceId": "itinerary",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "itinerary",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
           "id": "a1",
@@ -63,10 +57,10 @@
           "id": "packingRow",
           "component": "CheckBox",
           "label": {
-            "path": "item"
+            "@path": "item"
           },
           "value": {
-            "path": "done"
+            "@path": "done"
           }
         },
         {
@@ -92,15 +86,8 @@
             "packing"
           ]
         }
-      ]
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateDataModel": {
-      "surfaceId": "itinerary",
-      "path": "/",
-      "value": {
+      ],
+      "dataModel": {
         "packing": {
           "0": {
             "item": "Passport",
