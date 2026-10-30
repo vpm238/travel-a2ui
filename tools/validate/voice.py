@@ -111,12 +111,22 @@ def host_cards(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def first_press(nodes: list[dict[str, Any]], wanted: str) -> tuple[str, dict[str, Any]] | None:
-    """The press on the first card of this kind, with its literal context.
+def first_press(
+    nodes: list[dict[str, Any]],
+    wanted: str,
+    already: set[str] | None = None,
+) -> tuple[str, dict[str, Any]] | None:
+    """The press on the first card of this kind nobody has pressed yet.
 
     Only literals: a voice surface is composed by the server from real rows, so
     its cards carry the id and the price as values rather than as bindings.
+
+    `already` is what makes a second press land on a second card. Everything on
+    screen is pressable, including the fares from two turns ago, so a plain
+    "first FlightOption" pressed the outbound again and the return leg stayed
+    unchosen — which the agent then, correctly, refused to move past.
     """
+    seen = already or set()
     for node in nodes:
         if str(node.get("component") or "") != wanted:
             continue
@@ -129,6 +139,8 @@ def first_press(nodes: list[dict[str, Any]], wanted: str) -> tuple[str, dict[str
             for key, value in (event.get("context") or {}).items()
             if not isinstance(value, dict)
         }
+        if str(context.get("id") or "") in seen:
+            continue
         return str(name), context
     return None
 
@@ -144,6 +156,8 @@ async def call(base: str, key: str, steps: list[dict[str, Any]], quiet: bool) ->
     tools: list[str] = []
     transcript: list[str] = []
     turns: list[dict[str, Any]] = []
+    #: Every card id this call has pressed, so the next press is a new card.
+    pressed: set[str] = set()
 
     async with websockets.connect(url, max_size=16 * 1024 * 1024) as socket:
         await socket.send(json.dumps({"type": "start", "apiKey": key, "client": {}}))
@@ -196,12 +210,13 @@ async def call(base: str, key: str, steps: list[dict[str, Any]], quiet: bool) ->
                 # leaves the fares from two turns ago sitting there, pressable.
                 # Looking at the last turn alone said "nothing to press" at a
                 # screen with four flights on it.
-                found = first_press(components(on_screen), step["press"])
+                found = first_press(components(on_screen), step["press"], pressed)
                 if found is None:
                     if not quiet:
                         print(f"\n-- {number}. press {step['press']}: NOTHING TO PRESS")
                     turns.append({"turn": number, "stopped": f"no {step['press']}"})
                     break
+                pressed.add(str((found[1] or {}).get("id") or ""))
                 text = press_sentence(*found)
                 if not quiet:
                     print(f"\n-- {number}. [press] {text}")
@@ -225,6 +240,12 @@ async def call(base: str, key: str, steps: list[dict[str, Any]], quiet: bool) ->
                 {
                     "turn": number,
                     "input": text,
+                    # What it said out loud. Kept because the interesting
+                    # failure on this door is a turn that calls no tool and
+                    # draws nothing, and without the sentence there is no way
+                    # to tell a model that refused from one that answered in
+                    # prose from one that thought it had already done it.
+                    "said": said,
                     "tools": list(tools),
                     "components": [str(node.get("component")) for node in components(drawn)],
                     "drawn": list(drawn),
@@ -245,9 +266,17 @@ async def call(base: str, key: str, steps: list[dict[str, Any]], quiet: bool) ->
     return {"trip": trip, "turns": turns}
 
 
+#: The call this drives, as a traveller would actually make it.
+#:
+#: Two fare presses, not one, and that is the whole correction this script
+#: needed. A round trip has two legs; the agent holds the traveller to one hop
+#: at a time, so asking for somewhere to stay with the return still unchosen
+#: gets "we need to confirm the return flight first" — which is the agent being
+#: right and this script being wrong. It read as a product bug for two runs.
 SCRIPT = [
     {"say": "JFK to Madrid, the 12th to the 19th of April 2027, two of us"},
     {"say": "show me the flights"},
+    {"press": "FlightOption"},
     {"press": "FlightOption"},
     {"say": "and somewhere to stay"},
     {"press": "HotelCard"},

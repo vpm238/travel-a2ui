@@ -91,25 +91,31 @@ await page.screenshot({ path: `${shot}/1-outbound.png`, fullPage: true });
 
 console.log('fare cards on the live card:', await fares.count());
 
-// How many of them a screen reader would hear as a sentence.
-//
-// This is a measurement of the *brief*, which is why it is printed rather than
-// asserted. It read nought with the house rule buried as one line at the end
-// of the catalog's instructions; it reads every card on screen now that the
-// rule sits beside the one about actions and the worked example shows three
-// labelled fares. In between there was a host pass that filled the label in,
-// which worked and was deleted: it put a decision about what a card says into
-// Python, and the only reason it looked necessary was a weak prompt.
-//
-// So a drop here is a prompt regression, and the labels printed below are how
-// to tell whose they are — the agent writes things the host never would,
-// "€69 each, €138 for 2, cheapest".
-{
+/** What a screen reader would be told about the fares and stays on screen. */
+async function spokenCards() {
   const cards = page.locator(`${FEED} [class*="tv-flight" i], ${FEED} [class*="tv-hotel" i]`);
-  const labels = await cards.evaluateAll((nodes) =>
-    nodes.filter((node) => node.getAttribute('aria-label')).map((node) => node.getAttribute('aria-label')),
+  return cards.evaluateAll((nodes) =>
+    nodes
+      .map((node) => node.getAttribute('aria-label'))
+      .filter((label) => label && label.trim()),
   );
-  console.log(`cards a screen reader is told about: ${labels.length}`);
+}
+
+// Read twice, and the first reading is the less interesting one.
+//
+// A lookup paints a skeleton the instant it starts and the model's own card
+// replaces it a few seconds later, so a reading taken here catches whichever
+// producer happens to be on screen — the host's, usually, because it is
+// faster. Which is the measurement this probe got wrong once already: it
+// printed the host's sentences in production and the agent's locally, off the
+// same code, and the difference was the clock.
+//
+// The reading that answers the question is the one after the turn settles, and
+// it is below. Both are printed rather than asserted, because the count
+// depends on how many cards this particular turn drew.
+{
+  const labels = await spokenCards();
+  console.log(`cards a screen reader is told about, mid-stream: ${labels.length}`);
   for (const label of labels.slice(0, 3)) console.log(`   "${label}"`);
 }
 
@@ -213,6 +219,26 @@ if (process.env.THROUGH_TO_HOTEL) {
   await settled();
   await page.waitForTimeout(40000);
   await page.screenshot({ path: `${shot}/4-settled.png`, fullPage: true });
+
+  // Now that nothing is streaming, every card on screen is one the agent
+  // wrote. Naming them is a house rule in the brief rather than anything the
+  // host does, so this number is a measurement of the *prompt*: it read nought
+  // with the rule buried at the end of the catalog's instructions, and reads
+  // every card now that it sits beside the rule about actions and the worked
+  // example shows three labelled fares.
+  //
+  // The sentences are printed because they say whose they are. The host writes
+  // the provider's own fields — "Nonstop, €138". The agent writes things the
+  // host never would: "nonstop, €69 each, €138 for 2, cheapest".
+  {
+    const labels = await spokenCards();
+    const total = await page
+      .locator(`${FEED} [class*="tv-flight" i], ${FEED} [class*="tv-hotel" i]`)
+      .count();
+    console.log(`\n=== what a screen reader is told, once settled ===`);
+    console.log(`${labels.length} named, of ${total} card elements on screen`);
+    for (const label of labels.slice(0, 6)) console.log(`   "${label}"`);
+  }
   const settledPanel = await page
     .locator('aside, [class*="sidebar" i]')
     .first()
