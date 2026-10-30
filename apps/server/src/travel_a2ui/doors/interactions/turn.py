@@ -107,8 +107,16 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # no model call — the same messages the end of the turn sends. Sending
         # them only there meant a traveller who pressed a fare watched the
         # sidebar say nothing about it for as long as the answering turn took,
-        # twenty seconds and more, while the host had the answer before the
-        # model was even asked.
+        # twenty seconds and more.
+        #
+        # Which is as early as *this* can be, and not as early as a press can
+        # be answered: what reaches here is what `confirm` could settle from
+        # the press, and the value itself only lands on the trip once something
+        # records it. `host_actions.HANDLERS` records exactly one press —
+        # `drop_activity` — so a pressed fare still waits for the model to call
+        # `save_trip`, and the panel moves when that returns. Measured at 4.4s,
+        # down from 20.8s when the panel was redrawn instead of bound, and it
+        # would be a frame if `select_flight` were recorded here too.
         for event in panel_events(trip):
             yield event
 

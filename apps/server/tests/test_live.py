@@ -528,7 +528,10 @@ class TestThePanel:
             interactions=[[surface], [surface]],
         )
         assert len(client.interaction_bodies) == 1, "the sidebar, and nothing else"
-        assert "Redraw this surface" in client.interaction_bodies[0]["input"][0]["content"][0]["text"]
+        asked = client.interaction_bodies[0]["input"][0]["content"][0]["text"]
+        # The macro by name, not the wording around it. A panel written out by
+        # hand is right once and then frozen — see `PANEL_REQUEST`.
+        assert "Trip()" in asked, asked
 
     def test_an_unchanged_shape_costs_no_model_turn(self) -> None:
         _, client, _ = run_call(

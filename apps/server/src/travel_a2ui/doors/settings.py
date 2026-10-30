@@ -26,8 +26,24 @@ MAX_TOOL_ROUNDS = 6
 #: What a panel redraw asks for.
 #:
 #: Short, because the surface brief in the skill already says what a panel is
-#: and what it may contain. This only has to say *now*.
-PANEL_REQUEST = "Redraw this surface for where the trip stands now. Only the surface — no prose."
+#: and what it may contain. This only has to name the macro.
+#:
+#: Naming it is the whole point. The old wording — "redraw this surface for
+#: where the trip stands now" — got a panel written out by hand, every value a
+#: literal read off the trip it was handed. A panel like that is right once and
+#: then frozen: the host files a pressed fare at `/trip/selectedFlight` the
+#: instant it lands, before the model is even asked, and the literal on screen
+#: cannot hear it. So the traveller pressed a fare and watched the sidebar say
+#: nothing about it until a whole further turn had drawn a whole further panel —
+#: measured at 20.8s and 29.0s, which is this turn plus the one after it.
+#:
+#: `Trip()` is bound, so the same press moves it in the time a websocket frame
+#: takes, and this request is then needed once per route rather than once per
+#: decision.
+PANEL_REQUEST = (
+    "Draw this surface with `Trip()` — bound, so it stays current by itself. "
+    "Only the surface — no prose."
+)
 
 
 #: The model that answers when nobody picks one, and the panel's own model.

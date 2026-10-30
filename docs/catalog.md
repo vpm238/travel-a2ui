@@ -216,7 +216,7 @@ root = HotelCard("Hotel Único Madrid", "$291 / night", Event("select_hotel", {i
 | `imageUrl` | bindable string |  | Hero image URL. Omit for a generated placeholder. |
 | `neighborhood` | bindable string |  | Where it is, in words a traveler uses, e.g. 'Malasaña'. |
 | `rating` | bindable string |  | Rating as a display string, e.g. '4.6 (1,204)'. |
-| `amenities` | array |  | Short amenity labels, at most five. Static values only. |
+| `amenities` | bindable stringlist |  | Short amenity labels, at most five. |
 | `selected` | bindable boolean |  | Whether this property is currently chosen. |
 | `badge` | bindable string |  | Short editorial tag, e.g. 'Walkable' or 'Best value'. |
 
