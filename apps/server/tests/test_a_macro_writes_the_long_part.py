@@ -197,3 +197,199 @@ class TestHighlightsIsBoundRatherThanLiteral:
         nodes = drawn('rows = Highlights("Worth your time")\nroot = Column([rows])', trip={})
         texts = [node for node in nodes if node.get("component") == "Text"]
         assert [node.get("text") for node in texts] == ["Worth your time"]
+
+
+SETTLED = {
+    "destination": "Berlin",
+    "origin": "CPH",
+    "startDate": "2026-11-02",
+    "endDate": "2026-11-05",
+    "travelers": 2,
+    "needsStay": True,
+    "selectedFlight": "SK8495",
+    "flightPrice": 69,
+    "airline": "SAS",
+    "departTime": "07:15",
+    "arriveTime": "08:25",
+    "selectedHotel": "h_BER_savigny",
+    "hotelName": "Pension Savignyplatz",
+    "nightlyPrice": 112,
+}
+
+
+class TestThePanelBindsToWhatTheTripActuallyHolds:
+    """The bug that read as "the cards never finish loading".
+
+    `Trip()` bound `FlightOption.airline` to `/trip/airline`, and the trip had
+    no such key — `TRIP_KEYS` held `selectedFlight` and `flightPrice` and
+    nothing about what the flight *was*. The renderer's rule is that a path
+    which does not resolve is pending, so every field but the price drew as a
+    shimmer, for ever, because nothing was ever going to send it.
+
+    So this is not a test about spelling. Every path this panel binds has to be
+    a key the trip can hold, or the panel is a loading state with no load
+    behind it.
+    """
+
+    def panel(self, record: dict[str, Any]) -> list[dict[str, Any]]:
+        return drawn('panel = Trip("Your trip")\nroot = Column([panel])', trip=record)
+
+    def test_every_bound_path_names_a_key_the_trip_can_hold(self) -> None:
+        from travel_a2ui.brain.trip.fields import TRIP_KEYS
+
+        nodes = self.panel(SETTLED)
+        paths: list[str] = []
+        for node in nodes:
+            for value in node.values():
+                if isinstance(value, dict) and "@path" in value:
+                    paths.append(value["@path"])
+        assert paths, "the panel binds nothing at all"
+        for path in paths:
+            assert path.startswith("/trip/"), path
+            # `legs/0/selectedFlight` addresses a leg; the field after the last
+            # slash is the one that has to exist.
+            key = path[len("/trip/") :].rsplit("/", 1)[-1]
+            assert key in TRIP_KEYS, f"{path} names {key!r}, which no trip has"
+
+    def test_the_stay_shows_its_name_rather_than_its_id(self) -> None:
+        stays = [n for n in self.panel(SETTLED) if n.get("component") == "HotelCard"]
+        assert len(stays) == 1
+        assert stays[0]["name"] == {"@path": "/trip/hotelName"}
+        assert stays[0]["selected"] == {"@path": "/trip/selectedHotel"}, "the id still marks it"
+
+
+class TestThePanelDrawsOnlyWhatIsSettled:
+    def panel(self, record: dict[str, Any]) -> dict[str, int]:
+        return kinds(drawn('panel = Trip("Your trip")\nroot = Column([panel])', trip=record))
+
+    def test_a_trip_with_no_fare_draws_no_fare(self) -> None:
+        """What a traveller used to see was two cards shimmering at nothing."""
+        without = {k: v for k, v in SETTLED.items() if k != "selectedFlight"}
+        assert self.panel(without).get("FlightOption") is None
+
+    def test_a_hop_that_stays_the_night_with_no_hotel_draws_no_hotel(self) -> None:
+        """The condition used to be `nights`, which every stay-over hop has."""
+        without = {k: v for k, v in SETTLED.items() if k != "selectedHotel"}
+        assert without["needsStay"] is True
+        assert self.panel(without).get("HotelCard") is None
+
+    def test_and_both_appear_once_both_are_chosen(self) -> None:
+        counted = self.panel(SETTLED)
+        assert counted.get("FlightOption") == 1
+        assert counted.get("HotelCard") == 1
+
+    def test_a_second_hop_gets_its_own_fare_row(self) -> None:
+        two = {**SETTLED, "legs": [{"destination": "Copenhagen", "selectedFlight": "SK2916"}]}
+        assert self.panel(two).get("FlightOption") == 2
+
+    def test_but_not_a_stay_row_it_has_not_chosen(self) -> None:
+        two = {**SETTLED, "legs": [{"destination": "Copenhagen", "selectedFlight": "SK2916"}]}
+        assert self.panel(two).get("HotelCard") == 1, "the first hop's, and only that"
+
+    def test_an_empty_trip_still_draws_something_to_look_at(self) -> None:
+        assert "Text" in self.panel({})
+
+
+AIRPORTS = {
+    "from": [{"value": "CPH", "label": "Copenhagen · CPH"}, {"value": "JFK", "label": "New York · JFK"}],
+    "to": [{"value": "Berlin", "label": "Berlin · BER"}, {"value": "Madrid", "label": "Madrid · MAD"}],
+}
+
+
+def asked(record: dict[str, Any], airports: dict[str, Any] | None = AIRPORTS) -> list[dict[str, Any]]:
+    """`Ask()` expanded, with this deployment's airports in scope."""
+    from travel_a2ui.brain.express import as_wire
+    from travel_a2ui.brain.macros import expand
+
+    source = 'form = Ask("What is still missing?")\nroot = Column([form])'
+    wire = as_wire(
+        expand(parser_for("inline-1").compile(source, is_final=True), record, airports)
+    )
+    return wire[0]["createSurface"]["components"]
+
+
+class TestAskHasSomewhereToSayWhereFrom:
+    """The control that went missing when `Ask()` became the opening surface.
+
+    The macro drew dates and traveller counters and nothing else, while its own
+    docstring promised "where they are flying from" and the brief told the
+    agent to draw a picker of airports. So the one turn where nothing is known
+    offered no way to say the two things it most needs.
+    """
+
+    def pickers(self, record: dict[str, Any], **kw: Any) -> dict[str, dict[str, Any]]:
+        found = {}
+        for node in asked(record, **kw):
+            if node.get("component") == "ChoicePicker":
+                found[str(node.get("label"))] = node
+        return found
+
+    def test_an_empty_trip_is_asked_both(self) -> None:
+        assert set(self.pickers({})) == {"Where to", "Flying from"}
+
+    def test_each_writes_to_its_own_field(self) -> None:
+        pickers = self.pickers({})
+        assert pickers["Where to"]["value"] == {"@path": "/trip/destination"}
+        assert pickers["Flying from"]["value"] == {"@path": "/trip/origin"}
+
+    def test_one_at_a_time_rather_than_a_set(self) -> None:
+        """`mutuallyExclusive`, so the renderer writes the value, not `[value]`."""
+        for picker in self.pickers({}).values():
+            assert picker["variant"] == "mutuallyExclusive"
+
+    def test_what_is_known_is_not_asked_again(self) -> None:
+        assert set(self.pickers({"destination": "Berlin"})) == {"Flying from"}
+        assert set(self.pickers({"origin": "CPH"})) == {"Where to"}
+        assert self.pickers({"destination": "Berlin", "origin": "CPH"}) == {}
+
+    def test_the_button_carries_both_paths(self) -> None:
+        """A control whose value never reaches the trip is a form nobody can submit."""
+        buttons = [n for n in asked({}) if n.get("component") == "Button"]
+        assert len(buttons) == 1
+        paths = buttons[0]["action"]["event"]["context"]["paths"]
+        assert "/trip/destination" in paths
+        assert "/trip/origin" in paths
+
+    def test_with_no_airport_list_it_asks_nothing_it_cannot_offer(self) -> None:
+        """A picker with no options is a question with no answers on it.
+
+        `ChoicePicker.options` is static in the schema, so when the host has no
+        list — a provider whose catalogue call failed — there is nothing to draw
+        and the agent's own question is what gets asked.
+        """
+        assert self.pickers({}, airports={}) == {}
+        assert self.pickers({}, airports=None) == {}
+
+    def test_a_long_list_is_searchable_and_a_short_one_is_not(self) -> None:
+        many = {"from": [{"value": f"A{n}", "label": f"A{n}"} for n in range(12)], "to": []}
+        assert self.pickers({"destination": "Berlin"}, airports=many)["Flying from"]["filterable"] is True
+        few = {"from": AIRPORTS["from"], "to": []}
+        assert self.pickers({"destination": "Berlin"}, airports=few)["Flying from"]["filterable"] is False
+
+
+class TestWhatTheOptionsStore:
+    def test_an_origin_stores_its_code_because_the_field_is_a_code(self) -> None:
+        from travel_a2ui.brain.macros import airport_choices
+
+        made = airport_choices([{"code": "CPH", "city": "Copenhagen"}], [])
+        assert made["from"] == [{"value": "CPH", "label": "Copenhagen · CPH"}]
+
+    def test_a_destination_stores_its_city_because_the_panel_reads_it(self) -> None:
+        """A trip stored as "→ MAD" says MAD everywhere a person expects Madrid."""
+        from travel_a2ui.brain.macros import airport_choices
+
+        made = airport_choices([], [{"city": "Madrid", "airport": "MAD"}])
+        assert made["to"] == [{"value": "Madrid", "label": "Madrid · MAD"}]
+
+    def test_both_labels_name_the_city_and_the_code(self) -> None:
+        from travel_a2ui.brain.macros import airport_choices
+
+        made = airport_choices([{"code": "CPH", "city": "Copenhagen"}], [{"city": "Berlin", "airport": "BER"}])
+        assert made["from"][0]["label"] == "Copenhagen · CPH"
+        assert made["to"][0]["label"] == "Berlin · BER"
+
+    def test_a_row_with_nothing_usable_is_dropped(self) -> None:
+        from travel_a2ui.brain.macros import airport_choices
+
+        made = airport_choices([{"city": "Nowhere"}, "not a dict", {}], [{}, {"airport": ""}])
+        assert made == {"from": [], "to": []}

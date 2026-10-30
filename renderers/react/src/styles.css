@@ -1878,6 +1878,31 @@
   }
 }
 
+/*
+ * A whole card whose row has not arrived.
+ *
+ * `.tv-pending` says a *field* is waiting; this says the row is. The two are
+ * different states and only the second one must not look pressable: a seeded
+ * placeholder carries the same `action` as a real fare, bound into a row that
+ * is not there, and a traveller who pressed one recorded a choice of nothing.
+ * The renderer now withholds the role, the tab stop and the handlers; this is
+ * the part the eye uses.
+ */
+.tv-flight.is-awaiting,
+.tv-hotel.is-awaiting {
+  cursor: default;
+  /* Not `opacity`, which would fade the shimmer that is the whole point. */
+  border-color: var(--tv-line);
+  box-shadow: none;
+}
+
+.tv-flight.is-awaiting:hover,
+.tv-hotel.is-awaiting:hover {
+  border-color: var(--tv-line);
+  background: inherit;
+  transform: none;
+}
+
 
 /* ------------------------------------------------- narrow, by container
  *

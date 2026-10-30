@@ -23,11 +23,14 @@ from travel_a2ui.brain.macros import (
     DRAWN_AFTER,
     DRAWN_BY,
     LANDINGS,
+    SEEDED_ROWS,
+    clear_rows,
     closing_express,
     file_rows,
     landing_for,
     opening_express,
     rows_in,
+    seed_rows,
 )
 
 FOUND: dict[str, Any] = {
@@ -253,7 +256,7 @@ class TestTheCardThatCouldNotBeDrawnFirst:
     """
 
     def test_a_write_is_drawn_after_it_lands_not_before(self) -> None:
-        draw = {"heading": "Four days in Berlin"}
+        draw = {"macro": "Itinerary", "heading": "Four days in Berlin"}
         assert opening_express("save_trip", draw, "inline-6") == ""
         assert 'Itinerary("Four days in Berlin")' in closing_express("save_trip", draw, "inline-6")
 
@@ -264,7 +267,9 @@ class TestTheCardThatCouldNotBeDrawnFirst:
         assert set(DRAWN_BY) & set(DRAWN_AFTER) == set()
 
     def test_it_lands_on_the_surface_the_turn_is_answering(self) -> None:
-        express = closing_express("save_trip", {"heading": "Four days"}, "inline-6")
+        express = closing_express(
+            "save_trip", {"macro": "Itinerary", "heading": "Four days"}, "inline-6"
+        )
         assert 'surface("inline-6")' in express
 
     def test_a_save_that_sent_no_heading_draws_nothing(self) -> None:
@@ -276,6 +281,104 @@ class TestTheCardThatCouldNotBeDrawnFirst:
         """
         assert closing_express("save_trip", None, "inline-6") == ""
 
-    def test_but_an_empty_heading_still_draws_it(self) -> None:
-        """`draw: {}` is "yes, with no line above it" — the macro's default."""
-        assert "Itinerary()" in closing_express("save_trip", {}, "inline-6")
+    def test_but_a_named_macro_with_no_heading_still_draws_it(self) -> None:
+        """"Yes, with no line above it" — the macro's own default."""
+        assert "Itinerary()" in closing_express("save_trip", {"macro": "Itinerary"}, "inline-6")
+
+    def test_the_opening_turn_draws_its_form_from_the_same_write(self) -> None:
+        """The slowest turn in the app, and the one with no lookup to draw ahead of.
+
+        Nothing is known, so there is nothing to look up and nothing to promise;
+        the agent's own `Ask()` block arrives only once it has finished thinking,
+        measured at 21.4s. The write happens at 10.8s.
+        """
+        express = closing_express(
+            "save_trip", {"macro": "Ask", "heading": "Madrid in April"}, "inline-1"
+        )
+        assert 'Ask("Madrid in April")' in express
+
+    def test_and_passes_the_button_label_through(self) -> None:
+        express = closing_express(
+            "save_trip", {"macro": "Ask", "heading": "Madrid", "label": "Price it"}, "inline-1"
+        )
+        assert 'Ask("Madrid", "Price it")' in express
+
+    def test_a_write_must_name_which_card_it_means(self) -> None:
+        """A lookup implies its card; a write does not.
+
+        `save_trip` records a date as readily as a four-day plan, so a `draw:`
+        with no macro in it is not a request for anything.
+        """
+        assert closing_express("save_trip", {"heading": "Four days"}, "inline-6") == ""
+
+    def test_and_may_only_name_one_of_the_two(self) -> None:
+        for bogus in ("Flights", "Stays", "Trip", "Highlights", "", "Ask()"):
+            assert closing_express("save_trip", {"macro": bogus}, "inline-1") == "", bogus
+
+
+class TestTheShapeShownWhileTheLookupRuns:
+    """Blank rows, so a card drawn before its data is something to look at.
+
+    This was the missing half of drawing-before-the-lookup, and without it the
+    other half did nothing visible: `Flights()` is one template over
+    `/flights`, a template over an empty array iterates nothing, and the card
+    went up on time and rendered blank space until the rows landed. Which is
+    the wait it was added to remove.
+    """
+
+    def test_a_promised_lookup_gets_placeholders_at_its_own_address(self) -> None:
+        messages = seed_rows("search_flights", "inline-2", PROTOCOL_VERSION)
+        assert len(messages) == 1
+        update = messages[0]["updateDataModel"]
+        assert update["path"] == "/flights"
+        assert update["surfaceId"] == "inline-2"
+        assert update["value"] == [{}, {}, {}]
+
+    def test_the_rows_are_empty_rather_than_fake(self) -> None:
+        """`{}` and not `{"airline": "…"}`.
+
+        The renderer's rule is that an unresolvable path is pending and an
+        empty string is empty, so a blank row shimmers and an invented one
+        would read as a real fare that happened to be called nothing. It is
+        also why this needs no loading flag and no second component: the
+        skeleton *is* the card, with no data in it.
+        """
+        rows = seed_rows("search_hotels", "inline-3", PROTOCOL_VERSION)[0]["updateDataModel"]
+        assert rows["value"] == [{}] * SEEDED_ROWS
+        assert all(row == {} for row in rows["value"])
+
+    @pytest.mark.parametrize("tool", ["estimate_cost", "get_weather", "save_trip"])
+    def test_a_tool_with_no_promised_shape_seeds_nothing(self, tool: str) -> None:
+        assert seed_rows(tool, "inline-2", PROTOCOL_VERSION) == []
+        assert clear_rows(tool, "inline-2", PROTOCOL_VERSION) == []
+
+    def test_the_planning_turn_gets_them_too(self) -> None:
+        update = seed_rows("get_destination", "inline-4", PROTOCOL_VERSION)[0]["updateDataModel"]
+        assert update["path"] == "/highlights"
+
+
+class TestWhenTheLookupFoundNothing:
+    """The one time filing `[]` is right, and why it is the only one."""
+
+    def test_the_placeholders_are_taken_away(self) -> None:
+        update = clear_rows("search_flights", "inline-2", PROTOCOL_VERSION)[0]["updateDataModel"]
+        assert update["path"] == "/flights"
+        assert update["value"] == []
+
+    def test_which_is_the_opposite_of_what_file_rows_does(self) -> None:
+        """Both are correct, and the difference is who put the rows there.
+
+        `file_rows` answers a refusal with no message at all, because filing
+        `[]` over a list the traveller is reading takes the last answer off the
+        screen. `clear_rows` is for rows this host seeded three seconds ago,
+        which nobody is reading and which otherwise shimmer for ever about a
+        search that is over.
+        """
+        assert file_rows("search_flights", {"flights": []}, "inline-2", PROTOCOL_VERSION) == []
+        assert clear_rows("search_flights", "inline-2", PROTOCOL_VERSION) != []
+
+    def test_they_are_cleared_at_the_same_address_they_were_seeded(self) -> None:
+        for tool in ("search_flights", "search_hotels", "get_destination"):
+            seeded = seed_rows(tool, "inline-1", PROTOCOL_VERSION)[0]["updateDataModel"]
+            cleared = clear_rows(tool, "inline-1", PROTOCOL_VERSION)[0]["updateDataModel"]
+            assert seeded["path"] == cleared["path"] == landing_for(tool), tool

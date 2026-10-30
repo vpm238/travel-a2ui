@@ -163,10 +163,33 @@ function splitPrice(text: string): [string, string] {
   return at === -1 ? [text, ''] : [text.slice(0, at), text.slice(at + 3)];
 }
 
+/**
+ * Whether this card is a seeded row the data has not reached yet.
+ *
+ * A surface drawn before its lookup returns is the point of the whole design,
+ * and the way it shows is `tv-pending` on each field. But a card is pressable
+ * from `Boolean(node['action'])` alone, so a placeholder was a button: its
+ * `action` carries bindings into the same unarrived row, and pressing it sent
+ * `select_flight` with a null id — a decision recorded against nothing.
+ *
+ * Both named fields rather than one: a real row missing a rating or a badge is
+ * still a row, and the test for "has not arrived" has to be something every
+ * row of that kind carries. A fare has a number and a price; a stay has a name
+ * and a price. Neither resolving means the row itself is not there.
+ */
+export function awaiting(
+  node: ComponentProps["node"],
+  scope: ComponentProps["scope"],
+  fields: string[],
+) {
+  return fields.every((field) => isPending(node[field], scope));
+}
+
 export function FlightOption({ node, scope, ctx }: ComponentProps) {
   const selected = resolveBoolean(node['selected'], scope);
   const badge = resolveText(node['badge'], scope);
-  const interactive = Boolean(node['action']);
+  const pending = awaiting(node, scope, ['flightNumber', 'price']);
+  const interactive = Boolean(node['action']) && !pending;
   const flightNumber = resolveText(node['flightNumber'], scope);
   const code = carrierCode(flightNumber);
   const [fare, inline] = splitPrice(resolveText(node['price'], scope));
@@ -182,11 +205,23 @@ export function FlightOption({ node, scope, ctx }: ComponentProps) {
 
   return (
     <div
-      className={cx('tv-flight', selected && 'is-selected', interactive && 'is-interactive')}
+      className={cx(
+        'tv-flight',
+        selected && 'is-selected',
+        interactive && 'is-interactive',
+        pending && 'is-awaiting',
+      )}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
-      onClick={() => runAction(node['action'], scope, ctx, node)}
+      aria-busy={pending || undefined}
+      // Guarded on `interactive`, not just styled by it. These handlers used to
+      // run whatever the card's state, so a placeholder row stayed pressable
+      // after it stopped looking pressable.
+      onClick={() => {
+        if (interactive) runAction(node['action'], scope, ctx, node);
+      }}
       onKeyDown={(event) => {
+        if (!interactive) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           runAction(node['action'], scope, ctx, node);
@@ -274,17 +309,29 @@ export function HotelCard({ node, scope, ctx }: ComponentProps) {
   const rating = resolveText(node['rating'], scope);
   const neighborhood = resolveText(node['neighborhood'], scope);
   const [nightly, stay] = splitPrice(resolveText(node['price'], scope));
+  const pending = awaiting(node, scope, ['name', 'price']);
+  // `role="button"` and `tabIndex={0}` used to be unconditional, so a stay
+  // drawn to be read — on the trip panel, where the only press is Change —
+  // was announced to a screen reader as a button that did nothing.
+  const interactive = Boolean(node['action']) && !pending;
 
   return (
     <div
-      className={cx('tv-hotel', selected && 'is-selected')}
-      role="button"
-      tabIndex={0}
-      onClick={() => runAction(node['action'], scope, ctx, node)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') runAction(node['action'], scope, ctx, node);
+      className={cx('tv-hotel', selected && 'is-selected', pending && 'is-awaiting')}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-busy={pending || undefined}
+      onClick={() => {
+        if (interactive) runAction(node['action'], scope, ctx, node);
       }}
-      {...ariaOf(node, scope)}
+      onKeyDown={(event) => {
+        if (!interactive) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          runAction(node['action'], scope, ctx, node);
+        }
+      }}
+      {...ariaOf(node, scope, interactive ? undefined : 'group')}
     >
       <div className="tv-hotel__media">
         {isSafeUrl(image) ? <img src={image} alt="" loading="lazy" /> : <Skyline name={name} />}

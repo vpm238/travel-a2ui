@@ -56,23 +56,40 @@ HIGHLIGHTS = "/highlights"
 _TRIP: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar("trip", default={})
 
 
-class for_trip:
-    """Expand this turn's macros against this trip."""
+#: The airports this deployment can offer, for the pickers `Ask()` draws.
+#:
+#: Here rather than passed as a macro argument because `ChoicePicker.options`
+#: is a static array in the schema — not a `DynamicStringList` — so the choices
+#: have to exist when the macro expands, not when the surface renders. And the
+#: agent cannot supply them: it would have to call a tool to find out what this
+#: provider flies, on the one turn where it already has the least to go on.
+#:
+#: Shape: `{"from": [{"value": "CPH", "label": "Copenhagen · CPH"}, …], "to": […]}`
+_AIRPORTS: contextvars.ContextVar[dict[str, list[dict[str, str]]]] = contextvars.ContextVar(
+    "airports", default={}
+)
 
-    def __init__(self, trip: dict[str, Any]) -> None:
+
+class for_trip:
+    """Expand this turn's macros against this trip, and this deployment's airports."""
+
+    def __init__(
+        self, trip: dict[str, Any], airports: dict[str, list[dict[str, str]]] | None = None
+    ) -> None:
         # The dict itself, not a copy: a turn mutates its trip in place as
         # tools run, and a macro has to see the `days` that `save_trip` wrote
         # a moment ago rather than the trip as it was when the turn began.
         self._trip = trip if isinstance(trip, dict) else {}
-        self._token: Any = None
+        self._airports = airports if isinstance(airports, dict) else {}
+        self._tokens: list[Any] = []
 
     def __enter__(self) -> "for_trip":
-        self._token = _TRIP.set(self._trip)
+        self._tokens = [_TRIP.set(self._trip), _AIRPORTS.set(self._airports)]
         return self
 
     def __exit__(self, *_: Any) -> None:
-        if self._token is not None:
-            _TRIP.reset(self._token)
+        for var, token in zip((_TRIP, _AIRPORTS), self._tokens):
+            var.reset(token)
 
 
 class ActivityItem(ComponentBuilderNode):
@@ -310,8 +327,22 @@ def flights(heading: str = "", selected: str = "", hop: Optional[int] = None) ->
         price=bind("price"),
         action={
             "event": {
+                # The id and the price *and* what the fare is.
+                #
+                # It used to carry only `{id, price}`, so the trip learned that
+                # SK8495 cost €69 and nothing else — and the panel, which is
+                # bound to the record, had nothing to show but the price. That
+                # is the whole of why the sidebar read as a card still loading:
+                # there was no airline to load.
                 "name": "select_flight",
-                "context": _context(hop, id=bind("id"), price=bind("price")),
+                "context": _context(
+                    hop,
+                    id=bind("id"),
+                    price=bind("price"),
+                    airline=bind("airline"),
+                    departTime=bind("departTime"),
+                    arriveTime=bind("arriveTime"),
+                ),
             }
         },
         duration=bind("duration"),
@@ -358,8 +389,12 @@ def stays(heading: str = "", selected: str = "", hop: Optional[int] = None) -> C
         price=bind("price"),
         action={
             "event": {
+                # This one already carried the name; what it lacked was a place
+                # on the trip to put it. See `hotelName` in `trip-model.json`.
                 "name": "select_hotel",
-                "context": _context(hop, id=bind("id"), name=bind("name")),
+                "context": _context(
+                    hop, id=bind("id"), name=bind("name"), price=bind("price")
+                ),
             }
         },
         neighborhood=bind("neighborhood"),
@@ -455,9 +490,58 @@ DRAWN_BY: dict[str, tuple[str, tuple[str, ...]]] = {
 #: sentence. The macro had already done its job; the round was the cost. With
 #: the heading in the call that wrote the plan, the card lands when `save_trip`
 #: returns and what is left to say is the sentence.
-DRAWN_AFTER: dict[str, tuple[str, tuple[str, ...]]] = {
-    "save_trip": ("Itinerary", ("heading",)),
+#: `save_trip` is the only tool here, and it can draw either of two cards,
+#: because the two slowest turns in the app both end in a write.
+#:
+#: The opening turn is the one that hurt most. Nothing is known, so there is no
+#: lookup to draw ahead of, and the agent's own `Ask()` block arrives only
+#: after it has finished thinking — measured at 21.4 seconds to a first
+#: interface, against 6 to 12 for a turn that searches. But the write happens
+#: at 10.8s, and the form it should draw is the same `Ask()` either way. So the
+#: agent names the card in the call that records what it just learned.
+DRAWN_AFTER: dict[str, dict[str, tuple[str, ...]]] = {
+    "save_trip": {
+        "Itinerary": ("heading",),
+        "Ask": ("heading", "label"),
+    },
 }
+
+
+def airport_choices(
+    origins: Sequence[dict[str, Any]], destinations: Sequence[dict[str, Any]]
+) -> dict[str, list[dict[str, str]]]:
+    """The provider's two lists, as `ChoicePicker` options for `Ask()`.
+
+    Pure, and takes the lists rather than the provider, so the awaiting happens
+    once in the door and this stays testable without one.
+
+    Labelled "Copenhagen · CPH" both ways, because a traveller knows the city
+    and may not know the code. What each one *stores* differs, and follows the
+    field rather than the control: `origin` is "three-letter code", so the
+    option stores CPH; `destination` is "city or airport", and the city is what
+    the panel heading, the prose and every later lookup read better — a trip
+    stored as "→ MAD" says MAD everywhere a person expects Madrid.
+    """
+
+    def label(code: Any, city: Any) -> str:
+        code, city = str(code or "").strip(), str(city or "").strip()
+        return f"{city} · {code}" if city and code else city or code
+
+    out: dict[str, list[dict[str, str]]] = {"from": [], "to": []}
+    for entry in origins or ():
+        if not isinstance(entry, dict):
+            continue
+        code = str(entry.get("code") or "").strip()
+        if code:
+            out["from"].append({"value": code, "label": label(code, entry.get("city"))})
+    for entry in destinations or ():
+        if not isinstance(entry, dict):
+            continue
+        city = str(entry.get("city") or "").strip()
+        code = str(entry.get("airport") or "").strip()
+        if city or code:
+            out["to"].append({"value": city or code, "label": label(code, city)})
+    return out
 
 
 def _macro_call(
@@ -530,8 +614,20 @@ def opening_express(tool: str, draw: Any, surface_id: str) -> str:
 
 
 def closing_express(tool: str, draw: Any, surface_id: str) -> str:
-    """What to draw the moment a write lands. See `_macro_call` and `DRAWN_AFTER`."""
-    return _macro_call(DRAWN_AFTER, tool, draw, surface_id)
+    """What to draw the moment a write lands. See `_macro_call` and `DRAWN_AFTER`.
+
+    Unlike a lookup, a write does not imply its own card — `save_trip` records
+    a date as readily as a four-day plan — so the agent names the macro and
+    this refuses anything that is not one of the two it may name.
+    """
+    offers = DRAWN_AFTER.get(tool)
+    if not offers or not isinstance(draw, dict):
+        return ""
+    wanted = str(draw.get("macro") or "").strip()
+    takes = offers.get(wanted)
+    if takes is None:
+        return ""
+    return _macro_call({tool: (wanted, takes)}, tool, draw, surface_id)
 
 
 def landing_for(tool: str) -> Optional[str]:
@@ -553,6 +649,68 @@ def rows_in(tool: str, result: Any) -> Optional[list[Any]]:
         return None
     rows = result.get(found[1])
     return rows if isinstance(rows, list) and rows else None
+
+
+#: How many placeholder rows a pre-drawn list stands up while its lookup runs.
+#:
+#: Three, because the point is to show the *shape* and the shape is "a few of
+#: these". Enough that the list reads as a list; few enough that a lookup
+#: returning two does not visibly shrink it.
+SEEDED_ROWS = 3
+
+
+def seed_rows(tool: str, surface_id: str, version: str) -> list[dict[str, Any]]:
+    """Blank rows at the landing path, so a pre-drawn list has something to be.
+
+    This is the half of drawing-before-the-lookup that was missing, and without
+    it the other half did nothing a traveller could see: `Flights()` is one
+    `ActivityItem`-style template over `/flights`, and a template over an empty
+    array iterates nothing. The card went up at 9 seconds and rendered as
+    blank space until the rows landed — which is the wait it was added to fix.
+
+    A blank row is `{}`. Every bound field on the template then fails to
+    resolve, and the renderer's own rule turns that into the shimmer: "a path
+    that does not resolve is pending, a path that resolves to an empty string
+    is empty" (`renderers/react/src/binding.ts`). So no protocol, no loading
+    flag, no second component — the skeleton is the real card with no data in
+    it yet, which is also why it cannot drift from the real card.
+
+    Paired with `clear_rows`: a lookup that found nothing has to take these
+    away, or the placeholder shimmers for ever and becomes the bug it replaced.
+    """
+    path = landing_for(tool)
+    if path is None:
+        return []
+    return [
+        {
+            "version": version,
+            "updateDataModel": {
+                "surfaceId": surface_id,
+                "path": path,
+                "value": [{} for _ in range(SEEDED_ROWS)],
+            },
+        }
+    ]
+
+
+def clear_rows(tool: str, surface_id: str, version: str) -> list[dict[str, Any]]:
+    """Take the placeholders away, for a lookup that came back with nothing.
+
+    The one case where filing `[]` is right. Everywhere else it would blank a
+    card the traveller is reading, which is why `rows_in` answers `None` rather
+    than `[]` for a refusal — but rows this host seeded three seconds ago are
+    not something anybody is reading, and leaving them shimmering says "still
+    looking" for ever about a search that is over.
+    """
+    path = landing_for(tool)
+    if path is None:
+        return []
+    return [
+        {
+            "version": version,
+            "updateDataModel": {"surfaceId": surface_id, "path": path, "value": []},
+        }
+    ]
 
 
 def file_rows(tool: str, result: Any, surface_id: str, version: str) -> list[dict[str, Any]]:
@@ -649,37 +807,56 @@ def trip(heading: str = "") -> Column:
         prefix = "" if index == 0 else f"legs/{index - 1}/"
         where = f"{hop.get('from') or ''} → {hop.get('to') or ''}"
         rows.append(Text(text=where.strip(" →"), variant="h4"))
-        rows.append(
-            PanelFlight(
-                airline=bind(model.binding_for(f"{prefix}airline")),
-                departTime=bind(model.binding_for(f"{prefix}departTime")),
-                arriveTime=bind(model.binding_for(f"{prefix}arriveTime")),
-                origin=bind(model.binding_for(f"{prefix}origin")),
-                destination=bind(model.binding_for(f"{prefix}destination")),
-                price=bind(model.binding_for(f"{prefix}flightPrice")),
-                # The panel's one editable affordance: re-open a settled
-                # decision back in the conversation. `strip_panel_actions`
-                # keeps every other kind off a panel.
-                action={"event": {"name": "change", "context": {"what": "flight", "hop": index}}},
-                flightNumber=bind(model.binding_for(f"{prefix}selectedFlight")),
-                selected=bind(model.binding_for(f"{prefix}selectedFlight")),
-                accessibility=_reads(
-                    "${/trip/" + prefix + "selectedFlight},",
-                    "${/trip/" + prefix + "flightPrice}",
-                ),
+        # A row per decision, and only once that decision is settled.
+        #
+        # These used to be drawn unconditionally, and the result was the
+        # opposite of informative: before a fare was chosen the panel held a
+        # `FlightOption` whose every field was bound to a key the trip had
+        # not got, which the renderer draws — correctly — as a field waiting
+        # for data. So a trip with nothing chosen showed two cards shimmering
+        # for ever, and one with a fare chosen showed its price beside a
+        # shimmering airline, because `/trip/airline` did not exist at all.
+        #
+        # A panel is a record of what has been settled. An empty row is not a
+        # record of anything, and a row that waits for ever is a lie about a
+        # search nobody is running.
+        if hop.get("selectedFlight"):
+            rows.append(
+                PanelFlight(
+                    airline=bind(model.binding_for(f"{prefix}airline")),
+                    departTime=bind(model.binding_for(f"{prefix}departTime")),
+                    arriveTime=bind(model.binding_for(f"{prefix}arriveTime")),
+                    origin=bind(model.binding_for(f"{prefix}origin")),
+                    destination=bind(model.binding_for(f"{prefix}destination")),
+                    price=bind(model.binding_for(f"{prefix}flightPrice")),
+                    # The panel's one editable affordance: re-open a settled
+                    # decision back in the conversation. `strip_panel_actions`
+                    # keeps every other kind off a panel.
+                    action={"event": {"name": "change", "context": {"what": "flight", "hop": index}}},
+                    flightNumber=bind(model.binding_for(f"{prefix}selectedFlight")),
+                    selected=bind(model.binding_for(f"{prefix}selectedFlight")),
+                    accessibility=_reads(
+                        "${/trip/" + prefix + "selectedFlight},",
+                        "${/trip/" + prefix + "flightPrice}",
+                    ),
+                )
             )
-        )
-        if hop.get("nights"):
+        # Conditional on the *stay*, not on the nights. A hop that stays the
+        # night but has no hotel yet is precisely the case that drew a card
+        # waiting for a name that nothing was going to send.
+        if hop.get("selectedHotel"):
             rows.append(
                 StayRow(
-                    name=bind(model.binding_for(f"{prefix}selectedHotel")),
+                    # The name, not the id. `selectedHotel` is
+                    # "h_BER_savigny", which is what the panel showed.
+                    name=bind(model.binding_for(f"{prefix}hotelName")),
                     price=bind(model.binding_for(f"{prefix}nightlyPrice")),
                     action={
                         "event": {"name": "change", "context": {"what": "stay", "hop": index}}
                     },
                     selected=bind(model.binding_for(f"{prefix}selectedHotel")),
                     accessibility=_reads(
-                        "${/trip/" + prefix + "selectedHotel},",
+                        "${/trip/" + prefix + "hotelName},",
                         "${/trip/" + prefix + "nightlyPrice}",
                     ),
                 )
@@ -735,6 +912,17 @@ class OneDate(ComponentBuilderNode):
     value: Any = None
 
 
+class Choices(ComponentBuilderNode):
+    """One of a known set — an airport this deployment actually flies."""
+
+    component: str = "ChoicePicker"
+    label: Any = None
+    variant: Any = None
+    options: Any = None
+    value: Any = None
+    filterable: Any = None
+
+
 @macro
 def ask(heading: str = "", label: str = "Find flights") -> Column:
     """Everything the trip still needs, as one surface with one button.
@@ -763,6 +951,39 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
     # ended up with two dates and no way to express the rest. A trip with no
     # explicit legs is the there-and-back shape.
     there_and_back = not record.get("legs")
+
+    # Where they are going, and where from.
+    #
+    # These were missing outright. The docstring claimed "where they are flying
+    # from" and the brief told the agent to draw "a ChoicePicker of airports for
+    # anything you cannot place", and this macro drew dates and counters and
+    # nothing else — so once `Ask()` became *the* opening surface, the one
+    # control a traveller needs on the one turn where nothing is known
+    # disappeared. They could say Berlin out loud and had nowhere to say
+    # Copenhagen.
+    #
+    # A picker rather than a text field because an airport typed wrong is a
+    # lookup that finds nothing, and this deployment knows exactly which ones
+    # it flies. `mutuallyExclusive`, so the renderer writes the code itself
+    # rather than a list of one.
+    airports = _AIRPORTS.get() or {}
+    for key, choices, label in (
+        ("destination", airports.get("to") or [], "Where to"),
+        ("origin", airports.get("from") or [], "Flying from"),
+    ):
+        if record.get(key) or not choices:
+            continue
+        path = model.binding_for(key)
+        rows.append(
+            Choices(
+                label=label,
+                variant="mutuallyExclusive",
+                options=choices,
+                value=bind(path),
+                filterable=len(choices) > 8,
+            )
+        )
+        edits.append(path)
 
     # Dates. One range for there and back, one input per hop otherwise — a
     # range cannot say when the middle hop of a three-city route leaves, which
@@ -840,7 +1061,11 @@ def with_macros(catalog: Any) -> Any:
     return EXPANDER.transform_to_inference_catalog(catalog)
 
 
-def expand(messages: Any, trip: dict[str, Any] | None = None) -> Any:
+def expand(
+    messages: Any,
+    trip: dict[str, Any] | None = None,
+    airports: dict[str, list[dict[str, str]]] | None = None,
+) -> Any:
     """The same messages with every macro replaced by what it stands for.
 
     Runs on the way out, after compiling and before any pass that reads
@@ -861,7 +1086,7 @@ def expand(messages: Any, trip: dict[str, Any] | None = None) -> Any:
     """
     if not any(_holds_a_macro(_as_dict(message)) for message in messages):
         return messages
-    with for_trip(trip or {}):
+    with for_trip(trip or {}, airports):
         return EXPANDER.transform_to_transport(list(messages))
 
 

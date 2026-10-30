@@ -72,6 +72,13 @@ it — and it applies the rules below rather than asking you to:
   the remainder.
 - **One button**, carrying every path the surface edits.
 
+**Draw it from the call that records what they told you**, not in a block of
+your own: `save_trip({destination: "Madrid", draw: {macro: "Ask", heading:
+"Madrid in April"}})`. The opening turn has no lookup to draw ahead of, so this
+is the only thing on it that can go up early — and it is the difference between
+a form at eleven seconds and a form at twenty-one. The result says the card is
+up; then say your one line.
+
 Say one short line above it, or nothing. The surface is the answer; a paragraph
 explaining the form you are about to draw is the form arriving later.
 
@@ -98,6 +105,14 @@ traveller watches the flight they already chose turn into the one they just
 picked, and the panel never gains a way home at all.
 
 The same goes for a stay on a later hop, and for anything else a hop owns.
+
+**And save what the thing *is*, not only which one it was.** A press hands you
+the airline, the times and the name along with the id and the price. Record
+them — `airline`, `departTime`, `arriveTime`, `hotelName`, on the trip or on
+that hop's leg. The panel is bound to the record and can only show what is in
+it, so a fare saved as an id and a number draws as a price beside an empty
+space: the traveller sees a card that looks like it is still loading, for ever,
+because nothing is coming.
 
 ### Stays, once there are hotels to choose between
 
@@ -267,9 +282,9 @@ traveller sat at a blank space for twenty-four seconds. The city's own
 highlights are known far sooner, they are what the plan gets built out of, and
 they are worth reading on their own.
 
-So: `Highlights()` while you look the city up, and then the plan's heading in
-the call that writes it — `save_trip({days: […], draw: {heading: "Four days in
-Berlin"}})`. That draws `Itinerary()` as the write lands. Writing the block
+So: `Highlights()` while you look the city up, and then the plan in the call
+that writes it — `save_trip({days: […], draw: {macro: "Itinerary", heading:
+"Four days in Berlin"}})`. That draws it as the write lands. Writing the block
 yourself afterwards draws exactly the same card and costs a further round to
 do it: 16.7 seconds for nine characters, because the round is the cost and the
 macro was never the problem. The result says the card is up; say your one

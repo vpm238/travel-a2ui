@@ -396,6 +396,9 @@ class ExpressStream:
     required: dict[str, tuple[str, ...]] = field(default_factory=dict)
     #: The trip this turn's macros expand against. See `brain/macros.py`.
     trip: dict[str, Any] = field(default_factory=dict)
+    #: The airports `Ask()` offers, because `ChoicePicker.options` is static in
+    #: the schema and so has to be known when the macro expands.
+    airports: dict[str, list[dict[str, str]]] = field(default_factory=dict)
     _buffer: str = ""
     _inside: bool = False
     _block_source: str = ""
@@ -513,7 +516,7 @@ class ExpressStream:
             # ever sees. Expanded here, before the checks below and before
             # anything else reads this tree, so every pass sees the real
             # components and none of them has to know macros exist.
-            messages = as_wire(expand_macros(compiled, self.trip))
+            messages = as_wire(expand_macros(compiled, self.trip, self.airports))
             # Only on a finished block. A tree still being written legitimately
             # refers to components a few tokens away from existing, and calling
             # that an error would reject every surface mid-stream.

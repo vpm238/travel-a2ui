@@ -421,3 +421,36 @@ class TestDatesInWhateverShapeTheyArriveIn:
             ],
         }
         assert model.problems(mixed, "2026-09-29") == []
+
+
+class TestTheToolCanSaveEveryFieldTheTripHas:
+    """A trip field `save_trip` does not declare is a field nothing can set.
+
+    `data/trip-model.json` and `save_trip`'s schema in `data/tools.json` are
+    two hand-written lists of the same thing, and they had already drifted:
+    `maxFare` and `maxNightly` were on the trip and not on the tool, so a
+    traveller who named a ceiling had it recorded nowhere. Then `airline`,
+    `departTime`, `arriveTime` and `hotelName` were added for the panel to read
+    and the same gap would have swallowed them — the panel would have gone on
+    showing a card waiting for data no tool could accept.
+
+    Checked rather than generated, because the tool's descriptions are written
+    for the model and are not derivable from the field table.
+    """
+
+    def test_every_trip_key_is_a_save_trip_argument(self):
+        tools = json.loads((ROOT / "data" / "tools.json").read_text("utf-8"))
+        entries = tools if isinstance(tools, list) else tools["tools"]
+        save = next(entry for entry in entries if entry["name"] == "save_trip")
+        declared = set(save["input_schema"]["properties"])
+        missing = [key for key in model.TRIP_KEYS if key not in declared]
+        assert not missing, f"on the trip and not on the tool: {missing}"
+
+    def test_and_the_facts_a_press_hands_over_can_be_saved_per_hop(self):
+        """Every hop after the first keeps its own ticket, so its own facts too."""
+        tools = json.loads((ROOT / "data" / "tools.json").read_text("utf-8"))
+        entries = tools if isinstance(tools, list) else tools["tools"]
+        save = next(entry for entry in entries if entry["name"] == "save_trip")
+        legs = save["input_schema"]["properties"]["legs"]["items"]["properties"]
+        for key in ("selectedFlight", "flightPrice", "airline", "departTime", "arriveTime", "hotelName"):
+            assert key in legs, key

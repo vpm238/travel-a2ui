@@ -36,12 +36,15 @@ from ...brain.express import ExpressStream, Failed, FenceGate, Text, Ui, as_wire
 from ...brain.promises import TYPED_NUDGE, promised
 from ...brain.providers.fixture import FixtureProvider
 from ...brain.macros import (
+    airport_choices,
+    clear_rows,
     closing_express,
     expand as expand_macros,
     file_rows,
     landing_for,
     opening_express,
     rows_in,
+    seed_rows,
 )
 from ...brain.skills import build_prompt_parts
 from ...brain.finishing import finish, on_its_own_surface, panel_events, stack_blocks
@@ -332,11 +335,21 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # party. Once those are set this is empty and the check does not run,
         # which is right: a flight list answers a question rather than posing
         # one.
+        # The airports this provider actually flies, for the pickers `Ask()`
+        # draws. Fetched once per turn rather than per macro: both are
+        # catalogue calls, and `ChoicePicker.options` is static in the schema,
+        # so the choices have to be in hand when the macro expands.
+        try:
+            airports = airport_choices(await provider.origins(), await provider.destinations())
+        except Exception:  # noqa: BLE001 - a picker nobody can fill is not a dead turn
+            airports = {}
+
         stream = ExpressStream(
             parser=parser_for(request.surface_id),
             components=COMPONENT_NAMES,
             validator=VALIDATOR,
             required=REQUIRED_PROPERTIES,
+            airports=airports,
             # And a party asked per hop has to be asked of every hop: a route
             # of three asked about twice is a hop flying home with a party
             # nobody confirmed. See `half_asked`.
@@ -474,6 +487,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         validator=VALIDATOR,
                         trip=trip,
                         required=REQUIRED_PROPERTIES,
+                        airports=airports,
                                 )
                     gate = FenceGate()
                     spoken = ""
@@ -679,12 +693,13 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             # whether there is a list, what is above it and where the choice
             # lands; `opening_express` says what the host does and does not
             # contribute.
+            seeded = False
             opening = opening_express(call.name, call.args.get("draw"), request.surface_id)
             if opening:
                 try:
                     drawn_now = as_wire(
                         expand_macros(
-                            parser_for(request.surface_id).compile(opening, is_final=True), trip
+                            parser_for(request.surface_id).compile(opening, is_final=True), trip, airports
                         )
                     )
                 except Exception:  # noqa: BLE001 - a bad `draw` must not cost the turn
@@ -697,6 +712,25 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         "messages": drawn_now,
                         "done": False,
                     }
+                    # And something for the list to be while it waits.
+                    #
+                    # A template over an empty array iterates nothing, so until
+                    # this the card went up on time and showed blank space —
+                    # the wait it was added to remove. Three blank rows and the
+                    # renderer's pending rule do the rest. `seeded` is tracked
+                    # because a lookup that finds nothing has to take them
+                    # away again.
+                    placeholders = seed_rows(
+                        call.name, request.surface_id, PROTOCOL_VERSION
+                    )
+                    if placeholders:
+                        seeded = True
+                        yield {
+                            "type": "ui",
+                            "surfaceId": request.surface_id,
+                            "messages": placeholders,
+                            "done": False,
+                        }
 
             tool_began = time.perf_counter()
             dispatched_a_tool = True
@@ -725,21 +759,41 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             # the `Flights()` macro that reads it.
             drawn: dict[str, Any] | None = None
             on_screen = ""
-            if not is_error:
-                rows = file_rows(call.name, output, request.surface_id, PROTOCOL_VERSION)
-                if rows:
-                    yield {
-                        "type": "ui",
-                        "surfaceId": request.surface_id,
-                        "messages": rows,
-                        "done": False,
-                    }
-                    drawn = {
-                        "surfaceId": request.surface_id,
-                        "path": landing_for(call.name),
-                        "rows": len(rows_in(call.name, output) or []),
-                    }
+            rows = (
+                file_rows(call.name, output, request.surface_id, PROTOCOL_VERSION)
+                if not is_error
+                else []
+            )
+            if rows:
+                yield {
+                    "type": "ui",
+                    "surfaceId": request.surface_id,
+                    "messages": rows,
+                    "done": False,
+                }
+                drawn = {
+                    "surfaceId": request.surface_id,
+                    "path": landing_for(call.name),
+                    "rows": len(rows_in(call.name, output) or []),
+                }
+            elif seeded:
+                # Nothing to file, and three placeholders of ours on screen
+                # saying otherwise. Whether the lookup refused or errored is the
+                # same to them.
+                #
+                # This is the one time filing `[]` is right: they are not
+                # something the traveller is reading — the host put them there
+                # seconds ago — and left alone they shimmer for ever about a
+                # search that is over. The agent's own sentence says what
+                # happened.
+                yield {
+                    "type": "ui",
+                    "surfaceId": request.surface_id,
+                    "messages": clear_rows(call.name, request.surface_id, PROTOCOL_VERSION),
+                    "done": False,
+                }
 
+            if not is_error:
                 # And the card for a write, which could not be drawn before it.
                 #
                 # `Itinerary()` reads the trip rather than a path, so at
@@ -761,6 +815,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                             expand_macros(
                                 parser_for(request.surface_id).compile(closing, is_final=True),
                                 trip,
+                                airports,
                             )
                         )
                     except Exception:  # noqa: BLE001 - a bad `draw` must not cost the turn

@@ -416,6 +416,22 @@
                 },
                 "notes": {
                   "type": "string"
+                },
+                "airline": {
+                  "type": "string",
+                  "description": "This hop's. Who flies it, off the card they tapped — 'Norwegian'."
+                },
+                "departTime": {
+                  "type": "string",
+                  "description": "This hop's. When it leaves, as the card showed it — '07:15'."
+                },
+                "arriveTime": {
+                  "type": "string",
+                  "description": "This hop's. When it lands, as the card showed it — '11:40'."
+                },
+                "hotelName": {
+                  "type": "string",
+                  "description": "This hop's. What the stay is called, off the card they tapped."
                 }
               },
               "required": [
@@ -433,13 +449,52 @@
           },
           "draw": {
             "type": "object",
-            "description": "Send this with `days` and the day plan is drawn the moment this call lands, instead of costing you a further round to say `Itinerary()` in. It is the same macro, expanded against the trip you just wrote. The tool result will tell you it is on screen; say your one sentence and end the turn.",
+            "description": "The card to put on screen the moment this call lands, so it costs no further round. Send it on every turn that records something and then shows something — which is most of them. Drawing the same card in a block of your own afterwards is correct and spends an entire extra round on it. The result will tell you it is up; say one sentence and end the turn.",
             "properties": {
+              "macro": {
+                "type": "string",
+                "enum": [
+                  "Ask",
+                  "Itinerary"
+                ],
+                "description": "`Ask` for the form of what is still missing — the answer on almost every turn before the flights are priced. `Itinerary` for the day plan, when this call carried `days`."
+              },
               "heading": {
                 "type": "string",
-                "description": "One line above the plan, e.g. 'Four days in Berlin'."
+                "description": "One line above it, e.g. 'Madrid in April' or 'Four days in Berlin'."
+              },
+              "label": {
+                "type": "string",
+                "description": "`Ask` only: what the button says. Defaults to 'Find flights'."
               }
-            }
+            },
+            "required": [
+              "macro"
+            ]
+          },
+          "airline": {
+            "type": "string",
+            "description": "Who flies it, off the card they tapped — 'Norwegian'. Save it with the id: the panel says what the flight *is*, and it can only read what you recorded."
+          },
+          "departTime": {
+            "type": "string",
+            "description": "When it leaves, as the card showed it — '07:15'."
+          },
+          "arriveTime": {
+            "type": "string",
+            "description": "When it lands, as the card showed it — '11:40'."
+          },
+          "hotelName": {
+            "type": "string",
+            "description": "What the stay is called, off the card they tapped. `selectedHotel` is an id; this is the name a person reads."
+          },
+          "maxFare": {
+            "type": "number",
+            "description": "Highest acceptable per-traveler fare, when they named a ceiling."
+          },
+          "maxNightly": {
+            "type": "number",
+            "description": "Highest acceptable nightly rate, when they named one."
           }
         },
         "required": [],

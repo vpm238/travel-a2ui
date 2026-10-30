@@ -34,10 +34,14 @@ export default defineConfig({
     },
   },
   test: {
+    // `.tsx` as well as `.ts`, because a test that renders a component is
+    // written in JSX like the component is. Without it a new `.test.tsx` is
+    // silently not collected, and the suite goes green having run nothing —
+    // which is how this pattern was found.
     include: [
-      'packages/*/test/**/*.test.ts',
-      'renderers/*/test/**/*.test.ts',
-      'apps/*/test/**/*.test.ts',
+      'packages/*/test/**/*.test.ts?(x)',
+      'renderers/*/test/**/*.test.ts?(x)',
+      'apps/*/test/**/*.test.ts?(x)',
     ],
     environment: 'node',
     testTimeout: 20_000,

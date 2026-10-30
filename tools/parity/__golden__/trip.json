@@ -78,6 +78,27 @@
         "note": "Per traveler. Saved alongside the id so the total is theirs, not an average."
       },
       {
+        "key": "airline",
+        "kind": "text",
+        "label": "who flies it",
+        "stage": "flight",
+        "note": "Read off the card they tapped, so the panel can say what the flight is. Without it the panel binds to a key the trip has not got, and the renderer shows a field waiting for data that is never coming."
+      },
+      {
+        "key": "departTime",
+        "kind": "text",
+        "label": "when it leaves",
+        "stage": "flight",
+        "note": "The display string from the card, e.g. '07:15'. Saved for the same reason as airline."
+      },
+      {
+        "key": "arriveTime",
+        "kind": "text",
+        "label": "when it lands",
+        "stage": "flight",
+        "note": "The display string from the card, e.g. '11:40'. Saved for the same reason as airline."
+      },
+      {
         "key": "neighborhood",
         "kind": "text",
         "label": "which part of town",
@@ -104,6 +125,13 @@
         "label": "where you are staying",
         "stage": "stay",
         "note": "The id from the card they tapped."
+      },
+      {
+        "key": "hotelName",
+        "kind": "text",
+        "label": "what it is called",
+        "stage": "stay",
+        "note": "The name off the card they tapped. `selectedHotel` is an id — 'h_BER_savigny' — and a panel bound to it shows the id or nothing."
       },
       {
         "key": "nightlyPrice",
@@ -187,10 +215,14 @@
       "maxFare",
       "selectedFlight",
       "flightPrice",
+      "airline",
+      "departTime",
+      "arriveTime",
       "neighborhood",
       "maxNightly",
       "needsStay",
       "selectedHotel",
+      "hotelName",
       "nightlyPrice",
       "budget",
       "spent",
@@ -236,10 +268,14 @@
       "maxFare": "/trip/maxFare",
       "selectedFlight": "/trip/selectedFlight",
       "flightPrice": "/trip/flightPrice",
+      "airline": "/trip/airline",
+      "departTime": "/trip/departTime",
+      "arriveTime": "/trip/arriveTime",
       "neighborhood": "/trip/neighborhood",
       "maxNightly": "/trip/maxNightly",
       "needsStay": "/trip/needsStay",
       "selectedHotel": "/trip/selectedHotel",
+      "hotelName": "/trip/hotelName",
       "nightlyPrice": "/trip/nightlyPrice",
       "budget": "/trip/budget",
       "spent": "/trip/spent",
