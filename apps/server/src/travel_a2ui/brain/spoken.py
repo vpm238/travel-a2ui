@@ -6,12 +6,21 @@ MAD 10h 51m 1 stop · LIS $989" — every fact, in no order, the price last. A
 reading of them is not a sentence, which is the gap `accessibility.label` exists
 to close.
 
-Two producers need the same sentence, so it lives here rather than in either.
-`builders.py` writes it into the Express it composes from provider rows, which
-is what the voice and MCP doors draw. `finishing/labels.py` writes it onto a
-card the *model* composed and did not name, which is what the typed door draws.
-Neither is the host deciding what to show: the agent chose the card, the
-content and the surface, and this reads back the fields it already set.
+**Only for the cards the host draws itself**, which is the whole of why this
+file is allowed to exist. Naming a card the *agent* composed is the agent's
+job, taught in the brief and shown in the worked examples; a host pass that
+filled it in for the model was the first version of this and the wrong one,
+because it moved a decision about what a card says out of the prompt and into
+Python.
+
+Two producers are left, and both of them compose the entire card already:
+
+  `builders.py`   the surfaces behind the `show_*` tools, which is what a voice
+                  call draws. The Live API has no way to send Express, so the
+                  host writes the heading, the rows, the events and the
+                  provenance caption — the label is part of the same act.
+  `skeleton.py`   the rows painted the moment a lookup starts, before the model
+                  has said anything at all.
 """
 
 from __future__ import annotations

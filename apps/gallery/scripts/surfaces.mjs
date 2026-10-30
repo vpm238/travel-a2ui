@@ -23,7 +23,18 @@ const examplesDir = join(root, 'catalogs', 'a2ui-travel', 'examples');
 const catalog = JSON.parse(
   readFileSync(join(root, 'catalogs', 'a2ui-travel', 'catalog.json'), 'utf8'),
 );
-const compiler = new ExpressCompiler(catalog, 'v0.9.1');
+/**
+ * The protocol the catalog declares — not a literal.
+ *
+ * This said `'v0.9.1'` in three places while the app spoke 1.0, and the gallery
+ * went on looking right, because the renderer reads both spellings of a binding
+ * on purpose. What it was proving is that the renderer still handles 0.9. The
+ * gallery is the page people are shown to see what the host draws, so it should
+ * be drawing what production sends.
+ */
+const VERSION = `v${catalog.protocolVersion ?? '0.9'}`;
+
+const compiler = new ExpressCompiler(catalog, VERSION);
 
 /** Which flow each example belongs to, and how to label it. */
 const META = {
@@ -64,7 +75,7 @@ for (const name of readdirSync(examplesDir).filter((file) => file.endsWith('.exp
   const messages = compiler.compile(source, {
     surfaceId: stem,
     catalogId: catalog.catalogId,
-    version: 'v0.9.1',
+    version: VERSION,
   });
 
   // The surface id the Express actually targets, which may differ from the file.
@@ -104,7 +115,7 @@ for (const name of Object.keys(catalog.components).sort()) {
     messages = compiler.compile(express, {
       surfaceId,
       catalogId: catalog.catalogId,
-      version: 'v0.9.1',
+      version: VERSION,
     });
   } catch (error) {
     // A preview that will not compile is a real problem with the catalog or the

@@ -5,19 +5,13 @@
     "title": "Flight options",
     "flow": "inline",
     "description": "Inline: answering \"find me a flight to Madrid\" inside the chat feed. One surface, one job — three options and a way to pick one.",
-    "express": "surface(\"inline-7\")\n# That id is the one this turn was given (\"Draw into surface ...\"), never an\n# earlier card's. A card already answered is the record of that answer, and a\n# root drawn onto it takes the place of what the traveler picked from.\n$/trip/selectedOutbound = \"\"\nheading = Text(\"Outbound · JFK → MAD · Sun 12 Apr\", variant=\"h3\")\nf1 = FlightOption(\"Iberia\", \"18:40\", \"08:15 +1\", \"JFK\", \"MAD\", \"$412\", Event(\"select_flight\", {id: \"IB6250\", price: \"$412\"}), duration=\"7h 35m\", stops=\"Nonstop\", flightNumber=\"IB6250\", selected=$/trip/selectedOutbound, badge=\"Cheapest\")\nf2 = FlightOption(\"Delta\", \"21:10\", \"10:50 +1\", \"JFK\", \"MAD\", \"$468\", Event(\"select_flight\", {id: \"DL126\", price: \"$468\"}), duration=\"7h 40m\", stops=\"Nonstop\", flightNumber=\"DL126\")\nf3 = FlightOption(\"TAP\", \"17:25\", \"11:05 +1\", \"JFK\", \"MAD\", \"$367\", Event(\"select_flight\", {id: \"TP208\", price: \"$367\"}), duration=\"11h 40m\", stops=\"1 stop · LIS\", flightNumber=\"TP208\", badge=\"Lowest fare\")\nnote = Text(\"Prices are per traveler, round trip.\")\nroot = Column([heading, f1, f2, f3, note])",
+    "express": "surface(\"inline-7\")\n# That id is the one this turn was given (\"Draw into surface ...\"), never an\n# earlier card's. A card already answered is the record of that answer, and a\n# root drawn onto it takes the place of what the traveler picked from.\n$/trip/selectedOutbound = \"\"\nheading = Text(\"Outbound · JFK → MAD · Sun 12 Apr\", variant=\"h3\")\n# Every fare carries its own sentence. A card is read out in the order it is\n# written — \"Iberia IB6250 18:40 JFK 08:15 +1 MAD 7h 35m Nonstop $412\" — which\n# is every fact and no sentence, and `accessibility.label` *replaces* that, so\n# whatever is written here is the whole of what a traveller using a screen\n# reader gets. Said in the example rather than only in the instructions,\n# because this is the part a model imitates.\nf1 = FlightOption(\"Iberia\", \"18:40\", \"08:15 +1\", \"JFK\", \"MAD\", \"$412\", Event(\"select_flight\", {id: \"IB6250\", price: \"$412\"}), duration=\"7h 35m\", stops=\"Nonstop\", flightNumber=\"IB6250\", selected=$/trip/selectedOutbound, badge=\"Cheapest\", accessibility={label: \"Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412, cheapest\"})\nf2 = FlightOption(\"Delta\", \"21:10\", \"10:50 +1\", \"JFK\", \"MAD\", \"$468\", Event(\"select_flight\", {id: \"DL126\", price: \"$468\"}), duration=\"7h 40m\", stops=\"Nonstop\", flightNumber=\"DL126\", accessibility={label: \"Delta DL126, 21:10 JFK to 10:50 next day MAD, nonstop, $468\"})\nf3 = FlightOption(\"TAP\", \"17:25\", \"11:05 +1\", \"JFK\", \"MAD\", \"$367\", Event(\"select_flight\", {id: \"TP208\", price: \"$367\"}), duration=\"11h 40m\", stops=\"1 stop · LIS\", flightNumber=\"TP208\", badge=\"Lowest fare\", accessibility={label: \"TAP TP208, 17:25 JFK to 11:05 next day MAD, 1 stop via Lisbon, $367, lowest fare\"})\nnote = Text(\"Prices are per traveler, round trip.\")\nroot = Column([heading, f1, f2, f3, note])",
     "messages": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-7",
-          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateComponents": {
-          "surfaceId": "inline-7",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
             {
               "id": "heading",
@@ -47,9 +41,12 @@
               "stops": "Nonstop",
               "flightNumber": "IB6250",
               "selected": {
-                "path": "/trip/selectedOutbound"
+                "@path": "/trip/selectedOutbound"
               },
-              "badge": "Cheapest"
+              "badge": "Cheapest",
+              "accessibility": {
+                "label": "Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412, cheapest"
+              }
             },
             {
               "id": "f2",
@@ -71,7 +68,10 @@
               },
               "duration": "7h 40m",
               "stops": "Nonstop",
-              "flightNumber": "DL126"
+              "flightNumber": "DL126",
+              "accessibility": {
+                "label": "Delta DL126, 21:10 JFK to 10:50 next day MAD, nonstop, $468"
+              }
             },
             {
               "id": "f3",
@@ -94,7 +94,10 @@
               "duration": "11h 40m",
               "stops": "1 stop · LIS",
               "flightNumber": "TP208",
-              "badge": "Lowest fare"
+              "badge": "Lowest fare",
+              "accessibility": {
+                "label": "TAP TP208, 17:25 JFK to 11:05 next day MAD, 1 stop via Lisbon, $367, lowest fare"
+              }
             },
             {
               "id": "note",
@@ -112,15 +115,8 @@
                 "note"
               ]
             }
-          ]
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateDataModel": {
-          "surfaceId": "inline-7",
-          "path": "/",
-          "value": {
+          ],
+          "dataModel": {
             "trip": {
               "selectedOutbound": ""
             }
@@ -128,7 +124,7 @@
         }
       }
     ],
-    "bytes": 1568
+    "bytes": 1728
   },
   {
     "id": "20-sidebar-refine",
@@ -139,16 +135,10 @@
     "express": "surface(\"sidebar\")\n$/filters/maxPrice = 600\n$/filters/adults = 2\ntitle = Text(\"Refine\", variant=\"h3\")\ndates = DateRangePicker(\"Travel dates\", $/filters/start, $/filters/end, action=Event(\"dates_changed\"), nightsLabel=\"6 nights\")\nwho = TravelerCounter(\"Adults\", $/filters/adults, min=1, max=8)\nbudget = Slider(\"Max fare\", 150, 1500, $/filters/maxPrice)\nstops = ChoicePicker(\"Stops\", \"mutuallyExclusive\", [{label: \"Any\", value: \"any\"}, {label: \"Nonstop only\", value: \"nonstop\"}], $/filters/stops)\napply = Button(Text(\"Apply\"), \"primary\", Event(\"apply_filters\", {maxPrice: $/filters/maxPrice, adults: $/filters/adults, stops: $/filters/stops}))\nroot = Column([title, dates, who, budget, stops, apply], align=\"stretch\")",
     "messages": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "sidebar",
-          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateComponents": {
-          "surfaceId": "sidebar",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
             {
               "id": "title",
@@ -161,10 +151,10 @@
               "component": "DateRangePicker",
               "label": "Travel dates",
               "start": {
-                "path": "/filters/start"
+                "@path": "/filters/start"
               },
               "end": {
-                "path": "/filters/end"
+                "@path": "/filters/end"
               },
               "action": {
                 "event": {
@@ -179,7 +169,7 @@
               "component": "TravelerCounter",
               "label": "Adults",
               "value": {
-                "path": "/filters/adults"
+                "@path": "/filters/adults"
               },
               "min": 1,
               "max": 8
@@ -191,7 +181,7 @@
               "min": 150,
               "max": 1500,
               "value": {
-                "path": "/filters/maxPrice"
+                "@path": "/filters/maxPrice"
               }
             },
             {
@@ -210,7 +200,7 @@
                 }
               ],
               "value": {
-                "path": "/filters/stops"
+                "@path": "/filters/stops"
               }
             },
             {
@@ -223,13 +213,13 @@
                   "name": "apply_filters",
                   "context": {
                     "maxPrice": {
-                      "path": "/filters/maxPrice"
+                      "@path": "/filters/maxPrice"
                     },
                     "adults": {
-                      "path": "/filters/adults"
+                      "@path": "/filters/adults"
                     },
                     "stops": {
-                      "path": "/filters/stops"
+                      "@path": "/filters/stops"
                     }
                   }
                 }
@@ -253,15 +243,8 @@
               "component": "Text",
               "text": "Apply"
             }
-          ]
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateDataModel": {
-          "surfaceId": "sidebar",
-          "path": "/",
-          "value": {
+          ],
+          "dataModel": {
             "filters": {
               "maxPrice": 600,
               "adults": 2
@@ -270,7 +253,7 @@
         }
       }
     ],
-    "bytes": 1454
+    "bytes": 1326
   },
   {
     "id": "30-home-dashboard",
@@ -281,16 +264,10 @@
     "express": "surface(\"home\")\nhello = Text(\"17 days to Madrid\", variant=\"h1\")\nt1 = StatTile(\"Booked\", \"3 of 5\", caption=\"flights, hotel, transfer\", tone=\"positive\")\nt2 = StatTile(\"Budget left\", \"$680\", caption=\"of $2,000\", tone=\"caution\")\nt3 = StatTile(\"Next up\", \"Pick dinner\", caption=\"Sat 11 Apr\", tone=\"accent\", action=Event(\"open_task\", {id: \"dinner\"}))\ntiles = Row([t1, t2, t3])\nbudget = ProgressMeter(\"Budget used\", 1320, 2000, caption=\"$1,320 of $2,000\", tone=\"caution\")\nwhen = TripCalendar($/trip/startDate, $/trip/endDate, marks=[{date: \"2027-04-12\", icon: \"plane\", label: \"Fly out\"}, {date: \"2027-04-18\", icon: \"plane\", label: \"Fly home\"}], title=\"Madrid\", caption=\"6 nights\")\nweather = WeatherStrip([{day: \"Sun\", high: \"21°\", low: \"9°\", condition: \"sun\"}, {day: \"Mon\", high: \"19°\", low: \"8°\", condition: \"sun\"}, {day: \"Tue\", high: \"16°\", low: \"7°\", condition: \"rain\"}], place=\"Madrid\", caption=\"Pack a light jacket for Tuesday\")\nmap = MapPreview([{label: \"Hotel\", kind: \"stay\"}, {label: \"Prado\", kind: \"sight\", day: \"2\"}, {label: \"Sobrino\", kind: \"food\", day: \"2\"}], caption=\"Everything on day 2 is walkable\")\nroot = Column([hello, tiles, budget, when, weather, map], align=\"stretch\")",
     "messages": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "home",
-          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateComponents": {
-          "surfaceId": "home",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
             {
               "id": "hello",
@@ -352,10 +329,10 @@
               "id": "when",
               "component": "TripCalendar",
               "start": {
-                "path": "/trip/startDate"
+                "@path": "/trip/startDate"
               },
               "end": {
-                "path": "/trip/endDate"
+                "@path": "/trip/endDate"
               },
               "marks": [
                 {
@@ -436,7 +413,7 @@
         }
       }
     ],
-    "bytes": 1771
+    "bytes": 1710
   },
   {
     "id": "40-itinerary-day",
@@ -447,16 +424,10 @@
     "express": "surface(\"itinerary\")\n$/packing/0/item = \"Passport\"\n$/packing/0/done = true\n$/packing/1/item = \"Adapter\"\n$/packing/1/done = false\na1 = ActivityItem(\"Prado Museum\", \"10:00\", category=\"sight\", location=\"Paseo del Prado 23\", duration=\"2h\", note=\"Book the timed entry\", action=Event(\"open_activity\", {id: \"prado\"}))\na2 = ActivityItem(\"Lunch at Sobrino\", \"13:30\", category=\"food\", location=\"Calle de Cuchilleros 17\", duration=\"1h 30m\")\na3 = ActivityItem(\"Retiro Park\", \"16:00\", category=\"outdoors\", duration=\"1h 30m\", note=\"Rowboats until 19:00\")\nday2 = ItineraryDay(\"Day 2 — Old Madrid\", [a1, a2, a3], date=\"Mon 13 Apr\", summary=\"Art in the morning, a long lunch, green afternoon\")\npackingRow = CheckBox($item, $done)\npacking = List(_template($/packing, packingRow))\npackingTitle = Text(\"Packing\", variant=\"h4\")\nroot = Column([day2, packingTitle, packing])",
     "messages": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "itinerary",
-          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateComponents": {
-          "surfaceId": "itinerary",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
             {
               "id": "a1",
@@ -510,10 +481,10 @@
               "id": "packingRow",
               "component": "CheckBox",
               "label": {
-                "path": "item"
+                "@path": "item"
               },
               "value": {
-                "path": "done"
+                "@path": "done"
               }
             },
             {
@@ -539,15 +510,8 @@
                 "packing"
               ]
             }
-          ]
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateDataModel": {
-          "surfaceId": "itinerary",
-          "path": "/",
-          "value": {
+          ],
+          "dataModel": {
             "packing": {
               "0": {
                 "item": "Passport",
@@ -562,7 +526,7 @@
         }
       }
     ],
-    "bytes": 1452
+    "bytes": 1314
   },
   {
     "id": "50-traveler-form",
@@ -573,16 +537,10 @@
     "express": "surface(\"inline-traveler\")\ntitle = Text(\"Who is travelling?\", variant=\"h3\")\nname = TextField(\"Full name (as on passport)\", $/traveler/name)\nemail = TextField(\"Email\", $/traveler/email, \"shortText\")\nseat = ChoicePicker(\"Seat\", \"mutuallyExclusive\", [{label: \"Window\", value: \"window\"}, {label: \"Aisle\", value: \"aisle\"}], $/traveler/seat)\nsave = Button(Text(\"Save traveller\"), \"primary\", Event(\"save_traveler\", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))\nroot = Column([title, name, email, seat, save], align=\"stretch\")",
     "messages": [
       {
-        "version": "v0.9.1",
+        "version": "v1.0",
         "createSurface": {
           "surfaceId": "inline-traveler",
-          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-        }
-      },
-      {
-        "version": "v0.9.1",
-        "updateComponents": {
-          "surfaceId": "inline-traveler",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
             {
               "id": "title",
@@ -595,7 +553,7 @@
               "component": "TextField",
               "label": "Full name (as on passport)",
               "value": {
-                "path": "/traveler/name"
+                "@path": "/traveler/name"
               }
             },
             {
@@ -603,7 +561,7 @@
               "component": "TextField",
               "label": "Email",
               "value": {
-                "path": "/traveler/email"
+                "@path": "/traveler/email"
               },
               "variant": "shortText"
             },
@@ -623,7 +581,7 @@
                 }
               ],
               "value": {
-                "path": "/traveler/seat"
+                "@path": "/traveler/seat"
               }
             },
             {
@@ -636,13 +594,13 @@
                   "name": "save_traveler",
                   "context": {
                     "name": {
-                      "path": "/traveler/name"
+                      "@path": "/traveler/name"
                     },
                     "email": {
-                      "path": "/traveler/email"
+                      "@path": "/traveler/email"
                     },
                     "seat": {
-                      "path": "/traveler/seat"
+                      "@path": "/traveler/seat"
                     }
                   }
                 }
@@ -669,6 +627,6 @@
         }
       }
     ],
-    "bytes": 1126
+    "bytes": 1058
   }
 ]

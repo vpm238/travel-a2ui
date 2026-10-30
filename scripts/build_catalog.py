@@ -62,6 +62,12 @@ You are composing travel UI. A few house rules that matter more than anything el
   plain layout primitives do not.
 - Every option the user could plausibly act on needs an `action`. A flight the
   user cannot select is a screenshot, not an interface.
+- And every one of them needs a name. A card is read aloud in the order it is
+  written — "Iberia IB6250 18:40 JFK 08:15 +1 MAD 7h 35m Nonstop $412", every
+  fact and no sentence — so write the sentence:
+  `accessibility={label: "Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412"}`.
+  Name every fare, every stay, every tile anyone can press. It replaces the
+  card's own text rather than adding to it, so say the whole thing.
 - Money is always a preformatted display string ("$412", "€1,180 total"). Do not
   emit bare numbers and hope the host formats them.
 - Times are display strings in the traveler's local time ("07:15", "Tue 14 Apr").
@@ -70,11 +76,9 @@ You are composing travel UI. A few house rules that matter more than anything el
   model so a later turn can read it back — e.g. `$/trip/selectedOutbound`.
 - Keep a surface to one job. An inline card answers the message it is attached
   to; the sidebar refines the trip in flight; the home surface summarizes.
-- Name a card whose own text does not say what it is — a screen reader reads
-  what you wrote there and nothing else:
-  `accessibility={label: "Outbound — Norwegian, 07:15, €281"}`. Add
-  `live: "polite"` to a value that re-reckons itself. Leave it off decoration
-  and off anything whose text already reads as a sentence.\
+- `accessibility` also carries `live: "polite"` for a value that re-reckons
+  itself and `hidden: true` for decoration. Leave the block off anything whose
+  own text already reads as a sentence.\
 """
 
 

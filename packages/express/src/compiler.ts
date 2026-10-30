@@ -593,13 +593,22 @@ export class ExpressCompiler {
         );
       }
       const pathValue = this.compileValue(args[0]!, symbols, ctx, isAction);
-      if (!pathValue || typeof pathValue !== 'object' || !('path' in pathValue)) {
+      // Either spelling, because `compileValue` has just emitted whichever one
+      // this version uses: 1.0 reserves `@` for directives, so a binding is
+      // `{"@path": …}` there. Reading only `path` rejected every `_template` in
+      // the catalog at 1.0 — "must be a '$' data binding path" about a path
+      // that was a '$' data binding path.
+      const path = (pathValue as { path?: string; '@path'?: string } | null)?.['@path'] ??
+        (pathValue as { path?: string } | null)?.path;
+      if (!pathValue || typeof pathValue !== 'object' || typeof path !== 'string') {
         throw new Error(
           "_template's first argument must be a '$' data binding path, e.g. _template($/items, row).",
         );
       }
       const componentId = this.compileValue(args[1]!, symbols, ctx, isAction);
-      return { path: (pathValue as { path: string }).path, componentId };
+      // `path` unprefixed on the way out: a ChildList template's own key keeps
+      // the 0.9 spelling at 1.0, which is the spec's choice, not ours.
+      return { path, componentId };
     }
 
     if (name === 'Event') {

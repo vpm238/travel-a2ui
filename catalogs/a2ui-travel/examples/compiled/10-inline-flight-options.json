@@ -35,7 +35,10 @@
           "selected": {
             "@path": "/trip/selectedOutbound"
           },
-          "badge": "Cheapest"
+          "badge": "Cheapest",
+          "accessibility": {
+            "label": "Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412, cheapest"
+          }
         },
         {
           "id": "f2",
@@ -57,7 +60,10 @@
           },
           "duration": "7h 40m",
           "stops": "Nonstop",
-          "flightNumber": "DL126"
+          "flightNumber": "DL126",
+          "accessibility": {
+            "label": "Delta DL126, 21:10 JFK to 10:50 next day MAD, nonstop, $468"
+          }
         },
         {
           "id": "f3",
@@ -80,7 +86,10 @@
           "duration": "11h 40m",
           "stops": "1 stop · LIS",
           "flightNumber": "TP208",
-          "badge": "Lowest fare"
+          "badge": "Lowest fare",
+          "accessibility": {
+            "label": "TAP TP208, 17:25 JFK to 11:05 next day MAD, 1 stop via Lisbon, $367, lowest fare"
+          }
         },
         {
           "id": "note",

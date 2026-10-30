@@ -93,15 +93,17 @@ console.log('fare cards on the live card:', await fares.count());
 
 // How many of them a screen reader would hear as a sentence.
 //
-// This read nought the first time, against a turn that had drawn sixteen
-// fares: the brief asks the agent to name its cards and the model skipped the
-// house rule, which is all a brief can do about it. The host now reads the
-// fields back for any fare or stay that arrived without a label — so a number
-// here below the number of cards on screen means something is wrong rather
-// than something is unlucky.
+// This is a measurement of the *brief*, which is why it is printed rather than
+// asserted. It read nought with the house rule buried as one line at the end
+// of the catalog's instructions; it reads every card on screen now that the
+// rule sits beside the one about actions and the worked example shows three
+// labelled fares. In between there was a host pass that filled the label in,
+// which worked and was deleted: it put a decision about what a card says into
+// Python, and the only reason it looked necessary was a weak prompt.
 //
-// Still printed rather than asserted, because the count depends on how many
-// cards this particular turn drew. The `0 → 4` is the measurement.
+// So a drop here is a prompt regression, and the labels printed below are how
+// to tell whose they are — the agent writes things the host never would,
+// "€69 each, €138 for 2, cheapest".
 {
   const cards = page.locator(`${FEED} [class*="tv-flight" i], ${FEED} [class*="tv-hotel" i]`);
   const labels = await cards.evaluateAll((nodes) =>

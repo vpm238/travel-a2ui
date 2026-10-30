@@ -1,21 +1,23 @@
-"""A card nobody named, named from its own fields.
+"""The sentence a card reads as, where the *host* is the one drawing it.
 
 `accessibility.label` is the one property whose absence nothing notices. The
 card draws, the screenshot is right, the suite is green, and a traveller using
 a screen reader hears "Norwegian DY1234 07:15 CPH 11:40 BER 2h 25m nonstop
 €281" — every fact, in no order, the price last.
 
-The brief asks the agent to name its cards, and asking is as far as a brief
-goes: measured on the typed door against a walkthrough that drew sixteen fares
-and three stays, the model named none of them. So the host reads the fields
-back. These are the tests for where that must and must not happen.
+Naming a card the *agent* composed is the agent's job, taught in the brief and
+in the worked examples; a host pass that filled it in was this file's first
+answer and the wrong one, because it put a decision about what a card says
+into Python. What is left here are the two surfaces the host composes itself
+— the tool-built surfaces a voice call draws, and the skeleton painted while
+a lookup runs — where the host already authors every other string on the
+card and the label is part of the same act.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from travel_a2ui.brain.finishing import name_pressable_cards
 from travel_a2ui.brain.spoken import flight_label, hotel_label, label_for
 
 FARE: dict[str, Any] = {
@@ -117,72 +119,6 @@ class TestTheSentence:
         """A `StatTile` is a label and a value. It does not need this."""
         assert label_for("StatTile", {"label": "Nights", "value": "6"}) == ""
         assert label_for("Text", {"text": "Prices are per traveller."}) == ""
-
-
-class TestThePass:
-    def test_names_a_fare_the_model_left_unnamed(self) -> None:
-        drawn = name_pressable_cards(surface(dict(FARE)))
-        assert labels(drawn) == [
-            "Norwegian DY1234, 07:15 CPH to 11:40 BER, 1 stop via OSL, €281"
-        ]
-
-    def test_never_overwrites_what_the_agent_wrote(self) -> None:
-        """A model that named a card knows something this does not.
-
-        Which leg it is, why this one is the recommendation — the house rule
-        exists so it can say so, and a pass that overwrote it would make the
-        rule pointless.
-        """
-        mine = {**FARE, "accessibility": {"label": "Recommended outbound, arrives before noon"}}
-        assert labels(name_pressable_cards(surface(mine))) == [
-            "Recommended outbound, arrives before noon"
-        ]
-
-    def test_fills_in_a_label_beside_the_agent_s_other_attributes(self) -> None:
-        """`live` and `hidden` are kept; only the missing label is added."""
-        node = {**FARE, "accessibility": {"live": "polite"}}
-        drawn = name_pressable_cards(surface(node))
-        block = drawn[0]["createSurface"]["components"][0]["accessibility"]
-        assert block["live"] == "polite"
-        assert block["label"].startswith("Norwegian DY1234")
-
-    def test_an_empty_label_counts_as_no_label(self) -> None:
-        node = {**FARE, "accessibility": {"label": "   "}}
-        assert labels(name_pressable_cards(surface(node)))[0].startswith("Norwegian")
-
-    def test_leaves_a_whole_block_binding_alone(self) -> None:
-        """An agent binding the block itself means something this cannot read."""
-        node = {**FARE, "accessibility": {"@path": "/a11y/outbound"}}
-        drawn = name_pressable_cards(surface(node))
-        assert drawn[0]["createSurface"]["components"][0]["accessibility"] == {
-            "@path": "/a11y/outbound"
-        }
-
-    def test_says_nothing_about_components_that_are_not_cards(self) -> None:
-        text = {"id": "note", "component": "Text", "text": "Prices are per traveller."}
-        assert labels(name_pressable_cards(surface(text))) == [None]
-
-    def test_names_a_stay_too(self) -> None:
-        assert labels(name_pressable_cards(surface(dict(STAY)))) == [
-            "Pension Savignyplatz, Charlottenburg, rated 4.3 (612), €112 / night"
-        ]
-
-    def test_reaches_components_wherever_the_message_carries_them(self) -> None:
-        """1.0 folds components into `createSurface`; 0.9 sent them after it.
-
-        A pass that reads only `updateComponents` does not fail on a 1.0
-        payload — it finds nothing and passes by vacancy, which is how three
-        other passes in this project quietly stopped working.
-        """
-        old_shape = [
-            {
-                "version": "v1.0",
-                "updateComponents": {"surfaceId": "inline-1", "components": [dict(FARE)]},
-            }
-        ]
-        drawn = name_pressable_cards(old_shape)
-        label = drawn[0]["updateComponents"]["components"][0]["accessibility"]["label"]
-        assert label.startswith("Norwegian DY1234")
 
 
 class TestTheSkeleton:
