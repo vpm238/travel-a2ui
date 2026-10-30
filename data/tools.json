@@ -419,19 +419,19 @@
                 },
                 "airline": {
                   "type": "string",
-                  "description": "This hop's. Who flies it, off the card they tapped — 'Norwegian'."
+                  "description": "This hop's airline. Belongs here, beside this leg's `selectedFlight`, not on the trip."
                 },
                 "departTime": {
                   "type": "string",
-                  "description": "This hop's. When it leaves, as the card showed it — '07:15'."
+                  "description": "This hop's departure, as the card showed it. Belongs here, not on the trip."
                 },
                 "arriveTime": {
                   "type": "string",
-                  "description": "This hop's. When it lands, as the card showed it — '11:40'."
+                  "description": "This hop's arrival, as the card showed it. Belongs here, not on the trip."
                 },
                 "hotelName": {
                   "type": "string",
-                  "description": "This hop's. What the stay is called, off the card they tapped."
+                  "description": "This stop's stay, by name. Belongs here, beside this leg's `selectedHotel`."
                 }
               },
               "required": [
@@ -474,19 +474,19 @@
           },
           "airline": {
             "type": "string",
-            "description": "Who flies it, off the card they tapped — 'Norwegian'. Save it with the id: the panel says what the flight *is*, and it can only read what you recorded."
+            "description": "Who flies it, off the card they tapped — 'Norwegian'. Save it with the id: the panel says what the flight *is*, and it can only read what you recorded. Goes wherever this hop's `selectedFlight` goes, always the same object: the trip's for hop one, `legs[0]`'s for hop two. Putting a return's on the trip, while the trip's `selectedFlight` is still the outbound, puts one flight's number beside another's name on the panel."
           },
           "departTime": {
             "type": "string",
-            "description": "When it leaves, as the card showed it — '07:15'."
+            "description": "When it leaves, as the card showed it — '07:15'. Goes wherever this hop's `selectedFlight` goes, always the same object: the trip's for hop one, `legs[0]`'s for hop two. Putting a return's on the trip, while the trip's `selectedFlight` is still the outbound, puts one flight's number beside another's name on the panel."
           },
           "arriveTime": {
             "type": "string",
-            "description": "When it lands, as the card showed it — '11:40'."
+            "description": "When it lands, as the card showed it — '11:40'. Goes wherever this hop's `selectedFlight` goes, always the same object: the trip's for hop one, `legs[0]`'s for hop two. Putting a return's on the trip, while the trip's `selectedFlight` is still the outbound, puts one flight's number beside another's name on the panel."
           },
           "hotelName": {
             "type": "string",
-            "description": "What the stay is called, off the card they tapped. `selectedHotel` is an id; this is the name a person reads."
+            "description": "What the stay is called, off the card they tapped. `selectedHotel` is an id; this is the name a person reads. Goes wherever this hop's `selectedHotel` goes."
           },
           "maxFare": {
             "type": "number",

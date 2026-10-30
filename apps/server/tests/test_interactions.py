@@ -1703,3 +1703,51 @@ class TestTheAgentMayRedrawThePanel:
             if isinstance(body, dict)
         }
         assert "sidebar" in drawn, f"the panel block was readdressed away: {drawn}"
+
+
+class TestThePanelGainsARowWithoutWaitingForATurn:
+    """The cost of making rows conditional, and the fix for it.
+
+    `Trip()` draws a fare row only once a fare is chosen, which is what a panel
+    is for. But a row that was not there is a *component*, and
+    `updateDataModel` cannot add one — so each row's first appearance waited
+    for somebody to redraw the panel, and the only thing that did was the
+    client asking after the answering turn: measured at 9.7s after a fare was
+    pressed and 59.4s after a stay, because the turn that answers a stay is the
+    itinerary.
+    """
+
+    def test_a_trip_that_gained_a_decision_gets_components_not_just_data(self) -> None:
+        from travel_a2ui.brain.macros import panel_redraw
+
+        before = panel_redraw({"destination": "Berlin", "origin": "CPH"}, "sidebar", "v1.0")
+        after = panel_redraw(
+            {
+                "destination": "Berlin",
+                "origin": "CPH",
+                "selectedFlight": "SK8495",
+                "flightPrice": 69,
+                "airline": "SAS",
+            },
+            "sidebar",
+            "v1.0",
+        )
+        kinds_before = [c["component"] for c in before[0]["createSurface"]["components"]]
+        kinds_after = [c["component"] for c in after[0]["createSurface"]["components"]]
+        assert "FlightOption" not in kinds_before
+        assert "FlightOption" in kinds_after
+
+    def test_it_costs_no_model_call(self) -> None:
+        """Nine characters of Express and a macro expansion. Microseconds."""
+        from travel_a2ui.brain.macros import panel_redraw
+
+        drawn = panel_redraw({"destination": "Berlin", "selectedFlight": "SK1"}, "sidebar", "v1.0")
+        assert drawn, "the panel drew nothing"
+        assert drawn[0]["createSurface"]["surfaceId"] == "sidebar"
+
+    def test_and_lands_on_the_panel_rather_than_the_turn_s_card(self) -> None:
+        from travel_a2ui.brain.macros import panel_redraw
+
+        for surface in ("sidebar", "home"):
+            drawn = panel_redraw({"destination": "Berlin"}, surface, "v1.0")
+            assert drawn[0]["createSurface"]["surfaceId"] == surface

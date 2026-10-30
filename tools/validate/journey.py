@@ -43,7 +43,8 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
 
-from travel_a2ui.brain import trip as model  # noqa: E402
+from travel_a2ui.brain import trip as model
+from travel_a2ui.brain.finishing import STANDING_SURFACES as STANDING  # noqa: E402
 from travel_a2ui.doors.interactions import SurfaceAction, TurnRequest, run_turn  # noqa: E402
 
 DEFAULT_MODEL = "gemini-3.8-flash"
@@ -227,7 +228,21 @@ async def play(name: str, model_id: str, effort: str, quiet: bool) -> dict[str, 
             if found is None:
                 if not quiet:
                     print(f"\n-- {number}. press {step['press']}: NOTHING TO PRESS")
-                record.append({"turn": number, "stopped": f"no {step['press']} to press"})
+                # Shaped like every other record, because `verdicts` reads
+                # several keys off each one and a short record crashed the run
+                # with a `KeyError` — hiding the reason nothing was pressable.
+                record.append(
+                    {
+                        "turn": number,
+                        "input": f"[press {step['press']}]",
+                        "stopped": f"no {step['press']} to press",
+                        "tools": [],
+                        "retries": [],
+                        "components": [],
+                        "bound": [],
+                        "trip": trip,
+                    }
+                )
                 break
             action_name, context = found
             if not quiet:
@@ -267,7 +282,16 @@ async def play(name: str, model_id: str, effort: str, quiet: bool) -> dict[str, 
                 retries.append(event["reason"])
             elif kind in ("error", "ui_error"):
                 retries.append(str(event.get("message")))
-            elif kind == "ui" and event["surfaceId"] == "inline-1":
+            # Any surface that is not a standing panel, rather than the one
+            # id this script asks on.
+            #
+            # It used to match `inline-1` exactly, which was true while every
+            # card came from a block the agent wrote. The host now draws the
+            # card itself when a tool call carries `draw:` — that is the whole
+            # point of it — and a turn that relied on the pre-draw recorded no
+            # components at all here, so this validator reported "nothing to
+            # press" about a card a browser could see and press.
+            elif kind == "ui" and event["surfaceId"] not in STANDING:
                 drawn.extend(event["messages"])
                 for message in event["messages"]:
                     update = message.get("updateDataModel")
@@ -355,9 +379,17 @@ def verdicts(run: dict[str, Any]) -> list[tuple[bool, str]]:
     settled = False
     redrawn = False
     for turn in run["turns"]:
+        # A turn that stopped — nothing on screen to press — records only that
+        # it stopped. Reading `bound` off it crashed the whole run with a
+        # `KeyError`, which hid the thing that actually went wrong: a macro had
+        # failed to expand, so no fare cards were drawn, so there was nothing
+        # to press. A validator that dies on the symptom cannot report the
+        # cause.
+        if "bound" not in turn:
+            continue
         if settled and any(path.endswith(("startDate", "endDate")) for path in turn["bound"]):
             redrawn = True
-        if turn["trip"].get("startDate"):
+        if turn.get("trip", {}).get("startDate"):
             settled = True
     check(not redrawn, "the dates are not asked for again once given")
     check(

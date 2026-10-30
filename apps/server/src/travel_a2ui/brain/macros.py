@@ -291,20 +291,45 @@ def _reads(*fields: str) -> dict[str, Any]:
     return {"label": {"@call": "formatString", "args": {"value": " ".join(fields)}}}
 
 
-def _context(hop: Optional[int], **fields: Any) -> dict[str, Any]:
+def _hop(value: Any) -> Optional[int]:
+    """Whichever hop the agent meant, as a number, or nothing.
+
+    The signature says `int` and the SDK does not enforce it, so `Flights("Back
+    · MAD → JFK", "", "2")` arrives as a string — which is a thing the model
+    writes, and it used to raise `'>' not supported between instances of 'str'
+    and 'int'` inside the expander. The expander catches that and reports
+    "Failed to expand macro 'Flights'", so the whole fare list silently did not
+    draw: the traveller got prose about four flights and no cards, and the only
+    trace was one line in the server log.
+    """
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    try:
+        # Through `float` so that `2.0` and `"2.0"` are hop two rather than
+        # nothing. A hop silently lost is the return overwriting the outbound.
+        number = float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return int(number) if number.is_integer() else None
+
+
+def _context(hop: Any, **fields: Any) -> dict[str, Any]:
     """A press's context, naming its hop when it is not the first.
 
     Hop two is `legs[0]`, and a fare offered for any hop but the first has to
     say which — without it the only field that fits is the trip's own
     `selectedFlight`, and the return overwrites the outbound.
     """
-    if hop is not None and hop > 1:
-        return {**fields, "hop": hop}
+    number = _hop(hop)
+    if number is not None and number > 1:
+        return {**fields, "hop": number}
     return fields
 
 
 @macro
-def flights(heading: str = "", selected: str = "", hop: Optional[int] = None) -> Column:
+def flights(heading: str = "", selected: str = "", hop: Any = None) -> Column:
     """The fares a lookup filed, as a list the traveller can press.
 
     Write this instead of a fare card per result. `search_flights` puts its rows
@@ -372,7 +397,7 @@ def flights(heading: str = "", selected: str = "", hop: Optional[int] = None) ->
 
 
 @macro
-def stays(heading: str = "", selected: str = "", hop: Optional[int] = None) -> Column:
+def stays(heading: str = "", selected: str = "", hop: Any = None) -> Column:
     """The stays a lookup filed, as a list the traveller can press.
 
     `search_hotels` puts its rows at `/hotels`. Same shape as `Flights()`: draw
@@ -807,6 +832,35 @@ def trip(heading: str = "") -> Column:
         prefix = "" if index == 0 else f"legs/{index - 1}/"
         where = f"{hop.get('from') or ''} → {hop.get('to') or ''}"
         rows.append(Text(text=where.strip(" →"), variant="h4"))
+
+        # Does *this* hop know this fact?
+        #
+        # Read off the record rather than off `hop`: `journey` reports what a
+        # hop needs and which decisions it has, and does not carry these — so
+        # asking it returned nothing for every hop and every card lost its
+        # airline, including the one that had it.
+        def has(field: str, _at: int = index) -> bool:
+            if _at == 0:
+                return bool(record.get(field))
+            legs = record.get("legs")
+            leg = legs[_at - 1] if isinstance(legs, list) and len(legs) >= _at else None
+            return bool(isinstance(leg, dict) and leg.get(field))
+
+        def shown(field: str) -> Any:
+            """A binding when this hop has the fact, an empty literal when not.
+
+            Not *absent*: the catalog makes `airline`, `departTime` and
+            `arriveTime` required on `FlightOption`, and a card without them
+            does not compile. Not a binding either — that is what the renderer
+            calls pending, and it shimmers for as long as the surface lives, so
+            a hop knowing its number and price but not its airline drew two
+            fields waiting for something nobody was going to send.
+
+            An empty literal is the third thing, and the renderer already draws
+            the distinction: "a literal is never pending — text written into
+            the component by the model is as arrived as it will ever be."
+            """
+            return bind(model.binding_for(f"{prefix}{field}")) if has(field) else ""
         # A row per decision, and only once that decision is settled.
         #
         # These used to be drawn unconditionally, and the result was the
@@ -821,11 +875,16 @@ def trip(heading: str = "") -> Column:
         # record of anything, and a row that waits for ever is a lie about a
         # search nobody is running.
         if hop.get("selectedFlight"):
+            # One level deeper than the row being conditional, and for the same
+            # reason: the agent reliably writes the outbound's airline and
+            # times and reliably does not write the return's, however the brief
+            # is worded. Two live runs and two rewrites of that rule later, the
+            # panel is the thing to fix. See `shown`.
             rows.append(
                 PanelFlight(
-                    airline=bind(model.binding_for(f"{prefix}airline")),
-                    departTime=bind(model.binding_for(f"{prefix}departTime")),
-                    arriveTime=bind(model.binding_for(f"{prefix}arriveTime")),
+                    airline=shown("airline"),
+                    departTime=shown("departTime"),
+                    arriveTime=shown("arriveTime"),
                     origin=bind(model.binding_for(f"{prefix}origin")),
                     destination=bind(model.binding_for(f"{prefix}destination")),
                     price=bind(model.binding_for(f"{prefix}flightPrice")),
@@ -849,7 +908,11 @@ def trip(heading: str = "") -> Column:
                 StayRow(
                     # The name, not the id. `selectedHotel` is
                     # "h_BER_savigny", which is what the panel showed.
-                    name=bind(model.binding_for(f"{prefix}hotelName")),
+                    #
+                    # And bound only if this hop has one, for the same reason
+                    # as the fare's airline above: a card bound to a name
+                    # nobody recorded waits for it for ever.
+                    name=shown("hotelName"),
                     price=bind(model.binding_for(f"{prefix}nightlyPrice")),
                     action={
                         "event": {"name": "change", "context": {"what": "stay", "hop": index}}
@@ -1101,3 +1164,39 @@ def _as_dict(message: Any) -> dict[str, Any]:
     if isinstance(message, dict):
         return message
     return message.model_dump(exclude_none=True, by_alias=True)
+
+
+def panel_redraw(trip: dict[str, Any], surface_id: str, version: str) -> list[dict[str, Any]]:
+    """`Trip()` expanded against this trip, as messages for a standing panel.
+
+    No model call: this compiles nine characters of Express the panel is
+    already made of and expands the macro against the record. Microseconds.
+
+    It exists because rows became conditional. `Trip()` draws a fare row only
+    once a fare is chosen, which is what a panel is for — a record of what is
+    settled, not a row shimmering at a decision nobody has made. But a row that
+    was not there is a *component*, and `updateDataModel` cannot add one. So
+    the first appearance of each row waited for the panel to be redrawn, and
+    the only thing that redrew it was the client asking after the answering
+    turn had finished: measured at 9.7s after a fare was pressed and 59.4s
+    after a stay, because the turn that answers a stay is the itinerary.
+
+    This is not the host deciding what the panel holds. `PANEL_REQUEST` asks
+    the agent for `Trip()`, the agent draws `Trip()`, and this re-expands that
+    same macro when the record moves under it. What it replaces is a model turn
+    that produced the identical surface.
+    """
+    from .catalog import parser_for
+    from .express import as_wire
+
+    source = "\n".join(
+        [f"surface({json.dumps(surface_id, ensure_ascii=False)})", "panel = Trip()", "root = Column([panel])"]
+    )
+    try:
+        drawn = as_wire(expand(parser_for(surface_id).compile(source, is_final=True), trip))
+    except Exception:  # noqa: BLE001 - a panel is never worth a failed turn
+        return []
+    for message in drawn:
+        if isinstance(message, dict):
+            message.setdefault("version", version)
+    return list(drawn)

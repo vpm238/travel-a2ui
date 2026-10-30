@@ -37,6 +37,7 @@ from ...brain.promises import TYPED_NUDGE, promised
 from ...brain.providers.fixture import FixtureProvider
 from ...brain.macros import (
     airport_choices,
+    panel_redraw,
     clear_rows,
     closing_express,
     expand as expand_macros,
@@ -47,7 +48,13 @@ from ...brain.macros import (
     seed_rows,
 )
 from ...brain.skills import build_prompt_parts
-from ...brain.finishing import finish, on_its_own_surface, panel_events, stack_blocks
+from ...brain.finishing import (
+    STANDING_SURFACES,
+    finish,
+    on_its_own_surface,
+    panel_events,
+    stack_blocks,
+)
 from ...brain.tools import ToolContext, gemini_tools, grounding_tools, run_tool
 from ...gemini import describe_api_error, stream_interaction
 from ..settings import FALLBACK_MODEL, MAX_TOOL_ROUNDS, PANEL_REQUEST, _today
@@ -98,6 +105,38 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         )
     trip, refused = _commit(request.trip, proposed, today)
 
+    # The standing panels, brought up to date in the one way that is correct for
+    # what changed.
+    #
+    # Data is enough while the panel's rows stay the same: every value on
+    # `Trip()` is bound, so a price or a date arrives as `updateDataModel` and
+    # costs nothing. A *new* row is not data — it is a component, and
+    # `updateDataModel` cannot add one. Rows became conditional so that a panel
+    # shows what is settled rather than a card shimmering at a decision nobody
+    # has made, and the cost was that each row's first appearance waited for
+    # somebody to redraw the panel. The only thing that did was the client
+    # asking, after the answering turn: 9.7s after a fare was pressed, 59.4s
+    # after a stay, because the turn that answers a stay is the itinerary.
+    #
+    # `decision_shape` is exactly "which rows does this panel have", so when it
+    # moves, the host re-expands the macro the panel is made of. Still no model
+    # call — see `panel_redraw`.
+    shape_was = model.decision_shape(trip)
+
+    def panels() -> list[dict[str, Any]]:
+        nonlocal shape_was
+        out: list[dict[str, Any]] = list(panel_events(trip))
+        shape_now = model.decision_shape(trip)
+        if shape_now != shape_was:
+            shape_was = shape_now
+            for surface in STANDING_SURFACES:
+                drawn = panel_redraw(trip, surface, PROTOCOL_VERSION)
+                if drawn:
+                    out.append(
+                        {"type": "ui", "surfaceId": surface, "messages": drawn, "done": True}
+                    )
+        return out
+
     # Pressing a button *is* saying so. Whatever the surface sent stops being a
     # guess, however it got into the control — the agent's suggestion, a value
     # carried over from an earlier turn, or something typed just now.
@@ -132,7 +171,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # fare press sets and which hop it belongs to — a second thing that
         # writes decisions, disagreeing with `save_trip` the first time a press
         # means something new. One writer is worth the round trip.
-        for event in panel_events(trip):
+        for event in panels():
             yield event
 
     def save(patch: dict[str, Any]) -> None:
@@ -749,7 +788,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             # record is what they draw, and they were waiting for the whole
             # turn to end before hearing that it had changed.
             if json.dumps(trip, sort_keys=True, default=str) != before_tool:
-                for event in panel_events(trip):
+                for event in panels():
                     yield event
 
             # The rows, filed where the brief says they land. One
@@ -957,7 +996,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     # ordinary A2UI rather than as something the client works out for itself.
     # Shared with the voice relay, which does the same thing at the end of its
     # own turns — see `panel_events`.
-    for event in panel_events(trip):
+    for event in panels():
         yield event
 
     # The receipt, handed over *before* the panels rather than after them.

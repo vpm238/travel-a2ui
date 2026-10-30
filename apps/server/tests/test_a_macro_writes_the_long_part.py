@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from travel_a2ui.brain.catalog import (
     COMPONENT_NAMES,
     REQUIRED_PROPERTIES,
@@ -393,3 +395,34 @@ class TestWhatTheOptionsStore:
 
         made = airport_choices([{"city": "Nowhere"}, "not a dict", {}], [{}, {"airport": ""}])
         assert made == {"from": [], "to": []}
+
+
+class TestAHopHoweverTheModelSpellsIt:
+    """The signature says `int` and nothing enforces it.
+
+    `Flights("Back · MAD → JFK", "", "2")` is a thing the model writes, and it
+    raised `'>' not supported between instances of 'str' and 'int'` inside the
+    expander. The expander catches that and reports "Failed to expand macro
+    'Flights'", so the entire fare list did not draw — the traveller got prose
+    about four flights and no cards, and the only trace was one line in a log.
+    Found by the journey validator, which then crashed on the consequence.
+    """
+
+    def context(self, hop: str) -> dict[str, Any]:
+        source = f"rows = Flights(\"Back\", \"\", {hop})\nroot = Column([rows])"
+        fares = [n for n in drawn(source, trip={}) if n.get("component") == "FlightOption"]
+        assert len(fares) == 1, f"the list did not draw for hop={hop}"
+        return fares[0]["action"]["event"]["context"]
+
+    @pytest.mark.parametrize("written", ['"2"', "2", "2.0", '"2.0"'])
+    def test_every_spelling_of_hop_two_draws_and_names_the_hop(self, written: str) -> None:
+        assert self.context(written)["hop"] == 2
+
+    @pytest.mark.parametrize("written", ['""', '"two"', "0", "1"])
+    def test_and_a_hop_that_is_not_a_later_one_draws_without_naming_it(self, written: str) -> None:
+        """Hop one is the trip's own fields; saying so would look for `legs[-1]`."""
+        assert "hop" not in self.context(written)
+
+    def test_the_list_still_draws_when_the_hop_makes_no_sense(self) -> None:
+        """Losing the hop is bad. Losing the whole card is worse."""
+        assert self.context('"later"') == self.context('""')

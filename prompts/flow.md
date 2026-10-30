@@ -108,11 +108,23 @@ The same goes for a stay on a later hop, and for anything else a hop owns.
 
 **And save what the thing *is*, not only which one it was.** A press hands you
 the airline, the times and the name along with the id and the price. Record
-them — `airline`, `departTime`, `arriveTime`, `hotelName`, on the trip or on
-that hop's leg. The panel is bound to the record and can only show what is in
-it, so a fare saved as an id and a number draws as a price beside an empty
-space: the traveller sees a card that looks like it is still loading, for ever,
-because nothing is coming.
+them — `airline`, `departTime`, `arriveTime`, `hotelName`. The panel is bound
+to the record and can only show what is in it, so a fare saved as an id and a
+number draws as a price beside an empty space: the traveller sees a card that
+looks like it is still loading, for ever, because nothing is coming.
+
+**They go exactly where that hop's `selectedFlight` goes — the same object,
+every time.** Hop one's on the trip; hop two's on `legs[0]` beside
+`legs[0].selectedFlight`; hop three's on `legs[1]`. Not the trip's `airline`
+for a return you just picked.
+
+This is the same rule as the one above and it fails the same way, except
+louder. Putting the return's airline on the trip while the trip's
+`selectedFlight` is still the outbound leaves the panel reading "TP2077,
+Iberia, 10:59" — a TAP flight number, Iberia's name, and the return's departure
+time, on one card, all three confidently wrong. A missing field draws as
+nothing and tells the traveller nothing. A field from the wrong hop tells them
+something false.
 
 ### Stays, once there are hotels to choose between
 
