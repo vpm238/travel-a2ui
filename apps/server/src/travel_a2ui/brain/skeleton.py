@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from .bindings import PATH_KEY
+from .spoken import label_for
 from .catalog import PROTOCOL_VERSION
 from .express import as_wire
 
@@ -61,6 +62,27 @@ class _Blueprint:
     key: str
     #: Express for a surface whose every field is bound and none are filled.
     express: Callable[[str], str]
+    #: The card this draws one of per row, so `fill` knows which sentence a
+    #: row reads as. See `_spoken`.
+    component: str
+
+
+def _spoken(component: str, row: Any) -> Any:
+    """A row, plus the sentence its card reads as.
+
+    The one field on these rows the provider does not supply. Every value on a
+    skeleton card arrives in the data model rather than in the component — that
+    is what makes filling it free — so the card's `accessibility.label` is
+    bound like the rest of it, to a field written here.
+
+    Derived from the row by `brain/spoken.py`, which is the same function the
+    MCP and voice doors use on the same provider fields, so a fare reads the
+    same whichever door drew it.
+    """
+    if not isinstance(row, dict):
+        return row
+    reads = label_for(component, row)
+    return {**row, "reads": reads} if reads else row
 
 
 def _rows(result: Any, key: str) -> list[Any] | None:
@@ -85,11 +107,30 @@ _BLUEPRINTS: dict[str, _Blueprint] = {
                 'head = Text("Finding flights", variant="h3")',
                 "row = FlightOption($airline, $departTime, $arriveTime, $origin, $destination, "
                 '$price, Event("select_flight", {id: $id, price: $price}), duration=$duration, '
-                "stops=$stops, flightNumber=$flightNumber, badge=$badge)",
+                "stops=$stops, flightNumber=$flightNumber, badge=$badge, "
+                # The sentence this card reads as, resolved per row from a
+                # field `fill` writes beside the rest — see `_spoken`. A
+                # literal is impossible here: the row is one template drawn N
+                # times, and every value in it arrives afterwards in the data
+                # model.
+                #
+                # `formatString("${reads}")` rather than `$reads`, which is not
+                # a style choice: the catalog marks `accessibility` static, so
+                # the compiler rejects a path binding inside it outright —
+                # "must be a static literal value, not a dynamic databinding".
+                # A function call is not a binding, and the renderer resolves
+                # its template against the row. The same move
+                # `bind_derived_labels` makes for a night count.
+                #
+                # It also reads as nothing while the row is blank, which is the
+                # right answer for the second this is on screen empty: the
+                # renderer drops an empty label rather than naming a card "".
+                'accessibility={label: formatString("${reads}")})',
                 "list = List(_template($/flights, row))",
                 "root = Column([head, list])",
             ]
         ),
+        component="FlightOption",
     ),
     "search_hotels": _Blueprint(
         path="/hotels",
@@ -99,11 +140,14 @@ _BLUEPRINTS: dict[str, _Blueprint] = {
                 f"surface({json.dumps(surface_id)})",
                 'head = Text("Finding places to stay", variant="h3")',
                 'row = HotelCard($name, $price, Event("select_hotel", {id: $id, name: $name}), '
-                "neighborhood=$neighborhood, rating=$rating, badge=$badge)",
+                "neighborhood=$neighborhood, rating=$rating, badge=$badge, "
+                # See the note on the flight row.
+                'accessibility={label: formatString("${reads}")})',
                 "list = List(_template($/hotels, row))",
                 "root = Column([head, list])",
             ]
         ),
+        component="HotelCard",
     ),
 }
 
@@ -118,6 +162,7 @@ class PendingSurface:
     _key: str
     _surface_id: str
     _version: str
+    _component: str
 
     @property
     def path(self) -> str:
@@ -139,7 +184,7 @@ class PendingSurface:
                 "updateDataModel": {
                     "surfaceId": self._surface_id,
                     "path": self._path,
-                    "value": rows,
+                    "value": [_spoken(self._component, row) for row in rows],
                 },
             }
         ]
@@ -232,4 +277,5 @@ def pending_surface_for(
         _key=blueprint.key,
         _surface_id=surface_id,
         _version=wire,
+        _component=blueprint.component,
     )

@@ -93,18 +93,21 @@ console.log('fare cards on the live card:', await fares.count());
 
 // How many of them a screen reader would hear as a sentence.
 //
-// Reported rather than asserted, deliberately: on the typed door these cards
-// are Express the *model* wrote, so a label is the model following a house rule
-// in the brief, not the host doing something deterministic. The host's own
-// cards — every surface a voice call draws — are checked properly in
-// `voice.py`, where they are composed from provider fields and a missing label
-// is a bug. Here it is a number worth watching after a brief changes.
+// This read nought the first time, against a turn that had drawn sixteen
+// fares: the brief asks the agent to name its cards and the model skipped the
+// house rule, which is all a brief can do about it. The host now reads the
+// fields back for any fare or stay that arrived without a label — so a number
+// here below the number of cards on screen means something is wrong rather
+// than something is unlucky.
+//
+// Still printed rather than asserted, because the count depends on how many
+// cards this particular turn drew. The `0 → 4` is the measurement.
 {
   const cards = page.locator(`${FEED} [class*="tv-flight" i], ${FEED} [class*="tv-hotel" i]`);
   const labels = await cards.evaluateAll((nodes) =>
     nodes.filter((node) => node.getAttribute('aria-label')).map((node) => node.getAttribute('aria-label')),
   );
-  console.log(`cards an agent named: ${labels.length}`);
+  console.log(`cards a screen reader is told about: ${labels.length}`);
   for (const label of labels.slice(0, 3)) console.log(`   "${label}"`);
 }
 

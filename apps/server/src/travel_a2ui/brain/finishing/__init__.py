@@ -55,6 +55,7 @@ from .commit import (  # noqa: F401 — re-exported: this package is one module 
 )
 from .labels import (  # noqa: F401 — re-exported: this package is one module to its callers
     bind_derived_labels,
+    name_pressable_cards,
     _COUNT_OF_NIGHTS,
     _is_count_of_nights,
     _is_path_binding,
@@ -72,14 +73,20 @@ def finish(
     standing: Iterable[str] = STANDING_SURFACES,
     carried: dict[str, dict[str, None]] | None = None,
 ) -> list[A2uiMessage]:
-    """All four passes, in the order the Worker runs them.
+    """All five passes, in the order the Worker runs them.
 
     The order matters in one place: `bind_commit_context` may *add* a button,
     and `strip_panel_actions` may remove one, so seeding has to happen first
     (it is what a control opens showing) and stripping last (so a button added
     on a panel is still taken back off it).
+
+    `name_pressable_cards` reads properties and writes one of its own, so it
+    does not care where it sits; it runs beside the other pass that rewrites a
+    label the model wrote.
     """
     return strip_panel_actions(
-        bind_derived_labels(bind_commit_context(seed_surface_trip(messages, trip), carried)),
+        name_pressable_cards(
+            bind_derived_labels(bind_commit_context(seed_surface_trip(messages, trip), carried))
+        ),
         standing,
     )

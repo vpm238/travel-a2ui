@@ -38,6 +38,7 @@ from .catalog import COMPONENT_NAMES, VALIDATOR, parser_for
 from .express import as_wire
 from .macros import expand as expand_macros
 from .providers.types import NotFound, TravelProvider
+from .spoken import flight_label, hotel_label
 
 
 @dataclass(frozen=True)
@@ -374,32 +375,19 @@ async def _flights(args: dict[str, Any], provider: TravelProvider) -> Surface:
             if party > 1 and fare is not None
             else ""
         )
-        # What a screen reader says instead of the card's own text.
-        #
-        # A fare card's text, read in DOM order, is "Norwegian DY1234 07:15 CPH
-        # 11:40 BER 2h 25m nonstop €281" — every fact, in no order, with the
-        # price last. The host knows the same fields in a sentence, and this is
-        # one of the few places it knows them *better* than the model does,
-        # because they came from the provider rather than from prose.
-        # "1 stop · LIS" is a visual convention; read aloud the dot is either
-        # announced as a character or swallowed, and "1 stop, LIS" sounds like
-        # two facts. "1 stop via LIS" is the sentence it was always standing in
-        # for. "Nonstop" carries no dot and is left alone.
-        stops = _str(flight.get("stops")).replace(" · ", " via ")
-        # The number the party actually pays, when that is not the fare. The
-        # card puts both on screen; a label that read only the fare would be
-        # the per-traveller price presented as the price, which is the one
-        # mistake this card was fixed for.
-        spoken_price = (
-            f"{_money(int(round(fare * party)))} for {party}"
-            if party > 1 and fare is not None
-            else _str(flight.get("price"))
-        )
-        reads = (
-            f"{flight['airline']} {flight['flightNumber']}, "
-            f"{flight['departTime']} {flight['origin']} to "
-            f"{flight['arriveTime']} {flight['destination']}, "
-            f"{stops}, {spoken_price}"
+        # What a screen reader says instead of the card's own text. One
+        # sentence, built in `brain/spoken.py` from the same fields the card
+        # carries — including the party's price rather than one traveller's,
+        # which is why `total` is handed over with the rest.
+        reads = flight_label(
+            {
+                **flight,
+                "total": (
+                    f"{_money(int(round(fare * party)))} for {party}"
+                    if party > 1 and fare is not None
+                    else ""
+                ),
+            }
         )
         lines.append(
             f"f{index} = FlightOption({_q(flight['airline'])}, {_q(flight['departTime'])}, "
@@ -466,12 +454,8 @@ async def _hotels(args: dict[str, Any], provider: TravelProvider) -> Surface:
     for index, hotel in enumerate(hotels):
         amenities = ", ".join(_q(item) for item in hotel["amenities"])
         badge = f", badge={_q(hotel['badge'])}" if hotel.get("badge") else ""
-        # See the note on the fare cards: the stay's own text reads as a pile of
-        # fragments, and the host has the fields in order.
-        reads = (
-            f"{hotel['name']}, {hotel['neighborhood']}, "
-            f"rated {hotel['rating']}, {hotel['price']}"
-        )
+        # See the note on the fare cards.
+        reads = hotel_label(hotel)
         lines.append(
             f"h{index} = HotelCard({_q(hotel['name'])}, {_q(hotel['price'])}, "
             f'Event("select_hotel", {{id: {_q(hotel["id"])}, name: {_q(hotel["name"])}}}), '

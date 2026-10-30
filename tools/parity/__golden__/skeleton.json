@@ -58,6 +58,14 @@
               },
               "badge": {
                 "@path": "badge"
+              },
+              "accessibility": {
+                "label": {
+                  "@call": "formatString",
+                  "args": {
+                    "value": "${reads}"
+                  }
+                }
               }
             },
             {
@@ -148,6 +156,14 @@
               },
               "badge": {
                 "@path": "badge"
+              },
+              "accessibility": {
+                "label": {
+                  "@call": "formatString",
+                  "args": {
+                    "value": "${reads}"
+                  }
+                }
               }
             },
             {
