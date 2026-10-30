@@ -39,7 +39,7 @@ const FIRST_TURN = [
 const EXPRESS = `surface("inline-1")
 $/trip/selectedOutbound = ""
 heading = Text("Outbound · JFK → MAD · Sun 12 Apr", variant="h3")
-f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("select_flight", {id: "IB6250", price: "$412"}), duration="7h 35m", stops="Nonstop", flightNumber="IB6250", badge="Cheapest")
+f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("select_flight", {id: "IB6250", price: "$412"}), duration="7h 35m", stops="Nonstop", flightNumber="IB6250", badge="Cheapest", accessibility={label: "Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412"})
 f2 = FlightOption("Delta", "21:10", "10:50 +1", "JFK", "MAD", "$468", Event("select_flight", {id: "DL126", price: "$468"}), duration="7h 40m", stops="Nonstop", flightNumber="DL126")
 f3 = FlightOption("TAP", "17:25", "11:05 +1", "JFK", "MAD", "$367", Event("select_flight", {id: "TP208", price: "$367"}), duration="11h 40m", stops="1 stop · LIS", flightNumber="TP208", badge="Lowest fare")
 note = Text("Prices are per traveller, round trip.", variant="caption")
@@ -77,10 +77,21 @@ const here = dirname(fileURLToPath(import.meta.url));
 const catalog = JSON.parse(
   readFileSync(join(here, '..', '..', 'catalogs', 'a2ui-travel', 'catalog.json'), 'utf8'),
 );
-const compiler = new ExpressCompiler(catalog, 'v0.9.1');
+/**
+ * The protocol the catalog declares — not a literal.
+ *
+ * This said `'v0.9.1'` in three places, through the whole 1.0 migration. The
+ * probe went on passing, because the renderer reads both spellings of a binding
+ * on purpose, so what it was actually proving is that the renderer still
+ * handles 0.9 — and not that it handles what production now sends: components
+ * inline in `createSurface`, bindings as `@path`.
+ */
+const VERSION = `v${catalog.protocolVersion ?? '0.9'}`;
+
+const compiler = new ExpressCompiler(catalog, VERSION);
 
 const compileFor = (surfaceId, source) =>
-  compiler.compile(source, { surfaceId, catalogId: catalog.catalogId, version: 'v0.9.1' });
+  compiler.compile(source, { surfaceId, catalogId: catalog.catalogId, version: VERSION });
 
 function toSse(events) {
   return events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('');
@@ -97,7 +108,7 @@ function turnEvents(surfaceId, prose, express, tail) {
   const stream = new ExpressStreamParser(compiler, {
     surfaceId,
     catalogId: catalog.catalogId,
-    version: 'v0.9.1',
+    version: VERSION,
   });
   const chunks = [
     prose,
@@ -202,6 +213,24 @@ check(`all three flight options render (${flights})`, flights === 3);
 
 const badge = await page.locator('.tv-badge').first().textContent();
 check(`badges render (${badge?.trim()})`, Boolean(badge?.trim()));
+
+// What a screen reader is told about the first fare.
+//
+// Checked here because this is the only probe that drives the real renderer
+// with a payload we wrote: the first fare in `EXPRESS` carries an
+// `accessibility` block, and a card's own text in DOM order is "Iberia IB6250
+// 18:40 JFK 08:15 +1 MAD 7h 35m Nonstop $412" — every fact, no sentence. A
+// live model may or may not label its cards; whether the renderer honours a
+// label it was given should not depend on that.
+const named = await page.locator('.tv-flight').first().getAttribute('aria-label');
+check(
+  `the agent's label reaches the card (${named ?? 'nothing'})`,
+  named === 'Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412',
+);
+check(
+  'and a card the agent did not name keeps its own text',
+  (await page.locator('.tv-flight').nth(1).getAttribute('aria-label')) === null,
+);
 
 const prose = (await page.locator('.bubble--agent').first().textContent()) ?? '';
 check('prose stays prose', prose.includes('Three nonstops'));
