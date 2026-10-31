@@ -741,7 +741,11 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                             parser_for(request.surface_id).compile(opening, is_final=True), trip, airports
                         )
                     )
-                except Exception:  # noqa: BLE001 - a bad `draw` must not cost the turn
+                except Exception as why:  # noqa: BLE001 - a bad `draw` must not cost the turn
+                    # Said out loud. Swallowed in silence, a card the agent
+                    # asked for simply was not there, and the only way anyone
+                    # found out was a validator reporting "nothing to press".
+                    print(f"draw failed for {call.name}: {why!r}", flush=True)
                     drawn_now = []
                 if drawn_now:
                     mark("firstSurface")
@@ -857,7 +861,8 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                                 airports,
                             )
                         )
-                    except Exception:  # noqa: BLE001 - a bad `draw` must not cost the turn
+                    except Exception as why:  # noqa: BLE001 - a bad `draw` must not cost the turn
+                        print(f"draw failed after {call.name}: {why!r}", flush=True)
                         after = []
                     if after:
                         mark("firstSurface")

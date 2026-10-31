@@ -57,11 +57,26 @@ DEFAULT_EFFORT = "low"
 
 
 def components(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every component a turn put on screen, however the message carried it.
+
+    Both spellings, and the second one is why this is a docstring. A block the
+    agent streams arrives as `updateComponents` snapshots and then one final
+    `createSurface`; a card the *host* draws from a tool call's `draw:` is
+    compiled final and arrives as `createSurface` alone. Reading only
+    `updateComponents` therefore made every host-drawn card invisible here —
+    and the pre-draw is now the main way a card reaches the screen.
+
+    What that looked like was not an obvious blind spot. It looked like the
+    agent misbehaving: a turn whose components were one stray heading, a
+    multi-city journey with "0 party counters", and `press FlightOption:
+    NOTHING TO PRESS` against a list a browser could see and press.
+    """
     out: list[dict[str, Any]] = []
     for message in messages:
-        for node in (message.get("updateComponents") or {}).get("components") or []:
-            if isinstance(node, dict):
-                out.append(node)
+        for key in ("updateComponents", "createSurface"):
+            for node in (message.get(key) or {}).get("components") or []:
+                if isinstance(node, dict):
+                    out.append(node)
     return out
 
 
@@ -316,11 +331,21 @@ async def play(name: str, model_id: str, effort: str, quiet: bool) -> dict[str, 
             flat: list[tuple[str, Any]] = []
             flatten(node, flat)
             for path, value in flat:
-                if path.endswith((".value.path", ".start.path", ".end.path")) or path in (
-                    "value.path",
-                    "start.path",
-                    "end.path",
-                ):
+                # Both spellings of the binding key. 1.0 reserved `@` and
+                # renamed `path` to `@path`, and this matcher kept the old one
+                # — so under 1.0 it matched nothing, every turn, in every
+                # script.
+                #
+                # Which did not show up as an error. It showed up as one
+                # verdict failing for a reason that was not true ("a party
+                # counter for each of 3 hops — got 0", with three counters
+                # plainly on the surface) and another passing for a reason
+                # that was not true: "the dates are not asked for again once
+                # given" reads `bound`, and `bound` was always empty, so it
+                # could not fail. A check that cannot fail is worse than no
+                # check, because it is counted.
+                tail = path.rsplit(".", 2)[-2:]
+                if len(tail) == 2 and tail[0] in ("value", "start", "end") and tail[1] in ("path", "@path"):
                     if isinstance(value, str) and value.startswith("/trip/"):
                         bound.add(value)
                         if value.endswith("travelers"):

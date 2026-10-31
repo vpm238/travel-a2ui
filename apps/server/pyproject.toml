@@ -61,6 +61,31 @@ dependencies = [
   # would pick that up on the next image build and every message would be
   # rejected by a renderer expecting the other spelling — the same shape of
   # outage as 0.7.0/0.2.0, which is the story above.
+  #
+  # **What the next release is worth taking it for**, and what taking it costs,
+  # measured rather than guessed — upstream main installed into a scratch venv
+  # and fed this app's own catalog and macros:
+  #
+  #   - a2ui#3712 adds `ExpressResponseStream`, so `ExpressParser.open_stream`
+  #     compiles an `<a2ui>` block incrementally instead of buffering it to
+  #     `</a2ui>`. It emits `createSurface` the moment `root = ...` compiles,
+  #     then delta `updateComponents`, and heals an unclosed string under
+  #     `progressive_keys` (default `{"text"}`). Confirmed working on a real
+  #     block of ours: the surface arrived three chunks in.
+  #
+  #     That is `brain/express.py`'s hard half, done upstream and run against a
+  #     conformance suite. Adopting it would leave this app the parts that are
+  #     actually ours — the fence gate, the per-hop "half asked" check, macro
+  #     expansion, the repair path — and delete the statement splitting and the
+  #     string healing underneath them.
+  #
+  #   - The blocker is one string and it is not stageable. Upstream rejects
+  #     every message this app sends with `Input should be '1.0'`, and 0.9.0
+  #     rejects `"1.0"`, so the rename has to land in the same commit as the
+  #     bump: `PROTOCOL_VERSION` here, `ProtocolVersion` and the three
+  #     `=== 'v1.0'` tests in `packages/express/src` that decide `@path` and
+  #     `@call`, the default in `apps/web/src/components/Protocol.tsx`, and a
+  #     regeneration of the compiled examples and the goldens.
   "a2ui-agent-sdk==0.9.0",
   "a2ui-core==0.4.0",
   # Both Gemini surfaces this app uses: `client.interactions` for the typed

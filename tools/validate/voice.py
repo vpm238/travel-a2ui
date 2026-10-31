@@ -115,16 +115,27 @@ def first_press(
     nodes: list[dict[str, Any]],
     wanted: str,
     already: set[str] | None = None,
+    rows: list[Any] | None = None,
 ) -> tuple[str, dict[str, Any]] | None:
     """The press on the first card of this kind nobody has pressed yet.
-
-    Only literals: a voice surface is composed by the server from real rows, so
-    its cards carry the id and the price as values rather than as bindings.
 
     `already` is what makes a second press land on a second card. Everything on
     screen is pressable, including the fares from two turns ago, so a plain
     "first FlightOption" pressed the outbound again and the return leg stayed
     unchosen — which the agent then, correctly, refused to move past.
+
+    **The cards are bound now, and used to be literal.** This said so out loud:
+    "only literals — a voice surface is composed by the server from real rows,
+    so its cards carry the id and the price as values rather than as bindings."
+    That was true while `builders.py` wrote a card per fare. It now seeds
+    `$/flights` and calls `Flights()`, which is one template whose every value
+    is `{"@path": "id"}` — so the dict filter here stripped the whole context
+    and the press went out naming nothing. The host recorded nothing, the agent
+    said "choose from the options on your screen", and three checks went red
+    against a relay that was drawing the fares correctly the whole time.
+
+    So a binding is resolved against the rows the surface was seeded with, one
+    row per press, which is what the traveller is actually pressing.
     """
     seen = already or set()
     for node in nodes:
@@ -134,15 +145,54 @@ def first_press(
         name = event.get("name")
         if not name:
             continue
-        context = {
-            key: value
-            for key, value in (event.get("context") or {}).items()
-            if not isinstance(value, dict)
-        }
-        if str(context.get("id") or "") in seen:
-            continue
-        return str(name), context
+        raw = (event.get("context") or {}).items()
+        literal = {key: value for key, value in raw if not isinstance(value, dict)}
+        bound = {key: pointer_of(value) for key, value in raw if pointer_of(value)}
+        if not bound:
+            if str(literal.get("id") or "") in seen:
+                continue
+            return str(name), literal
+        for row in rows or []:
+            if not isinstance(row, dict):
+                continue
+            resolved = {**literal}
+            for key, path in bound.items():
+                # A row template's path is relative to the row being drawn.
+                resolved[key] = row.get(path.lstrip("/"))
+            if str(resolved.get("id") or "") in seen:
+                continue
+            return str(name), resolved
     return None
+
+
+def pointer_of(value: Any) -> str | None:
+    """The pointer a binding names, in either spelling 1.0 might use."""
+    if not isinstance(value, dict):
+        return None
+    for key in ("@path", "path"):
+        found = value.get(key)
+        if isinstance(found, str):
+            return found
+    return None
+
+
+def seeded_rows(messages: list[dict[str, Any]], kind: str) -> list[Any]:
+    """The rows a voice surface was seeded with, newest first.
+
+    `builders.py` writes them into the block as `$/flights = [...]`, so they
+    arrive inside `createSurface.dataModel` rather than as a later update.
+    """
+    key = "hotels" if kind == "HotelCard" else "flights"
+    out: list[Any] = []
+    for message in messages:
+        model = (message.get("createSurface") or {}).get("dataModel")
+        if isinstance(model, dict) and isinstance(model.get(key), list):
+            out = model[key]
+        update = message.get("updateDataModel")
+        if isinstance(update, dict) and str(update.get("path") or "").strip("/") == key:
+            if isinstance(update.get("value"), list):
+                out = update["value"]
+    return out
 
 
 async def call(base: str, key: str, steps: list[dict[str, Any]], quiet: bool) -> dict[str, Any]:
@@ -210,7 +260,12 @@ async def call(base: str, key: str, steps: list[dict[str, Any]], quiet: bool) ->
                 # leaves the fares from two turns ago sitting there, pressable.
                 # Looking at the last turn alone said "nothing to press" at a
                 # screen with four flights on it.
-                found = first_press(components(on_screen), step["press"], pressed)
+                found = first_press(
+                    components(on_screen),
+                    step["press"],
+                    pressed,
+                    seeded_rows(on_screen, step["press"]),
+                )
                 if found is None:
                     if not quiet:
                         print(f"\n-- {number}. press {step['press']}: NOTHING TO PRESS")
