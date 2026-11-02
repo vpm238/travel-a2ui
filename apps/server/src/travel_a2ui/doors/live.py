@@ -31,6 +31,7 @@ from ..brain.catalog import (
     parser_for,
 )
 from ..brain.express import ExpressStream, Ui
+from ..brain.macros import without_the_rows
 from ..brain.promises import SPOKEN_NUDGE as _NUDGE, promised as _promised
 from ..brain.skills import _read, build_system_prompt
 from ..brain.finishing import REBUILT_IN_A_TURN, finish, panel_events
@@ -94,7 +95,7 @@ def voice_tools() -> list[dict[str, Any]]:
     model takes the one that returns them and reads them out. The lookups stay,
     because a voice agent that can answer "is there a nonstop" without redrawing
     the screen is better at conversation, but their results no longer carry the
-    rows. See `_without_the_list`.
+    rows. See `without_the_rows`.
     """
     surfaces = [
         {
@@ -265,7 +266,14 @@ async def run_voice_tool(
     result, is_error = await run_tool(name, args, context)
     if is_error:
         return {"response": {"error": result}}
-    return {"response": _without_the_list(name, result)}
+    drawer = _DRAWN_BY.get(name)
+    return {
+        "response": without_the_rows(
+            name,
+            result,
+            f"Call `{drawer}` to put them on screen." if drawer else "",
+        )
+    }
 
 
 #: Lookups whose answer is a list, and the tool that puts that list on screen.
@@ -287,41 +295,13 @@ _DRAWN_BY = {
 }
 
 
-def _without_the_list(name: str, result: Any) -> Any:
-    """The same answer, minus the part that can be read aloud.
-
-    The model still learns what it needs to *speak* one sentence — how many
-    there are and what the cheapest is — and is told, in the result itself,
-    which tool puts them where the traveller can see them. What it does not get
-    is twelve rows of fares, because a list in context is a list read out.
-
-    This is not composition moving to the server: the model still chooses the
-    tool, the surface and the layout. It just cannot narrate a table it was
-    never handed.
-    """
-    drawer = _DRAWN_BY.get(name)
-    if not drawer or not isinstance(result, dict):
-        return result
-
-    items = result.get("items")
-    if not isinstance(items, list) or not items:
-        return result
-
-    cheapest = min(
-        (item for item in items if isinstance(item, dict) and item.get("price")),
-        key=lambda item: item.get("priceValue") or float("inf"),
-        default=None,
-    )
-    kept = {key: value for key, value in result.items() if key != "items"}
-    kept["found"] = len(items)
-    if cheapest:
-        kept["cheapest"] = cheapest.get("price")
-    kept["note"] = (
-        f"The {len(items)} results are deliberately not in this response — reading "
-        f"them aloud is what this mode exists to avoid. Call `{drawer}` to put them "
-        "on screen, then say one sentence about what is there."
-    )
-    return kept
+#: Withholding the rows themselves is `without_the_rows`, in `brain/macros.py`,
+#: beside the table that files them — because the two have to name the same key
+#: and this door's own copy did not. It looked for `result["items"]`, no tool
+#: here has ever returned that key, and so for as long as it existed every fare
+#: went to the model untouched: the four fares read down a phone line that the
+#: table above describes were never actually withheld. One function, keyed off
+#: the filing table, is how that stops being possible.
 
 
 @dataclass

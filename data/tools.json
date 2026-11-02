@@ -455,9 +455,10 @@
                 "type": "string",
                 "enum": [
                   "Ask",
-                  "Itinerary"
+                  "Itinerary",
+                  "Trip"
                 ],
-                "description": "`Ask` for the form of what is still missing — the answer on almost every turn before the flights are priced. `Itinerary` for the day plan, when this call carried `days`."
+                "description": "`Ask` for the form of what is still missing — and only when something is. A traveller who gave you the route, the dates and the party has no gap, and a form asking for the party asks them to type what they just said; price it instead. `Itinerary` for the day plan, when this call carried `days`. `Trip` for the standing panel, when the turn's notes say it is a row behind: it lands on the panel's own surface rather than this turn's card, and it is the one cheap moment to add a row, since a row is a component and the bound values cannot add one."
               },
               "heading": {
                 "type": "string",

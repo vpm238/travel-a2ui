@@ -106,6 +106,34 @@ _SKILL_SOURCES: dict[str, list[str]] = {
 }
 
 
+#: Marks a passage of a domain brief that only makes sense on a channel that
+#: can draw with Express.
+#:
+#: The briefs are about *travel* and go to every channel. But a handful of their
+#: rules land on a notation — "record the days, then draw them with
+#: `Itinerary()`" — and that half is true only where there is a compiler to send
+#: Express to. On the spoken channel the same rule is a `show_*` call, and the
+#: notation is worse than useless: the reply is audio, so a model that takes the
+#: example literally reads `surface("sidebar")` out loud while the screen stays
+#: empty.
+#:
+#: Marked rather than moved, because the alternative is splitting a rule from its
+#: reason across two files. The rule stays where it is argued for; the notation
+#: is fenced, and `_for_channel` drops it where it cannot be used. A passage
+#: inside a fence must never carry a fact about travel — only how to draw one.
+_EXPRESS_ONLY = re.compile(
+    r"[ \t]*<!--\s*draws:express\s*-->\n?(.*?)[ \t]*<!--\s*/draws\s*-->\n?",
+    re.DOTALL,
+)
+
+
+def _for_channel(text: str, draws: str) -> str:
+    """A domain brief with the passages this channel cannot act on removed."""
+    if draws == "express":
+        return _EXPRESS_ONLY.sub(lambda found: found.group(1), text)
+    return _EXPRESS_ONLY.sub("", text).replace("\n\n\n", "\n\n")
+
+
 def _body(skill: str) -> str:
     """Strips YAML frontmatter — the model wants the instructions, not the metadata."""
     if not skill.startswith("---"):
@@ -410,6 +438,37 @@ yourself about to describe a layout, call the tool instead.\
 """
 
 
+def _panel_heading(trip: dict[str, Any]) -> str:
+    """A heading for the panel, so the hint is a line the agent can copy.
+
+    The agent may write its own and usually does. The point of filling it in is
+    that an example with a blank in it is an example to be adapted, and a turn
+    that is mid-press adapts it by thinking about it.
+    """
+    where = str((trip or {}).get("destination") or "").strip()
+    return f"Your trip to {where}" if where else "Your trip"
+
+
+def panel_is_stale(shown: str | None, trip: dict[str, Any]) -> bool:
+    """Whether the panel is drawn for an older set of decisions than the trip has.
+
+    `decision_shape` is exactly "which rows does this panel have", and the client
+    sends back the shape its panel was last drawn for. When the two differ the
+    panel is missing a row — not a value, a *row*, which `updateDataModel` cannot
+    add — and somebody has to draw `Trip()` again.
+
+    That somebody is the agent, which is why this is a fact in the prompt rather
+    than a redraw in the host. It is cheap for the agent to act on: the turn is
+    already answering the press that settled the decision, and the sidebar is the
+    one surface a block may address by name.
+    """
+    if not (trip or {}).get("destination"):
+        # Nothing to draw a panel *of*. The first turn usually ends with a
+        # question, and a panel saying "no trip" is a panel nobody wants.
+        return False
+    return model.decision_shape(model.normalize(trip)) != shown
+
+
 def build_prompt_parts(
     *,
     variant: str,
@@ -419,6 +478,7 @@ def build_prompt_parts(
     trip: dict[str, Any],
     today: str,
     draws: str = "express",
+    panel_stale: bool = False,
 ) -> tuple[str, str]:
     """The prompt in its two halves: what never changes, and what always does.
 
@@ -457,9 +517,12 @@ def build_prompt_parts(
 
     stable = "\n\n---\n\n".join(
         [
-            ROLE,
-            FLOW,
-            JOURNEY,
+            # The domain half, identical on every channel but for the passages
+            # that land on a notation one of them has no compiler for. See
+            # `_EXPRESS_ONLY`.
+            _for_channel(ROLE, draws),
+            _for_channel(FLOW, draws),
+            _for_channel(JOURNEY, draws),
             _inventory(),
             _controls(),
             *drawing,
@@ -472,6 +535,28 @@ def build_prompt_parts(
         f"- Today's date is {today}. Any date you suggest is after it.",
         f"- Draw into surface `{surface_id}`.",
         f"- The host's catalog id is `{catalog_id}`.",
+        # The panel's rows are behind the trip's decisions, and only a redraw
+        # fixes that. Said here, on the turn that can do it for nothing, because
+        # the alternative is a whole further model turn after this one — see
+        # `panel_is_stale` and `_rebuild_panels`.
+        (
+            "- **The panel is a row behind.** A decision has been settled that it"
+            " has no row for, and a row is a component — the data you can see bound"
+            " at `$/trip/…` cannot add one. The cheapest way to fix it is a key on"
+            " the `save_trip` you are making anyway:\n"
+            f'      save_trip({{…, draw: {{macro: "Trip", heading: {_json(_panel_heading(trip))}}}}})\n'
+            "  The panel goes up the moment that write lands, which is the start of"
+            " your turn rather than the end of it. Not making a `save_trip` this"
+            " turn? Then a block of your own, addressed to the panel:\n"
+            '      surface("sidebar")\n'
+            f'      panel = Trip({_json(_panel_heading(trip))})\n'
+            "  Either way it is one line and `Trip()` reads the rest off the trip."
+            " Neither, and the host spends a whole further model turn redrawing the"
+            " panel after your answer has landed — measured at 18.4s after a fare"
+            " was chosen and 29.6s after a stay."
+            if panel_stale and surface == "inline"
+            else ""
+        ),
         "## The trip so far",
         describe_trip(trip, today, surface),
     ]

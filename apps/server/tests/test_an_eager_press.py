@@ -84,3 +84,106 @@ class TestTheSessionIsWrittenAsTheTripMoves:
         relay = source[source.index("async for event in run_turn(turn):") :]
         assert 'if event["type"] == "trip"' in relay
         assert "sessions.save(session_id, trip=event[\"trip\"])" in relay
+
+
+class TestAPressGetsItsPanelRowStraightAway:
+    """The replay fires on the press that added the row, not a turn later.
+
+    `panels()` asks "is the panel drawn for a different set of rows than the
+    trip now has". The baseline has to be what the *panel* was drawn for —
+    `request.shape`, the receipt the client sends back. Baselining on the trip
+    instead reads it after the press has already been committed, so the one
+    change the replay exists for is invisible and it never fires.
+    """
+
+    def test_the_baseline_is_what_the_panel_was_drawn_for(self) -> None:
+        import inspect
+
+        from travel_a2ui.doors.interactions import turn as door
+
+        body = inspect.getsource(door.run_turn)
+        start = body.index("shape_was = ")
+        assigned = body[start : body.index("\n", start)]
+        assert "request.shape" in assigned, (
+            "the replay is baselined on the trip, so a press's own row never "
+            f"triggers it: {assigned.strip()}"
+        )
+
+    def test_and_a_press_that_adds_a_row_replays_the_panel(self) -> None:
+        """End to end through the turn loop: press a fare, watch the panel gain its row."""
+        from test_interactions import SURFACE, FakeModel, base  # noqa: PLC0415
+        from travel_a2ui.brain import trip as model
+        from travel_a2ui.brain.finishing import STANDING_SURFACES
+        from travel_a2ui.doors.interactions.press import SurfaceAction
+
+        composed = 'surface("sidebar")\npanel = Trip("Trip to Berlin")\nroot = Column([panel])'
+        before = {
+            "origin": "CPH",
+            "destination": "Berlin",
+            "startDate": "2026-11-09",
+            "endDate": "2026-11-12",
+            "travelers": 2,
+        }
+        request = base(
+            trip=before,
+            client=FakeModel([([SURFACE], [])]),
+            action=SurfaceAction(
+                name="select_flight",
+                surface_id="inline-2",
+                context={
+                    "id": "EW8405",
+                    "price": 74,
+                    "airline": "Eurowings",
+                    "departTime": "10:45",
+                    "arriveTime": "12:15",
+                },
+            ),
+        )
+        # The panel as it stands: drawn for a trip with no fare chosen.
+        request.shape = model.decision_shape(model.normalize(before))
+        request.panels = {"sidebar": composed}
+
+        events = _events(request)
+        panel = [
+            event
+            for event in events
+            if event.get("type") == "ui" and event.get("surfaceId") in STANDING_SURFACES
+        ]
+        assert panel, "the panel was never redrawn for the row the press added"
+        kinds = [
+            component["component"]
+            for event in panel
+            for message in event["messages"]
+            if message.get("createSurface")
+            for component in message["createSurface"]["components"]
+        ]
+        assert "FlightOption" in kinds, f"the replayed panel has no fare row: {kinds}"
+
+    def test_but_not_when_the_panel_is_already_current(self) -> None:
+        """A price or a date moving is data. Replaying components for it is waste."""
+        from test_interactions import SURFACE, FakeModel, base  # noqa: PLC0415
+        from travel_a2ui.brain import trip as model
+        from travel_a2ui.brain.finishing import STANDING_SURFACES
+
+        settled = {
+            "origin": "CPH",
+            "destination": "Berlin",
+            "startDate": "2026-11-09",
+            "endDate": "2026-11-12",
+            "travelers": 2,
+        }
+        request = base(trip=settled, client=FakeModel([([SURFACE], [])]), message="who else is coming?")
+        request.shape = model.decision_shape(model.normalize(settled))
+        request.panels = {
+            "sidebar": 'surface("sidebar")\npanel = Trip("Trip to Berlin")\nroot = Column([panel])'
+        }
+
+        events = _events(request)
+        redrawn = [
+            event
+            for event in events
+            if event.get("type") == "ui"
+            and event.get("surfaceId") in STANDING_SURFACES
+            and any(message.get("createSurface") for message in event["messages"])
+        ]
+        assert not redrawn, f"the panel was replayed for a change that was only data: {redrawn}"

@@ -707,3 +707,67 @@ class TestMarkupNeverReachesTheTranscript:
     def test_prose_before_the_tag_is_still_spoken(self) -> None:
         prose, _ = through_the_gate("Two options.\n\n<HotelCard price=\"$96\" />", 5)
         assert prose.strip() == "Two options."
+
+
+class TestTheBlockIsCompiledIncrementally:
+    """What `ExpressResponseStream` buys, asserted rather than assumed.
+
+    This class used to call `parser.compile(source, is_final=False)` on every
+    delta — the whole accumulated block, recompiled from the top, several times
+    a second — and an unclosed string literal is not compilable, so a headline
+    the model was still typing showed nothing at all until it typed the closing
+    quote.
+
+    a2ui#3712 compiles the statements that have just become complete and heals
+    a string the model has not closed yet. The text now arrives as it is
+    written. The accumulation stays on this side, because `half_asked`,
+    `wrong_controls`, the validator and the macro expander all read a surface
+    rather than a delta.
+    """
+
+    def headlines(self, events) -> list[str]:
+        out: list[str] = []
+        for event in events:
+            if not isinstance(event, Ui):
+                continue
+            for message in event.messages:
+                body = message.get("createSurface") or message.get("updateComponents") or {}
+                for node in body.get("components") or []:
+                    if node.get("component") == "Text" and isinstance(node.get("text"), str):
+                        out.append(node["text"])
+        return out
+
+    def test_a_string_still_being_typed_is_drawn_as_it_grows(self, parser):
+        chunk = stream(parser)
+        chunk.push(OPEN + "root = Column([head])\n")
+        seen: list[list[str]] = []
+        for fragment in ('head = Te', 'xt("Madr', 'id in Ap', 'ril", var', 'iant="h3")\n'):
+            seen.append(self.headlines(chunk.push(fragment)))
+
+        assert seen[0] == [], "half a constructor is not a surface"
+        assert "Madr" in seen[1][-1], seen[1]
+        assert seen[2][-1] == "Madrid in Ap", seen[2]
+        assert seen[-1][-1] == "Madrid in April", seen[-1]
+
+    def test_the_finished_block_is_whole_rather_than_the_last_fragment(self, parser):
+        """The checks downstream read a surface, not a delta."""
+        chunk = stream(parser)
+        chunk.push(
+            OPEN
+            + 'head = Text("Madrid", variant="h3")\n'
+            + 'sub = Text("Two travellers", variant="body")\n'
+        )
+        produced = chunk.push("root = Column([head, sub])\n" + CLOSE)
+
+        drawn = surfaces(produced)
+        assert drawn, "the closed block drew nothing"
+        kinds = [
+            node.get("component")
+            for message in drawn[-1].messages
+            for node in (
+                message.get("createSurface") or message.get("updateComponents") or {}
+            ).get("components")
+            or []
+        ]
+        assert kinds.count("Text") == 2, kinds
+        assert "Column" in kinds, kinds

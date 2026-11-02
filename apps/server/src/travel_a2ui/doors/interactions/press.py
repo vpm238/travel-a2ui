@@ -76,6 +76,11 @@ class TurnRequest:
     setup: str | None = None
     #: The decision shape the standing surfaces were last drawn for.
     shape: str | None = None
+    #: How the agent composed each standing surface, from the session.
+    #:
+    #: A panel re-rendered from this costs no model call. See `Session.panels`
+    #: and `panels.replayed`.
+    panels: dict[str, str] = field(default_factory=dict)
     provider: TravelProvider | None = None
     #: Injectable so a test can drive the loop from a scripted stream.
     client: Any | None = None
@@ -87,6 +92,8 @@ class TurnResult:
     trip: dict[str, Any]
     stop_reason: str | None
     shape: str | None = None
+    #: Any standing surface the agent composed this turn, to be remembered.
+    panels: dict[str, str] = field(default_factory=dict)
     #: The setup this conversation is bound to. See `TurnRequest.setup`.
     setup: str | None = None
 
@@ -129,6 +136,87 @@ def _commit(saved: dict[str, Any], proposed: dict[str, Any], today: str) -> tupl
     return model.sieve(saved, proposed, today)
 
 
+#: What a press carries, named as the trip field it belongs in.
+#:
+#: Per press, because `id` and `price` mean different fields depending on what
+#: was pressed: a fare's id is `selectedFlight` and a stay's is
+#: `selectedHotel`. One shared mapping told a traveller choosing a hotel to
+#: save it as a flight.
+#:
+#: Spelling it out at all is the point. This sentence used to say "whatever it
+#: settled belongs on `legs[N]`", and the model read "it settled" as the flight
+#: id: `legs[0].selectedFlight` landed every time; `airline`, `departTime` and
+#: `arriveTime` never did, through two live runs and two rewrites of the same
+#: rule in the brief and in `save_trip`'s argument descriptions.
+_SAVES_AS: dict[str, tuple[tuple[str, str], ...]] = {
+    "select_flight": (
+        ("id", "selectedFlight"),
+        ("price", "flightPrice"),
+        ("airline", "airline"),
+        ("departTime", "departTime"),
+        ("arriveTime", "arriveTime"),
+    ),
+    "select_hotel": (
+        ("id", "selectedHotel"),
+        ("name", "hotelName"),
+        ("price", "nightlyPrice"),
+    ),
+}
+
+
+def _belongs_on_the_leg(name: str, context: dict[str, Any]) -> str:
+    """The press's own fields, named as the trip names them.
+
+    Checked against the trip's field table, so a field added for the panel to
+    read cannot be left out of the sentence that says where to put it.
+    """
+    said = []
+    for context_key, trip_key in _SAVES_AS.get(name, ()):
+        if context_key in (context or {}) and trip_key in model.TRIP_KEYS:
+            said.append(trip_key if context_key == trip_key else f"{trip_key} (`{context_key}`)")
+    if not said:
+        return ""
+    spelled = ", ".join(f"`{one}`" if "(" not in one else one for one in said)
+    return f" That means {spelled}."
+
+
+def as_trip_fields(action: SurfaceAction | None) -> dict[str, Any]:
+    """A press's context under the trip's own field names.
+
+    A fare card's context is `{id, price, airline, departTime, arriveTime}`,
+    because those are the row's names. The trip calls the first two
+    `selectedFlight` and `flightPrice`, so `normalize` — which keeps trip fields
+    and drops everything else — threw them away, and recording the choice was
+    left to the model noticing and calling `save_trip`.
+
+    Which it does by halves. Measured through Chromium, on the hop that is not
+    the first: `selectedFlight` and `flightPrice` landed on the leg and
+    `airline`, `departTime` and `arriveTime` did not, so the panel's return row
+    read `SK / SK6955 / BER / Copenhagen / €71.00` against an outbound row
+    carrying the airline, the flight number and both times. Three rewrites of
+    that rule — in the brief, in `save_trip`'s argument descriptions, and in the
+    sentence this file builds for the press — did not move it.
+
+    So the host does it. A press is a fact, which is this module's whole premise:
+    "a value somebody typed is a fact, and should not wait on the model noticing
+    and calling `save_trip`." `_SAVES_AS` already said which trip field each of
+    the press's keys belongs in — it was only being used to *describe* the press
+    to the model. Using it to record the press as well costs nothing and removes
+    the inference.
+
+    The model is still told what happened and still saves what it likes; this
+    just means the panel does not depend on it getting all five right.
+    """
+    if action is None:
+        return {}
+    context = action.context or {}
+    renamed: dict[str, Any] = {}
+    for context_key, trip_key in _SAVES_AS.get(action.name, ()):
+        if context_key in context and context[context_key] is not None:
+            renamed[trip_key] = context[context_key]
+    return renamed
+
+
 def describe_action(action: SurfaceAction) -> str:
     """What the model is told when someone presses something.
 
@@ -168,11 +256,23 @@ def describe_action(action: SurfaceAction) -> str:
     # than on the trip's own field, which is the outbound's.
     leg = _leg_pressed(action.context)
     if leg is not None:
+        # Named, not implied.
+        #
+        # This said "whatever it settled belongs on `legs[N]`", and the model
+        # read "it settled" as the flight id: `legs[0].selectedFlight` landed
+        # every time, `airline`, `departTime` and `arriveTime` never did. Two
+        # live runs, and two rewrites of the same rule in the brief and in
+        # `save_trip`'s argument descriptions, neither of which moved it.
+        #
+        # The host knows exactly which facts the press carries, because the
+        # macro put them in the context. So it lists them, which is the one
+        # thing a general rule cannot do.
+        fields = _belongs_on_the_leg(action.name, action.context or {})
         return (
             f"[interface] {action.name} on {where} — context {said}. "
-            f"That is hop {leg + 2}, so whatever it settled belongs on "
-            f"`legs[{leg}]` — save it there, and leave the trip's own fields "
-            "alone: those are the first hop's."
+            f"That is hop {leg + 2}, so everything it settled belongs on "
+            f"`legs[{leg}]`.{fields} Save them there, and leave the trip's own "
+            "fields alone: those are the first hop's."
         )
 
     return f"[interface] {action.name} on {where} — context {said}"

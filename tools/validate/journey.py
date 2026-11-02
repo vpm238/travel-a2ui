@@ -128,7 +128,19 @@ def pressable(
         context: dict[str, Any] = {}
         for key, value in raw.items():
             field = key.split(".")
-            if field[-1] == "path" and isinstance(value, str):
+            # `path` and `@path`, because 1.0 renamed the binding key and this
+            # tested only the old spelling. A2UI 0.9 wrote `path`; 1.0 writes
+            # `@path`, so `"id.@path".split(".")[-1]` stopped being `"path"` and
+            # every press fell through to the `else` below — the agent was handed
+            # `{"id.@path": "id", "price.@path": "price"}`, the binding names
+            # themselves rather than the fare they point at.
+            #
+            # Which is why this validator reported "0 hop(s) ticketed" on scripts
+            # the real browser walks cleanly: `tools/validate/press.mjs` pressed
+            # the same card through Chromium, recorded the flight and watched the
+            # panel gain its row. Two instruments, one of them reading its own
+            # rename as a product bug.
+            if field[-1] in ("path", "@path") and isinstance(value, str):
                 if value.startswith("/"):
                     context[field[0]] = resolve(value, trip, data)
                 else:

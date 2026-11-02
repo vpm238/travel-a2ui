@@ -68,10 +68,31 @@ def confirm(trip: Trip, fields: Iterable[str]) -> Trip:
 #: The flat fields on a trip describe its *first* hop. Everything after it
 #: keeps its own copy on its leg, which is why a second ticket has somewhere to
 #: live at all.
+#: Kept in step with what `Trip()` binds under `legs/N/`, which is the thing
+#: that actually reads them. They disagreed, and the disagreement was invisible
+#: from either side: the panel bound a hop's row to `legs/0/airline`,
+#: `legs/0/departTime` and `legs/0/arriveTime`, this list did not carry them, so
+#: `onto_leg` dropped all three on their way in and the row had nothing to draw.
+#: Measured through Chromium, the return hop's row read
+#:
+#:     BER → Copenhagen / SK / SK6955 / BER / Copenhagen / €71.00 / Economy
+#:
+#: against an outbound row carrying the airline, the flight number and both
+#: times. It was read as the model failing to save them — the brief,
+#: `save_trip`'s argument descriptions and the press's own sentence were each
+#: rewritten to insist on it — and none of that could ever have worked, because
+#: the field was discarded one layer below wherever it was written.
+#:
+#: `test_every_binding_a_hop_draws_is_a_field_a_hop_owns` holds the two lists
+#: together now.
 LEG_OWNED: tuple[str, ...] = (
     "selectedFlight",
     "flightPrice",
+    "airline",
+    "departTime",
+    "arriveTime",
     "selectedHotel",
+    "hotelName",
     "nightlyPrice",
     "startDate",
     "endDate",

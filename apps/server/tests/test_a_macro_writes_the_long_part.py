@@ -426,3 +426,148 @@ class TestAHopHoweverTheModelSpellsIt:
     def test_the_list_still_draws_when_the_hop_makes_no_sense(self) -> None:
         """Losing the hop is bad. Losing the whole card is worse."""
         assert self.context('"later"') == self.context('""')
+
+
+class TestThePanelShowsMoneyAsMoney:
+    """`69` is not a price, and the fare list beside it said `€69`.
+
+    A `money` field is kept as a number because a total is arithmetic; the
+    provider quotes a display string. Bound straight in, the panel therefore
+    rendered the number — a trip whose cards had finally filled in still read
+    "SAS SK8495 … 69". `formatCurrency` is in the catalog and the renderer
+    implements it, so the panel formats what it has rather than the app keeping
+    a second, pre-formatted copy that something has to hold in step.
+    """
+
+    SETTLED = {
+        "destination": "Berlin",
+        "origin": "CPH",
+        "selectedFlight": "SK8495",
+        "flightPrice": 69,
+        "needsStay": True,
+        "selectedHotel": "h1",
+        "hotelName": "Pension Savignyplatz",
+        "nightlyPrice": 112,
+    }
+
+    def panel(self, currency: str = "EUR") -> list[dict[str, Any]]:
+        from travel_a2ui.brain.express import as_wire
+        from travel_a2ui.brain.macros import expand
+
+        source = 'panel = Trip("Your trip")\nroot = Column([panel])'
+        wire = as_wire(
+            expand(parser_for("sidebar").compile(source, is_final=True), self.SETTLED, {}, currency)
+        )
+        return wire[0]["createSurface"]["components"]
+
+    def test_a_fare_is_drawn_through_format_currency(self) -> None:
+        fare = next(n for n in self.panel() if n["component"] == "FlightOption")
+        assert fare["price"]["@call"] == "formatCurrency"
+        assert fare["price"]["args"]["value"] == {"@path": "/trip/flightPrice"}
+        assert fare["price"]["args"]["currency"] == "EUR"
+
+    def test_and_so_is_a_stay(self) -> None:
+        stay = next(n for n in self.panel() if n["component"] == "HotelCard")
+        assert stay["price"]["@call"] == "formatCurrency"
+        assert stay["price"]["args"]["value"] == {"@path": "/trip/nightlyPrice"}
+
+    def test_the_code_follows_the_turn(self) -> None:
+        fare = next(n for n in self.panel("JPY") if n["component"] == "FlightOption")
+        assert fare["price"]["args"]["currency"] == "JPY"
+
+    def test_the_amount_is_still_bound_rather_than_written_in(self) -> None:
+        """A price the host wrote out is a price that cannot change."""
+        import json
+
+        drawn = json.dumps(self.panel())
+        assert '"69"' not in drawn and ": 69" not in drawn
+
+
+class TestWhichCurrencyATripIsIn:
+    def rows(self) -> list[dict[str, Any]]:
+        return [
+            {"city": "Berlin", "airport": "BER", "currency": "EUR"},
+            {"city": "Tokyo", "airport": "HND", "currency": "JPY"},
+        ]
+
+    def test_by_city_or_by_airport(self) -> None:
+        from travel_a2ui.brain.macros import currency_for
+
+        assert currency_for(self.rows(), {"destination": "Berlin"}) == "EUR"
+        assert currency_for(self.rows(), {"destination": "BER"}) == "EUR"
+        assert currency_for(self.rows(), {"destination": "tokyo"}) == "JPY"
+
+    def test_dollars_when_nothing_is_settled(self) -> None:
+        from travel_a2ui.brain.macros import currency_for
+
+        assert currency_for(self.rows(), {}) == "USD"
+        assert currency_for(self.rows(), {"destination": "Atlantis"}) == "USD"
+        assert currency_for([], {"destination": "Berlin"}) == "USD"
+
+    def test_the_trips_destination_and_not_the_hop_being_priced(self) -> None:
+        """The subtlety `_trip_currency` documents, held here too.
+
+        Pricing the way home calls `search_flights` with `destination: "CPH"`.
+        A currency read off *that* comes back as kroner for the return of a
+        Berlin trip whose outbound and hotel are both in euros.
+        """
+        from travel_a2ui.brain.macros import currency_for
+
+        berlin_trip = {"destination": "Berlin", "legs": [{"destination": "Copenhagen"}]}
+        assert currency_for(self.rows(), berlin_trip) == "EUR"
+
+
+class TestWhichHopAFareListIsFor:
+    """The hop reaches the press from the path when the number is omitted.
+
+    `Flights(…, selected="/trip/legs/0/selectedFlight")` is a list of fares for
+    hop two whether or not `hop=2` was also passed — and measured, the agent
+    passes the path and omits the number. A whole browser walkthrough recorded
+    `"hop": 2` zero times while binding `selected` to a leg every time.
+
+    That matters beyond tidiness: without the hop the press lands saying
+    nothing about which leg it settled, so the sentence telling the agent to
+    put the airline and the times on `legs[0]` never fires. The fix for that
+    was right and simply never reached.
+    """
+
+    def context(self, source: str) -> dict[str, Any]:
+        node = next(
+            n for n in drawn(source, trip={}) if n.get("component") in ("FlightOption", "HotelCard")
+        )
+        return node["action"]["event"]["context"]
+
+    def test_a_leg_path_is_enough(self) -> None:
+        got = self.context(
+            'rows = Flights("Back", "/trip/legs/0/selectedFlight")\nroot = Column([rows])'
+        )
+        assert got["hop"] == 2
+
+    def test_a_later_leg_too(self) -> None:
+        got = self.context(
+            'rows = Flights("Third", "/trip/legs/1/selectedFlight")\nroot = Column([rows])'
+        )
+        assert got["hop"] == 3
+
+    def test_a_stay_list_reads_it_the_same_way(self) -> None:
+        got = self.context(
+            'rows = Stays("Stops", "/trip/legs/0/selectedHotel")\nroot = Column([rows])'
+        )
+        assert got["hop"] == 2
+
+    def test_the_trips_own_path_is_hop_one_and_says_nothing(self) -> None:
+        """Hop one is the trip's own fields; naming it sends the press to `legs[-1]`."""
+        got = self.context(
+            'rows = Flights("Out", "/trip/selectedFlight")\nroot = Column([rows])'
+        )
+        assert "hop" not in got
+
+    def test_an_explicit_hop_still_wins(self) -> None:
+        got = self.context(
+            'rows = Flights("Back", "/trip/legs/0/selectedFlight", 2)\nroot = Column([rows])'
+        )
+        assert got["hop"] == 2
+
+    def test_and_no_selected_path_at_all_is_still_a_list(self) -> None:
+        got = self.context('rows = Flights("Fares")\nroot = Column([rows])')
+        assert "hop" not in got

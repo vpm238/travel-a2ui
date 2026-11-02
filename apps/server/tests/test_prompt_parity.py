@@ -103,7 +103,9 @@ def test_the_stable_half_comes_first() -> None:
     regression that survives a review.
     """
     prompt = build("ready / inline")
-    assert prompt.index(skills.ROLE) == 0
+    # `_for_channel`, because the briefs carry `draws:express` fences and the
+    # assembler strips the markers on its way in. See `_EXPRESS_ONLY`.
+    assert prompt.index(skills._for_channel(skills.ROLE, "express")) == 0
     assert prompt.index("## The trip so far") > prompt.index(skills.SURFACE_BRIEFS["inline"])
     assert prompt.index(skills.SURFACE_BRIEFS["inline"]) > prompt.index("## Make the surface")
 

@@ -330,6 +330,10 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
         effort=str(body.get("effort") or DEFAULT_EFFORT),
         shape=_resumed(body, "shape") or session.shape,
         setup=_resumed(body, "setup") or session.setup,
+        # Server-side only, deliberately. How the agent composed the panel is
+        # not something a client should have to carry, and a client that made one
+        # up would be composing the panel. See `Session.panels`.
+        panels=dict(session.panels),
         # What day it is where they are. The container is in UTC, and a trip is
         # planned in the calendar the traveller is holding.
         client_hints=body.get("client") if isinstance(body.get("client"), dict) else None,
@@ -400,6 +404,7 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
                     trip=result.trip,
                     shape=result.shape,
                     setup=result.setup,
+                    panels=result.panels,
                 )
                 continue
             # The trip, written down the moment it moves.

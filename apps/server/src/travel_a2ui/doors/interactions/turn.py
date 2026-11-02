@@ -37,17 +37,20 @@ from ...brain.promises import TYPED_NUDGE, promised
 from ...brain.providers.fixture import FixtureProvider
 from ...brain.macros import (
     airport_choices,
-    panel_redraw,
+    currency_for,
     clear_rows,
     closing_express,
     expand as expand_macros,
     file_rows,
     landing_for,
     opening_express,
+    panel_composition,
+    replay,
     rows_in,
     seed_rows,
+    without_the_rows,
 )
-from ...brain.skills import build_prompt_parts
+from ...brain.skills import build_prompt_parts, panel_is_stale
 from ...brain.finishing import (
     STANDING_SURFACES,
     finish,
@@ -64,6 +67,7 @@ from .press import (
     _commit,
     _leg_pressed,
     _party_paths,
+    as_trip_fields,
     describe_action,
 )
 
@@ -87,7 +91,16 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     # disagree, and the surrounding data model fills in anything the traveller
     # set that no binding named.
     from_surface = model.normalize((request.action.data_model or {}).get("trip") if request.action else None)
-    from_context = model.normalize(request.action.context if request.action else None)
+    # The press's own keys, plus the ones that are the trip's under another name.
+    #
+    # A fare's context says `id` and `price`; the trip says `selectedFlight` and
+    # `flightPrice`, so normalising alone dropped them and recording the choice
+    # fell to the model. See `as_trip_fields` for what that cost on the return
+    # hop.
+    from_context = {
+        **model.normalize(request.action.context if request.action else None),
+        **model.normalize(as_trip_fields(request.action)),
+    }
 
     # Which hop was pressed, when the press says so.
     #
@@ -105,36 +118,61 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         )
     trip, refused = _commit(request.trip, proposed, today)
 
-    # The standing panels, brought up to date in the one way that is correct for
-    # what changed.
+    # The standing panels, brought up to date with what changed — which is data,
+    # and only ever data.
     #
     # Data is enough while the panel's rows stay the same: every value on
     # `Trip()` is bound, so a price or a date arrives as `updateDataModel` and
     # costs nothing. A *new* row is not data — it is a component, and
     # `updateDataModel` cannot add one. Rows became conditional so that a panel
     # shows what is settled rather than a card shimmering at a decision nobody
-    # has made, and the cost was that each row's first appearance waited for
-    # somebody to redraw the panel. The only thing that did was the client
-    # asking, after the answering turn: 9.7s after a fare was pressed, 59.4s
-    # after a stay, because the turn that answers a stay is the itinerary.
+    # has made, and the cost was that each row's first appearance needs the panel
+    # drawn again.
     #
-    # `decision_shape` is exactly "which rows does this panel have", so when it
-    # moves, the host re-expands the macro the panel is made of. Still no model
-    # call — see `panel_redraw`.
-    shape_was = model.decision_shape(trip)
+    # The host used to do that itself, re-expanding `Trip()` whenever
+    # `decision_shape` moved. It was fast — 0.1s after a fare was pressed — and
+    # it was the wrong shape: every other surface in this app goes up because
+    # the agent asked for it, and that one went up because the host decided the
+    # panel was stale. So it is gone, and the agent is *told* the panel's rows
+    # are behind (see `panel_is_stale` in the prompt) and draws it in the turn it
+    # is already answering — the sidebar being the one surface a block may
+    # address by name, which `on_its_own_surface` exists to allow.
+    #
+    # It does not take the hint. Measured over a full walk through Chromium with
+    # the hint in the turn's notes, `Trip` offered on `save_trip`'s `draw`, and
+    # the brief saying to write the block first: zero times. Every panel move
+    # came from the client asking for a `sidebar` turn of its own once the answer
+    # had landed — one model call, 4 to 6 seconds, and 18.4s after a fare was
+    # pressed or 29.6s after a stay by the time the turn it waits for is over.
+    #
+    # So the host re-renders what the agent already composed. The agent's own
+    # block, addressed to the panel in its own words, kept on the session and
+    # compiled again against the record as it stands — which is the same
+    # interface drawn from newer facts, not an interface the host chose. No model
+    # call, and nothing to ignore. See `panel_composition` and `replay`.
+    # Against the shape the *panel* was last drawn for, not the trip's shape
+    # after the commit above. The press is what adds the row, and the commit has
+    # already happened by the time this is read — so baselining on the trip makes
+    # the press's own change invisible and the replay never fires for the one
+    # thing it exists for. `request.shape` is what the panel on screen is drawn
+    # for, which is the question being asked.
+    shape_was = request.shape
 
     def panels() -> list[dict[str, Any]]:
         nonlocal shape_was
         out: list[dict[str, Any]] = list(panel_events(trip))
         shape_now = model.decision_shape(trip)
-        if shape_now != shape_was:
-            shape_was = shape_now
-            for surface in STANDING_SURFACES:
-                drawn = panel_redraw(trip, surface, PROTOCOL_VERSION)
-                if drawn:
-                    out.append(
-                        {"type": "ui", "surfaceId": surface, "messages": drawn, "done": True}
-                    )
+        if shape_now == shape_was:
+            # Every value on the panel is bound, so a price or a date arriving is
+            # data and costs nobody anything. Only the *shape* needs components.
+            return out
+        shape_was = shape_now
+        for surface, source in (request.panels or {}).items():
+            drawn = replay(source, trip, surface, PROTOCOL_VERSION)
+            if drawn:
+                out.append(
+                    {"type": "ui", "surfaceId": surface, "messages": drawn, "done": True}
+                )
         return out
 
     # Pressing a button *is* saying so. Whatever the surface sent stops being a
@@ -265,6 +303,10 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         catalog_id=CATALOG_ID,
         trip=trip,
         today=today,
+        # Against the trip as it stands *after* the press was committed, which is
+        # the point: the press is what moved the shape, and this turn is the one
+        # that can draw the new row for nothing. See `panel_is_stale`.
+        panel_stale=panel_is_stale(request.shape, trip),
     )
 
     # A conversation is bound to the setup it started with. Change the skill
@@ -357,6 +399,15 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     #: function response turn comes immediately after a function call turn".
     #: Seen exactly that way: search_hotels, save_trip, restart, 400.
     dispatched_a_tool = False
+    #: Everything the model wrote this turn, blocks included.
+    #:
+    #: The split stream deliberately does not carry this: `Text` is the prose
+    #: with the Express taken out, and `Ui` is the Express after it compiled. For
+    #: a standing surface the *source* is what is worth keeping — `panel =
+    #: Trip("Your trip to Madrid")` re-renders against whatever the trip says
+    #: next, where the messages it compiled to are a snapshot of the record at
+    #: the moment it was written. See `panel_composition`.
+    raw: list[str] = []
     retried_promise = False
     #: A surface that drew but left the traveller nothing to answer.
     thin: str | None = None
@@ -379,9 +430,13 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # catalogue calls, and `ChoicePicker.options` is static in the schema,
         # so the choices have to be in hand when the macro expands.
         try:
-            airports = airport_choices(await provider.origins(), await provider.destinations())
+            where_to = await provider.destinations()
+            airports = airport_choices(await provider.origins(), where_to)
+            # Off the same list, so the panel says "€69" rather than "69"
+            # without a second call to find out which currency that is.
+            currency = currency_for(where_to, trip)
         except Exception:  # noqa: BLE001 - a picker nobody can fill is not a dead turn
-            airports = {}
+            airports, currency = {}, "USD"
 
         stream = ExpressStream(
             parser=parser_for(request.surface_id),
@@ -389,6 +444,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             validator=VALIDATOR,
             required=REQUIRED_PROPERTIES,
             airports=airports,
+            currency=currency,
             # And a party asked per hop has to be asked of every hop: a route
             # of three asked about twice is a hop flying home with a party
             # nobody confirmed. See `half_asked`.
@@ -512,6 +568,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 client=request.client,
             ):
                 if event["type"] == "text":
+                    raw.append(event["delta"])
                     for out in rendered(stream.push(event["delta"]), "stream"):
                         yield out
                 elif event["type"] == "restart":
@@ -527,6 +584,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         trip=trip,
                         required=REQUIRED_PROPERTIES,
                         airports=airports,
+                        currency=currency,
                                 )
                     gate = FenceGate()
                     spoken = ""
@@ -751,7 +809,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 try:
                     drawn_now = as_wire(
                         expand_macros(
-                            parser_for(request.surface_id).compile(opening, is_final=True), trip, airports
+                            parser_for(request.surface_id).compile(opening, is_final=True), trip, airports, currency
                         )
                     )
                 except Exception as why:  # noqa: BLE001 - a bad `draw` must not cost the turn
@@ -877,6 +935,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                                 parser_for(request.surface_id).compile(closing, is_final=True),
                                 trip,
                                 airports,
+                                currency,
                             )
                         )
                     except Exception as why:  # noqa: BLE001 - a bad `draw` must not cost the turn
@@ -893,29 +952,39 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         }
                         on_screen = closing
 
-            payload: dict[str, Any] = dict(output) if isinstance(output, dict) else {"result": output}
+            # Where the rows are, not what they say.
+            #
+            # This note used to read "Do not draw this surface again", because
+            # the host had drawn the cards itself and a block from the model
+            # landed over them and blanked the list. Telling the agent the
+            # address instead fixes the same collision from the other side: its
+            # tree points at the rows the host filed, and the cards are its own.
+            #
+            # And now the rows go with it. Telling the agent not to re-type four
+            # fares while handing it the four fares was asking it to ignore the
+            # largest thing in its context — so they are withheld instead, and
+            # this sentence is what it gets in their place. See
+            # `without_the_rows`.
+            #
+            # Only when they were filed, which `drawn` is exactly the test for.
+            # Withholding rows that never reached the data model would leave
+            # nobody holding them: the macro has nothing to bind to and the
+            # agent has nothing to fall back on. Filed or handed over, never
+            # neither.
+            reads_them = (
+                f"They are in the data model of surface {drawn['surfaceId']} at "
+                f"{drawn['path']}; draw them with "
+                f"`{'Flights' if drawn['path'] == '/flights' else 'Stays'}()`, one "
+                "macro bound to them."
+                if drawn
+                else ""
+            )
+            summarized = without_the_rows(call.name, output, reads_them) if drawn else output
+            payload: dict[str, Any] = (
+                dict(summarized) if isinstance(summarized, dict) else {"result": summarized}
+            )
             if drawn:
-                # Where they are, not what they say.
-                #
-                # This note used to read "Do not draw this surface again",
-                # because the host had drawn the cards itself and a block from
-                # the model landed over them and blanked the list. Telling the
-                # agent the address instead fixes the same collision from the
-                # other side: its tree points at the rows the host filed, and
-                # the cards are its own.
-                #
-                # It also stops the agent re-typing four fares it was just
-                # handed, which is the single largest thing it writes.
-                payload["rowsOnScreen"] = {
-                    **drawn,
-                    "note": (
-                        f"These {drawn['rows']} rows are in the data model of surface "
-                        f"{drawn['surfaceId']} at {drawn['path']}. Draw them with "
-                        f"`{'Flights' if drawn['path'] == '/flights' else 'Stays'}()` "
-                        "— one macro, bound to them — and never re-type what a "
-                        "lookup returned."
-                    ),
-                }
+                payload["rowsOnScreen"] = drawn
             if on_screen:
                 # The card is up. Saying so is the point of drawing it here: the
                 # round this saves is the one the agent would otherwise spend
@@ -1046,6 +1115,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             stop_reason=stop_reason,
             shape=request.shape,
             setup=setup,
+            panels=panel_composition("".join(raw), STANDING_SURFACES),
         ),
     }
 
@@ -1097,6 +1167,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             stop_reason=stop_reason,
             shape=shape,
             setup=setup,
+            panels=panel_composition("".join(raw), STANDING_SURFACES),
         ),
     }
 

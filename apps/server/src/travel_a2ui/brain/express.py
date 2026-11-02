@@ -399,11 +399,19 @@ class ExpressStream:
     #: The airports `Ask()` offers, because `ChoicePicker.options` is static in
     #: the schema and so has to be known when the macro expands.
     airports: dict[str, list[dict[str, str]]] = field(default_factory=dict)
+    #: The ISO code this trip's money is quoted in, for the panel's
+    #: `formatCurrency`. See `macros.currency_for`.
+    currency: str = "USD"
     _buffer: str = ""
     _inside: bool = False
     _block_source: str = ""
     _block_index: int = -1
     _last_emitted: str = ""
+    #: The SDK's incremental compiler for the block being written, and how much
+    #: of it has been handed over. See `_messages_so_far`.
+    _sdk: Any = None
+    _fed: int = 0
+    _so_far: list[Any] = field(default_factory=list)
     _events: list[StreamEvent] = field(default_factory=list)
 
     def push(self, chunk: str) -> list[StreamEvent]:
@@ -431,6 +439,7 @@ class ExpressStream:
                 self._block_index += 1
                 self._block_source = ""
                 self._last_emitted = ""
+                self._open_a_compiler()
                 continue
 
             closing = _first_tag(self._buffer, _CLOSE, "</a2ui")
@@ -477,6 +486,57 @@ class ExpressStream:
         events.extend(self.end())
         return events
 
+    def _open_a_compiler(self) -> None:
+        """A fresh incremental compiler for the block that just opened."""
+        self._fed = 0
+        self._so_far = []
+        try:
+            self._sdk = self.parser.open_stream()
+        except Exception:  # noqa: BLE001 - an SDK without streaming is not a dead turn
+            self._sdk = None
+        if self._sdk is not None:
+            # The SDK's stream scans for the sentinel tags itself, and this
+            # class has already stripped them — along with the markdown fences
+            # a model sometimes wraps them in, which the SDK knows nothing
+            # about. So it is handed a synthetic opening tag and the block's
+            # text after it.
+            self._swallow(self._sdk.feed(A2UI_INFERENCE_OPEN_TAG))
+
+    def _swallow(self, parts: Any) -> None:
+        """Keep the messages a part carries, in the order they arrived."""
+        for part in parts or ():
+            self._so_far.extend(getattr(part, "a2ui", None) or [])
+
+    def _messages_so_far(self, source: str, *, done: bool) -> Any:
+        """The block compiled, by handing the SDK only what is new.
+
+        This used to be `self.parser.compile(source, is_final=done)` on every
+        delta — the whole accumulated block, recompiled from the top, a few
+        times a second. `ExpressResponseStream` (a2ui#3712) compiles the
+        statements that have just become complete instead, heals a string
+        literal the model has not closed yet, and holds a component whose value
+        variable is still a few tokens away.
+
+        What it returns is still the *whole* block, accumulated here rather
+        than recompiled there. That is deliberate: `half_asked`,
+        `wrong_controls`, the validator and the macro expander all read a
+        surface, not a delta, and a stream that handed them the last fragment
+        would quietly stop checking the rest.
+        """
+        if self._sdk is None:
+            return self.parser.compile(source, is_final=done)
+        fresh = source[self._fed :]
+        self._fed = len(source)
+        if fresh:
+            self._swallow(self._sdk.feed(fresh))
+        if done:
+            # `close()` on a stream still inside a block raises, by contract.
+            # Ours is always inside one: this class owns the tags.
+            self._swallow(self._sdk.feed(A2UI_INFERENCE_CLOSE_TAG))
+            self._swallow(self._sdk.close())
+            self._sdk = None
+        return list(self._so_far)
+
     def _compile(self, *, done: bool) -> StreamEvent | None:
         source = self._block_source
         if not source.strip():
@@ -501,7 +561,15 @@ class ExpressStream:
                         "use one of them or compose from Row, Column and Text."
                     )
             try:
-                compiled = self.parser.compile(source, is_final=done)
+                compiled = self._messages_so_far(source, done=done)
+                if not done and not compiled:
+                    # Nothing compiles yet — `head = Text(` is half a
+                    # constructor. The old compiler said so by raising, which
+                    # the handler below turned into silence; the SDK's stream
+                    # says so by returning no messages, and silence is still
+                    # the right answer. An empty `Ui` is a surface with
+                    # nothing on it, and the client would draw it.
+                    return None
             except Exception as refused:
                 # The compiler checks required properties itself since
                 # agent-sdk 0.9, which it did not before — so this failure now
@@ -516,7 +584,7 @@ class ExpressStream:
             # ever sees. Expanded here, before the checks below and before
             # anything else reads this tree, so every pass sees the real
             # components and none of them has to know macros exist.
-            messages = as_wire(expand_macros(compiled, self.trip, self.airports))
+            messages = as_wire(expand_macros(compiled, self.trip, self.airports, self.currency))
             # Only on a finished block. A tree still being written legitimately
             # refers to components a few tokens away from existing, and calling
             # that an error would reject every surface mid-stream.

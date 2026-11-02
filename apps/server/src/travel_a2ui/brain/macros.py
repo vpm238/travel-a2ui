@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import contextvars
 import json
+import re
 from typing import Any, Optional, Sequence
 
 from a2ui.builder.core import ComponentBuilderNode
@@ -69,26 +70,41 @@ _AIRPORTS: contextvars.ContextVar[dict[str, list[dict[str, str]]]] = contextvars
     "airports", default={}
 )
 
+#: The ISO code this turn's money is quoted in. See `currency_for`.
+#:
+#: Here for the same reason the airports are: `formatCurrency` takes the code
+#: as an argument, and a macro expanding against the record has to know it when
+#: it writes the call, not when the surface renders.
+_CURRENCY: contextvars.ContextVar[str] = contextvars.ContextVar("currency", default="USD")
+
 
 class for_trip:
     """Expand this turn's macros against this trip, and this deployment's airports."""
 
     def __init__(
-        self, trip: dict[str, Any], airports: dict[str, list[dict[str, str]]] | None = None
+        self,
+        trip: dict[str, Any],
+        airports: dict[str, list[dict[str, str]]] | None = None,
+        currency: str | None = None,
     ) -> None:
         # The dict itself, not a copy: a turn mutates its trip in place as
         # tools run, and a macro has to see the `days` that `save_trip` wrote
         # a moment ago rather than the trip as it was when the turn began.
         self._trip = trip if isinstance(trip, dict) else {}
         self._airports = airports if isinstance(airports, dict) else {}
+        self._currency = str(currency or "USD")
         self._tokens: list[Any] = []
 
     def __enter__(self) -> "for_trip":
-        self._tokens = [_TRIP.set(self._trip), _AIRPORTS.set(self._airports)]
+        self._tokens = [
+            _TRIP.set(self._trip),
+            _AIRPORTS.set(self._airports),
+            _CURRENCY.set(self._currency),
+        ]
         return self
 
     def __exit__(self, *_: Any) -> None:
-        for var, token in zip((_TRIP, _AIRPORTS), self._tokens):
+        for var, token in zip((_TRIP, _AIRPORTS, _CURRENCY), self._tokens):
             var.reset(token)
 
 
@@ -291,6 +307,22 @@ def _reads(*fields: str) -> dict[str, Any]:
     return {"label": {"@call": "formatString", "args": {"value": " ".join(fields)}}}
 
 
+def _hop_in(path: Any) -> Optional[int]:
+    """The hop a `selected` path is talking about, if it names a leg.
+
+    `Flights(…, selected="/trip/legs/0/selectedFlight")` is a list of fares for
+    hop two whether or not the agent also passed `hop=2`, and measured, it
+    passes the path and omits the number: a whole browser walkthrough recorded
+    `"hop": 2` zero times while binding `selected` to a leg every time.
+
+    Without the hop the press lands with nothing saying which leg it settled,
+    so the sentence that tells the agent where to put the airline and the times
+    never fires — and the fix for that was correct and simply unreached.
+    """
+    found = re.search(r"/legs/(\d+)/", str(path or ""))
+    return int(found.group(1)) + 2 if found else None
+
+
 def _hop(value: Any) -> Optional[int]:
     """Whichever hop the agent meant, as a number, or nothing.
 
@@ -313,6 +345,24 @@ def _hop(value: Any) -> Optional[int]:
     except (TypeError, ValueError):
         return None
     return int(number) if number.is_integer() else None
+
+
+def _money(path: str) -> dict[str, Any]:
+    """A stored amount, drawn with its currency.
+
+    `flightPrice` and `nightlyPrice` are `money` fields and the trip keeps them
+    as numbers, because a total is arithmetic. Bound straight into a card they
+    therefore render as `69`, while the fare list beside them says `€69` —
+    the provider quotes a display string and the record keeps a number.
+
+    `formatCurrency` is in the catalog and the renderer implements it, so the
+    panel formats the number it has rather than the app storing a second,
+    pre-formatted copy of it that something has to keep in step.
+    """
+    return {
+        "@call": "formatCurrency",
+        "args": {"value": bind(path), "currency": _CURRENCY.get()},
+    }
 
 
 def _context(hop: Any, **fields: Any) -> dict[str, Any]:
@@ -343,6 +393,7 @@ def flights(heading: str = "", selected: str = "", hop: Any = None) -> Column:
         hop: Which hop these fares are for, when it is not the first. Hop two
             is '/legs/0'; the press carries it so the fare lands on that leg.
     """
+    hop = _hop(hop) or _hop_in(selected)
     row = FlightRow(
         airline=bind("airline"),
         departTime=bind("departTime"),
@@ -409,6 +460,7 @@ def stays(heading: str = "", selected: str = "", hop: Any = None) -> Column:
             '/trip/selectedHotel'.
         hop: Which hop is staying the night, when it is not the first.
     """
+    hop = _hop(hop) or _hop_in(selected)
     row = StayRow(
         name=bind("name"),
         price=bind("price"),
@@ -528,8 +580,55 @@ DRAWN_AFTER: dict[str, dict[str, tuple[str, ...]]] = {
     "save_trip": {
         "Itinerary": ("heading",),
         "Ask": ("heading", "label"),
+        # The panel, when a decision has just given it a row it did not have.
+        #
+        # `Trip()` draws a fare row only once a fare is chosen, and a row that
+        # was not there is a component — `updateDataModel` cannot add one. So
+        # the first appearance of each row needs the panel drawn again.
+        #
+        # The host used to do that on its own whenever `decision_shape` moved.
+        # It worked and it was the wrong shape: every other surface in this app
+        # goes up because the agent asked for it, and that one went up because
+        # the host decided the panel was stale. Asking costs the agent four
+        # words in a call it was already making.
+        "Trip": ("heading",),
     },
 }
+
+#: Where a macro draws, when it is not the card this turn is answering.
+#:
+#: `Trip()` is the standing panel and belongs on the panel's surface however it
+#: was asked for — the agent naming it in `save_trip` should not put a sidebar
+#: on an inline card.
+DRAWS_ONTO = {"Trip": "sidebar"}
+
+
+def currency_for(destinations: Sequence[dict[str, Any]], trip: dict[str, Any]) -> str:
+    """The code this trip's money is quoted in, for `formatCurrency`.
+
+    Read off the destinations the door already fetched for `Ask()`'s pickers,
+    so the panel costs no extra call to say "€69" instead of "69".
+
+    The *trip's* destination and not the hop's, which is the subtlety
+    `_trip_currency` documents in `tools/answers.py`: pricing the way home
+    means calling `search_flights` with `destination: "CPH"`, and a currency
+    read off that comes back as kroner for the return of a Berlin trip whose
+    outbound and hotel are both in euros. Dollars when nothing is settled,
+    which is what every caller got before any of this existed.
+    """
+    where = str((trip or {}).get("destination") or "").strip().casefold()
+    if not where:
+        return "USD"
+    for entry in destinations or ():
+        if not isinstance(entry, dict):
+            continue
+        names = {
+            str(entry.get("city") or "").casefold(),
+            str(entry.get("airport") or "").casefold(),
+        }
+        if where in names and entry.get("currency"):
+            return str(entry["currency"])
+    return "USD"
 
 
 def airport_choices(
@@ -603,6 +702,8 @@ def _macro_call(
     if not found or not isinstance(draw, dict):
         return ""
     macro, takes = found
+    # A macro with a home of its own goes there. See `DRAWS_ONTO`.
+    surface_id = DRAWS_ONTO.get(macro, surface_id)
     # `ensure_ascii=False`, or a heading with a `·` in it — which is every
     # heading this app writes — reaches the compiler as `\u00b7`.
     def quoted(value: Any) -> str:
@@ -655,6 +756,61 @@ def closing_express(tool: str, draw: Any, surface_id: str) -> str:
     return _macro_call({tool: (wanted, takes)}, tool, draw, surface_id)
 
 
+#: An `<a2ui>` block's contents, and the surface a block addresses.
+_BLOCK = re.compile(r"<a2ui>\s*(.*?)\s*</a2ui>", re.DOTALL)
+_ADDRESSED = re.compile(r'^\s*surface\(\s*["\']([^"\']+)["\']\s*\)', re.MULTILINE)
+
+
+def panel_composition(said: str, standing: Sequence[str]) -> dict[str, str]:
+    """The Express the agent wrote for each standing surface, by surface.
+
+    Kept so that a later change to the record is a *re-render* rather than
+    another model turn. The composition is the agent's — `panel = Trip("Your
+    trip to Madrid")`, in its own words, addressed to the panel by name — and
+    re-compiling it against a trip that has moved is the same interface drawn
+    from newer facts, not a new interface the host decided on.
+
+    The source and not the compiled messages, which is the whole point: the
+    messages are a snapshot of the record at the moment the block was written,
+    and a snapshot is the thing that goes stale.
+
+    Why this is needed at all: a panel's rows are conditional, so a row's first
+    appearance is a component and bound data cannot add one. The agent is asked
+    to redraw — a hint in the turn's notes, `Trip` offered on `save_trip`'s
+    `draw`, the brief saying to write the block first — and measured over a full
+    walk it did so zero times. The composition is still its own; only the clock
+    stops depending on it.
+    """
+    found: dict[str, str] = {}
+    for block in _BLOCK.findall(said or ""):
+        addressed = _ADDRESSED.search(block)
+        if addressed and addressed.group(1) in standing:
+            found[addressed.group(1)] = block.strip()
+    return found
+
+
+def replay(source: str, trip: dict[str, Any], surface_id: str, version: str) -> list[dict[str, Any]]:
+    """One stored composition, re-rendered against the trip as it stands.
+
+    No model call: this compiles Express the agent already wrote and expands the
+    macros in it against the record. Microseconds, against the four to six
+    seconds a model takes to answer with the block it has given us once already.
+    """
+    if not source:
+        return []
+    from .catalog import parser_for
+    from .express import as_wire
+
+    try:
+        drawn = as_wire(expand(parser_for(surface_id).compile(source, is_final=True), trip))
+    except Exception:  # noqa: BLE001 - a stale panel is never worth a failed turn
+        return []
+    for message in drawn:
+        if isinstance(message, dict):
+            message.setdefault("version", version)
+    return list(drawn)
+
+
 def landing_for(tool: str) -> Optional[str]:
     """The path this lookup's rows land at, if it is one the host files."""
     found = LANDINGS.get(tool)
@@ -674,6 +830,96 @@ def rows_in(tool: str, result: Any) -> Optional[list[Any]]:
         return None
     rows = result.get(found[1])
     return rows if isinstance(rows, list) and rows else None
+
+
+#: The lookups whose rows the agent *composes* with, rather than points a macro at.
+#:
+#: `get_destination` is the one. Its rows are what a day plan is made out of: the
+#: agent reads the Prado and writes it into a morning, so taking them away would
+#: take away the material. A fare is chosen, never composed — nobody writes a
+#: flight — which is the whole difference, and the reason this is a list of one
+#: rather than a judgement call per tool.
+COMPOSED_FROM = {"get_destination"}
+
+
+#: Lookups whose rows the model is not handed, and the key they arrive under.
+#:
+#: Derived, not declared. The rule is "what the host files, the agent does not
+#: need": the rows land in the data model and a macro reads them, so `Flights()`
+#: is nine characters bound to `/flights`, a press hands back the chosen row's
+#: own fields, and the catalog already forbids writing a fare card per result.
+#: Handing the table over as well buys nothing and costs 46% of a flights result
+#: and 52% of a stay's, carried for the rest of the conversation.
+#:
+#: Derived *because* the bug this replaces was two tables disagreeing. The voice
+#: door kept its own copy that looked for `result["items"]`, a key no tool here
+#: has ever returned, so it withheld nothing for as long as it existed. A
+#: spelling cannot drift from itself.
+WITHHELD: dict[str, str] = {
+    tool: rows_key for tool, (_, rows_key) in LANDINGS.items() if tool not in COMPOSED_FROM
+}
+
+
+def without_the_rows(tool: str, result: Any, reads_them: str) -> Any:
+    """A lookup's answer with the table taken out and a summary left behind.
+
+    What replaces the rows is what the agent actually reasons with: how many
+    there are, what they cost at each end, and which is cheapest — enough to
+    say "four fares, €298 to €512" or to answer "is there a nonstop", and not
+    enough to recite. Everything that was never a row — the provenance, the
+    per-party wording, what was searched for — is kept untouched.
+
+    `reads_them` is the one sentence that differs per channel: on a text door
+    the macro reads them off the path, on the spoken door a `show_*` tool puts
+    them on screen. That is the only thing about this a channel gets to decide,
+    which is why it is an argument rather than two copies of the function.
+
+    This is not composition moving to the server. The agent still chooses the
+    tool, the surface, the heading and where the choice is recorded. It just
+    cannot narrate a table it was never handed — which is the bug this exists
+    for, measured on the spoken door as four fares read down a phone line and a
+    closing "you can see the options here" with nothing on screen at all.
+
+    Keyed off `WITHHELD`, which names the same row key `LANDINGS` files from.
+    The previous attempt at this lived on the voice door and read
+    `result["items"]`, a key no tool here has ever returned, so it passed every
+    result through untouched for as long as it existed. One table, next to the
+    filing it mirrors, is how that stops being possible.
+    """
+    key = WITHHELD.get(tool)
+    if not key or not isinstance(result, dict):
+        return result
+    rows = result.get(key)
+    if not isinstance(rows, list) or not rows:
+        return result
+
+    priced = [
+        row
+        for row in rows
+        if isinstance(row, dict) and isinstance(row.get("priceValue"), (int, float))
+    ]
+    kept = {name: value for name, value in result.items() if name != key}
+    kept["found"] = len(rows)
+    if priced:
+        cheapest = min(priced, key=lambda row: row["priceValue"])
+        dearest = max(priced, key=lambda row: row["priceValue"])
+        kept["cheapest"] = cheapest.get("price")
+        kept["dearest"] = dearest.get("price")
+        # Named, because "the cheapest is €298" is a figure and "the cheapest is
+        # TAP, one stop via Lisbon" is an answer. One row's worth of detail is
+        # affordable; the table is not.
+        named = cheapest.get("name") or " ".join(
+            str(cheapest.get(field) or "").strip()
+            for field in ("airline", "flightNumber")
+        )
+        if named.strip():
+            kept["cheapestIs"] = named.strip()
+    kept["rowsAre"] = (
+        f"The {len(rows)} results are not in this response, on purpose: a list in "
+        f"context is a list read out, and nothing here needs to read them. {reads_them} "
+        "Say one sentence about what is on screen."
+    )
+    return kept
 
 
 #: How many placeholder rows a pre-drawn list stands up while its lookup runs.
@@ -887,7 +1133,7 @@ def trip(heading: str = "") -> Column:
                     arriveTime=shown("arriveTime"),
                     origin=bind(model.binding_for(f"{prefix}origin")),
                     destination=bind(model.binding_for(f"{prefix}destination")),
-                    price=bind(model.binding_for(f"{prefix}flightPrice")),
+                    price=_money(model.binding_for(f"{prefix}flightPrice")),
                     # The panel's one editable affordance: re-open a settled
                     # decision back in the conversation. `strip_panel_actions`
                     # keeps every other kind off a panel.
@@ -913,7 +1159,7 @@ def trip(heading: str = "") -> Column:
                     # as the fare's airline above: a card bound to a name
                     # nobody recorded waits for it for ever.
                     name=shown("hotelName"),
-                    price=bind(model.binding_for(f"{prefix}nightlyPrice")),
+                    price=_money(model.binding_for(f"{prefix}nightlyPrice")),
                     action={
                         "event": {"name": "change", "context": {"what": "stay", "hop": index}}
                     },
@@ -1003,6 +1249,28 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
 
     record = _TRIP.get()
     record = record if isinstance(record, dict) else {}
+
+    def settled(key: str) -> bool:
+        """Whether this field has an answer, as opposed to merely a value.
+
+        A field the agent *assumed* has a value and is not settled, and this is
+        the difference between the two. "I want to go to Madrid in April with my
+        partner" names no dates, so the agent picks a plausible week, records it
+        as `assumed` — which is right, it is a starting point — and the form then
+        tested `record.get("startDate")`, found April 11th, and drew no date
+        control. The turn's own sentence said "let's set your exact April dates".
+        There was nowhere to set them.
+
+        So the picker is drawn, bound to the path the assumption is already in,
+        which is better than either half: they see the week the agent chose and
+        change it or press the button. Showing what was understood, and asking
+        about only the part that was guessed.
+        """
+        value = record.get(key)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return False
+        return key not in (record.get("assumed") or [])
+
     rows: list[Any] = []
     edits: list[str] = []
     if isinstance(heading, str) and heading.strip():
@@ -1034,7 +1302,7 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
         ("destination", airports.get("to") or [], "Where to"),
         ("origin", airports.get("from") or [], "Flying from"),
     ):
-        if record.get(key) or not choices:
+        if settled(key) or not choices:
             continue
         path = model.binding_for(key)
         rows.append(
@@ -1051,7 +1319,7 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
     # Dates. One range for there and back, one input per hop otherwise — a
     # range cannot say when the middle hop of a three-city route leaves, which
     # is how a four-hop trip ended up with two dates.
-    if there_and_back and not (record.get("startDate") and record.get("endDate")):
+    if there_and_back and not (settled("startDate") and settled("endDate")):
         rows.append(
             Dates(
                 label="Travel dates",
@@ -1065,7 +1333,11 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
         for hop in hops:
             index = hop.get("hop") or 0
             prefix = "" if index == 0 else f"legs/{index - 1}/"
-            if hop.get("startDate"):
+            # Hop one's date is the trip's own field, so an assumption on it is
+            # the trip's assumption. A later hop keeps its date on its leg,
+            # where `assumed` does not reach — those are asked about whenever
+            # they are blank, which is the same test either way.
+            if settled("startDate") if index == 0 else hop.get("startDate"):
                 continue
             rows.append(
                 OneDate(
@@ -1128,6 +1400,7 @@ def expand(
     messages: Any,
     trip: dict[str, Any] | None = None,
     airports: dict[str, list[dict[str, str]]] | None = None,
+    currency: str | None = None,
 ) -> Any:
     """The same messages with every macro replaced by what it stands for.
 
@@ -1149,7 +1422,7 @@ def expand(
     """
     if not any(_holds_a_macro(_as_dict(message)) for message in messages):
         return messages
-    with for_trip(trip or {}, airports):
+    with for_trip(trip or {}, airports, currency):
         return EXPANDER.transform_to_transport(list(messages))
 
 
@@ -1165,38 +1438,3 @@ def _as_dict(message: Any) -> dict[str, Any]:
         return message
     return message.model_dump(exclude_none=True, by_alias=True)
 
-
-def panel_redraw(trip: dict[str, Any], surface_id: str, version: str) -> list[dict[str, Any]]:
-    """`Trip()` expanded against this trip, as messages for a standing panel.
-
-    No model call: this compiles nine characters of Express the panel is
-    already made of and expands the macro against the record. Microseconds.
-
-    It exists because rows became conditional. `Trip()` draws a fare row only
-    once a fare is chosen, which is what a panel is for — a record of what is
-    settled, not a row shimmering at a decision nobody has made. But a row that
-    was not there is a *component*, and `updateDataModel` cannot add one. So
-    the first appearance of each row waited for the panel to be redrawn, and
-    the only thing that redrew it was the client asking after the answering
-    turn had finished: measured at 9.7s after a fare was pressed and 59.4s
-    after a stay, because the turn that answers a stay is the itinerary.
-
-    This is not the host deciding what the panel holds. `PANEL_REQUEST` asks
-    the agent for `Trip()`, the agent draws `Trip()`, and this re-expands that
-    same macro when the record moves under it. What it replaces is a model turn
-    that produced the identical surface.
-    """
-    from .catalog import parser_for
-    from .express import as_wire
-
-    source = "\n".join(
-        [f"surface({json.dumps(surface_id, ensure_ascii=False)})", "panel = Trip()", "root = Column([panel])"]
-    )
-    try:
-        drawn = as_wire(expand(parser_for(surface_id).compile(source, is_final=True), trip))
-    except Exception:  # noqa: BLE001 - a panel is never worth a failed turn
-        return []
-    for message in drawn:
-        if isinstance(message, dict):
-            message.setdefault("version", version)
-    return list(drawn)

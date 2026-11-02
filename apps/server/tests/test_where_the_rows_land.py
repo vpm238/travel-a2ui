@@ -311,9 +311,30 @@ class TestTheCardThatCouldNotBeDrawnFirst:
         """
         assert closing_express("save_trip", {"heading": "Four days"}, "inline-6") == ""
 
-    def test_and_may_only_name_one_of_the_two(self) -> None:
-        for bogus in ("Flights", "Stays", "Trip", "Highlights", "", "Ask()"):
+    def test_and_may_only_name_one_a_write_can_actually_draw(self) -> None:
+        """A lookup's own card is not a write's to ask for."""
+        for bogus in ("Flights", "Stays", "Highlights", "", "Ask()", "Column"):
             assert closing_express("save_trip", {"macro": bogus}, "inline-1") == "", bogus
+
+    def test_the_panel_is_one_of_them_and_goes_to_the_panel(self) -> None:
+        """`Trip()` is the standing panel, so naming it must not put a sidebar on a card.
+
+        The host used to redraw the panel itself whenever `decision_shape`
+        moved. Making it the agent's to ask for is what replaced that, and
+        `DRAWS_ONTO` is why asking for it in a call addressed to `inline-7`
+        still lands on the panel.
+        """
+        express = closing_express("save_trip", {"macro": "Trip", "heading": "Berlin"}, "inline-7")
+        assert 'surface("sidebar")' in express, express
+        assert "inline-7" not in express, express
+        assert 'Trip("Berlin")' in express, express
+
+    def test_while_the_itinerary_still_lands_on_the_turn_s_own_card(self) -> None:
+        express = closing_express(
+            "save_trip", {"macro": "Itinerary", "heading": "Four days"}, "inline-7"
+        )
+        assert 'surface("inline-7")' in express, express
+        assert "sidebar" not in express, express
 
 
 class TestTheShapeShownWhileTheLookupRuns:
@@ -382,3 +403,192 @@ class TestWhenTheLookupFoundNothing:
             seeded = seed_rows(tool, "inline-1", PROTOCOL_VERSION)[0]["updateDataModel"]
             cleared = clear_rows(tool, "inline-1", PROTOCOL_VERSION)[0]["updateDataModel"]
             assert seeded["path"] == cleared["path"] == landing_for(tool), tool
+
+
+class TestWhatAPressOnALaterHopIsToldToSave:
+    """The sentence that decides whether hop two's card has an airline on it.
+
+    `describe_action` already said "whatever it settled belongs on `legs[N]`",
+    and the model read "it settled" as the flight id: `legs[0].selectedFlight`
+    landed on every run, `airline`, `departTime` and `arriveTime` never did —
+    through two live walkthroughs and two rewrites of the same rule, once in
+    the flow brief and once in `save_trip`'s argument descriptions.
+
+    The host knows which facts the press carries, because the macro put them
+    in the context. Naming them is the one thing a general rule cannot do.
+    """
+
+    def said(self, name: str, context: dict[str, Any]) -> str:
+        from travel_a2ui.doors.interactions.press import SurfaceAction, describe_action
+
+        return describe_action(
+            SurfaceAction(name=name, surface_id="inline-3", context=context)
+        )
+
+    FARE = {
+        "id": "SK2916",
+        "price": "€74",
+        "airline": "SAS",
+        "departTime": "19:05",
+        "arriveTime": "20:15",
+        "hop": 2,
+    }
+    STAY = {"id": "h_BER_x", "name": "Pension Savignyplatz", "price": "€112", "hop": 2}
+
+    def test_a_fare_press_names_every_fact_it_carries(self) -> None:
+        said = self.said("select_flight", self.FARE)
+        for field in ("selectedFlight", "flightPrice", "airline", "departTime", "arriveTime"):
+            assert field in said, f"{field} is not named: {said}"
+
+    def test_and_says_which_leg(self) -> None:
+        assert "`legs[0]`" in self.said("select_flight", self.FARE)
+        assert "hop 2" in self.said("select_flight", self.FARE)
+
+    def test_a_stay_press_is_told_about_a_stay_and_not_a_flight(self) -> None:
+        """`id` and `price` mean different fields depending on what was pressed.
+
+        One shared mapping told a traveller choosing a hotel to save it as
+        `selectedFlight`.
+        """
+        said = self.said("select_hotel", self.STAY)
+        assert "selectedHotel" in said and "hotelName" in said and "nightlyPrice" in said
+        assert "selectedFlight" not in said, said
+        assert "flightPrice" not in said, said
+
+    def test_a_press_on_the_first_hop_is_not_sent_to_a_leg(self) -> None:
+        """Hop one is the trip's own fields; `legs[-1]` is nobody's."""
+        said = self.said("select_flight", {k: v for k, v in self.FARE.items() if k != "hop"})
+        assert "legs[" not in said
+
+    def test_a_press_nobody_has_a_mapping_for_still_says_where(self) -> None:
+        said = self.said("pick_something", {"id": "x", "hop": 2})
+        assert "`legs[0]`" in said
+        assert "That means" not in said, "invented a mapping it does not have"
+
+    def test_only_fields_the_press_actually_carried(self) -> None:
+        said = self.said("select_flight", {"id": "SK2916", "hop": 2})
+        assert "selectedFlight" in said
+        assert "airline" not in said, said
+
+
+class TestTheContractAndTheHostAgreeOnWhatAWriteMayDraw:
+    """`DRAWN_AFTER` is what the host accepts; the tool schema is what the agent reads.
+
+    They have to be the same list. `Trip` was added to `DRAWN_AFTER` so the agent
+    could ask for the panel instead of the host redrawing it, and the enum in
+    `data/tools.json` still said `["Ask", "Itinerary"]` — so the one path that
+    was supposed to replace the host's redraw could not be reached at all. The
+    panel fell back to a whole extra model turn and the measurement said the
+    change had made things slower, which it had, because the feature was not
+    actually on.
+    """
+
+    @staticmethod
+    def _enum() -> list[str]:
+        import json
+        import pathlib
+
+        from travel_a2ui import ROOT
+
+        tools = json.loads((pathlib.Path(ROOT) / "data" / "tools.json").read_text("utf-8"))
+        for tool in tools["tools"]:
+            if tool["name"] == "save_trip":
+                return tool["input_schema"]["properties"]["draw"]["properties"]["macro"]["enum"]
+        raise AssertionError("save_trip is not in data/tools.json")
+
+    def test_the_agent_is_offered_exactly_what_the_host_accepts(self) -> None:
+        from travel_a2ui.brain.macros import DRAWN_AFTER
+
+        assert sorted(self._enum()) == sorted(DRAWN_AFTER["save_trip"]), (
+            "the agent is being offered macros the host refuses, or denied ones it "
+            "accepts — either way a draw it asks for silently does nothing"
+        )
+
+    def test_and_every_one_of_them_compiles(self) -> None:
+        """An enum entry that is not a real macro is an instruction to fail."""
+        for macro in self._enum():
+            express = closing_express(
+                "save_trip", {"macro": macro, "heading": "x", "label": "y"}, "inline-1"
+            )
+            assert express, f"{macro} is offered to the agent but draws nothing"
+            assert f"{macro}(" in express, f"{macro} compiled to something else: {express}"
+
+
+class TestAGuessIsNotAnAnswer:
+    """A field the agent assumed still gets asked about.
+
+    "I want to go to Madrid in April with my partner" names no dates. The agent
+    picks a plausible week and records it as `assumed`, which is right — a
+    starting point beats an empty form. Then `Ask()` tested
+    `record.get("startDate")`, found April 11th and drew no date control, while
+    the same turn said out loud "let's set your exact April dates". There was
+    nowhere to set them, and the trip went on to be priced for a week nobody
+    had chosen.
+
+    The picker is bound to the path the assumption is already in, so the
+    traveller sees the week the agent chose and either changes it or presses
+    the button.
+    """
+
+    @staticmethod
+    def _controls(trip: dict, airports: dict | None = None) -> list[str]:
+        from travel_a2ui.brain.catalog import parser_for
+        from travel_a2ui.brain.express import as_wire
+        from travel_a2ui.brain.macros import expand
+
+        source = 'surface("inline-1")\nform = Ask("What is still missing?")\nroot = Column([form])'
+        drawn = as_wire(
+            expand(
+                parser_for("inline-1").compile(source, is_final=True),
+                trip,
+                airports,
+            )
+        )
+        return [c["component"] for c in drawn[0]["createSurface"]["components"]]
+
+    def test_an_assumed_date_still_gets_a_picker(self) -> None:
+        guessed = {
+            "destination": "MAD",
+            "origin": "JFK",
+            "travelers": 2,
+            "startDate": "2027-04-11",
+            "endDate": "2027-04-18",
+            "assumed": ["startDate", "endDate"],
+        }
+        assert "DateRangePicker" in self._controls(guessed), (
+            "the dates were invented and the form did not ask about them"
+        )
+
+    def test_while_a_date_the_traveller_gave_does_not(self) -> None:
+        """The same trip with the dates confirmed asks nothing about them."""
+        given = {
+            "destination": "MAD",
+            "origin": "JFK",
+            "travelers": 2,
+            "startDate": "2027-04-11",
+            "endDate": "2027-04-18",
+        }
+        assert "DateRangePicker" not in self._controls(given), (
+            "a date the traveller gave is being asked for again"
+        )
+
+    def test_and_an_assumed_origin_gets_its_picker_back(self) -> None:
+        airports = {
+            "from": [{"value": "JFK", "label": "New York (JFK)"},
+                     {"value": "EWR", "label": "Newark (EWR)"}],
+            "to": [],
+        }
+        guessed = {
+            "destination": "MAD",
+            "origin": "JFK",
+            "travelers": 2,
+            "startDate": "2027-04-11",
+            "endDate": "2027-04-18",
+            "assumed": ["origin"],
+        }
+        assert "ChoicePicker" in self._controls(guessed, airports), (
+            "the agent picked an airport out of three and did not offer the other two"
+        )
+        settled = {**guessed}
+        settled.pop("assumed")
+        assert "ChoicePicker" not in self._controls(settled, airports)

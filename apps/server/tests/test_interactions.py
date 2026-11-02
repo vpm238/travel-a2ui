@@ -28,6 +28,7 @@ from travel_a2ui.doors.interactions import (
 from travel_a2ui.gemini import GeminiError, InteractionResult, ToolCall, Usage
 from travel_a2ui.brain.providers.fixture import FixtureProvider
 from travel_a2ui.brain.catalog import PROTOCOL_VERSION
+from travel_a2ui.doors.interactions import CATALOG_ID
 
 A2UI_OPEN = "<a2ui>"
 A2UI_CLOSE = "</a2ui>"
@@ -982,14 +983,18 @@ class TestWhatTheAgentIsToldAboutTheRows:
         said = json.loads(result["result"][0]["text"])
         assert said["rowsOnScreen"]["path"] == "/flights"
         assert said["rowsOnScreen"]["rows"] > 0
-        note = said["rowsOnScreen"]["note"]
         # An address and the macro that reads it — not an instruction to stay
         # away, and not a template to write out by hand either.
+        note = said["rowsAre"]
         assert "Flights()" in note
-        assert "never re-type" in note
+        assert "/flights" in note
         assert "do not draw" not in note.lower()
-        # And the flights themselves are still there to talk about.
-        assert said.get("items") or said.get("flights")
+        # And the rows are not in it. This used to end "the flights themselves
+        # are still there to talk about", which was the whole problem: the agent
+        # was handed four fares and a sentence asking it not to use them.
+        assert not said.get("items") and not said.get("flights")
+        # What it has instead is enough to say a sentence about them.
+        assert said["found"] > 0 and said["cheapest"]
 
 
 class TestABusyModelDegradesRatherThanDies:
@@ -1707,22 +1712,159 @@ class TestTheAgentMayRedrawThePanel:
 
 
 class TestThePanelGainsARowWithoutWaitingForATurn:
-    """The cost of making rows conditional, and the fix for it.
+    """The cost of making rows conditional, and who pays it.
 
     `Trip()` draws a fare row only once a fare is chosen, which is what a panel
     is for. But a row that was not there is a *component*, and
-    `updateDataModel` cannot add one — so each row's first appearance waited
-    for somebody to redraw the panel, and the only thing that did was the
-    client asking after the answering turn: measured at 9.7s after a fare was
-    pressed and 59.4s after a stay, because the turn that answers a stay is the
-    itinerary.
+    `updateDataModel` cannot add one — so each row's first appearance needs the
+    panel drawn again, and the only thing that did it was the client asking
+    after the answering turn: measured at 9.7s after a fare was pressed and
+    59.4s after a stay, because the turn that answers a stay is the itinerary.
+
+    The host used to redraw it itself the moment `decision_shape` moved. Fast,
+    and the wrong shape — every other surface in this app goes up because the
+    agent asked for it. So the host detects and the agent draws, and these are
+    the two halves of that: the detection is a fact, and the block the agent is
+    handed compiles to the components the data could not add.
     """
 
-    def test_a_trip_that_gained_a_decision_gets_components_not_just_data(self) -> None:
-        from travel_a2ui.brain.macros import panel_redraw
+    def test_the_host_notices_the_panel_is_a_row_behind(self) -> None:
+        from travel_a2ui.brain import trip as model
+        from travel_a2ui.brain.skills import panel_is_stale
 
-        before = panel_redraw({"destination": "Berlin", "origin": "CPH"}, "sidebar", PROTOCOL_VERSION)
-        after = panel_redraw(
+        settled = {"destination": "Berlin", "origin": "CPH"}
+        drawn_for = model.decision_shape(model.normalize(settled))
+        assert not panel_is_stale(drawn_for, settled), "nothing changed, so nothing to say"
+
+        chosen = {**settled, "selectedFlight": "SK8495", "flightPrice": 69, "airline": "SAS"}
+        assert panel_is_stale(drawn_for, chosen), (
+            "a fare was chosen and the panel is still drawn for a trip without one"
+        )
+
+    def test_and_says_nothing_when_there_is_no_trip_to_draw(self) -> None:
+        """The first turn ends with a question. A panel saying "no trip" is a panel nobody wants."""
+        from travel_a2ui.brain.skills import panel_is_stale
+
+        assert not panel_is_stale(None, {})
+        assert not panel_is_stale(None, {"origin": "CPH"})
+
+    def test_the_hint_only_reaches_the_surface_that_can_act_on_it(self) -> None:
+        """A panel turn is already drawing the panel; telling it to is noise."""
+        from travel_a2ui.brain.skills import build_prompt_parts
+
+        trip = {"destination": "Berlin", "origin": "CPH", "selectedFlight": "SK1"}
+        seen = {}
+        for surface, surface_id in (("inline", "inline-3"), ("sidebar", "sidebar")):
+            _, volatile = build_prompt_parts(
+                variant="express-modular",
+                surface=surface,
+                surface_id=surface_id,
+                catalog_id=CATALOG_ID,
+                trip=trip,
+                today="2026-04-01",
+                panel_stale=True,
+            )
+            seen[surface] = "**The panel is a row behind.**" in volatile
+        assert seen["inline"], "the turn that can draw the panel was not told"
+        assert not seen["sidebar"], "the panel turn was told to redraw itself"
+
+    def test_and_is_silent_unless_the_door_asks_for_it(self) -> None:
+        """Every other caller — MCP, the goldens, a panel rebuild — is unaffected."""
+        from travel_a2ui.brain.skills import build_prompt_parts
+
+        _, volatile = build_prompt_parts(
+            variant="express-modular",
+            surface="inline",
+            surface_id="inline-3",
+            catalog_id=CATALOG_ID,
+            trip={"destination": "Berlin", "selectedFlight": "SK1"},
+            today="2026-04-01",
+        )
+        assert "**The panel is a row behind.**" not in volatile
+
+    def test_the_block_it_is_handed_draws_the_row_the_data_could_not(self) -> None:
+        """The hint is only worth sending if copying it works. So copy it."""
+        from travel_a2ui.brain.catalog import parser_for
+        from travel_a2ui.brain.express import as_wire
+        from travel_a2ui.brain.macros import expand
+
+        def panel(trip: dict) -> list[str]:
+            source = 'surface("sidebar")\npanel = Trip("Your trip to Berlin")\nroot = Column([panel])'
+            drawn = as_wire(expand(parser_for("sidebar").compile(source, is_final=True), trip))
+            assert drawn[0]["createSurface"]["surfaceId"] == "sidebar", (
+                "the panel block was readdressed away from the panel"
+            )
+            return [c["component"] for c in drawn[0]["createSurface"]["components"]]
+
+        before = panel({"destination": "Berlin", "origin": "CPH"})
+        after = panel(
+            {
+                "destination": "Berlin",
+                "origin": "CPH",
+                "selectedFlight": "SK8495",
+                "flightPrice": 69,
+                "airline": "SAS",
+            }
+        )
+        assert "FlightOption" not in before
+        assert "FlightOption" in after
+
+    def test_the_host_never_composes_a_panel_of_its_own(self) -> None:
+        """The rule this whole class is about, stated exactly.
+
+        The host may put components on a panel — a row's first appearance needs
+        them — but only ones the *agent* composed. So `panels()` may replay a
+        stored source and may not name a macro, a component or a surface: the
+        moment it writes `Trip(` itself, the host is deciding what a panel holds.
+        """
+        import inspect
+
+        from travel_a2ui.doors.interactions import turn as door
+
+        body = inspect.getsource(door.run_turn)
+        start = body.index("def panels()")
+        panels = body[start : body.index("\n\n", start)]
+        assert "panel_events" in panels, "the panel stopped getting its data"
+        assert "request.panels" in panels and "replay(" in panels, (
+            f"the panel is no longer replayed from what the agent composed:\n{panels}"
+        )
+        for authored in ("Trip(", "Column(", 'surface("', "root ="):
+            assert authored not in panels, (
+                f"the host is composing a panel itself ({authored}):\n{panels}"
+            )
+
+    def test_and_replays_only_what_the_agent_addressed_to_a_panel(self) -> None:
+        """An inline block is not a panel composition, however it compiles."""
+        from travel_a2ui.brain.finishing import STANDING_SURFACES
+        from travel_a2ui.brain.macros import panel_composition
+
+        said = (
+            "Here are your fares.\n"
+            "<a2ui>\n"
+            'surface("inline-4")\n'
+            'rows = Flights("Outbound")\n'
+            "root = Column([rows])\n"
+            "</a2ui>\n"
+            "And the record.\n"
+            "<a2ui>\n"
+            'surface("sidebar")\n'
+            'panel = Trip("Your trip to Madrid")\n'
+            "root = Column([panel])\n"
+            "</a2ui>\n"
+        )
+        found = panel_composition(said, STANDING_SURFACES)
+        assert set(found) == {"sidebar"}, f"kept the wrong blocks: {sorted(found)}"
+        assert 'Trip("Your trip to Madrid")' in found["sidebar"]
+        assert "Flights" not in found["sidebar"]
+
+    def test_and_a_replay_redraws_the_row_against_the_newer_trip(self) -> None:
+        """The point of keeping the source: it re-renders, where messages are a snapshot."""
+        from travel_a2ui.brain.macros import replay
+
+        source = 'surface("sidebar")\npanel = Trip("Your trip to Berlin")\nroot = Column([panel])'
+        before = replay(source, {"destination": "Berlin", "origin": "CPH"}, "sidebar", PROTOCOL_VERSION)
+        after = replay(
+            source,
             {
                 "destination": "Berlin",
                 "origin": "CPH",
@@ -1733,25 +1875,18 @@ class TestThePanelGainsARowWithoutWaitingForATurn:
             "sidebar",
             PROTOCOL_VERSION,
         )
-        kinds_before = [c["component"] for c in before[0]["createSurface"]["components"]]
-        kinds_after = [c["component"] for c in after[0]["createSurface"]["components"]]
-        assert "FlightOption" not in kinds_before
-        assert "FlightOption" in kinds_after
+        assert before and after
+        kinds = lambda drawn: [c["component"] for c in drawn[0]["createSurface"]["components"]]
+        assert "FlightOption" not in kinds(before)
+        assert "FlightOption" in kinds(after), "the replay did not gain the row"
+        assert after[0]["createSurface"]["surfaceId"] == "sidebar"
 
-    def test_it_costs_no_model_call(self) -> None:
-        """Nine characters of Express and a macro expansion. Microseconds."""
-        from travel_a2ui.brain.macros import panel_redraw
+    def test_and_a_composition_that_will_not_compile_is_not_replayed(self) -> None:
+        """A stored failure would replay for the rest of the conversation."""
+        from travel_a2ui.brain.macros import replay
 
-        drawn = panel_redraw({"destination": "Berlin", "selectedFlight": "SK1"}, "sidebar", PROTOCOL_VERSION)
-        assert drawn, "the panel drew nothing"
-        assert drawn[0]["createSurface"]["surfaceId"] == "sidebar"
-
-    def test_and_lands_on_the_panel_rather_than_the_turn_s_card(self) -> None:
-        from travel_a2ui.brain.macros import panel_redraw
-
-        for surface in ("sidebar", "home"):
-            drawn = panel_redraw({"destination": "Berlin"}, surface, PROTOCOL_VERSION)
-            assert drawn[0]["createSurface"]["surfaceId"] == surface
+        assert replay("surface(", {"destination": "Berlin"}, "sidebar", PROTOCOL_VERSION) == []
+        assert replay("", {"destination": "Berlin"}, "sidebar", PROTOCOL_VERSION) == []
 
 
 class TestATurnThatRecordedAndThenStopped:
@@ -1859,3 +1994,179 @@ class TestTheNudgeFiresWhenATurnRecordsAndStops:
         events = asyncio.run(collect(base(message="Berlin next Monday", client=model)))
         retries = [e for e in events if e["type"] == "retry"]
         assert len(retries) == 1, f"nudged {len(retries)} times"
+
+
+class TestTheRowsStayOutOfTheModelsContext:
+    """Details to render, a summary to reason with.
+
+    A lookup's rows are filed in the data model and read by a macro, so the
+    agent never needs them: `Flights()` binds to `/flights`, a press hands back
+    the chosen row's own fields, and the catalog forbids writing a fare card per
+    result. Handing them over anyway costs a table — 58% of a flights result,
+    69% of a stay's — carried for the rest of the conversation, and buys a model
+    that recites it.
+
+    The door used to do both at once: strip nothing, and tell the agent not to
+    re-type the four fares it had just been handed.
+    """
+
+    @staticmethod
+    def _looked_up(tool: str) -> dict:
+        import asyncio
+
+        from travel_a2ui.brain.tools.contracts import ToolContext
+        from travel_a2ui.brain.tools.run import run_tool
+
+        trip = {
+            "origin": "JFK",
+            "destination": "Madrid",
+            "startDate": "2026-04-14",
+            "endDate": "2026-04-18",
+            "travelers": 2,
+        }
+        result, is_error = asyncio.run(
+            run_tool(
+                tool,
+                {"destination": "Madrid"},
+                ToolContext(provider=FixtureProvider(), trip=trip, today="2026-04-01"),
+            )
+        )
+        assert not is_error, result
+        return result
+
+    def test_the_fares_are_withheld_and_the_summary_is_not(self) -> None:
+        from travel_a2ui.brain.macros import without_the_rows
+
+        full = self._looked_up("search_flights")
+        assert len(full["flights"]) > 1, "the fixture stopped returning fares"
+
+        kept = without_the_rows("search_flights", full, "`Flights()` reads them.")
+        assert "flights" not in kept, "the table is still in the model's context"
+        assert kept["found"] == len(full["flights"])
+        assert kept["cheapest"] == min(full["flights"], key=lambda row: row["priceValue"])["price"]
+        assert kept["dearest"] == max(full["flights"], key=lambda row: row["priceValue"])["price"]
+        assert kept["cheapestIs"], "a figure with no name beside it is not an answer"
+        assert "`Flights()` reads them." in kept["rowsAre"]
+        # Everything that was never a row survives untouched.
+        for key in ("provenance", "pricesAre", "searchedFor", "currency"):
+            assert kept[key] == full[key], f"{key} was collateral damage"
+
+    def test_and_it_is_most_of_the_result(self) -> None:
+        import json
+
+        from travel_a2ui.brain.macros import without_the_rows
+
+        for tool, floor in (("search_flights", 0.4), ("search_hotels", 0.4)):
+            full = self._looked_up(tool)
+            kept = without_the_rows(tool, full, "x")
+            before = len(json.dumps(full, ensure_ascii=False))
+            after = len(json.dumps(kept, ensure_ascii=False))
+            assert after < before * (1 - floor), (
+                f"{tool}: {before} -> {after} chars, less than {floor:.0%} saved"
+            )
+
+    def test_the_highlights_are_kept_because_a_day_plan_is_composed_from_them(self) -> None:
+        """A fare is chosen; the Prado is written into a morning. Not the same thing."""
+        from travel_a2ui.brain.macros import without_the_rows
+
+        full = self._looked_up("get_destination")
+        assert full["highlights"], "the fixture stopped returning highlights"
+        assert without_the_rows("get_destination", full, "x") == full
+
+    def test_a_refusal_passes_through_untouched(self) -> None:
+        from travel_a2ui.brain.macros import without_the_rows
+
+        refused = {"cannot": "no dates yet", "needs": ["startDate"]}
+        assert without_the_rows("search_flights", refused, "x") == refused
+        assert without_the_rows("search_flights", {"flights": []}, "x") == {"flights": []}
+
+    def test_every_withheld_tool_is_one_the_host_files_rows_for(self) -> None:
+        """Withholding rows the host never filed would withhold them from everybody."""
+        from travel_a2ui.brain.macros import LANDINGS, WITHHELD
+
+        for tool, key in WITHHELD.items():
+            assert tool in LANDINGS, f"{tool} is withheld but its rows are never filed"
+            assert LANDINGS[tool][1] == key, (
+                f"{tool}: filed from {LANDINGS[tool][1]!r}, withheld from {key!r} — "
+                "the two must name the same key, which is the bug this table exists to stop"
+            )
+
+    def test_the_voice_door_withholds_them_too(self) -> None:
+        """It was meant to all along: its own copy read a key no tool returns."""
+        import asyncio
+        import json
+
+        from travel_a2ui.brain.tools.contracts import ToolContext
+        from travel_a2ui.doors.live import run_voice_tool
+
+        async def go() -> dict:
+            return await run_voice_tool(
+                "search_flights",
+                {"destination": "Madrid"},
+                ToolContext(
+                    provider=FixtureProvider(),
+                    trip={
+                        "origin": "JFK",
+                        "destination": "Madrid",
+                        "startDate": "2026-04-14",
+                        "endDate": "2026-04-18",
+                        "travelers": 2,
+                    },
+                    today="2026-04-01",
+                ),
+            )
+
+        answer = asyncio.run(go())["response"]
+        spoken = json.dumps(answer, ensure_ascii=False)
+        assert "flights" not in answer, (
+            f"the fares are still going to a model that answers out loud: {spoken[:400]}"
+        )
+        # The row's own fields, none of which survive a digest. Naming the
+        # cheapest is the one detail that does, and it is one line, not four.
+        # `cabin` is not in this list: it is what was *searched for*, which is
+        # kept, and only happens to be a row's field too.
+        for field in ("flightNumber", "priceValue", "duration", "stops", "badge"):
+            assert field not in spoken, f"{field} came through, so a row did"
+        assert "show_flight_options" in spoken, "and it was not told what draws them"
+
+
+class TestRowsAreEitherFiledOrHandedOver:
+    """Never neither. The one case where the agent should get the table.
+
+    Withholding rows is only safe because a macro can read them off the data
+    model. A lookup whose rows never got filed there has nobody holding them:
+    the macro has nothing to bind to, and withholding would leave the agent
+    unable to say anything about an answer it did receive. So the gate is "were
+    they filed", not "is this a lookup".
+    """
+
+    def test_a_refused_lookup_keeps_whatever_it_returned(self) -> None:
+        import asyncio
+        import json
+
+        from travel_a2ui.gemini import ToolCall
+
+        model = FakeModel(
+            [
+                (
+                    [],
+                    [ToolCall(id="c1", name="search_flights", args={"destination": "Madrid"})],
+                ),
+                ([SURFACE], []),
+            ]
+        )
+        # No dates, so the lookup refuses and files nothing.
+        asyncio.run(
+            collect(base(message="flights to madrid", trip={"destination": "Madrid"}, client=model))
+        )
+        said = json.loads(
+            next(
+                entry
+                for entry in model.bodies[1]["input"]
+                if entry.get("type") == "function_result"
+            )["result"][0]["text"]
+        )
+        assert "rowsOnScreen" not in said, "nothing was filed, so nothing is on screen"
+        assert "rowsAre" not in said, (
+            f"the agent was told rows are elsewhere when they were never filed: {said}"
+        )

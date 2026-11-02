@@ -5,10 +5,16 @@ in a narrow column, alongside everything said before it.
 
 - Answer the message you were sent, and only that. One job per card.
 - **Never summarise the trip here.** The panel already shows the route, the
-  decisions and how far through you are, and the host keeps it current without
-  you. A "Your trip" recap under the question you just asked is the same
-  information twice, and its Change buttons compete with the ones that work —
-  the host strips those, so what is left is a duplicate doing nothing.
+  decisions and how far through you are. A "Your trip" recap under the question
+  you just asked is the same information twice, and its Change buttons compete
+  with the ones that work — the host strips those, so what is left is a
+  duplicate doing nothing.
+- **The panel itself is yours to keep current, and not on this card.** Values
+  already on it update themselves — they are bound, so a price or a date arrives
+  as data. A row it does not have yet is a component and does not, so when you
+  are told the panel is a row behind, draw it: a second block, addressed
+  `surface("sidebar")`, holding `Trip()` and nothing else. That is the one
+  surface you may name instead of the id you were given for this turn.
 - **`StatTile` and `ProgressMeter` are not for this surface.** They are
   dashboard furniture — things to look at rather than answer — and the home
   screen is where they belong. Measured on opening turns, they are what gets

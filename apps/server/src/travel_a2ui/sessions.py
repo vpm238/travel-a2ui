@@ -102,6 +102,26 @@ class Session:
     #: `session_resumption_update` carries a fresh handle as the session runs;
     #: the newest one is kept, and the next connection opens with it.
     live_handle: str | None = None
+    #: The Express the agent last composed for each standing surface.
+    #:
+    #: A panel is the one surface in this app that outlives the turn that drew
+    #: it, and its rows are conditional — `Trip()` draws a fare row only once a
+    #: fare is chosen. So a row's first appearance needs components, which bound
+    #: data cannot add, and somebody has to draw the panel again.
+    #:
+    #: The agent is asked to, and does not. Measured over a full walk with the
+    #: hint in the turn's notes, with `Trip` offered on `save_trip`'s `draw`, and
+    #: with the brief saying to write the block first: not once. Every panel move
+    #: came from `_rebuild_panels` — a whole further model turn after the answer
+    #: had landed, 18.4s after a fare was chosen and 29.6s after a stay.
+    #:
+    #: Which leaves this. The panel is *composed* by the agent, once, and the
+    #: composition is kept here; when the record moves under it the host
+    #: re-renders that same Express against the new record. No model call, and no
+    #: host opinion about what a panel holds — it replays the agent's own
+    #: declaration, and when there is nothing to replay it asks the agent for one
+    #: rather than inventing it.
+    panels: dict[str, str] = field(default_factory=dict)
     turns: int = 0
     #: How many inline surfaces this conversation has handed out.
     #:
@@ -183,6 +203,7 @@ class SessionStore:
         trip: dict[str, Any] | None = None,
         shape: str | None = None,
         setup: str | None = None,
+        panels: dict[str, str] | None = None,
     ) -> Session:
         """Records a turn.
 
@@ -203,6 +224,11 @@ class SessionStore:
                 session.shape = shape
             if setup is not None:
                 session.setup = setup
+            if panels:
+                # Merged, not replaced: a turn that redrew the sidebar and not
+                # the home summary must not forget how the home summary was
+                # composed. See `Session.panels`.
+                session.panels = {**session.panels, **panels}
             session.turns += 1
             session.updated_at = now
             self._sessions[session_id] = session
