@@ -153,3 +153,113 @@ class TestOnePressSendsBoth:
             if held[node_id].get("component") == "Button" and held[node_id].get("action")
         ]
         assert len(pressable) == 1, f"one final submit, found {pressable}"
+
+
+class TestASurfaceDoesNotShowOneHeadingTwice:
+    """The heading a turn writes above a macro that already draws it.
+
+    `Flights()` takes a heading and draws it, which is the point of passing
+    one. The agent writes one anyway:
+
+        heading = Text("Outbound · JFK → MAD · Mon 12 Apr")
+        fares = Flights("Outbound · JFK → MAD · Mon 12 Apr", "/trip/selectedFlight")
+        root = Column([heading, fares])
+
+    Both are correct alone and together they put the same line on screen twice.
+    Measured over a journey, on every turn that drew fares — and on the return
+    too, so one trip collected four of them.
+    """
+
+    @staticmethod
+    def _children(components: list[dict], of: str) -> list[str]:
+        from travel_a2ui.brain.finishing import drop_repeated_headings
+
+        out = drop_repeated_headings([{"createSurface": {"surfaceId": "inline-1", "components": components}}])
+        for c in out[0]["createSurface"]["components"]:
+            if c["id"] == of:
+                return c["children"]
+        raise AssertionError(f"{of} is gone")
+
+    HEADING = "Outbound · JFK → MAD · Mon 12 Apr"
+
+    def _recorded(self) -> list[dict]:
+        """Exactly the shape a journey recording caught."""
+        return [
+            {"id": "b1-heading", "component": "Text", "text": self.HEADING, "variant": "h3"},
+            {"id": "b1-fares__text_1", "component": "Text", "text": self.HEADING, "variant": "h3"},
+            {"id": "b1-fares__list_1", "component": "List", "children": {"path": "/flights"}},
+            {"id": "b1-fares", "component": "Column", "children": ["b1-fares__text_1", "b1-fares__list_1"]},
+            {"id": "b1-root", "component": "Column", "children": ["b1-heading", "b1-fares"]},
+        ]
+
+    def test_the_one_outside_the_macro_goes(self) -> None:
+        assert self._children(self._recorded(), "b1-root") == ["b1-fares"]
+
+    def test_and_the_macro_keeps_its_own(self) -> None:
+        """The copy next to the list it is a heading for is the one worth keeping."""
+        assert self._children(self._recorded(), "b1-fares") == [
+            "b1-fares__text_1",
+            "b1-fares__list_1",
+        ]
+
+    def test_a_heading_nothing_repeats_is_left_alone(self) -> None:
+        components = self._recorded()
+        components[0] = {**components[0], "text": "Choose your flight out"}
+        assert self._children(components, "b1-root") == ["b1-heading", "b1-fares"]
+
+    def test_and_two_different_sections_both_keep_their_headings(self) -> None:
+        """A turn drawing the outbound and the return must not lose one of them."""
+        components = [
+            {"id": "out", "component": "Text", "text": "Outbound", "variant": "h3"},
+            {"id": "back", "component": "Text", "text": "Return", "variant": "h3"},
+            {"id": "root", "component": "Column", "children": ["out", "back"]},
+        ]
+        assert self._children(components, "root") == ["out", "back"]
+
+    def test_a_bound_heading_is_never_touched(self) -> None:
+        """Two bindings are not known to be equal until they resolve."""
+        bound = {"@path": "/trip/destination"}
+        components = [
+            {"id": "a", "component": "Text", "text": bound},
+            {"id": "b__text_1", "component": "Text", "text": bound},
+            {"id": "b", "component": "Column", "children": ["b__text_1"]},
+            {"id": "root", "component": "Column", "children": ["a", "b"]},
+        ]
+        assert self._children(components, "root") == ["a", "b"]
+
+
+class TestTheFormsButtonSaysWhatItDoes:
+    """`Ask()`'s submit button, which was labelled "Flying from".
+
+    The airports loop bound its own `label` and so shadowed the button's label,
+    which is a parameter of the macro. The loop left it holding "Flying from" —
+    its last entry — and the button at the bottom of the form rendered that.
+    Only when a picker was drawn at all, which is most opening turns.
+    """
+
+    @staticmethod
+    def _button_text(label: str | None = None) -> str:
+        from travel_a2ui.brain.catalog import parser_for
+        from travel_a2ui.brain.express import as_wire
+        from travel_a2ui.brain.finishing import finish
+        from travel_a2ui.brain.macros import expand
+
+        trip = {"destination": "Madrid", "travelers": 2}
+        airports = {"from": [{"value": "JFK", "label": "New York (JFK)"}], "to": []}
+        said = '"Anything else?"' + (f', "{label}"' if label else "")
+        src = f'surface("inline-1")\nform = Ask({said})\nroot = Column([form])'
+        drawn = finish(
+            as_wire(expand(parser_for("inline-1").compile(src, is_final=True), trip, airports)),
+            trip,
+        )
+        components = {c["id"]: c for c in drawn[0]["createSurface"]["components"]}
+        button = next(c for c in components.values() if c["component"] == "Button")
+        return components[button["child"]]["text"]
+
+    def test_it_says_find_flights_by_default(self) -> None:
+        assert self._button_text() == "Find flights", (
+            "the button is wearing a picker's label"
+        )
+
+    def test_and_what_the_agent_asked_for_when_it_asked(self) -> None:
+        assert self._button_text("Price it") == "Price it"

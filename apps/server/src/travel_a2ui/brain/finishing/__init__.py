@@ -1,12 +1,13 @@
 """Putting the trip into surfaces, and closing the gaps the model leaves.
 
-Four passes run over every surface before it goes out, and all four exist
+Five passes run over every surface before it goes out, and all five exist
 because something that was *asked* of the model was sometimes not done:
 
   `seeding`   fills `/trip` and `/plan` so controls open pre-filled
   `commit`    makes sure a button carries every value on its surface
   `labels`    replaces a night count the model wrote as literal text
   `panels`    removes a `change` button from anywhere but the panel
+  `headings`  removes a heading a sibling macro already draws
 
 Doing them here rather than in the browser is the point. The old versions of
 the first and third lived in the React app, which meant the web client knew
@@ -59,6 +60,9 @@ from .labels import (  # noqa: F401 — re-exported: this package is one module 
     _is_count_of_nights,
     _is_path_binding,
 )
+from .headings import (  # noqa: F401 — re-exported: this package is one module to its callers
+    drop_repeated_headings,
+)
 from .panels import (  # noqa: F401 — re-exported: this package is one module to its callers
     panel_events,
     strip_panel_actions,
@@ -80,6 +84,8 @@ def finish(
     on a panel is still taken back off it).
     """
     return strip_panel_actions(
-        bind_derived_labels(bind_commit_context(seed_surface_trip(messages, trip), carried)),
+        drop_repeated_headings(
+            bind_derived_labels(bind_commit_context(seed_surface_trip(messages, trip), carried))
+        ),
         standing,
     )

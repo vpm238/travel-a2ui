@@ -510,3 +510,72 @@ class TestAFormComesUpFilledIn:
         leg = seeded["legs"][0]
         assert leg["airline"] == "Iberia", "a hop's airline was wiped after the server had it"
         assert leg["departTime"] == "10:59"
+
+
+class TestThePanelSaysWhenAHopGoesAndWhoIsOnIt:
+    """Dates and party per hop, which the panel drew for nobody.
+
+    It showed the route, the fare and the stay. A hop whose dates and party were
+    settled several turns earlier showed neither, so "the right side does not
+    show dates and travellers for each leg when confirmed" was exactly right.
+
+    Bound, so the line follows the record — change the party on hop two and the
+    panel moves with no model in the path — and only the parts this hop has, the
+    same rule the fare and stay rows follow.
+    """
+
+    @staticmethod
+    def _lines(trip: dict) -> list[str]:
+        import json
+
+        from travel_a2ui.brain.catalog import parser_for
+        from travel_a2ui.brain.express import as_wire
+        from travel_a2ui.brain.finishing import finish
+        from travel_a2ui.brain.macros import expand
+
+        src = 'surface("sidebar")\npanel = Trip("Trip")\nroot = Column([panel])'
+        drawn = finish(
+            as_wire(expand(parser_for("sidebar").compile(src, is_final=True), trip)), trip
+        )
+        return [
+            json.dumps(c.get("text"), ensure_ascii=False)
+            for c in drawn[0]["createSurface"]["components"]
+            if c.get("component") == "Text"
+        ]
+
+    FULL = {
+        "origin": "CPH",
+        "destination": "BER",
+        "startDate": "2026-11-09",
+        "endDate": "2026-11-12",
+        "travelers": 2,
+        "legs": [{"origin": "BER", "destination": "CPH", "startDate": "2026-11-12", "travelers": 1}],
+    }
+
+    def test_each_hop_says_when_it_goes_and_who_is_on_it(self) -> None:
+        lines = " ".join(self._lines(self.FULL))
+        assert "/trip/startDate" in lines and "/trip/endDate" in lines
+        assert "/trip/travelers" in lines, "hop one does not say who is on it"
+        assert "/trip/legs/0/startDate" in lines, "hop two does not say when it goes"
+        assert "/trip/legs/0/travelers" in lines, "hop two does not say who is on it"
+
+    def test_and_it_is_bound_rather_than_written_out(self) -> None:
+        """A written date goes stale the moment somebody moves it."""
+        lines = " ".join(self._lines(self.FULL))
+        assert "@call" in lines and "formatString" in lines, (
+            "the hop's facts were written as literal text"
+        )
+        assert "2026-11-09" not in lines, "a date was baked into the panel"
+
+    def test_but_says_nothing_about_a_hop_that_has_not_settled_either(self) -> None:
+        bare = {"origin": "CPH", "destination": "BER"}
+        lines = " ".join(self._lines(bare))
+        assert "travelling" not in lines, "the panel claimed a party nobody has given"
+        assert "startDate" not in lines, "the panel claimed dates nobody has given"
+
+    def test_and_says_only_the_half_it_has(self) -> None:
+        """Dates settled, party not. One of the two, not a blank for the other."""
+        half = {"origin": "CPH", "destination": "BER", "startDate": "2026-11-09", "endDate": "2026-11-12"}
+        lines = " ".join(self._lines(half))
+        assert "/trip/startDate" in lines
+        assert "travelling" not in lines

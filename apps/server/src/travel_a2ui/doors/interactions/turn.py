@@ -168,7 +168,13 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             return out
         shape_was = shape_now
         for surface, source in (request.panels or {}).items():
-            drawn = replay(source, trip, surface, PROTOCOL_VERSION)
+            # `finish`, like every other surface. The replay is a `createSurface`
+            # and so carries a data model, and the macro's own bindings declare
+            # every path they read — as nulls, until seeding fills them. Sent
+            # raw, that `createSurface` landed on top of the `/trip/legs` from
+            # `panel_events` just above it and wiped a hop's airline and times
+            # back out of the client's data model. See `seed_surface_trip`.
+            drawn = finish(replay(source, trip, surface, PROTOCOL_VERSION), trip)
             if drawn:
                 out.append(
                     {"type": "ui", "surfaceId": surface, "messages": drawn, "done": True}

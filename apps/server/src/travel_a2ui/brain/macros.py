@@ -1044,6 +1044,25 @@ class PanelFlight(ComponentBuilderNode):
     accessibility: Any = None
 
 
+class BoundText(ComponentBuilderNode):
+    """A `Text` whose content may be a function call, not only a string.
+
+    The builder's own `Text` validates `text` against the 0.9 models, where a
+    `FunctionCall` serialises as `call`. The renderer reads 1.0, where it is
+    `@call` — so the strict path rejects the right spelling and accepts a
+    spelling that compiles and then draws nothing at all, which is the worse of
+    the two failures.
+
+    So this takes `Any` and the raw dict goes through untouched, exactly as
+    `_money` already does for a price. See `PanelFlight`, which is permissive
+    for the same reason.
+    """
+
+    component: str = "Text"
+    text: Any = None
+    variant: Any = None
+
+
 @macro
 def trip(heading: str = "") -> Column:
     """The trip as it stands, as the standing panel draws it.
@@ -1079,6 +1098,7 @@ def trip(heading: str = "") -> Column:
         where = f"{hop.get('from') or ''} → {hop.get('to') or ''}"
         rows.append(Text(text=where.strip(" →"), variant="h4"))
 
+
         # Does *this* hop know this fact?
         #
         # Read off the record rather than off `hop`: `journey` reports what a
@@ -1107,6 +1127,33 @@ def trip(heading: str = "") -> Column:
             the component by the model is as arrived as it will ever be."
             """
             return bind(model.binding_for(f"{prefix}{field}")) if has(field) else ""
+
+        # When this hop goes, and who is on it.
+        #
+        # The panel drew the route, the fare and the stay, and never these —
+        # so a hop whose dates and party were settled turns ago showed nothing
+        # about either, and "the right side does not show dates and travellers
+        # for each leg when confirmed" is exactly right.
+        #
+        # Bound, not written out, so the line follows the record: change the
+        # party on hop two and the panel moves without anybody redrawing it.
+        # And only the parts this hop has — the same rule as the rows below,
+        # for the same reason. A hop that knows when it goes and not yet who is
+        # on it says when it goes.
+        said: list[str] = []
+        if has("startDate"):
+            said.append("${/trip/" + prefix + "startDate}")
+            if has("endDate"):
+                said.append("→ ${/trip/" + prefix + "endDate}")
+        if has("travelers"):
+            said.append(("· " if said else "") + "${/trip/" + prefix + "travelers} travelling")
+        if said:
+            rows.append(
+                BoundText(
+                    text={"@call": "formatString", "args": {"value": " ".join(said)}},
+                    variant="caption",
+                )
+            )
         # A row per decision, and only once that decision is settled.
         #
         # These used to be drawn unconditionally, and the result was the
@@ -1298,7 +1345,12 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
     # it flies. `mutuallyExclusive`, so the renderer writes the code itself
     # rather than a list of one.
     airports = _AIRPORTS.get() or {}
-    for key, choices, label in (
+    # `asks`, not `label`: this loop used to bind its own `label` and so
+    # shadowed the *button's* label, which is a parameter of this function. The
+    # loop left it holding "Flying from" — the last entry below — and the submit
+    # button at the bottom of the form rendered that instead of "Find flights".
+    # Only when a picker was drawn at all, which is most opening turns.
+    for key, choices, asks in (
         ("destination", airports.get("to") or [], "Where to"),
         ("origin", airports.get("from") or [], "Flying from"),
     ):
@@ -1307,7 +1359,7 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
         path = model.binding_for(key)
         rows.append(
             Choices(
-                label=label,
+                label=asks,
                 variant="mutuallyExclusive",
                 options=choices,
                 value=bind(path),
