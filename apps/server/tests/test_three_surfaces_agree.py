@@ -579,3 +579,109 @@ class TestThePanelSaysWhenAHopGoesAndWhoIsOnIt:
         lines = " ".join(self._lines(half))
         assert "/trip/startDate" in lines
         assert "travelling" not in lines
+
+
+class TestThePanelTotalsWhatHasBeenChosen:
+    """A running total, and the budget beside it.
+
+    Not `estimate_cost`, which projects a whole trip and fills in a plausible
+    fare for a hop nobody has priced — a projection with a hole in it is no use.
+    This counts only what has been chosen, so it starts at nothing and rises as
+    each decision lands, and never claims a number nobody agreed to.
+    """
+
+    TRIP = {
+        "origin": "CPH",
+        "destination": "BER",
+        "startDate": "2026-11-09",
+        "endDate": "2026-11-12",
+        "travelers": 2,
+        "flightPrice": 74,
+        "nightlyPrice": 112,
+        "needsStay": True,
+        "budget": 1500,
+        "legs": [
+            {
+                "origin": "BER",
+                "destination": "CPH",
+                "startDate": "2026-11-12",
+                "travelers": 1,
+                "flightPrice": 71,
+            }
+        ],
+    }
+
+    def test_it_counts_each_hop_s_own_party_and_nights(self) -> None:
+        """74 x 2 outbound, 112 x 3 nights, 71 x 1 home. One fare times one party
+        size is how a trip where somebody joins halfway came out wrong."""
+        from travel_a2ui.brain.finishing import money_rows
+
+        assert money_rows(self.TRIP)["total"] == 74 * 2 + 112 * 3 + 71 * 1
+
+    def test_and_says_what_is_left_of_the_budget(self) -> None:
+        from travel_a2ui.brain.finishing import money_rows
+
+        money = money_rows(self.TRIP)
+        assert money["budget"] == 1500
+        assert money["remaining"] == 1500 - money["total"]
+        assert money["over"] is False
+
+    def test_and_says_so_when_it_is_over(self) -> None:
+        from travel_a2ui.brain.finishing import money_rows
+
+        money = money_rows({**self.TRIP, "budget": 300})
+        assert money["remaining"] < 0
+        assert money["over"] is True, "the panel has to label it, not infer a minus sign"
+
+    def test_it_claims_nothing_before_anything_is_priced(self) -> None:
+        from travel_a2ui.brain.finishing import money_rows
+
+        assert money_rows({"destination": "BER"}) == {}, (
+            "a panel saying 'Total 0' is a claim about a trip nobody has priced"
+        )
+
+    def test_a_budget_with_nothing_spent_is_still_worth_saying(self) -> None:
+        from travel_a2ui.brain.finishing import money_rows
+
+        money = money_rows({"destination": "BER", "budget": 900})
+        assert money == {"budget": 900}, f"got {money}"
+
+    def test_the_panel_binds_the_figures_rather_than_writing_them(self) -> None:
+        """Bound, so the total moves with the record and never waits on a redraw."""
+        import json
+
+        from travel_a2ui.brain.catalog import parser_for
+        from travel_a2ui.brain.express import as_wire
+        from travel_a2ui.brain.finishing import finish
+        from travel_a2ui.brain.macros import expand
+
+        src = 'surface("sidebar")\npanel = Trip("Trip")\nroot = Column([panel])'
+        drawn = finish(
+            as_wire(expand(parser_for("sidebar").compile(src, is_final=True), self.TRIP)),
+            self.TRIP,
+        )
+        surface = drawn[0]["createSurface"]
+        tiles = [c for c in surface["components"] if c.get("component") == "StatTile"]
+        assert len(tiles) == 3, f"expected a total, a budget and what is left: {tiles}"
+        said = json.dumps(tiles, ensure_ascii=False)
+        for path in ("/money/total", "/money/budget", "/money/remaining"):
+            assert path in said, f"{path} is not bound on the panel"
+        assert "555" not in said, "a figure was baked into the panel instead of bound"
+        # And the data is on the surface that binds it.
+        assert surface["dataModel"]["money"]["total"] == 555
+
+    def test_and_draws_no_tiles_before_there_is_anything_to_total(self) -> None:
+        from travel_a2ui.brain.catalog import parser_for
+        from travel_a2ui.brain.express import as_wire
+        from travel_a2ui.brain.finishing import finish
+        from travel_a2ui.brain.macros import expand
+
+        bare = {"origin": "CPH", "destination": "BER"}
+        src = 'surface("sidebar")\npanel = Trip("Trip")\nroot = Column([panel])'
+        drawn = finish(
+            as_wire(expand(parser_for("sidebar").compile(src, is_final=True), bare)), bare
+        )
+        tiles = [
+            c for c in drawn[0]["createSurface"]["components"] if c.get("component") == "StatTile"
+        ]
+        assert tiles == []

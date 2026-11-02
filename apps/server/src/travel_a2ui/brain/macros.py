@@ -1044,6 +1044,21 @@ class PanelFlight(ComponentBuilderNode):
     accessibility: Any = None
 
 
+class Stat(ComponentBuilderNode):
+    """One figure on the panel, bound rather than written.
+
+    `label`, `value` and `caption` are all `DynamicString` in the catalog, so a
+    binding is as valid as a string — and has to be, because the figures this
+    draws move whenever a decision does.
+    """
+
+    component: str = "StatTile"
+    label: Any = None
+    value: Any = None
+    caption: Any = None
+    accessibility: Any = None
+
+
 class BoundText(ComponentBuilderNode):
     """A `Text` whose content may be a function call, not only a string.
 
@@ -1217,6 +1232,34 @@ def trip(heading: str = "") -> Column:
                     ),
                 )
             )
+
+    # What it comes to so far, and what is left of the budget.
+    #
+    # A running total: `money_rows` counts only what has actually been chosen,
+    # so it starts at nothing and rises as each decision lands. Bound, so it
+    # moves with the record and never waits on a redraw — which is the whole
+    # reason it is filed as data at `/money` rather than written in here.
+    #
+    # Drawn only once there is something to total, for the same reason a fare
+    # row waits for a fare: a panel saying "Total €0" is a claim about a trip
+    # nobody has priced.
+    from .finishing import money_rows
+
+    money = money_rows(record) if isinstance(record, dict) else {}
+    if money.get("total") is not None:
+        rows.append(
+            Stat(label="Committed so far", value=_money("/money/total"))
+        )
+    if money.get("budget") is not None:
+        rows.append(Stat(label="Budget", value=_money("/money/budget")))
+    if money.get("remaining") is not None:
+        rows.append(
+            Stat(
+                # Named for what the number means, which flips with its sign.
+                label="Over budget by" if money.get("over") else "Left to spend",
+                value=_money("/money/remaining"),
+            )
+        )
 
     return Column(children=rows)
 

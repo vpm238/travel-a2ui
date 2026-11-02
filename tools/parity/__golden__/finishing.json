@@ -229,6 +229,14 @@
             "multiStop": false
           }
         }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/money",
+          "value": {}
+        }
       }
     ],
     "started": [
@@ -273,6 +281,14 @@
             "complete": false,
             "multiStop": false
           }
+        }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/money",
+          "value": {}
         }
       }
     ],
@@ -376,6 +392,14 @@
             "multiStop": false
           }
         }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/money",
+          "value": {}
+        }
       }
     ],
     "skipping": [
@@ -445,6 +469,14 @@
             "complete": false,
             "multiStop": false
           }
+        }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/money",
+          "value": {}
         }
       }
     ],
@@ -607,6 +639,14 @@
             "multiStop": true
           }
         }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/money",
+          "value": {}
+        }
       }
     ]
   },
@@ -677,7 +717,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -823,7 +864,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -945,7 +987,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -1067,7 +1110,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -1208,7 +1252,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -1330,7 +1375,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -1452,7 +1498,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -1574,7 +1621,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -1668,7 +1716,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -1772,7 +1821,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -1863,7 +1913,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -1968,7 +2019,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },
@@ -2090,7 +2142,8 @@
               "caption": "5 decided · 1 hops · 1 open",
               "complete": false,
               "multiStop": false
-            }
+            },
+            "money": {}
           }
         }
       },

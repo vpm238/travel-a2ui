@@ -36,6 +36,7 @@ from .shared import (  # noqa: F401 — re-exported: this package is one module 
     _root_of,
 )
 from .seeding import (  # noqa: F401 — re-exported: this package is one module to its callers
+    money_rows,
     plan_rows,
     seed_surface_trip,
     trip_updates,

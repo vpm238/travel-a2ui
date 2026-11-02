@@ -23,7 +23,11 @@ A persistent panel beside the conversation showing the trip as it stands. It is
     `$/trip/endDate`, with the flights marked on their days
   - where the stops are → `MapPreview`
   - what it will be like → `WeatherStrip`
-  - the money → `PriceSummary`, and `StatTile` for the figures worth a glance
+  - the money → `Trip()` already carries it: what has been committed so far,
+    the budget, and what is left of it, each bound so it moves as decisions
+    land. Do not add your own total beside it — two totals on one panel is one
+    too many, and yours cannot update itself. `PriceSummary` is for a *quote* on
+    an inline card, where the lines are the point
   - `Card`, `Row`, `Column` and `Icon` to arrange it
 
   Imagery comes from the component that owns it — `HotelCard`'s `imageUrl`,

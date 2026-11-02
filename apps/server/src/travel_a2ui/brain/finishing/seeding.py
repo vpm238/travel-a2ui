@@ -36,6 +36,61 @@ _STAGE_LABELS = {
 # --------------------------------------------------------------------------
 
 
+def money_rows(trip: dict[str, Any]) -> dict[str, Any]:
+    """What the trip has committed to so far, and what is left of the budget.
+
+    A *running* total, which is the difference between this and
+    `estimate_cost`: that one projects a whole trip and fills in a plausible
+    fare for a hop nobody has priced, because a projection with a hole in it is
+    no use. This counts only what has actually been chosen, so it starts at
+    nothing, rises as each decision lands, and never claims a number nobody
+    agreed to.
+
+    Per hop, because the party and the nights are per hop — a fare is one
+    ticket, so it is multiplied by the people on *that* hop, and a stay is one
+    night, multiplied by the nights at *that* stop. Totalling one fare by one
+    party size is how a three-city trip where somebody joins in Chicago came out
+    confidently and invisibly wrong, which `_estimate` documents at length.
+
+    Numbers, not display strings. The panel binds them through
+    `formatCurrency`, so the trip's own currency is applied in one place and a
+    stay quoted in euros is not totalled into dollars.
+    """
+    from .. import trip as model
+
+    hops = model.journey(model.normalize(trip))
+    total = 0.0
+    counted = False
+    for hop in hops:
+        if not isinstance(hop, dict):
+            continue
+        party = hop.get("travelers")
+        party = int(party) if isinstance(party, (int, float)) and party > 0 else 1
+        fare = hop.get("flightPrice")
+        if isinstance(fare, (int, float)):
+            total += float(fare) * party
+            counted = True
+        nightly = hop.get("nightlyPrice")
+        nights = hop.get("nights")
+        if isinstance(nightly, (int, float)) and isinstance(nights, (int, float)) and nights > 0:
+            total += float(nightly) * int(nights)
+            counted = True
+
+    out: dict[str, Any] = {}
+    if counted:
+        out["total"] = round(total, 2)
+    budget = trip.get("budget")
+    if isinstance(budget, (int, float)):
+        out["budget"] = round(float(budget), 2)
+        if counted:
+            left = round(float(budget) - total, 2)
+            out["remaining"] = left
+            # Said rather than inferred from a minus sign, so the panel can
+            # label it without doing arithmetic of its own.
+            out["over"] = left < 0
+    return out
+
+
 def plan_rows(trip: dict[str, Any]) -> dict[str, Any]:
     """Every decision the traveler has made, as rows a surface binds to.
 
@@ -218,6 +273,8 @@ def seed_surface_trip(messages: list[A2uiMessage], trip: dict[str, Any]) -> list
         # blank rather than rendering the sequence it is about to walk through.
         data_model["trip"] = seeded
         data_model["plan"] = plan_rows(trip)
+        # The running total, beside the decisions it is the sum of.
+        data_model["money"] = money_rows(trip)
         surface["dataModel"] = data_model
 
     return messages
@@ -246,6 +303,18 @@ def trip_updates(surface_id: str, trip: dict[str, Any]) -> list[A2uiMessage]:
                 "surfaceId": surface_id,
                 "path": "/plan",
                 "value": plan_rows(trip),
+            },
+        }
+    )
+    # The running total, which moves whenever a decision does and so belongs
+    # with the data rather than behind a redraw. See `money_rows`.
+    messages.append(
+        {
+            "version": VERSION,
+            "updateDataModel": {
+                "surfaceId": surface_id,
+                "path": "/money",
+                "value": money_rows(trip),
             },
         }
     )
