@@ -65,3 +65,65 @@ def test_a_real_compiled_surface_passes_and_a_broken_one_raises() -> None:
     ))
     with pytest.raises(Exception):
         _VALIDATOR.validate(broken)
+
+
+def test_the_wire_version_is_the_sdks_own_answer() -> None:
+    """Not a literal here, and not a second copy anywhere else.
+
+    `brain/catalog.py` carried `"v1.0"` under a comment claiming it was
+    "derived by asking the compiler what it emits rather than hard-coded, which
+    is what makes the upgrade a one-line pin bump instead of a hunt". It was
+    hard-coded, 0.10.0 renamed the wire spelling (a2ui#3726), and the hunt
+    happened: 83 tests red, all of them the same rejected envelope.
+
+    Two more copies of the same decision turned up behind it —
+    `scripts/build_skills.py` stamping the skill a model reads, and
+    `apps/gallery/scripts/surfaces.mjs` building `v` + the catalog's version —
+    so three places disagreed with the SDK the morning it shipped.
+    """
+    from a2ui.core.schema.v1_0.constants import PROTOCOL_VERSION as SDK_SAYS
+
+    from travel_a2ui.brain.catalog import PROTOCOL_VERSION
+
+    assert PROTOCOL_VERSION == SDK_SAYS
+
+
+def test_and_it_is_what_a_compiled_surface_actually_carries() -> None:
+    """The end the renderer sees, so the constant cannot be right alone."""
+    from travel_a2ui.brain.catalog import PROTOCOL_VERSION, parser_for
+    from travel_a2ui.brain.express import as_wire
+
+    wire = as_wire(
+        parser_for("inline-1").compile('head = Text("Hi")\nroot = Column([head])')
+    )
+    assert wire, "nothing compiled"
+    for message in wire:
+        assert message["version"] == PROTOCOL_VERSION, message
+
+
+def test_the_skill_a_model_reads_agrees_with_the_envelope() -> None:
+    """The second copy, asserted rather than trusted.
+
+    `build_skills.py` defers to the server's constant now. If somebody gives it
+    its own again, this is where that shows up — before a model is handed a
+    brief describing one protocol while the server speaks another.
+    """
+    import importlib.util
+    import pathlib
+    import sys
+
+    root = pathlib.Path(__file__).resolve().parents[3]
+    spec = importlib.util.spec_from_file_location(
+        "_build_skills", root / "scripts" / "build_skills.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(root / "scripts"))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(root / "scripts"))
+
+    from travel_a2ui.brain.catalog import PROTOCOL_VERSION
+
+    assert module.PROTOCOL_VERSION == PROTOCOL_VERSION

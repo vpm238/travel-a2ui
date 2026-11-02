@@ -45,6 +45,7 @@ import {
   type Json,
   type JsonObject,
   type ProtocolVersion,
+  isV1,
 } from './types.js';
 
 export interface CompileOptions {
@@ -506,12 +507,12 @@ export class ExpressCompiler {
 
   /** A data binding, spelled the way this protocol version spells it. */
   private bindingFor(path: string, ctx: CompileContext): JsonObject {
-    return ctx.version === 'v1.0' ? { '@path': path } : { path };
+    return isV1(ctx.version) ? { '@path': path } : { path };
   }
 
   /** A dynamic function call, likewise. */
   private callFor(name: string, args: Json, ctx: CompileContext): JsonObject {
-    return ctx.version === 'v1.0' ? { '@call': name, args } : { call: name, args };
+    return isV1(ctx.version) ? { '@call': name, args } : { call: name, args };
   }
 
   private compileValue(

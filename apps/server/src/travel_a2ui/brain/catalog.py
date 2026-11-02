@@ -57,13 +57,32 @@ CATALOG_VERSION = str(CATALOG_JSON.get("protocolVersion") or "0.9")
 
 #: The same version as the *wire* spells it, which is not how the catalog does.
 #:
-#: The catalog says `"1.0"`; the message envelope this SDK emits says `"v1.0"`.
-#: Upstream has already merged the rename that drops that `v` from envelopes
-#: (a2ui#3726, in the SDK's unreleased changelog), so this is a spelling with a
-#: known expiry date. It is derived by asking the compiler what it emits rather
-#: than hard-coded, which is what makes the upgrade a one-line pin bump instead
-#: of a hunt — see `test_upstream_contract`.
-PROTOCOL_VERSION = "v1.0" if CATALOG_VERSION == "1.0" else f"v{CATALOG_VERSION}"
+#: Asked of the SDK rather than written down here. The old comment claimed this
+#: was "derived by asking the compiler what it emits rather than hard-coded,
+#: which is what makes the upgrade a one-line pin bump instead of a hunt" — and
+#: then hard-coded `"v1.0"`. a2ui#3726 dropped that `v` in 0.10.0 and the hunt
+#: happened: eighty-three tests red, every one of them the same rejected
+#: envelope.
+#:
+#: So it is derived now. `a2ui.core.schema.v1_0.constants.PROTOCOL_VERSION` is
+#: the SDK's own answer to "what goes in the `version` field", and taking it
+#: from there means the next rename is a pin bump and nothing else.
+def _wire_version(catalog_version: str) -> str:
+    try:
+        from importlib import import_module
+
+        module = import_module(
+            f"a2ui.core.schema.v{catalog_version.replace('.', '_')}.constants"
+        )
+        return str(module.PROTOCOL_VERSION)
+    except (ImportError, AttributeError):
+        # A catalog at a version this SDK has no schema module for. The old
+        # spelling is the better guess for anything before 1.0, which is the
+        # only range that reaches here.
+        return f"v{catalog_version}"
+
+
+PROTOCOL_VERSION = _wire_version(CATALOG_VERSION)
 
 
 def load_catalog(path: Any = None, version: str | None = None) -> Any:

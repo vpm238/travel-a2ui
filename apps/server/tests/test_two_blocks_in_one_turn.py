@@ -13,6 +13,7 @@ import copy
 from typing import Any
 
 from travel_a2ui.brain.finishing import finish, stack_blocks
+from travel_a2ui.brain.catalog import PROTOCOL_VERSION
 
 SURFACE = "inline-1"
 
@@ -20,7 +21,7 @@ SURFACE = "inline-1"
 def block(components: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
-            "version": "v1.0",
+            "version": PROTOCOL_VERSION,
             "updateComponents": {"surfaceId": SURFACE, "components": components},
         }
     ]

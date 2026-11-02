@@ -8,7 +8,7 @@
     "express": "surface(\"inline-7\")\n# That id is the one this turn was given (\"Draw into surface ...\"), never an\n# earlier card's. A card already answered is the record of that answer, and a\n# root drawn onto it takes the place of what the traveler picked from.\nheading = Text(\"Outbound · JFK → MAD · Sun 12 Apr\", variant=\"h3\")\n# One call, drawn *before* search_flights is called. The lookup files its rows\n# at /flights and this reads them: bound, labelled, pressable, however many\n# come back. Writing a FlightOption per result instead is three hundred tokens\n# the traveler waits through, and the one part of the turn that can disagree\n# with what was actually found.\nfares = Flights(\"Outbound · JFK → MAD · Sun 12 Apr\", \"/trip/selectedOutbound\")\nnote = Text(\"Prices are per traveler, round trip.\")\nroot = Column([heading, fares, note])",
     "messages": [
       {
-        "version": "v1.0",
+        "version": "1.0",
         "createSurface": {
           "surfaceId": "inline-7",
           "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
@@ -43,7 +43,7 @@
         }
       }
     ],
-    "bytes": 513
+    "bytes": 512
   },
   {
     "id": "20-sidebar-refine",
@@ -54,7 +54,7 @@
     "express": "surface(\"sidebar\")\n$/filters/maxPrice = 600\n$/filters/adults = 2\ntitle = Text(\"Refine\", variant=\"h3\")\ndates = DateRangePicker(\"Travel dates\", $/filters/start, $/filters/end, action=Event(\"dates_changed\"), nightsLabel=\"6 nights\")\nwho = TravelerCounter(\"Adults\", $/filters/adults, min=1, max=8)\nbudget = Slider(\"Max fare\", 150, 1500, $/filters/maxPrice)\nstops = ChoicePicker(\"Stops\", \"mutuallyExclusive\", [{label: \"Any\", value: \"any\"}, {label: \"Nonstop only\", value: \"nonstop\"}], $/filters/stops)\napply = Button(Text(\"Apply\"), \"primary\", Event(\"apply_filters\", {maxPrice: $/filters/maxPrice, adults: $/filters/adults, stops: $/filters/stops}))\nroot = Column([title, dates, who, budget, stops, apply], align=\"stretch\")",
     "messages": [
       {
-        "version": "v1.0",
+        "version": "1.0",
         "createSurface": {
           "surfaceId": "sidebar",
           "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
@@ -171,7 +171,7 @@
         }
       }
     ],
-    "bytes": 1317
+    "bytes": 1316
   },
   {
     "id": "30-home-dashboard",
@@ -182,7 +182,7 @@
     "express": "surface(\"home\")\nhello = Text(\"17 days to Madrid\", variant=\"h1\")\nt1 = StatTile(\"Booked\", \"3 of 5\", caption=\"flights, hotel, transfer\", tone=\"positive\")\nt2 = StatTile(\"Budget left\", \"$680\", caption=\"of $2,000\", tone=\"caution\")\nt3 = StatTile(\"Next up\", \"Pick dinner\", caption=\"Sat 11 Apr\", tone=\"accent\", action=Event(\"open_task\", {id: \"dinner\"}))\ntiles = Row([t1, t2, t3])\nbudget = ProgressMeter(\"Budget used\", 1320, 2000, caption=\"$1,320 of $2,000\", tone=\"caution\")\nwhen = TripCalendar($/trip/startDate, $/trip/endDate, marks=[{date: \"2027-04-12\", icon: \"plane\", label: \"Fly out\"}, {date: \"2027-04-18\", icon: \"plane\", label: \"Fly home\"}], title=\"Madrid\", caption=\"6 nights\")\nweather = WeatherStrip([{day: \"Sun\", high: \"21°\", low: \"9°\", condition: \"sun\"}, {day: \"Mon\", high: \"19°\", low: \"8°\", condition: \"sun\"}, {day: \"Tue\", high: \"16°\", low: \"7°\", condition: \"rain\"}], place=\"Madrid\", caption=\"Pack a light jacket for Tuesday\")\nmap = MapPreview([{label: \"Hotel\", kind: \"stay\"}, {label: \"Prado\", kind: \"sight\", day: \"2\"}, {label: \"Sobrino\", kind: \"food\", day: \"2\"}], caption=\"Everything on day 2 is walkable\")\nroot = Column([hello, tiles, budget, when, weather, map], align=\"stretch\")",
     "messages": [
       {
-        "version": "v1.0",
+        "version": "1.0",
         "createSurface": {
           "surfaceId": "home",
           "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
@@ -331,7 +331,7 @@
         }
       }
     ],
-    "bytes": 1710
+    "bytes": 1709
   },
   {
     "id": "40-itinerary-day",
@@ -342,7 +342,7 @@
     "express": "surface(\"itinerary\")\n$/packing/0/item = \"Passport\"\n$/packing/0/done = true\n$/packing/1/item = \"Adapter\"\n$/packing/1/done = false\na1 = ActivityItem(\"Prado Museum\", \"10:00\", category=\"sight\", location=\"Paseo del Prado 23\", duration=\"2h\", note=\"Book the timed entry\", action=Event(\"open_activity\", {id: \"prado\"}))\na2 = ActivityItem(\"Lunch at Sobrino\", \"13:30\", category=\"food\", location=\"Calle de Cuchilleros 17\", duration=\"1h 30m\")\na3 = ActivityItem(\"Retiro Park\", \"16:00\", category=\"outdoors\", duration=\"1h 30m\", note=\"Rowboats until 19:00\")\nday2 = ItineraryDay(\"Day 2 — Old Madrid\", [a1, a2, a3], date=\"Mon 13 Apr\", summary=\"Art in the morning, a long lunch, green afternoon\")\npackingRow = CheckBox($item, $done)\npacking = List(_template($/packing, packingRow))\npackingTitle = Text(\"Packing\", variant=\"h4\")\nroot = Column([day2, packingTitle, packing])",
     "messages": [
       {
-        "version": "v1.0",
+        "version": "1.0",
         "createSurface": {
           "surfaceId": "itinerary",
           "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
@@ -430,21 +430,21 @@
             }
           ],
           "dataModel": {
-            "packing": {
-              "0": {
+            "packing": [
+              {
                 "item": "Passport",
                 "done": true
               },
-              "1": {
+              {
                 "item": "Adapter",
                 "done": false
               }
-            }
+            ]
           }
         }
       }
     ],
-    "bytes": 1314
+    "bytes": 1305
   },
   {
     "id": "50-traveler-form",
@@ -455,7 +455,7 @@
     "express": "surface(\"inline-traveler\")\ntitle = Text(\"Who is travelling?\", variant=\"h3\")\nname = TextField(\"Full name (as on passport)\", $/traveler/name)\nemail = TextField(\"Email\", $/traveler/email, \"shortText\")\nseat = ChoicePicker(\"Seat\", \"mutuallyExclusive\", [{label: \"Window\", value: \"window\"}, {label: \"Aisle\", value: \"aisle\"}], $/traveler/seat)\nsave = Button(Text(\"Save traveller\"), \"primary\", Event(\"save_traveler\", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))\nroot = Column([title, name, email, seat, save], align=\"stretch\")",
     "messages": [
       {
-        "version": "v1.0",
+        "version": "1.0",
         "createSurface": {
           "surfaceId": "inline-traveler",
           "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
@@ -545,6 +545,6 @@
         }
       }
     ],
-    "bytes": 1060
+    "bytes": 1059
   }
 ]

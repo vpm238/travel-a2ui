@@ -64,7 +64,7 @@ class TestTheAddress:
         trip, so promising it would buy nothing.
         """
         assert landing_for(tool) is None
-        assert file_rows(tool, FOUND, "inline-1", "v1.0") == []
+        assert file_rows(tool, FOUND, "inline-1", PROTOCOL_VERSION) == []
 
     def test_the_brief_and_the_host_name_the_same_addresses(self) -> None:
         """The one coupling left between the two sides, so it is asserted.
@@ -138,7 +138,7 @@ class TestALookupThatFoundNothing:
     )
     def test_nothing_is_file_rows(self, nothing: Any) -> None:
         assert rows_in("search_flights", nothing) is None
-        assert file_rows("search_flights", nothing, "inline-7", "v1.0") == []
+        assert file_rows("search_flights", nothing, "inline-7", PROTOCOL_VERSION) == []
 
     def test_which_is_not_the_same_as_an_empty_list_of_rows(self) -> None:
         """Filing `[]` would blank a card the traveller is reading.
@@ -146,7 +146,7 @@ class TestALookupThatFoundNothing:
         "No flights for those dates" is a sentence the agent says; it is not a
         reason to take the last answer off the screen.
         """
-        assert file_rows("search_flights", {"flights": []}, "inline-7", "v1.0") == []
+        assert file_rows("search_flights", {"flights": []}, "inline-7", PROTOCOL_VERSION) == []
 
 
 class TestTheCardTheAgentAsksFor:

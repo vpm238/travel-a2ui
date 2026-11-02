@@ -43,7 +43,7 @@ export function Protocol({ agent }: { agent: Agent }) {
     const envelope = {
       // The server's own version, not a literal: the wire view exists to
       // show what really went over the wire.
-      version: (agent.meta?.protocolVersion as ProtocolVersion) ?? 'v1.0',
+      version: (agent.meta?.protocolVersion as ProtocolVersion) ?? '1.0',
       createSurface: {
         surfaceId: surface.id,
         catalogId: surface.catalogId || catalog?.catalogId || '',

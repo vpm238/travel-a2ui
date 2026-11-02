@@ -18,6 +18,7 @@ import pathlib
 
 import pytest
 
+from travel_a2ui.brain.catalog import PROTOCOL_VERSION
 from travel_a2ui.brain.finishing import (
     STANDING_SURFACES,
     bind_commit_context,
@@ -73,8 +74,8 @@ def _surface(surface_id: str, components: list, data_model: dict | None = None) 
     if data_model:
         created["dataModel"] = data_model
     return [
-        {"version": "v1.0", "createSurface": created},
-        {"version": "v1.0", "updateComponents": {"surfaceId": surface_id, "components": components}},
+        {"version": PROTOCOL_VERSION, "createSurface": created},
+        {"version": PROTOCOL_VERSION, "updateComponents": {"surfaceId": surface_id, "components": components}},
     ]
 
 

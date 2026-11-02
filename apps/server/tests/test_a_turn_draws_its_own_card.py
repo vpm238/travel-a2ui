@@ -17,20 +17,21 @@ from __future__ import annotations
 from typing import Any
 
 from travel_a2ui.brain.finishing import on_its_own_surface, stack_blocks
+from travel_a2ui.brain.catalog import PROTOCOL_VERSION
 
 TURN = "inline-7"
 
 
 def components(surface_id: str, *nodes: dict[str, Any]) -> dict[str, Any]:
     return {
-        "version": "v1.0",
+        "version": PROTOCOL_VERSION,
         "updateComponents": {"surfaceId": surface_id, "components": list(nodes)},
     }
 
 
 def created(surface_id: str) -> dict[str, Any]:
     return {
-        "version": "v1.0",
+        "version": PROTOCOL_VERSION,
         "createSurface": {"surfaceId": surface_id, "catalogId": "catalog.json"},
     }
 
@@ -49,7 +50,7 @@ def test_a_block_that_names_another_surface_lands_on_this_turns_card() -> None:
     block = [
         created("inline-flights"),
         {
-            "version": "v1.0",
+            "version": PROTOCOL_VERSION,
             "updateDataModel": {
                 "surfaceId": "inline-flights",
                 "path": "/trip/selectedOutbound",

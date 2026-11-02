@@ -687,14 +687,27 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         #
         # Last of the three retries, deliberately: a compile failure and a
         # fenced block are both *attempts* at a surface and worth correcting
-        # first. This one fires when there was no attempt at all — no tool ran,
-        # nothing drew, and the traveller has a sentence and an empty space.
+        # first. This one fires when there was no attempt at all — the traveller
+        # has a sentence and an empty space.
+        #
+        # **`drew_surface`, not `did_something`.** The guard used to be "no tool
+        # ran", and the commonest way to fail this is to run one: the opening
+        # turn records the route with `save_trip`, says "Let me get those
+        # details set up for your trip to Berlin", and stops. A tool ran, so
+        # `did_something` was true, so the nudge never fired — and the panel
+        # quietly filling in on the right is not an answer to somebody who
+        # asked for flights. Seen on both 0.9.0 and 0.10.0, in the journey
+        # validator and in the browser, roughly half the openings.
+        #
+        # Saving a trip is not drawing. `drew_surface` is the flag that means a
+        # surface actually reached the screen, which is the thing being
+        # promised.
         #
         # Once. A model that answers the nudge with another promise will answer
         # the third one the same way, and the traveller is waiting.
         if (
             not result.tool_calls
-            and not did_something
+            and not drew_surface
             and promised(spoken)
             and not retried_promise
         ):
@@ -749,6 +762,11 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                     drawn_now = []
                 if drawn_now:
                     mark("firstSurface")
+                    # Counts as a surface on the screen, because it is one.
+                    # The promise nudge reads this flag, and a turn whose card
+                    # the *host* drew from `draw:` has answered the traveller
+                    # as surely as one that wrote the block itself.
+                    drew_surface = True
                     yield {
                         "type": "ui",
                         "surfaceId": request.surface_id,
@@ -866,6 +884,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         after = []
                     if after:
                         mark("firstSurface")
+                        drew_surface = True
                         yield {
                             "type": "ui",
                             "surfaceId": request.surface_id,

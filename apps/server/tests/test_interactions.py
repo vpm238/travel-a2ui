@@ -27,6 +27,7 @@ from travel_a2ui.doors.interactions import (
 )
 from travel_a2ui.gemini import GeminiError, InteractionResult, ToolCall, Usage
 from travel_a2ui.brain.providers.fixture import FixtureProvider
+from travel_a2ui.brain.catalog import PROTOCOL_VERSION
 
 A2UI_OPEN = "<a2ui>"
 A2UI_CLOSE = "</a2ui>"
@@ -302,7 +303,7 @@ class TestWhereTheRowsLand:
 
         for tool in ("get_trip", "estimate_cost", "save_trip"):
             assert landing_for(tool) is None, tool
-            assert file_rows(tool, {"trip": {}, "total": 1200}, "inline-1", "v1.0") == [], tool
+            assert file_rows(tool, {"trip": {}, "total": 1200}, "inline-1", PROTOCOL_VERSION) == [], tool
 
     def test_a_refusal_does_not_blank_a_card_that_is_already_full(self) -> None:
         """No rows is a real answer, and an empty array is not the way to say it."""
@@ -310,7 +311,7 @@ class TestWhereTheRowsLand:
 
         for nothing in (None, {}, {"flights": []}, {"flights": "nope"}, "not a dict"):
             assert rows_in("search_flights", nothing) is None, nothing
-            assert file_rows("search_flights", nothing, "inline-1", "v1.0") == [], nothing
+            assert file_rows("search_flights", nothing, "inline-1", PROTOCOL_VERSION) == [], nothing
 
 
 class TestWhatTheTravellerSet:
@@ -1720,7 +1721,7 @@ class TestThePanelGainsARowWithoutWaitingForATurn:
     def test_a_trip_that_gained_a_decision_gets_components_not_just_data(self) -> None:
         from travel_a2ui.brain.macros import panel_redraw
 
-        before = panel_redraw({"destination": "Berlin", "origin": "CPH"}, "sidebar", "v1.0")
+        before = panel_redraw({"destination": "Berlin", "origin": "CPH"}, "sidebar", PROTOCOL_VERSION)
         after = panel_redraw(
             {
                 "destination": "Berlin",
@@ -1730,7 +1731,7 @@ class TestThePanelGainsARowWithoutWaitingForATurn:
                 "airline": "SAS",
             },
             "sidebar",
-            "v1.0",
+            PROTOCOL_VERSION,
         )
         kinds_before = [c["component"] for c in before[0]["createSurface"]["components"]]
         kinds_after = [c["component"] for c in after[0]["createSurface"]["components"]]
@@ -1741,7 +1742,7 @@ class TestThePanelGainsARowWithoutWaitingForATurn:
         """Nine characters of Express and a macro expansion. Microseconds."""
         from travel_a2ui.brain.macros import panel_redraw
 
-        drawn = panel_redraw({"destination": "Berlin", "selectedFlight": "SK1"}, "sidebar", "v1.0")
+        drawn = panel_redraw({"destination": "Berlin", "selectedFlight": "SK1"}, "sidebar", PROTOCOL_VERSION)
         assert drawn, "the panel drew nothing"
         assert drawn[0]["createSurface"]["surfaceId"] == "sidebar"
 
@@ -1749,5 +1750,112 @@ class TestThePanelGainsARowWithoutWaitingForATurn:
         from travel_a2ui.brain.macros import panel_redraw
 
         for surface in ("sidebar", "home"):
-            drawn = panel_redraw({"destination": "Berlin"}, surface, "v1.0")
+            drawn = panel_redraw({"destination": "Berlin"}, surface, PROTOCOL_VERSION)
             assert drawn[0]["createSurface"]["surfaceId"] == surface
+
+
+class TestATurnThatRecordedAndThenStopped:
+    """The opening turn's commonest failure, and the guard that missed it.
+
+    Somebody says where they are going and when. The agent calls `save_trip`,
+    says "Let me get those details set up for your trip to Berlin", and stops.
+    The panel on the right fills in, which is not an answer to a person who
+    asked about flights: the card they are looking at is empty.
+
+    The nudge for exactly this was guarded on `not result.tool_calls` — "no
+    tool ran" — and the commonest way to fail it is to run one. `save_trip`
+    ran, so the guard was false, so nothing fired. Seen on both 0.9.0 and
+    0.10.0, in the journey validator and in the browser, in roughly half the
+    openings.
+    """
+
+    def test_a_promise_with_a_tool_and_no_card_is_still_a_promise(self) -> None:
+        from travel_a2ui.brain.promises import promised
+
+        assert promised("Let me get those details set up for your trip to Berlin.")
+        assert promised("Let me map out those dates and travelers so we can check flights.")
+
+    def test_and_a_turn_that_drew_is_not_nudged(self) -> None:
+        """The flag the guard reads now is about the screen, not about tools."""
+        from travel_a2ui.brain.promises import promised
+
+        assert not promised("Here are four fares to Berlin.")
+
+    def test_the_guard_reads_the_screen_rather_than_the_tool_log(self) -> None:
+        """Pinned as source, because the distinction is the whole fix.
+
+        `did_something` is true when a tool ran. `drew_surface` is true when a
+        surface reached the screen. Saving a trip is not drawing, and the nudge
+        is about what the traveller can see.
+        """
+        import inspect
+
+        from travel_a2ui.doors.interactions import turn as door
+
+        source = inspect.getsource(door.run_turn)
+        at = source.index("and promised(spoken)")
+        window = source[at - 400 : at]
+        assert "not drew_surface" in window, "the nudge no longer reads the screen"
+        assert "not did_something" not in window, "the nudge is back on the tool log"
+
+
+class TestTheNudgeFiresWhenATurnRecordsAndStops:
+    """Driven, rather than waited for.
+
+    The browser run that exposed this went green the next time — the agent
+    searched on its own — so the live path proves nothing either way about the
+    guard. The shape is easy to state though: `save_trip` runs, the agent says
+    "Let me get those details set up", and nothing reaches the card. Scripted
+    here so the fix is held by something that cannot roll a different answer.
+    """
+
+    def turn(self, chunks: list[str], calls: list[Any]) -> list[dict[str, Any]]:
+        import asyncio
+
+        model = FakeModel([(chunks, calls), ([" Still looking into it."], [])])
+        return asyncio.run(
+            collect(
+                base(
+                    message="A trip for two from Copenhagen to Berlin next Monday",
+                    client=model,
+                )
+            )
+        )
+
+    def test_a_tool_ran_and_the_card_stayed_empty(self) -> None:
+        """The case the old guard missed, because its guard was "no tool ran"."""
+        events = self.turn(
+            ["Let me get those details set up for your trip to Berlin."],
+            [ToolCall(id="c1", name="save_trip", args={"destination": "Berlin"})],
+        )
+        retries = [e for e in events if e["type"] == "retry"]
+        assert retries, "a turn that recorded and drew nothing was not nudged"
+        assert any("promised and drew nothing" in e["reason"] for e in retries), retries
+
+    def test_a_turn_that_drew_is_left_alone(self) -> None:
+        events = self.turn(["Here are some ideas. ", SURFACE], [])
+        assert not [e for e in events if e["type"] == "retry"], "a drawn turn was nudged"
+
+    def test_and_a_turn_that_promised_nothing_is_left_alone(self) -> None:
+        """Recording a date and saying so plainly is a complete turn."""
+        events = self.turn(
+            ["Saved — two travellers, Copenhagen to Berlin."],
+            [ToolCall(id="c1", name="save_trip", args={"destination": "Berlin"})],
+        )
+        assert not [e for e in events if e["type"] == "retry"]
+
+    def test_the_nudge_happens_once(self) -> None:
+        """A model that answers a nudge with another promise is not asked twice."""
+        import asyncio
+
+        promise = "Let me get those details set up for your trip to Berlin."
+        model = FakeModel(
+            [
+                ([promise], [ToolCall(id="c1", name="save_trip", args={"destination": "Berlin"})]),
+                ([promise], []),
+                ([promise], []),
+            ]
+        )
+        events = asyncio.run(collect(base(message="Berlin next Monday", client=model)))
+        retries = [e for e in events if e["type"] == "retry"]
+        assert len(retries) == 1, f"nudged {len(retries)} times"

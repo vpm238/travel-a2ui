@@ -440,10 +440,7 @@ root = Column([hello, tiles, budget, when, weather, map], _, "stretch")
 
 <a2ui>
 surface("itinerary")
-$/packing/0/done = true
-$/packing/0/item = "Passport"
-$/packing/1/done = false
-$/packing/1/item = "Adapter"
+$/packing = [{item: "Passport", done: true}, {item: "Adapter", done: false}]
 a1 = ActivityItem("Prado Museum", "10:00", "sight", "Paseo del Prado 23", "2h", "Book the timed entry", Event("open_activity", {id: "prado"}))
 a2 = ActivityItem("Lunch at Sobrino", "13:30", "food", "Calle de Cuchilleros 17", "1h 30m")
 a3 = ActivityItem("Retiro Park", "16:00", "outdoors", _, "1h 30m", "Rowboats until 19:00")
@@ -467,6 +464,7 @@ root = Column([title, name, email, seat, save], _, "stretch")
 
 <a2ui>
 surface("home")
-$/home/budgetCaption = "$1,480 of $2,000"
 $/home/budgetUsed = 1480
+surface("home")
+$/home/budgetCaption = "$1,480 of $2,000"
 </a2ui>

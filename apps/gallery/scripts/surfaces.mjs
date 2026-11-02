@@ -32,7 +32,16 @@ const catalog = JSON.parse(
  * gallery is the page people are shown to see what the host draws, so it should
  * be drawing what production sends.
  */
-const VERSION = `v${catalog.protocolVersion ?? '0.9'}`;
+/**
+ * The version as the *wire* spells it, which stopped being `v` + the catalog's.
+ *
+ * 1.0 dropped the prefix (a2ui#3726, released in agent-sdk 0.10.0). This was
+ * the third place that rule was written down — `brain/catalog.py` and
+ * `scripts/build_skills.py` were the others — and all three disagreed with the
+ * SDK the morning it shipped.
+ */
+const DECLARED = catalog.protocolVersion ?? '0.9';
+const VERSION = DECLARED.startsWith('0.') ? `v${DECLARED}` : DECLARED;
 
 const compiler = new ExpressCompiler(catalog, VERSION);
 

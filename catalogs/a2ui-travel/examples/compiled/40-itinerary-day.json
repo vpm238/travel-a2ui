@@ -1,6 +1,6 @@
 [
   {
-    "version": "v1.0",
+    "version": "1.0",
     "createSurface": {
       "surfaceId": "itinerary",
       "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
@@ -88,16 +88,16 @@
         }
       ],
       "dataModel": {
-        "packing": {
-          "0": {
+        "packing": [
+          {
             "item": "Passport",
             "done": true
           },
-          "1": {
+          {
             "item": "Adapter",
             "done": false
           }
-        }
+        ]
       }
     }
   }

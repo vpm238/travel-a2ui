@@ -45,7 +45,21 @@ export interface ComponentNode {
   [prop: string]: Json;
 }
 
-export type ProtocolVersion = 'v0.9' | 'v0.9.1' | 'v1.0';
+/**
+ * The spellings the `version` field can carry.
+ *
+ * `'1.0'` is what the protocol settled on; `'v1.0'` is what the agent SDK
+ * stamped until 0.10.0 dropped the prefix (a2ui#3726). Both stay in the union
+ * because a renderer reads what it is sent, not what it wishes it were sent —
+ * and a surface saved or replayed from before the rename is still a 1.0
+ * surface. `isV1` is the test; nothing should compare against a literal.
+ */
+export type ProtocolVersion = 'v0.9' | 'v0.9.1' | 'v1.0' | '1.0';
+
+/** Whether this version is 1.0, in either spelling it has had. */
+export function isV1(version: ProtocolVersion): boolean {
+  return version === '1.0' || version === 'v1.0';
+}
 
 export interface CreateSurfaceMessage {
   version: ProtocolVersion;

@@ -44,7 +44,14 @@ EXAMPLES = ROOT / "catalogs" / "a2ui-travel" / "examples"
 PRUNING = ROOT / "catalogs" / "a2ui-travel" / "agent-components.json"
 SKILLS = ROOT / "skills"
 
-PROTOCOL_VERSION = "v1.0"
+#: Asked of the server rather than written down twice.
+#:
+#: This was its own `"v1.0"`, a second copy of a decision that lives in
+#: `brain/catalog.py`, and 0.10.0 renamed the wire spelling under both of them.
+#: The server's copy is derived from the SDK now; this one defers to it, so
+#: there is one answer and the skill a model reads cannot disagree with the
+#: envelope the server sends.
+from travel_a2ui.brain.catalog import PROTOCOL_VERSION  # noqa: E402
 #: The SDK prefixes catalog skills with `a2ui-`, so this is "travel" rather than
 #: "a2ui-travel" — naming it the latter produces `a2ui-a2ui-travel`.
 CATALOG_NAME = "travel"

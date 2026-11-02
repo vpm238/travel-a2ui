@@ -159,7 +159,7 @@ function signaturesOf(catalog: CatalogSchema): { components: Signature[]; functi
 
 //: The protocol these previews are compiled at. The catalog page draws the
 //: same components the agent draws, so it compiles them the same way.
-const CATALOG_VERSION = 'v1.0' as const;
+const CATALOG_VERSION = '1.0' as const;
 
 export function Catalog() {
   const [catalog, setCatalog] = useState<CatalogSchema | null>(null);

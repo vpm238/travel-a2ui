@@ -124,6 +124,32 @@ async function spokenCards() {
 const before = await page.locator('aside, [class*="sidebar" i]').first().innerText().catch(() => '');
 console.log('\n=== the panel, before the press ===');
 console.log(before.slice(0, 260) || '(nothing)');
+// A turn that drew no fares is a finding, not a crash.
+//
+// This was a bare `.click()`, so a run where the agent recorded the trip and
+// did not search timed out after 30s and threw an uncaught `TimeoutError` —
+// taking every verdict the probe had already earned with it, and reading like
+// a protocol failure when it was one turn of model weather. Say what was on
+// screen and stop.
+// Press once the turn has stopped painting.
+//
+// A click landed on `<span class="tv-flight__mark">EW</span>` — `leaf()`
+// matches the innermost flight-classed elements, which is several per card —
+// while a newer `turn__surface` was still being drawn over it. Playwright
+// retried for 30s against "intercepts pointer events" and then threw. The card
+// was fine; the probe was pressing mid-paint.
+for (let waited = 0; waited < 180000; waited += 2000) {
+  if (!(await page.locator('.composer__stop').count())) break;
+  await page.waitForTimeout(2000);
+}
+
+if ((await fares.count()) === 0) {
+  console.log('\nFAIL — the opening turn drew no fares to press.');
+  console.log('   The agent recorded the trip and did not search this run.');
+  await page.screenshot({ path: `${shot}/0-no-fares.png`, fullPage: true });
+  await browser.close();
+  process.exit(1);
+}
 await fares.first().click();
 
 await page.waitForTimeout(25000);
