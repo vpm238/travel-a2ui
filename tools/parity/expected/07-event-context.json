@@ -1,29 +1,23 @@
 [
   {
-    "version": "v0.9.1",
+    "version": "1.0",
     "createSurface": {
       "surfaceId": "parity-surface",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
           "id": "save",
           "component": "Button",
-          "child": "_inline_1",
+          "child": "save_child",
           "action": {
             "event": {
               "name": "save_trip",
               "context": {
                 "dest": {
-                  "path": "/trip/destination"
+                  "@path": "/trip/destination"
                 },
                 "adults": {
-                  "path": "/trip/adults"
+                  "@path": "/trip/adults"
                 },
                 "note": "manual"
               }
@@ -31,16 +25,16 @@
           }
         },
         {
+          "id": "save_child",
+          "component": "Text",
+          "text": "Save"
+        },
+        {
           "id": "root",
           "component": "Column",
           "children": [
             "save"
           ]
-        },
-        {
-          "id": "_inline_1",
-          "component": "Text",
-          "text": "Save"
         }
       ]
     }

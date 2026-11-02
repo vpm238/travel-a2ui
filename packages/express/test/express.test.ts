@@ -13,6 +13,7 @@ import {
   ExpressDecompiler,
   ExpressStreamParser,
   ExpressUndefinedRootError,
+  ExpressUnknownCatalogError,
   ExpressUnknownPropertyError,
   ExpressForbiddenDatabindingError,
   ExpressInvalidEnumError,
@@ -132,13 +133,41 @@ describe('compiler errors', () => {
 });
 
 describe('compiler semantics', () => {
-  it('hoists inline constructors and leaves their ids behind', () => {
+  it('hoists inline constructors and names them after where they were found', () => {
     const components = componentsOf(compile('root = Card(Column([Text("a"), Text("b")]))'));
     const rootNode = components.find((c) => c.id === 'root')!;
-    expect(rootNode['child']).toBe('_inline_1');
-    expect(components.map((c) => c.id).sort()).toEqual(
-      ['_inline_1', '_inline_2', '_inline_3', 'root'].sort(),
-    );
+    expect(rootNode['child']).toBe('root_child');
+
+    // `root_child`, not `_inline_1`. The id is on the wire — it is what the
+    // owner's `child` points at — so the reference's convention is the only
+    // one a second renderer's goldens can agree with. This test asserted the
+    // counter, which is how the port kept it through two version bumps.
+    //
+    // Order matters as much as the names: a level at a time, so every
+    // component is declared before the id naming it is read.
+    expect(components.map((c) => c.id)).toEqual([
+      'root',
+      'root_child',
+      'root_child_children_0',
+      'root_child_children_1',
+    ]);
+  });
+
+  it('refuses a surface pointed at a catalog it was not given', () => {
+    // The one kind of parity the golden files cannot express. They compare
+    // what the two compilers *emit*; this is about what they refuse, and the
+    // port refused nothing — it put the unknown id on `createSurface` and let
+    // the client discover there was no such catalog, which it does by
+    // dropping the surface without drawing anything.
+    expect(() =>
+      compile('surface("s", catalogId="https://example.com/nope/catalog.json")\nroot = Text("hi")'),
+    ).toThrow(ExpressUnknownCatalogError);
+
+    // Naming the one it does hold is fine, and is what case 09 checks end to
+    // end: A2UI 1.0 took foreign catalogs off the `surface()` line entirely.
+    expect(() =>
+      compile(`surface("s", catalogId="${catalog.catalogId}")\nroot = Text("hi")`),
+    ).not.toThrow();
   });
 
   it('wraps a catalog function as a handler in an action slot and a value elsewhere', () => {

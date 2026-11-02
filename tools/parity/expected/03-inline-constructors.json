@@ -1,50 +1,43 @@
 [
   {
-    "version": "v0.9.1",
+    "version": "1.0",
     "createSurface": {
       "surfaceId": "parity-surface",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
           "id": "root",
           "component": "Card",
-          "child": "_inline_1"
+          "child": "root_child"
         },
         {
-          "id": "_inline_2",
+          "id": "root_child",
+          "component": "Column",
+          "children": [
+            "root_child_children_0",
+            "root_child_children_1"
+          ]
+        },
+        {
+          "id": "root_child_children_0",
           "component": "Text",
           "text": "Nested",
           "variant": "h3"
         },
         {
-          "id": "_inline_4",
-          "component": "Text",
-          "text": "Go"
-        },
-        {
-          "id": "_inline_3",
+          "id": "root_child_children_1",
           "component": "Button",
-          "child": "_inline_4",
+          "child": "root_child_children_1_child",
           "action": {
             "event": {
-              "name": "go",
-              "context": {}
+              "name": "go"
             }
           }
         },
         {
-          "id": "_inline_1",
-          "component": "Column",
-          "children": [
-            "_inline_2",
-            "_inline_3"
-          ]
+          "id": "root_child_children_1_child",
+          "component": "Text",
+          "text": "Go"
         }
       ]
     }

@@ -32,6 +32,26 @@ export class ExpressUnknownComponentError extends ExpressError {
   }
 }
 
+/**
+ * `surface()` named a catalog the compiler was not given.
+ *
+ * The reference refuses this, and silently accepting it is worse than it
+ * sounds: the id goes onto `createSurface`, the client looks for a catalog
+ * under that name, finds none, and drops the surface — so the agent's block
+ * compiled, validated and produced nothing on screen, with the only evidence
+ * a line in a browser console nobody is reading.
+ */
+export class ExpressUnknownCatalogError extends ExpressError {
+  override name = 'ExpressUnknownCatalogError';
+  constructor(catalogId: string, available: string[]) {
+    super(
+      `Unknown catalog '${catalogId}'. ` +
+        `Available catalogs: ${available.join(', ')}. ` +
+        'Leave the catalog off surface() to use the default.',
+    );
+  }
+}
+
 export class ExpressUnknownPropertyError extends ExpressError {
   override name = 'ExpressUnknownPropertyError';
   constructor(component: string, property: string, available: string[]) {

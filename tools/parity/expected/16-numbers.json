@@ -1,15 +1,9 @@
 [
   {
-    "version": "v0.9.1",
+    "version": "1.0",
     "createSurface": {
       "surfaceId": "parity-surface",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
           "id": "s",
@@ -18,7 +12,7 @@
           "min": 0,
           "max": 100,
           "value": {
-            "path": "/n/decimal"
+            "@path": "/n/decimal"
           }
         },
         {
@@ -28,15 +22,8 @@
             "s"
           ]
         }
-      ]
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateDataModel": {
-      "surfaceId": "parity-surface",
-      "path": "/",
-      "value": {
+      ],
+      "dataModel": {
         "n": {
           "negative": -12,
           "decimal": 3.5

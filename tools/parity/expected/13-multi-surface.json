@@ -1,15 +1,9 @@
 [
   {
-    "version": "v0.9.1",
+    "version": "1.0",
     "createSurface": {
       "surfaceId": "first",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "first",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
           "id": "a",
@@ -27,16 +21,10 @@
     }
   },
   {
-    "version": "v0.9.1",
+    "version": "1.0",
     "createSurface": {
       "surfaceId": "second",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "second",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
           "id": "b",

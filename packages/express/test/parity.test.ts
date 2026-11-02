@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ExpressCompiler } from '../src/compiler.js';
 import { ExpressDecompiler } from '../src/decompiler.js';
-import type { CatalogSchema } from '../src/types.js';
+import type { CatalogSchema, ProtocolVersion } from '../src/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..', '..');
@@ -28,7 +28,19 @@ const catalog = JSON.parse(
 ) as CatalogSchema;
 
 const SURFACE_ID = 'parity-surface';
-const compiler = new ExpressCompiler(catalog, 'v0.9.1');
+
+/**
+ * The envelope the goldens carry, and so the one to compile at.
+ *
+ * One constant rather than the four hardcoded `'v0.9.1'` strings that used to
+ * be here: the goldens are generated at whatever the server emits
+ * (`scripts/gen_parity.py`), and a test pinned to a version the generator has
+ * moved off compares a port against a wire nobody speaks — which is how this
+ * suite came to be green for months while the two compilers disagreed.
+ */
+const WIRE: ProtocolVersion = '1.0';
+
+const compiler = new ExpressCompiler(catalog, WIRE);
 const decompiler = new ExpressDecompiler(catalog);
 
 const cases = readdirSync(casesDir)
@@ -50,7 +62,7 @@ describe('parity with the reference A2UI Express compiler', () => {
       const actual = compiler.compile(source, {
         surfaceId: SURFACE_ID,
         catalogId: catalog.catalogId,
-        version: 'v0.9.1',
+        version: WIRE,
       });
 
       expect(actual).toEqual(golden);
@@ -67,14 +79,14 @@ describe('round-tripping through the decompiler', () => {
       const first = compiler.compile(source, {
         surfaceId: SURFACE_ID,
         catalogId: catalog.catalogId,
-        version: 'v0.9.1',
+        version: WIRE,
       });
 
       const express = decompiler.decompile(first as never);
       const second = compiler.compile(express, {
         surfaceId: SURFACE_ID,
         catalogId: catalog.catalogId,
-        version: 'v0.9.1',
+        version: WIRE,
       });
 
       expect(second).toEqual(first);

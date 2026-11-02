@@ -1,15 +1,18 @@
 [
   {
-    "version": "v0.9.1",
+    "version": "1.0",
     "updateDataModel": {
       "surfaceId": "parity-surface",
-      "path": "/",
-      "value": {
-        "prefs": {
-          "theme": "dark",
-          "currency": "EUR"
-        }
-      }
+      "path": "/prefs/theme",
+      "value": "dark"
+    }
+  },
+  {
+    "version": "1.0",
+    "updateDataModel": {
+      "surfaceId": "parity-surface",
+      "path": "/prefs/currency",
+      "value": "EUR"
     }
   }
 ]

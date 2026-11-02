@@ -1,15 +1,9 @@
 [
   {
-    "version": "v0.9.1",
+    "version": "1.0",
     "createSurface": {
       "surfaceId": "parity-surface",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
           "id": "label",
@@ -23,22 +17,25 @@
           "variant": "primary",
           "action": {
             "event": {
-              "name": "submit",
-              "context": {}
+              "name": "submit"
             }
           }
         },
         {
           "id": "alt",
           "component": "Button",
-          "child": "_inline_1",
+          "child": "alt_child",
           "action": {
             "event": {
-              "name": "cancel",
-              "context": {}
+              "name": "cancel"
             }
           },
           "variant": "borderless"
+        },
+        {
+          "id": "alt_child",
+          "component": "Text",
+          "text": "Cancel"
         },
         {
           "id": "root",
@@ -48,11 +45,6 @@
             "alt"
           ],
           "align": "stretch"
-        },
-        {
-          "id": "_inline_1",
-          "component": "Text",
-          "text": "Cancel"
         }
       ]
     }

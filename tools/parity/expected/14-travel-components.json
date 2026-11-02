@@ -1,15 +1,9 @@
 [
   {
-    "version": "v0.9.1",
+    "version": "1.0",
     "createSurface": {
       "surfaceId": "parity-surface",
-      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json"
-    }
-  },
-  {
-    "version": "v0.9.1",
-    "updateComponents": {
-      "surfaceId": "parity-surface",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
           "id": "head",
@@ -38,7 +32,7 @@
           "stops": "Nonstop",
           "cabin": "economy",
           "selected": {
-            "path": "/trip/pickedIb"
+            "@path": "/trip/pickedIb"
           },
           "badge": "Cheapest"
         },
@@ -80,8 +74,7 @@
           "totalLabel": "Trip total",
           "action": {
             "event": {
-              "name": "hold",
-              "context": {}
+              "name": "hold"
             }
           },
           "actionLabel": "Hold 24h",

@@ -31,6 +31,7 @@ import {
   ExpressInvalidEnumError,
   ExpressInvalidParamError,
   ExpressUndefinedRootError,
+  ExpressUnknownCatalogError,
   ExpressUnknownComponentError,
   ExpressUnknownPropertyError,
 } from './errors.js';
@@ -91,10 +92,39 @@ export function extractExpressBlock(text: string): string {
  */
 const BUILTIN_CALLS = new Set(['Event', '_template', SurfaceOperation.SURFACE, SurfaceOperation.DELETE]);
 
+/** An inline constructor waiting to be compiled, under the id it was given. */
+interface PendingComponent {
+  id: string;
+  node: AstValue;
+  symbols: Map<string, AstValue>;
+}
+
 interface CompileContext {
-  extraComponents: ComponentNode[];
-  inlineCounter: number;
+  /**
+   * Inline constructors hoisted out of the component being compiled, in the
+   * order they were met.
+   *
+   * A queue and not a recursion. `Card(Column([Text(…), Button(…)]))` is four
+   * components deep, and the reference compiler emits them a level at a time —
+   * `root`, `root_child`, then that column's two children — because each one is
+   * only queued while its owner is being written, and drained afterwards.
+   * Compiling them inline instead reverses that: the deepest finishes first and
+   * is pushed first, so a renderer reading the list in order met every child
+   * before the parent that names it.
+   */
+  pending: PendingComponent[];
   activeValuePath: Json | null;
+  /**
+   * The component currently being written, and which of its properties.
+   *
+   * Only here so a hoisted inline can be *named*: the reference calls it after
+   * where it was found — `root_child`, `save_child`,
+   * `root_child_children_1_child` — rather than by a running counter. The name
+   * is part of the wire, since it is what the owner's property points at, so a
+   * client's golden files disagree with the server's over nothing else.
+   */
+  owner: string | null;
+  ownerProperty: string | null;
   /** Which protocol is being written, because 1.0 spells bindings `@path`. */
   version: ProtocolVersion;
 }
@@ -116,14 +146,25 @@ function setNestedPath(target: JsonObject, pathString: string, value: Json): voi
 
   const keys = clean.split('/');
   let cursor: JsonObject = target;
-  for (const key of keys.slice(0, -1)) {
+  for (let at = 0; at < keys.length - 1; at++) {
+    const key = keys[at]!;
+    // A numeric segment means the *next* level down is a list, because that is
+    // what `$/flights/0/airline` says: index 0 of flights. Built as an object
+    // it came out `{"flights": {"0": {…}}}`, which a `_template` over
+    // `/flights` then iterated zero times — the rows silently never drew.
+    const wantsList = isIndex(keys[at + 1]!);
     const existing = cursor[key];
-    if (!existing || typeof existing !== 'object' || Array.isArray(existing)) {
-      cursor[key] = {};
+    if (!existing || typeof existing !== 'object' || Array.isArray(existing) !== wantsList) {
+      cursor[key] = (wantsList ? [] : {}) as Json;
     }
     cursor = cursor[key] as JsonObject;
   }
   cursor[keys[keys.length - 1]!] = value;
+}
+
+/** Whether a path segment is a list index rather than a property name. */
+function isIndex(segment: string): boolean {
+  return /^(0|[1-9][0-9]*)$/.test(segment);
 }
 
 /** True if a compiled value contains a `{ path }` binding anywhere inside it. */
@@ -169,9 +210,10 @@ export class ExpressCompiler {
   ): A2uiMessage[] {
     const { surfaceId, catalogId, version } = options;
     const ctx: CompileContext = {
-      extraComponents: [],
-      inlineCounter: 0,
+      pending: [],
       activeValuePath: null,
+      owner: null,
+      ownerProperty: null,
       version,
     };
 
@@ -231,16 +273,18 @@ export class ExpressCompiler {
         throw new Error(`Standalone function calls are not supported in A2UI ${version}`);
       }
       const first = standaloneCalls[0]!;
-      ctx.inlineCounter += 1;
       const symbols = first.scope?.rawSymbols ?? new Map<string, AstValue>();
       const compiled = this.compileValue(first.call, symbols, ctx, false) as JsonObject;
+      // Read back under whichever key was just written, rather than under
+      // `call`: at 1.0 `compileValue` produces `@call`, so the old read found
+      // nothing and sent `"call": null` — a message naming no function.
+      const called = compiled['@call'] ?? compiled['call'] ?? null;
       return [
         {
           version,
-          functionCallId: `call_${ctx.inlineCounter}`,
+          functionCallId: 'call_1',
           [SurfaceOperation.CALL_FUNC]: {
-            call: compiled['call'] ?? null,
-            args: compiled['args'] ?? {},
+            ...(this.callFor(called as string, compiled['args'] ?? {}, ctx) as JsonObject),
           },
         } as A2uiMessage,
       ];
@@ -254,6 +298,16 @@ export class ExpressCompiler {
       const scopeCatalogId =
         scope.catalogId || catalogId || this.helper.catalog.catalogId || 'https://a2ui.org/catalog.json';
 
+      // A catalog named on the `surface()` line has to be one we hold. The
+      // reference refuses an unknown one; this accepted anything and passed it
+      // straight through to `createSurface`, so the only parity gap the
+      // goldens cannot show — what the two compilers *refuse* — was also the
+      // one that failed silently in a client.
+      const known = this.helper.catalog.catalogId;
+      if (scope.catalogId && known && scope.catalogId !== known) {
+        throw new ExpressUnknownCatalogError(scope.catalogId, [known]);
+      }
+
       const dataModel: JsonObject = {};
       for (const [pathName, node] of scope.dataPathAssignments) {
         setNestedPath(dataModel, pathName, this.compileValue(node, scope.rawSymbols, ctx, false));
@@ -262,14 +316,24 @@ export class ExpressCompiler {
 
       if (!scope.rawSymbols.has('root')) {
         if (scope.dataPathAssignments.size > 0) {
-          messages.push({
-            version,
-            [SurfaceOperation.UPDATE_DATA]: {
-              surfaceId: scope.surfaceId,
-              path: '/',
-              value: dataModel,
-            },
-          } as A2uiMessage);
+          // One message per assignment, each at the path it was written to —
+          // not a single write of the whole tree to `/`.
+          //
+          // A block with no `root` is how the agent *amends* a surface that is
+          // already drawn, so the difference is the whole point: `/` replaces
+          // the data model, and the one in front of the traveller holds the
+          // rows, the selections and the trip. Writing `$/prefs/theme` would
+          // have deleted all of it.
+          for (const [pathName, node] of scope.dataPathAssignments) {
+            messages.push({
+              version,
+              [SurfaceOperation.UPDATE_DATA]: {
+                surfaceId: scope.surfaceId,
+                path: pathName.replace(/^\$/, '') || '/',
+                value: this.compileValue(node, scope.rawSymbols, ctx, false),
+              },
+            } as A2uiMessage);
+          }
           continue;
         }
         throw new ExpressUndefinedRootError();
@@ -280,6 +344,15 @@ export class ExpressCompiler {
         const compiled = this.compileComponent(name, node, scope.rawSymbols, ctx);
         if (compiled) {
           components.push(compiled);
+          // Whatever that component hoisted follows it immediately, and
+          // whatever *those* hoist follows them — a level at a time, which is
+          // the order the reference emits and the only order in which every
+          // component is declared before the id pointing at it is read.
+          while (ctx.pending.length > 0) {
+            const next = ctx.pending.shift()!;
+            const inline = this.compileComponent(next.id, next.node, next.symbols, ctx);
+            if (inline) components.push(inline);
+          }
           continue;
         }
 
@@ -292,9 +365,6 @@ export class ExpressCompiler {
           throw new ExpressUnknownComponentError(node.call, this.helper.componentNames());
         }
       }
-      components.push(...ctx.extraComponents);
-      ctx.extraComponents = [];
-
       if (version === 'v0.9' || version === 'v0.9.1') {
         messages.push(
           {
@@ -386,12 +456,26 @@ export class ExpressCompiler {
         continue;
       }
 
-      let value = this.compileValue(
-        arg,
-        symbols,
-        ctx,
-        property === 'action' || property === 'submitAction',
-      );
+      // Named so an inline constructor inside this property can be called
+      // after it. Saved and restored rather than simply set, because a
+      // component compiled from the queue is compiled *inside* nothing — the
+      // owner it would otherwise inherit is whoever happened to run last.
+      const ownerWas = ctx.owner;
+      const propertyWas = ctx.ownerProperty;
+      ctx.owner = id;
+      ctx.ownerProperty = property;
+      let value: Json;
+      try {
+        value = this.compileValue(
+          arg,
+          symbols,
+          ctx,
+          property === 'action' || property === 'submitAction',
+        );
+      } finally {
+        ctx.owner = ownerWas;
+        ctx.ownerProperty = propertyWas;
+      }
 
       const propertySchema = this.helper.getPropertySchema(componentName, property);
       if (propertySchema && !compilerAllowsDatabinding(propertySchema)) {
@@ -412,7 +496,17 @@ export class ExpressCompiler {
 
       result[property] = value;
 
-      if (property === 'value' && value && typeof value === 'object' && 'path' in value) {
+      // Either spelling of the binding key, because this runs *after*
+      // `compileValue` has already written whichever one this version uses.
+      // Reading only `path` meant that at 1.0 nothing was ever recognised as
+      // the component's bound value, so `?required` on a field compiled to
+      // `required()` with no argument at all — a check that passes anything.
+      if (
+        property === 'value' &&
+        value &&
+        typeof value === 'object' &&
+        ('path' in value || '@path' in value)
+      ) {
         siblingValuePath = value;
       }
     }
@@ -432,7 +526,11 @@ export class ExpressCompiler {
           siblingValuePath,
           { skippedBecomesNull: true, isAction: false },
         );
-        checks.push({ condition: { call: raw.check, args }, message });
+        // `callFor`, not a literal `call`: a check's condition is a function
+        // call like any other, and 1.0 spells those `@call`. Hardcoded here, a
+        // 1.0 surface carried 1.0 bindings and 0.9 conditions, so every field
+        // validated as unconstrained and no check ever ran.
+        checks.push({ condition: this.callFor(raw.check, args, ctx) as Json, message });
       }
       if (checks.length > 0) result['checks'] = checks;
     }
@@ -515,6 +613,21 @@ export class ExpressCompiler {
     return isV1(ctx.version) ? { '@call': name, args } : { call: name, args };
   }
 
+  /**
+   * What to call an inline constructor found in the component being compiled.
+   *
+   * `root_child`, or `root_child_children_1_child` four levels down: the id
+   * says where it came from, which is what makes a hoisted component findable
+   * at all — nothing in the source named it.
+   *
+   * Outside a component (a bare inline in a data assignment, say) there is no
+   * owner to name it after, so it falls back to the position it was met in.
+   */
+  private hoistedId(ctx: CompileContext): string {
+    if (ctx.owner && ctx.ownerProperty) return `${ctx.owner}_${ctx.ownerProperty}`;
+    return `_inline_${ctx.pending.length + 1}`;
+  }
+
   private compileValue(
     value: AstValue,
     symbols: Map<string, AstValue>,
@@ -522,7 +635,18 @@ export class ExpressCompiler {
     isAction: boolean,
   ): Json {
     if (Array.isArray(value)) {
-      return value.map((item) => this.compileValue(item, symbols, ctx, isAction));
+      // The index joins the name, so the two inlines in `Column([Text(…),
+      // Button(…)])` become `…_children_0` and `…_children_1` rather than
+      // colliding on one id — which a client resolves to whichever arrived last.
+      const propertyWas = ctx.ownerProperty;
+      try {
+        return value.map((item, at) => {
+          ctx.ownerProperty = propertyWas === null ? null : `${propertyWas}_${at}`;
+          return this.compileValue(item, symbols, ctx, isAction);
+        });
+      } finally {
+        ctx.ownerProperty = propertyWas;
+      }
     }
 
     if (value === null || typeof value !== 'object') return value as Json;
@@ -579,11 +703,13 @@ export class ExpressCompiler {
     const args = node.args;
 
     // An inline constructor: hoist it to the top level and leave its id behind.
+    //
+    // Queued rather than compiled here, so the owner finishes before its
+    // children start — see `CompileContext.pending` for why that ordering is
+    // the wire's and not an implementation detail.
     if (this.helper.hasComponent(name)) {
-      ctx.inlineCounter += 1;
-      const inlineId = `_inline_${ctx.inlineCounter}`;
-      const compiled = this.compileComponent(inlineId, node, symbols, ctx);
-      if (compiled) ctx.extraComponents.push(compiled);
+      const inlineId = this.hoistedId(ctx);
+      ctx.pending.push({ id: inlineId, node, symbols });
       return inlineId;
     }
 
@@ -623,6 +749,11 @@ export class ExpressCompiler {
       } else if (rawContext && typeof rawContext === 'object') {
         Object.assign(context, rawContext);
       }
+      // An event with nothing to say carries no `context` key at all, rather
+      // than an empty object. The reference omits it, and a client that
+      // round-trips what it was handed sends the empty object back — so the
+      // key's presence has to mean the author wrote one.
+      if (Object.keys(context).length === 0) return { event: { name: eventName } };
       return { event: { name: eventName, context } };
     }
 
@@ -645,13 +776,17 @@ export class ExpressCompiler {
       }
       // Inside an action slot a function call is a *handler*; elsewhere it is a
       // dynamic value expression. Same call, two envelopes.
-      if (isAction) return { functionCall: { call: name, args: compiledArgs } };
-      return { call: name, args: compiledArgs };
+      //
+      // `callFor` in both, because the key is 1.0's `@call` either way — the
+      // envelope changes, the directive does not.
+      if (isAction) return { functionCall: this.callFor(name, compiledArgs, ctx) as Json };
+      return this.callFor(name, compiledArgs, ctx) as Json;
     }
 
-    return {
-      call: name,
-      args: args.map((arg) => this.compileValue(arg, symbols, ctx, isAction)),
-    };
+    return this.callFor(
+      name,
+      args.map((arg) => this.compileValue(arg, symbols, ctx, isAction)),
+      ctx,
+    ) as Json;
   }
 }

@@ -19,6 +19,26 @@ import { A2UI_CLOSE, A2UI_OPEN, SurfaceOperation, type CatalogSchema, type Json 
 
 const IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/**
+ * A directive key, under either spelling the protocol has given it.
+ *
+ * A2UI 1.0 prefixes its own keys with `@` — a binding is `{"@path": …}`, a
+ * function call `{"@call": …}` — while 0.9 wrote them bare. The decompiler is
+ * handed messages it did not compile and is told no version, so it reads both
+ * and lets the shape decide. Reading only the bare names, every 1.0 binding
+ * looked like an ordinary object: `$/trip/total` came back as a literal map,
+ * and compiling that again produced a surface with no bindings in it at all.
+ */
+function directive(node: Record<string, Json>, key: string): Json | undefined {
+  const prefixed = node[`@${key}`];
+  return prefixed !== undefined ? prefixed : node[key];
+}
+
+/** Whether a node carries a directive, under either spelling. */
+function hasDirective(node: Record<string, Json>, key: string): boolean {
+  return `@${key}` in node || key in node;
+}
+
 /** Picks the least noisy string literal form that survives a round trip. */
 export function decompileString(value: string): string {
   const hasNewline = value.includes('\n') || value.includes('\r');
@@ -221,20 +241,31 @@ export class ExpressDecompiler {
     if (SurfaceOperation.UPDATE_DATA in envelope) {
       const op = envelope[SurfaceOperation.UPDATE_DATA] as Record<string, Json>;
       const value = (op?.['value'] ?? {}) as Json;
+      // The path the write was addressed to, which the leaves hang off.
+      //
+      // This used to assume every data message was a whole model written to
+      // `/` and read the value alone. A write of one scalar to one path —
+      // `$/prefs/theme = "dark"`, which is most of them, since that is what
+      // amending a drawn surface looks like — has a value that is not an
+      // object, so the branch produced no lines at all and the assignment
+      // vanished on the way back.
+      const base = String(op?.['path'] ?? '/').replace(/\/+$/, '');
       const lines: string[] = [];
       if (value && typeof value === 'object' && Object.keys(value).length > 0) {
         for (const [path, leaf] of flattenDataModel(value).sort((a, b) =>
           a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0,
         )) {
-          lines.push(`$${path} = ${this.decompileValue(leaf, new Set(), false)}`);
+          lines.push(`$${base}${path} = ${this.decompileValue(leaf, new Set(), false)}`);
         }
+      } else if (base) {
+        lines.push(`$${base} = ${this.decompileValue(value, new Set(), false)}`);
       }
       return lines.join('\n');
     }
 
     if (SurfaceOperation.CALL_FUNC in envelope) {
       const op = (envelope[SurfaceOperation.CALL_FUNC] ?? {}) as Record<string, Json>;
-      const name = String(op['call'] ?? '');
+      const name = String(directive(op, 'call') ?? '');
       const args = op['args'];
       const reprs: string[] = [];
       if (this.helper.hasFunction(name)) {
@@ -345,7 +376,7 @@ export class ExpressDecompiler {
     const rule = (raw ?? {}) as Record<string, Json>;
     const condition = (rule['condition'] ?? {}) as Record<string, Json>;
     const message = typeof rule['message'] === 'string' ? rule['message'] : '';
-    const name = String(condition['call'] ?? '');
+    const name = String(directive(condition, 'call') ?? '');
     const args = (condition['args'] ?? {}) as Record<string, Json>;
 
     const parameters = this.helper.getFunctionProperties(name);
@@ -370,12 +401,14 @@ export class ExpressDecompiler {
     if (value !== null && typeof value === 'object') {
       const node = value as Record<string, Json>;
 
-      if ('path' in node) {
+      if (hasDirective(node, 'path')) {
         if ('componentId' in node) {
-          const path = this.decompileValue({ path: node['path']! }, componentIds, false);
-          return `_template(${path}, ${String(node['componentId'])})`;
+          // A ChildList template keeps the bare `path` even at 1.0, so this
+          // rebuilds one rather than passing the node through.
+          const inner = this.decompileValue({ path: directive(node, 'path')! }, componentIds, false);
+          return `_template(${inner}, ${String(node['componentId'])})`;
         }
-        const path = String(node['path']);
+        const path = String(directive(node, 'path'));
         return path.startsWith('/') ? `$/${path.slice(1)}` : `$${path}`;
       }
 
@@ -391,7 +424,7 @@ export class ExpressDecompiler {
 
       if ('functionCall' in node) {
         const fn = (node['functionCall'] ?? {}) as Record<string, Json>;
-        const name = String(fn['call']);
+        const name = String(directive(fn, 'call'));
         const args = (fn['args'] ?? {}) as Record<string, Json>;
         const reprs = this.helper
           .getFunctionProperties(name)
@@ -402,8 +435,8 @@ export class ExpressDecompiler {
         return `${name}(${reprs.join(', ')})`;
       }
 
-      if ('call' in node) {
-        const name = String(node['call']);
+      if (hasDirective(node, 'call')) {
+        const name = String(directive(node, 'call'));
         const args = node['args'];
         let reprs: string[] = [];
         if (this.helper.hasFunction(name)) {

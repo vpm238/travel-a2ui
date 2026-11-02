@@ -1,25 +1,41 @@
 #!/usr/bin/env python3
-"""Regenerates the parity golden files using Google's reference Express compiler.
+"""Regenerates the parity golden files using the reference Express compiler.
 
 The TypeScript compiler in ``packages/express`` is a port, and a port is only
 worth anything if you can prove it still agrees with the original. So: every
 case in ``tools/parity/cases/*.express`` is compiled here by the reference
 implementation, the output is checked in, and ``packages/express/test/parity.test.ts``
-asserts the TypeScript compiler produces byte-identical JSON.
+asserts the TypeScript compiler produces byte-identical JSON. The Flutter
+client's tests read the same files, for the same reason.
 
 When the two disagree, this file is the one that is right.
 
-The reference implementation is not a runtime dependency of this project — it is
-only needed to *regenerate* goldens. Install it with:
+## Why it goes through the server rather than building its own compiler
 
-    pip install a2ui-agent-sdk
+It used to assemble its own ``Catalog`` and ``ExpressCompiler`` from the
+published wheel. Two things were wrong with that, and they compounded:
 
-or point ``--sdk`` at a checkout of https://github.com/google/a2ui (the
-``experimental/express`` compiler there is ahead of the published wheel and is
-what these goldens were generated from).
+  - It drifted out of step with the SDK and stopped running at all —
+
+        TypeError: Catalog.from_json() got an unexpected keyword argument 'spec_version'
+
+    which froze every golden at whatever the last working version emitted, and
+    a golden nobody can regenerate cannot disagree with anything.
+
+  - A second compiler is a second set of options to keep in sync with the
+    first. The version is the one that bit: these were generated at ``v0.9.1``
+    while the server emits ``1.0``, so the suite was comparing two
+    implementations against a wire neither of them speaks, and the Flutter
+    client refused every surface it was handed.
+
+``brain.catalog.parser_for`` plus ``brain.express.as_wire`` is exactly how the
+deployment compiles a block. Taken through it, the goldens are the bytes the
+product sends — they cannot drift from the server, because they *are* the
+server's. The reference implementation is still doing the compiling; this file
+just stops holding a second copy of the dial settings.
 
 Usage:
-    python3 scripts/gen_parity.py [--sdk /path/to/a2ui] [--check]
+    python3 scripts/gen_parity.py [--check]
 """
 
 from __future__ import annotations
@@ -32,25 +48,26 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CASES = ROOT / "tools" / "parity" / "cases"
 EXPECTED = ROOT / "tools" / "parity" / "expected"
-CATALOG = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
+
+sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
+
+from travel_a2ui.brain.catalog import PROTOCOL_VERSION, parser_for  # noqa: E402
+from travel_a2ui.brain.express import as_wire  # noqa: E402
 
 SURFACE_ID = "parity-surface"
-VERSION = "v0.9.1"
 
-
-def add_sdk_to_path(sdk_root: pathlib.Path | None) -> None:
-    if sdk_root is None:
-        return
-    for package in ("a2ui_agent", "a2ui_core"):
-        src = sdk_root / "agent_sdks" / "python" / package / "src"
-        if not src.is_dir():
-            raise SystemExit(f"Not an a2ui checkout: {src} does not exist")
-        sys.path.insert(0, str(src))
+#: The envelope the goldens carry, which has to be the one the server emits.
+#:
+#: Spelled ``1.0`` and not ``v1.0`` because that is what goes on the wire: the
+#: Python core writes the bare number, the TypeScript port reads it through
+#: ``isV1``, and the Dart core — which spells the same version ``v1.0`` in its
+#: own API — normalises it on the way in. The two SDKs disagree about the
+#: spelling, so the tie goes to the side actually sending bytes.
+VERSION = "1.0"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sdk", type=pathlib.Path, help="Path to a google/a2ui checkout.")
     parser.add_argument(
         "--check",
         action="store_true",
@@ -58,54 +75,29 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    add_sdk_to_path(args.sdk)
-
-    try:
-        from a2ui.core.catalog import Catalog
-        from a2ui.inference_formats.express.compiler import ExpressCompiler
-    except ImportError as error:  # pragma: no cover - operator feedback path
+    if PROTOCOL_VERSION != VERSION:
+        # Not a warning. A golden in the wrong envelope validates against
+        # nothing, and the failure surfaces two layers away in a renderer.
         raise SystemExit(
-            f"Could not import the reference A2UI SDK ({error}).\n"
-            "Install it with `pip install a2ui-agent-sdk`, or pass "
-            "`--sdk /path/to/a2ui` pointing at a checkout of google/a2ui."
-        ) from error
-
-    schema = json.loads(CATALOG.read_text(encoding="utf-8"))
-    catalog = Catalog.from_json(
-        catalog_schema=schema, spec_version=VERSION, catalog_id=schema["catalogId"]
-    )
-    try:
-        compiler = ExpressCompiler(catalog, version=VERSION)
-        supports_version_kwarg = True
-    except TypeError:
-        # The published wheel predates multi-version support and always emits
-        # the v1.0 envelope shape. Goldens must come from a checkout.
-        compiler = ExpressCompiler(catalog)
-        supports_version_kwarg = False
+            f"The server emits {PROTOCOL_VERSION!r} but the goldens are declared "
+            f"{VERSION!r}. Set VERSION to match, regenerate, and expect the "
+            "renderers' fixtures to move with it."
+        )
 
     EXPECTED.mkdir(parents=True, exist_ok=True)
     stale: list[str] = []
-    unsupported: list[str] = []
+    refused: list[str] = []
     written = 0
 
     for case in sorted(CASES.glob("*.express")):
         source = case.read_text(encoding="utf-8")
-        kwargs = {"version": VERSION} if supports_version_kwarg else {}
         try:
-            messages = compiler.compile(
-                source,
-                surface_id=SURFACE_ID,
-                catalog_id=schema["catalogId"],
-                **kwargs,
-            )
+            messages = as_wire(parser_for(SURFACE_ID).compile(source, is_final=True))
         except Exception as error:  # noqa: BLE001 - the reason is reported, not raised
-            # The published wheel is behind the grammar the skills teach — 0.5.0
-            # rejects keyword arguments outright, which is the whole reason the
-            # TypeScript port exists. Skipping those cases keeps the check
-            # meaningful for the ones it *can* compile, instead of the whole
-            # comparison collapsing on the first unsupported feature and telling
-            # us nothing about the rest.
-            unsupported.append(f"{case.stem} ({type(error).__name__})")
+            # One case the reference cannot compile should not cost us the
+            # comparison on the other twenty. Reported either way, so a case
+            # that quietly stops being checked is visible.
+            refused.append(f"{case.stem} ({type(error).__name__})")
             continue
 
         rendered = json.dumps(messages, indent=2, ensure_ascii=False) + "\n"
@@ -119,10 +111,10 @@ def main() -> int:
         target.write_text(rendered, encoding="utf-8")
         written += 1
 
-    if unsupported:
+    if refused:
         print(
-            f"{len(unsupported)} case(s) the installed reference SDK cannot compile, skipped: "
-            + ", ".join(unsupported),
+            f"{len(refused)} case(s) the reference compiler refused, skipped: "
+            + ", ".join(refused),
             file=sys.stderr,
         )
 
@@ -131,17 +123,11 @@ def main() -> int:
             print("Stale parity goldens: " + ", ".join(stale), file=sys.stderr)
             print("Run: python3 scripts/gen_parity.py", file=sys.stderr)
             return 1
-        checked = len(list(CASES.glob("*.express"))) - len(unsupported)
+        checked = len(list(CASES.glob("*.express"))) - len(refused)
         print(f"All {checked} comparable parity goldens are up to date.")
         return 0
 
-    print(f"Wrote {written} parity goldens to {EXPECTED.relative_to(ROOT)}.")
-    if not supports_version_kwarg:
-        print(
-            "WARNING: the installed SDK does not support --version; goldens are in "
-            "v1.0 envelope shape, not v0.9.1.",
-            file=sys.stderr,
-        )
+    print(f"Wrote {written} parity goldens to {EXPECTED.relative_to(ROOT)} at {VERSION}.")
     return 0
 
 
