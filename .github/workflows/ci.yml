@@ -104,6 +104,13 @@ jobs:
       - name: The prompt matches its golden
         run: python3 tools/parity/capture.py --check
 
+      # The pre-draw the Flutter client's tests assert against, captured from
+      # the host's own macros. It is checked here and not beside the other
+      # `check:` steps because it needs the server package, which the step
+      # above installs.
+      - name: The host's skeleton golden is current
+        run: python3 tools/parity/skeleton.py --check
+
       - name: Python tests
         run: |
           python3 -m pip install --quiet pytest
@@ -190,8 +197,20 @@ jobs:
 
       - run: npm ci
 
+      # The server package, then the SDK floated to whatever upstream has
+      # published. Both, because `scripts/gen_parity.py` now compiles through
+      # the server's own `parser_for` rather than assembling a second compiler
+      # of its own — it had drifted out of step with the SDK and stopped
+      # running at all, which froze every golden at a version nobody speaks.
+      #
+      # Installing the server pins the SDK to `apps/server/pyproject.toml`, so
+      # the upgrade after it is what keeps this job's whole point: the goldens
+      # are compared against the *latest* reference compiler, not the pinned
+      # one the blocking suite already uses.
       - name: Install the reference A2UI SDK
-        run: python3 -m pip install --quiet pytest a2ui-agent-sdk
+        run: |
+          python3 -m pip install --quiet pytest -e ./apps/server
+          python3 -m pip install --quiet --upgrade a2ui-agent-sdk
 
       - name: Signature generation matches the reference
         run: python3 -m pytest tools/tests/test_sdk_parity.py -q
@@ -212,3 +231,52 @@ jobs:
       - name: Compare the goldens with the installed reference compiler
         run: |
           python3 scripts/gen_parity.py --check | tee "$GITHUB_STEP_SUMMARY" || true
+
+  flutter:
+    name: The Flutter client
+    runs-on: ubuntu-latest
+    # Its own job because it needs a 1.5GB SDK nothing else here wants, and
+    # because a failure should say "the Flutter client" rather than hide in a
+    # build log.
+    #
+    # It was not tested at all until the client was ported to A2UI 1.0, and the
+    # gap cost exactly what an untested renderer costs. `a2ui_core` 0.4 hands a
+    # resolved property back wrapped in a `ResolvedBinding`; every reader in
+    # `components.dart` took the wrapper for the value, so a Text drew the
+    # characters `ResolvedBinding(Madrid)`, `number()` returned null, every
+    # button fell through to its fallback caption, and every editor wrote the
+    # traveller's answer nowhere. None of it threw. `flutter build web` — the
+    # only Flutter step there was, and only in the image — compiled all of it
+    # without a word, because none of it is a type error.
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # The version the image builds with. They have to agree, or this job
+          # is green against an SDK the deployment does not use.
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        working-directory: renderers/flutter
+        run: flutter pub get
+
+      # Analysis before tests: it is faster, and it catches the SDK bumps that
+      # rename an API outright, which is the other half of what a renderer
+      # against a moving protocol gets wrong.
+      - name: Analyze
+        working-directory: renderers/flutter
+        run: flutter analyze
+
+      - name: Test
+        working-directory: renderers/flutter
+        run: flutter test
+
+      # What the image actually does with this package. Kept so a change that
+      # passes the tests but cannot be compiled for the web fails here rather
+      # than in a deployment.
+      - name: Build for the web
+        working-directory: renderers/flutter
+        run: flutter build web --release

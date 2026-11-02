@@ -229,6 +229,22 @@ class _A2uiComponentState extends State<A2uiComponent> {
         ),
       ];
     }
+    // …and a plain id when it is a `ComponentId` property, which is what
+    // `Button.child` is: 0.4's binder wraps a child *list* in `ChildNode`s but
+    // passes a lone component id straight through as a string.
+    //
+    // Without this the id fell past both branches to `const []`, so `_button`
+    // found no face and drew its fallback — every button on the surface
+    // captioned "Continue", whatever the agent had written on it.
+    if (value is String) {
+      return [
+        A2uiComponent(
+          surface: widget.surface,
+          componentId: value,
+          basePath: widget.basePath,
+        ),
+      ];
+    }
     if (value is! List) return const [];
 
     return [

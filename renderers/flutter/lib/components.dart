@@ -18,13 +18,33 @@ import 'package:flutter/material.dart';
 /// What a builder is given: resolved properties, and a way to send an action.
 class ComponentBuild {
   ComponentBuild({
-    required this.props,
+    required Map<String, dynamic> props,
     required this.context,
     required this.child,
     required this.children,
-  });
+  })  : raw = props,
+        props = _unwrapped(props) as Map<String, dynamic>;
 
+  /// Every resolved property, with the binder's wrappers taken off.
+  ///
+  /// `a2ui_core` 0.4 hands back a `ResolvedBinding` rather than the value
+  /// itself — `ResolvedBinding('Iberia')`, not `'Iberia'` — so that a writable
+  /// property can carry its own setter beside its current value. Every reader
+  /// in this file wants the value, and about a dozen of them index `props`
+  /// directly, so the wrapper comes off once here instead of at each of them.
+  ///
+  /// It was worth a day: `build.string('text')` called `toString()` on the
+  /// wrapper, so a Text drew the literal characters
+  /// `ResolvedBinding(Search flights)`; `number()` and `flag()` type-checked
+  /// against `num` and `true`, missed, and returned null and false. Nothing
+  /// threw. Buttons rendered captionless and disabled, prices blank, switches
+  /// off — a surface that was structurally perfect and said nothing.
   final Map<String, dynamic> props;
+
+  /// The same properties as the binder gave them, wrappers intact.
+  ///
+  /// Only [write] needs this, to reach the setter a `WritableBinding` carries.
+  final Map<String, dynamic> raw;
   final ComponentContext context;
 
   /// Draws one child by id.
@@ -32,6 +52,27 @@ class ComponentBuild {
 
   /// Draws a property that holds a child list or a template.
   final List<Widget> Function(String property) children;
+
+  /// One value, with any `ResolvedBinding` wrappers taken off, at any depth.
+  ///
+  /// Depth matters: a `ChoicePicker`'s `options` and a `DayPlan`'s `lines`
+  /// arrive as a list whose *elements* are wrapped, and a `MapView`'s markers
+  /// as a list of maps whose values are. Unwrapping only the top level leaves
+  /// those readers type-checking against `String` and finding a wrapper, so
+  /// the control draws an empty list rather than refusing to draw.
+  ///
+  /// A `ChildNode` passes through untouched — it is not a binding, and the
+  /// child-list walk in `surface.dart` matches on its exact type.
+  static Object? _unwrapped(Object? value) {
+    if (value is ResolvedBinding) return _unwrapped(value.value);
+    if (value is List) return [for (final item in value) _unwrapped(item)];
+    if (value is Map) {
+      return <String, dynamic>{
+        for (final entry in value.entries) '${entry.key}': _unwrapped(entry.value),
+      };
+    }
+    return value;
+  }
 
   String? string(String key) {
     final value = props[key];
@@ -109,6 +150,19 @@ class ComponentBuild {
     // are accepted here for the same reason they are there: a renderer that
     // reads one version of the wire and nothing else is a renderer that breaks
     // on the next one.
+    // The setter the binder resolved, when it gave one.
+    //
+    // Preferred over looking the path up ourselves, and not only to avoid
+    // spelling it: inside a `_template` row the authored path is *relative*
+    // (`$price`, not `$/flights/2/price`), and only the binding knows which
+    // row it was resolved for. Writing the authored path straight to the data
+    // model put every row's answer in the same wrong place.
+    final resolved = raw[key];
+    if (resolved is WritableBinding) {
+      resolved.set(value);
+      return;
+    }
+
     final path = binding is Map ? (binding['@path'] ?? binding['path']) : null;
     if (path is String) {
       context.surface.dataModel.set(path, value);
