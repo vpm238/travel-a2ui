@@ -807,10 +807,20 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             opening = opening_express(call.name, call.args.get("draw"), request.surface_id)
             if opening:
                 try:
-                    drawn_now = as_wire(
-                        expand_macros(
-                            parser_for(request.surface_id).compile(opening, is_final=True), trip, airports, currency
-                        )
+                    # `finish`, like every other surface. A host-drawn card
+                    # went out raw — no `seed_surface_trip` — so a control on
+                    # it opened empty over a trip that knew the answer. See
+                    # `seed_surface_trip`.
+                    drawn_now = finish(
+                        as_wire(
+                            expand_macros(
+                                parser_for(request.surface_id).compile(opening, is_final=True),
+                                trip,
+                                airports,
+                                currency,
+                            )
+                        ),
+                        trip,
                     )
                 except Exception as why:  # noqa: BLE001 - a bad `draw` must not cost the turn
                     # Said out loud. Swallowed in silence, a card the agent
@@ -930,13 +940,21 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 )
                 if closing:
                     try:
-                        after = as_wire(
-                            expand_macros(
-                                parser_for(request.surface_id).compile(closing, is_final=True),
-                                trip,
-                                airports,
-                                currency,
-                            )
+                        # `finish`, for the same reason as the pre-draw
+                        # above: this is the path that draws `Ask()` from
+                        # `save_trip`, which is the opening form, and it was
+                        # going out unseeded — so the form asked for what had
+                        # just been said in the same sentence.
+                        after = finish(
+                            as_wire(
+                                expand_macros(
+                                    parser_for(request.surface_id).compile(closing, is_final=True),
+                                    trip,
+                                    airports,
+                                    currency,
+                                )
+                            ),
+                            trip,
                         )
                     except Exception as why:  # noqa: BLE001 - a bad `draw` must not cost the turn
                         print(f"draw failed after {call.name}: {why!r}", flush=True)

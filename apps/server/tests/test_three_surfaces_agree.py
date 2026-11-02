@@ -426,3 +426,87 @@ class TestARefusalCanBeActedOn:
                 hint in message
                 for hint in ("draw the", "use one of them", "write the block again")
             ), f"no recovery in: {message[:140]}"
+
+
+class TestAFormComesUpFilledIn:
+    """A path the surface merely mentions is not a value the model meant.
+
+    `seed_surface_trip` fills in what a surface left unset, on the principle
+    that a value the model deliberately wrote is a *proposal* and should beat
+    the older fact. The test for "left unset" was `key in seeded` — and a bound
+    control mentions every path it writes to, so a date picker bound to
+    `$/trip/startDate` arrives carrying `startDate: null`.
+
+    So the seed was skipped and the control rendered blank over a trip that knew
+    the answer. Say "two weeks from next Friday" or "three of us", and the agent
+    records it, draws the form to confirm it, and the form comes up empty — then
+    asks you to type what you just said.
+
+    The panel had it worse, because nobody fills a panel in by hand: its
+    `createSurface` carried `legs: null` and landed on top of the `/trip/legs`
+    sent moments before, wiping a hop's airline and times from the client's data
+    model after the server had got them right.
+    """
+
+    TRIP = {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-26",
+        "travelers": 3,
+        "legs": [
+            {
+                "origin": "MAD",
+                "destination": "JFK",
+                "travelers": 2,
+                "selectedFlight": "IB6250",
+                "airline": "Iberia",
+                "departTime": "10:59",
+            }
+        ],
+    }
+
+    @staticmethod
+    def _seeded(declared: dict) -> dict:
+        from travel_a2ui.brain.finishing import seed_surface_trip
+
+        messages = [
+            {
+                "version": "1.0",
+                "createSurface": {
+                    "surfaceId": "inline-1",
+                    "components": [],
+                    "dataModel": {"trip": declared},
+                },
+            }
+        ]
+        out = seed_surface_trip(messages, TestAFormComesUpFilledIn.TRIP)
+        return out[0]["createSurface"]["dataModel"]["trip"]
+
+    def test_a_control_that_names_a_path_still_gets_the_value(self) -> None:
+        """What a bound DateRangePicker and a TravelerCounter look like on arrival."""
+        seeded = self._seeded({"startDate": None, "endDate": None, "travelers": None})
+        assert seeded["startDate"] == "2027-04-12", "the date picker came up empty"
+        assert seeded["endDate"] == "2027-04-26"
+        assert seeded["travelers"] == 3, "the party counter came up empty"
+
+    def test_an_empty_string_is_also_unset(self) -> None:
+        seeded = self._seeded({"destination": "", "origin": ""})
+        assert seeded["destination"] == "Madrid"
+        assert seeded["origin"] == "JFK"
+
+    def test_but_a_value_the_model_wrote_still_wins(self) -> None:
+        """A suggested date is a proposal, and beats the fact it proposes to replace."""
+        seeded = self._seeded({"startDate": "2027-05-01", "travelers": 4})
+        assert seeded["startDate"] == "2027-05-01", "the agent's proposal was overwritten"
+        assert seeded["travelers"] == 4
+
+    def test_and_a_panel_keeps_the_legs_the_server_just_sent(self) -> None:
+        """The last layer of the return row drawing blank."""
+        seeded = self._seeded({"legs": None})
+        assert isinstance(seeded["legs"], list) and seeded["legs"], (
+            "the panel wiped the route out of its own data model"
+        )
+        leg = seeded["legs"][0]
+        assert leg["airline"] == "Iberia", "a hop's airline was wiped after the server had it"
+        assert leg["departTime"] == "10:59"

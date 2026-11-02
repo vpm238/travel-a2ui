@@ -592,3 +592,74 @@ class TestAGuessIsNotAnAnswer:
         settled = {**guessed}
         settled.pop("assumed")
         assert "ChoicePicker" not in self._controls(settled, airports)
+
+
+class TestAHostDrawnCardIsFinishedLikeAnyOther:
+    """The card the host draws from `draw:` goes through `finish` too.
+
+    An agent's own block does: `finish(stack_blocks(on_its_own_surface(...)))`.
+    The two host paths — `opening_express` for a lookup's pre-draw and
+    `closing_express` for the card a write asks for — yielded their messages
+    raw. So no `seed_surface_trip`, and a control on a host-drawn card opened
+    empty over a trip that knew the answer.
+
+    Which is the whole of "why does it not auto-fill the form", because
+    `save_trip({draw: {macro: "Ask"}})` is the opening form — the one that saves
+    a round, and therefore the one most travellers see first. Say "a two week
+    trip to Madrid starting next week Friday, four of us" and the agent records
+    every word of it, draws the form to confirm, and the form came up blank and
+    asked for the party again.
+    """
+
+    @staticmethod
+    def _drawn(express: str, trip: dict) -> dict:
+        """The data model of the surface this Express produces, host-side."""
+        from travel_a2ui.brain.catalog import parser_for
+        from travel_a2ui.brain.express import as_wire
+        from travel_a2ui.brain.finishing import finish
+        from travel_a2ui.brain.macros import expand
+
+        drawn = finish(
+            as_wire(expand(parser_for("inline-1").compile(express, is_final=True), trip)),
+            trip,
+        )
+        return (drawn[0]["createSurface"].get("dataModel") or {}).get("trip") or {}
+
+    TRIP = {
+        "destination": "Madrid",
+        "startDate": "2026-11-13",
+        "endDate": "2026-11-27",
+        "travelers": 4,
+    }
+
+    def test_the_opening_form_opens_on_what_was_already_said(self) -> None:
+        seeded = self._drawn(
+            'surface("inline-1")\nform = Ask("What is still missing?")\nroot = Column([form])',
+            self.TRIP,
+        )
+        assert seeded.get("travelers") == 4, "the party counter opened empty"
+        assert seeded.get("startDate") == "2026-11-13", "the dates opened empty"
+        assert seeded.get("endDate") == "2026-11-27"
+        assert seeded.get("destination") == "Madrid"
+
+    def test_and_so_does_a_lookup_s_pre_drawn_card(self) -> None:
+        seeded = self._drawn(
+            'surface("inline-1")\nrows = Flights("Outbound")\nroot = Column([rows])',
+            self.TRIP,
+        )
+        assert seeded.get("travelers") == 4, "a pre-drawn card was never seeded"
+
+    def test_both_host_draws_run_through_finish(self) -> None:
+        """Asserted on the source, because a missing pass is silent on screen."""
+        import inspect
+
+        from travel_a2ui.doors.interactions import turn as door
+
+        body = inspect.getsource(door.run_turn)
+        for name in ("opening_express(", "closing_express("):
+            at = body.index(name)
+            window = body[at : at + 2200]
+            assert "finish(" in window, (
+                f"the {name.rstrip('(')} draw does not go through `finish`, so its controls "
+                "open empty over a trip that knows the answer"
+            )

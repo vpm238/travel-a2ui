@@ -190,7 +190,27 @@ def seed_surface_trip(messages: list[A2uiMessage], trip: dict[str, Any]) -> list
         data_model = dict(surface.get("dataModel") or {})
         seeded = dict(data_model.get("trip") or {})
         for key, value in facts:
-            if key in seeded:
+            # Declared-and-empty is not a proposal.
+            #
+            # `key in seeded` treated a path the surface merely *mentions* as a
+            # value the model meant, and a bound control mentions every path it
+            # writes to. So a date picker bound to `$/trip/startDate` arrived
+            # carrying `startDate: null`, the seed was skipped, and the control
+            # rendered blank over a trip that knew the answer — which is the
+            # whole of "why does it not auto-fill the form". Say "two weeks from
+            # next Friday" or "three of us" and the agent records it, draws the
+            # form to confirm it, and the form came up empty.
+            #
+            # The panel had it worse, because a panel is never filled in by
+            # hand: its `createSurface` carried `legs: null` and landed on top
+            # of the `/trip/legs` sent moments before, so a hop's airline and
+            # times were wiped from the client's data model after the server had
+            # got them right. That was the last layer of the return row drawing
+            # blank.
+            #
+            # A real value still wins — a suggested date, a widened budget is a
+            # proposal and should beat the older fact it proposes to replace.
+            if seeded.get(key) not in (None, ""):
                 continue
             seeded[key] = value
         # No early return on an empty trip: `/plan` still has to be here, or a
