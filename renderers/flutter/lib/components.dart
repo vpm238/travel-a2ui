@@ -95,7 +95,21 @@ class ComponentBuild {
   /// and only a button means they are done.
   void write(String key, Object? value) {
     final binding = context.componentModel.properties[key];
-    final path = binding is Map ? binding['path'] : null;
+    // `@path` and `path`, because A2UI 1.0 renamed the binding key.
+    //
+    // 0.9 wrote `path`; 1.0 writes `@path`, and this read only the old
+    // spelling. The server emits 1.0 — so every editor on this client looked up
+    // `path`, found nothing, and wrote the traveller's answer nowhere at all.
+    // Silent in the worst way: the slider moves, the date picker closes, the
+    // counter counts, and the button then sends a data model that never heard
+    // about any of it.
+    //
+    // The same rename caught `tools/validate/journey.py`, which reported "0
+    // hop(s) ticketed" on trips the React client walks cleanly. Both spellings
+    // are accepted here for the same reason they are there: a renderer that
+    // reads one version of the wire and nothing else is a renderer that breaks
+    // on the next one.
+    final path = binding is Map ? (binding['@path'] ?? binding['path']) : null;
     if (path is String) {
       context.surface.dataModel.set(path, value);
     }

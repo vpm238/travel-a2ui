@@ -49,6 +49,35 @@ class Failed extends Part {
   final String message;
 }
 
+/// The version string, reconciled between the two official SDKs.
+///
+/// **The version string.** The two official SDKs disagree about how A2UI 1.0
+/// spells itself on the wire, and this is where that is reconciled.
+///
+/// `a2ui-core` for Python — which this server is built on — writes `1.0`.
+/// `a2ui_core` for Dart writes `v1.0`, keeps the `v` it used for `v0.9`, and
+/// its wire parser is deliberately strict: "Only the exact wire value
+/// matches". So every message this server sends was rejected outright, with
+/// `A2UI message must have version 'v0.9' (got '1.0')` before the package
+/// bump and `Unsupported A2UI protocol version '1.0'` after it — and a
+/// rejected envelope renders nothing at all. The whole Flutter client drew a
+/// blank page against a server the React client was walking fine.
+///
+/// Normalised here rather than on the wire, for the same reason the 0.9
+/// version of this comment gave: the React client and every other consumer
+/// read what the Python SDK emits, and changing what the server sends to
+/// suit one client's dependency is the wrong way round. Delete this when the
+/// two SDKs agree.
+Map<String, dynamic> readableVersion(Map<String, dynamic> message) {
+  final version = message['version'];
+  if (version is! String) return message;
+  final adapted = A2uiProtocolVersion.tryParse(version) ??
+      A2uiProtocolVersion.tryParseSemVer(version);
+  if (adapted == null || adapted.jsonValue == version) return message;
+  return {...message, 'version': adapted.jsonValue};
+}
+
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
     super.key,
@@ -59,7 +88,7 @@ class ChatScreen extends StatefulWidget {
 
   final TravelApi api;
   final ServerMeta meta;
-  final Catalog<FlutterComponent> catalog;
+  final Catalog<FlutterComponent, FunctionImplementation> catalog;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -115,7 +144,7 @@ class _ChatScreenState extends State<ChatScreen> {
   /// data model is everything else they set that no binding named. A client
   /// that omits the second still works, which is the test of whether this is a
   /// protocol or an arrangement.
-  void _onAction(A2uiClientAction action) {
+  void _onAction(A2uiRendererAction action) {
     if (_busy) return;
     // A press on the panel is a request to re-open a decision, and deciding
     // happens in the conversation — so it is allowed through even though the
@@ -123,7 +152,7 @@ class _ChatScreenState extends State<ChatScreen> {
     // permitted to draw was the one button this client silently ignored.
     if (action.surfaceId != _liveSurface && !_standing.contains(action.surfaceId)) return;
 
-    final surface = _processor.groupModel.getSurface(action.surfaceId);
+    final surface = _processor.model.getSurface(action.surfaceId);
     _send(
       action: {
         'name': action.name,
@@ -219,7 +248,7 @@ class _ChatScreenState extends State<ChatScreen> {
     // the heading still says "Finding flights", and nothing reports a thing.
     for (final message in event.messages) {
       try {
-        _processor.processMessages([A2uiMessage.fromJson(_readable(message))]);
+        _processor.processMessages([readableVersion(message)]);
       } on A2uiStateError {
         // A surface that already exists, or components for one that does not.
         // Both are ordinary while streaming.
@@ -242,34 +271,17 @@ class _ChatScreenState extends State<ChatScreen> {
     // conversation.
     if (_standing.contains(event.surfaceId)) {
       // Nothing to append: the panel watches the store and redraws itself.
-      if (_processor.groupModel.getSurface(event.surfaceId) != null) {
+      if (_processor.model.getSurface(event.surfaceId) != null) {
         setState(() => _panel = event.surfaceId);
       }
       return;
     }
 
     final existing = _parts.whereType<Drawn>().any((part) => part.surfaceId == event.surfaceId);
-    if (!existing && _processor.groupModel.getSurface(event.surfaceId) != null) {
+    if (!existing && _processor.model.getSurface(event.surfaceId) != null) {
       setState(() => _parts.add(Drawn(event.surfaceId)));
       _toBottom();
     }
-  }
-
-  /// Two adaptations between this server and this build of `a2ui_core`.
-  ///
-  /// **The version string.** The core accepts `v0.9` and the server emits
-  /// `v0.9.1` — the spec revision the catalog is written against. The core
-  /// rejects anything else outright, so without this every message raises and
-  /// nothing renders at all. Normalised here rather than on the wire: the
-  /// React client and every payload the server sends already carry `v0.9.1`, and changing
-  /// what the server emits to suit one client's dependency is the wrong way
-  /// round. Delete this when the core accepts the patch revision.
-  Map<String, dynamic> _readable(Map<String, dynamic> message) {
-    final version = message['version'];
-    if (version is String && version.startsWith('v0.9') && version != 'v0.9') {
-      return {...message, 'version': 'v0.9'};
-    }
-    return message;
   }
 
   /// **The seeded data model.** The server fills `createSurface.dataModel` with
@@ -287,7 +299,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (created is! Map) continue;
       final seed = created['dataModel'];
       if (seed is! Map) continue;
-      final surface = _processor.groupModel.getSurface(created['surfaceId'] as String);
+      final surface = _processor.model.getSurface(created['surfaceId'] as String);
       if (surface == null) continue;
       seed.forEach((key, value) => surface.dataModel.set('/$key', value));
     }
@@ -358,7 +370,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
           final panelId = _panel;
           final panel =
-              panelId == null ? null : _processor.groupModel.getSurface(panelId);
+              panelId == null ? null : _processor.model.getSurface(panelId);
           if (panel == null) return conversation;
 
           if (wide) {
@@ -418,7 +430,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _drawn(String surfaceId) {
-    final surface = _processor.groupModel.getSurface(surfaceId);
+    final surface = _processor.model.getSurface(surfaceId);
     if (surface == null) return const SizedBox.shrink();
 
     final spent = surfaceId != _liveSurface;

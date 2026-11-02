@@ -57,10 +57,12 @@ class _SurfaceRootState extends State<_SurfaceRoot> {
     // Components arrive after the surface exists, and often in several
     // messages. Without this the first `updateComponents` would paint and the
     // rest would be invisible until something else forced a rebuild.
-    widget.surface.componentsModel.onCreated.addListener(refresh);
-    widget.surface.componentsModel.onDeleted.addListener(refresh);
-    _created = () => widget.surface.componentsModel.onCreated.removeListener(refresh);
-    _deleted = () => widget.surface.componentsModel.onDeleted.removeListener(refresh);
+    // `subscribe` returns the handle that cancels it, which is what
+    // `a2ui_core` 0.4 replaced `addListener`/`removeListener` with.
+    final created = widget.surface.componentsModel.onCreated.subscribe(refresh);
+    final deleted = widget.surface.componentsModel.onDeleted.subscribe(refresh);
+    _created = created.unsubscribe;
+    _deleted = deleted.unsubscribe;
   }
 
   @override
@@ -159,7 +161,7 @@ class _A2uiComponentState extends State<A2uiComponent> {
       _context = null;
       return;
     }
-    final definition = widget.surface.catalog.components[model.type];
+    final definition = widget.surface.defaultCatalog?.components[model.type];
     if (definition == null) {
       _binder = null;
       _context = null;
@@ -187,7 +189,7 @@ class _A2uiComponentState extends State<A2uiComponent> {
       return const SizedBox.shrink();
     }
 
-    final definition = widget.surface.catalog.components[model.type];
+    final definition = widget.surface.defaultCatalog?.components[model.type];
     if (definition == null) return const SizedBox.shrink();
 
     return _Watch<Map<String, dynamic>>(

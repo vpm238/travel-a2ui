@@ -6,7 +6,8 @@ publish_to: 'none'
 version: 0.1.0
 
 environment:
-  sdk: ^3.9.0
+  # `a2ui_flutter` 0.0.1-wip003 requires Dart >=3.10 and Flutter >=3.38.
+  sdk: ^3.10.0
 
 dependencies:
   flutter:
@@ -15,8 +16,8 @@ dependencies:
   # The official A2UI packages. The point of this client is that it renders the
   # protocol rather than this app's idea of it, so the core types and the
   # widget host both come from upstream.
-  a2ui_core: ^0.1.1
-  a2ui_flutter: 0.0.1-wip002
+  a2ui_core: ^0.4.0
+  a2ui_flutter: 0.0.1-wip003
 
   http: ^1.2.0
   intl: any

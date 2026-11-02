@@ -37,38 +37,44 @@ import 'functions.dart';
 
 /// A component this client can draw: the protocol's API, plus a builder.
 class FlutterComponent extends ComponentApi {
-  FlutterComponent(this.name, this.schema, this.build);
-
-  @override
-  final String name;
-
-  @override
-  final Schema schema;
+  // `name` and `schema` were overridable getters in `a2ui_core` 0.1 and are
+  // constructor arguments on `ComponentApi` in 0.4, so they go up rather than
+  // being declared again here.
+  FlutterComponent(String name, Schema schema, this.build)
+      : super(name: name, schema: schema);
 
   /// Draws one component from its resolved properties.
   final ComponentBuilder build;
 }
 
-/// A number that may be a literal, a binding, or a call.
-///
-/// The core defines `dynamicString` and `dynamicBoolean` but not this one;
-/// composed here the same way rather than approximated with `Schema.number()`,
-/// because approximating it is exactly how a bound price stops being bound.
-final _dynamicNumber = Schema.combined(
-  description: r'REF:common_types.json#/$defs/DynamicNumber',
-  anyOf: [Schema.number(), CommonSchemas.dataBinding, CommonSchemas.functionCall],
-);
-
 /// Every reference the travel catalog uses, and the core schema it means.
+///
+/// **`CommonSchemasV1` for anything a binding can appear in.** A2UI 1.0 renamed
+/// the binding key from `path` to `@path`, and the core carries both sets: the
+/// 0.9 shapes on `CommonSchemas`, the 1.0 shapes on `CommonSchemasV1`. Built
+/// from the 0.9 set — which is what this did — every bound property on every
+/// component failed validation against a server that emits 1.0:
+///
+///     Component 'rows__flightoption_1' does not match the 'FlightOption'
+///     schema: anyOfNotMet at #root["airline"]; anyOfNotMet at
+///     #root["departTime"]; …
+///
+/// which is every field of every card, so nothing drew.
+///
+/// `componentId`, `childList`, `action` and `checkable` have no V1 variant and
+/// take the 0.9 ones: a component id is a string, and a child-list template
+/// still spells its own key `path` in 1.0 — `{"path": "/flights",
+/// "componentId": "…"}` is what the server sends — so those shapes did not
+/// move.
 final Map<String, Schema> _knownRefs = {
-  'DynamicString': CommonSchemas.dynamicString,
-  'DynamicNumber': _dynamicNumber,
-  'DynamicBoolean': CommonSchemas.dynamicBoolean,
+  'DynamicString': CommonSchemasV1.dynamicString,
+  'DynamicNumber': CommonSchemasV1.dynamicNumber,
+  'DynamicBoolean': CommonSchemasV1.dynamicBoolean,
   'ComponentId': CommonSchemas.componentId,
   'ChildList': CommonSchemas.childList,
   'Action': CommonSchemas.action,
   'Checkable': CommonSchemas.checkable,
-  'DataBinding': CommonSchemas.dataBinding,
+  'DataBinding': CommonSchemasV1.dataBinding,
 };
 
 /// References that carry no binding behaviour and can be dropped.
@@ -80,7 +86,7 @@ final Map<String, Schema> _knownRefs = {
 const _ignoredRefs = {'ComponentCommon', 'CatalogComponentCommon'};
 
 /// Builds the catalog from the server's own `catalog.json`.
-Catalog<FlutterComponent> buildCatalog(Map<String, dynamic> catalogJson) {
+Catalog<FlutterComponent, FunctionImplementation> buildCatalog(Map<String, dynamic> catalogJson) {
   final definitions = (catalogJson['components'] as Map<String, dynamic>?) ?? {};
 
   final components = <FlutterComponent>[
@@ -92,7 +98,7 @@ Catalog<FlutterComponent> buildCatalog(Map<String, dynamic> catalogJson) {
       ),
   ];
 
-  return Catalog<FlutterComponent>(
+  return Catalog<FlutterComponent, FunctionImplementation>(
     // Read from the catalog rather than hardcoded, so this client can point at
     // a deployment that renamed its catalog without being rebuilt. It has to
     // match what the server puts on `createSurface`, or the processor refuses
@@ -100,6 +106,23 @@ Catalog<FlutterComponent> buildCatalog(Map<String, dynamic> catalogJson) {
     id: (catalogJson[r'$id'] ?? catalogJson['catalogId']) as String,
     components: components,
     functions: catalogFunctions(),
+    // Read off the document, because `a2ui_core` 0.4 refuses a v1.0 surface
+    // drawn against a catalog that does not declare its version:
+    //
+    //     Catalog '…/a2ui-travel/catalog.json' declares no protocolVersion, so
+    //     it is pre-v1.0, which is incompatible with the 'v1.0' message
+    //     creating surface 'inline-1'.
+    //
+    // The server's catalog has said `"protocolVersion": "1.0"` all along; this
+    // was simply dropping it on the way in, so every surface was refused.
+    //
+    // `tryParseSemVer`, not `tryParse`: a catalog document spells it `1.0`
+    // while the wire spells it `v1.0`, and the core is explicit that the
+    // document's is the lenient reading.
+    protocolVersion: switch (catalogJson['protocolVersion']) {
+      final String declared => A2uiProtocolVersion.tryParseSemVer(declared),
+      _ => null,
+    },
   );
 }
 
@@ -161,7 +184,7 @@ Schema _resolve(Map<String, dynamic> node) {
     // An unknown reference becomes a permissive schema rather than an error.
     // The alternative is refusing to draw a component over a property the
     // renderer may not even use.
-    return Schema.combined(anyOf: [Schema.string(), CommonSchemas.dataBinding]);
+    return Schema.combined(anyOf: [Schema.string(), CommonSchemasV1.dataBinding]);
   }
 
   // A nested composition — `anyOf` of a literal and a reference, say — is

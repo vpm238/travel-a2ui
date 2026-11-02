@@ -25,8 +25,16 @@ import 'package:a2ui_core/a2ui_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:travel_a2ui_flutter/catalog.dart';
+import 'package:travel_a2ui_flutter/chat.dart';
 import 'package:travel_a2ui_flutter/components.dart';
 import 'package:travel_a2ui_flutter/surface.dart';
+
+/// The wire version these fixtures declare.
+///
+/// Off the enum rather than written out, because the two SDKs spell 1.0
+/// differently — `1.0` from Python, `v1.0` from Dart — and a literal here is a
+/// third opinion. `readableVersion` is what reconciles the server's.
+final String _wire = A2uiProtocolVersion.v1_0.jsonValue;
 
 /// The repository root, from this file.
 final _root = Directory.current.parent.parent;
@@ -34,28 +42,36 @@ final _root = Directory.current.parent.parent;
 Map<String, dynamic> _json(String relative) =>
     jsonDecode(File('${_root.path}/$relative').readAsStringSync()) as Map<String, dynamic>;
 
-final Catalog<FlutterComponent> _catalog =
+final Catalog<FlutterComponent, FunctionImplementation> _catalog =
     buildCatalog(_json('catalogs/a2ui-travel/catalog.json'));
 
-/// The version shim the client applies, repeated here so the fixtures are the
-/// server's own bytes rather than edited ones.
-Map<String, dynamic> _readable(Map<String, dynamic> message) {
-  final version = message['version'];
-  if (version is String && version.startsWith('v0.9') && version != 'v0.9') {
-    return {...message, 'version': 'v0.9'};
-  }
-  return message;
-}
+// The version shim is the client's own `readableVersion`, imported rather than
+// repeated. It used to be copied here "so the fixtures are the server's own
+// bytes" — which was the right instinct and the wrong mechanism: the copy went
+// on normalising `v0.9` long after the client had moved to 1.0, so the test
+// agreed with itself about a conversion neither side still did.
 
 MessageProcessor<FlutterComponent> _process(List<Map<String, dynamic>> messages) {
   final processor = MessageProcessor<FlutterComponent>(catalogs: [_catalog]);
   processor.processMessages([
-    for (final message in messages) A2uiMessage.fromJson(_readable(message)),
+    for (final message in messages) readableVersion(message),
   ]);
   return processor;
 }
 
 Future<void> _pump(WidgetTester tester, SurfaceModel<FlutterComponent> surface) async {
+  // A window wide enough for a fare card.
+  //
+  // The default test surface is 800x600, and a `FlightOption` is a row of nine
+  // facts — airline, number, both times, both airports, duration, stops,
+  // price — which overflows it and fails the test on a layout assertion rather
+  // than on anything it is checking. These cards are drawn in a chat column on
+  // a real screen; 2000 is wide enough for the widest of them, and the height is for a list.
+  tester.view.physicalSize = const Size(2000, 3000);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -88,12 +104,15 @@ void main() {
       final flight = _catalog.components['FlightOption']!;
       final airline = (flight.schema.value['properties'] as Map)['airline'];
       expect(airline, isNotNull);
-      final branches = (airline as Map)['anyOf'];
+      // `oneOf` on the v1.0 shapes, `anyOf` on the v0.9 ones. Either is a
+      // union; what matters is that it is one, and that a binding is in it.
+      final branches = (airline as Map)['oneOf'] ?? airline['anyOf'];
       expect(branches, isA<List>(), reason: 'a dynamic string is a union, not a bare type');
+      // `@path` in 1.0, which is the rename this whole client had to follow.
       final hasPath = (branches as List).any(
-        (branch) => branch is Map && (branch['properties'] as Map?)?.containsKey('path') == true,
+        (branch) => branch is Map && (branch['properties'] as Map?)?.containsKey('@path') == true,
       );
-      expect(hasPath, isTrue, reason: 'the binder finds a binding by looking for properties.path');
+      expect(hasPath, isTrue, reason: 'the binder finds a binding by looking for properties.@path');
     });
 
     test('a component this client does not draw is named, not dropped', () {
@@ -105,71 +124,65 @@ void main() {
 
   group('the skeleton, as the server sends it', () {
     late List<Map<String, dynamic>> opening;
+    late List<Map<String, dynamic>> filled;
+    late int blankRows;
 
     setUpAll(() {
+      // Written by `tools/parity/skeleton.py` from the host's own
+      // `opening_express` and `seed_rows`, so what is under test here is what
+      // the server sends and not a hand-written approximation of it.
       final golden = _json('tools/parity/__golden__/skeleton.json');
+      final flights = (golden['search_flights'] as Map).cast<String, dynamic>();
       opening = [
-        for (final message in (golden['search_flights'] as Map)['opening'] as List)
+        for (final message in flights['opening'] as List)
           (message as Map).cast<String, dynamic>(),
       ];
+      filled = [
+        for (final message in flights['filled'] as List)
+          (message as Map).cast<String, dynamic>(),
+      ];
+      // Off the golden, not a literal. This test asserted four for a while
+      // after `SEEDED_ROWS` became three, and nothing caught it because the
+      // golden it reads was never generated.
+      blankRows = ((opening.last['updateDataModel'] as Map)['value'] as List).length;
     });
 
     testWidgets('it paints the layout before any data arrives', (tester) async {
       final processor = _process(opening);
-      final surface = processor.groupModel.getSurface('inline-1')!;
+      final surface = processor.model.getSurface('inline-1')!;
       await _pump(tester, surface);
 
       expect(find.text('Finding flights'), findsOneWidget);
     });
 
-    testWidgets('the four blank rows read as waiting, not as empty flights', (tester) async {
+    testWidgets('the blank rows read as waiting, not as empty flights', (tester) async {
       final processor = _process(opening);
-      final surface = processor.groupModel.getSurface('inline-1')!;
+      final surface = processor.model.getSurface('inline-1')!;
       await _pump(tester, surface);
 
-      // Four rows, each drawn from the one template component. If the pending
-      // state were confused with empty, these would be four flights with no
-      // airline and no fare — which looks like an answer, and is worse than a
-      // spinner because of it.
-      expect(find.byType(InkWell), findsNWidgets(4));
+      // Each drawn from the one template component. If the pending state were
+      // confused with empty, these would be flights with no airline and no
+      // fare — which looks like an answer, and is worse than a spinner because
+      // of it.
+      expect(find.byType(InkWell), findsNWidgets(blankRows));
       expect(find.textContaining(r'$'), findsNothing);
     });
 
     testWidgets('the rows fill in when only the data model changes', (tester) async {
       final processor = _process(opening);
-      final surface = processor.groupModel.getSurface('inline-1')!;
+      final surface = processor.model.getSurface('inline-1')!;
       await _pump(tester, surface);
 
       // No components are re-sent. This is the whole of the UI-first claim: the
       // agent drew the shape once, and the search result is a data update.
       processor.processMessages([
-        A2uiMessage.fromJson({
-          'version': 'v0.9',
-          'updateDataModel': {
-            'surfaceId': 'inline-1',
-            'path': '/flights',
-            'value': [
-              {
-                'id': 'IB614',
-                'airline': 'Iberia',
-                'departTime': '08:39',
-                'arriveTime': '12:51',
-                'origin': 'JFK',
-                'destination': 'MAD',
-                'price': r'$257',
-                'duration': '7h 12m',
-                'stops': 'Nonstop',
-                'flightNumber': 'IB614',
-              },
-            ],
-          },
-        }),
+        for (final message in filled) readableVersion(message),
       ]);
       await tester.pump();
 
       expect(find.text('Iberia'), findsOneWidget);
-      expect(find.text(r'$257'), findsOneWidget);
-      expect(find.text('08:39'), findsOneWidget);
+      expect(find.text(r'$412'), findsOneWidget);
+      expect(find.text('18:40'), findsOneWidget);
     });
   });
 
@@ -177,11 +190,11 @@ void main() {
     testWidgets('repeats one component over an array, each row on its own data', (tester) async {
       final processor = _process([
         {
-          'version': 'v0.9.1',
+          'version': _wire,
           'createSurface': {'surfaceId': 's', 'catalogId': _catalog.id},
         },
         {
-          'version': 'v0.9.1',
+          'version': _wire,
           'updateDataModel': {
             'surfaceId': 's',
             'path': '/hotels',
@@ -193,15 +206,24 @@ void main() {
           },
         },
         {
-          'version': 'v0.9.1',
+          'version': _wire,
           'updateComponents': {
             'surfaceId': 's',
             'components': [
               {
                 'id': 'row',
                 'component': 'HotelCard',
-                'name': {'path': 'name'},
-                'price': {'path': 'price'},
+                'name': {'@path': 'name'},
+                'price': {'@path': 'price'},
+                // Required by the catalog, and enforced from `a2ui_core` 0.4
+                // where 0.1 let it pass. A stay nobody can choose is a
+                // screenshot, which is the catalog's own argument for it.
+                'action': {
+                  'event': {
+                    'name': 'select_hotel',
+                    'context': {'id': {'@path': 'id'}},
+                  },
+                },
               },
               {
                 'id': 'root',
@@ -213,7 +235,7 @@ void main() {
         },
       ]);
 
-      await _pump(tester, processor.groupModel.getSurface('s')!);
+      await _pump(tester, processor.model.getSurface('s')!);
 
       // One component definition, three rows, three different names. Rendering
       // the same name three times is the failure that looks like a data bug and
@@ -226,18 +248,18 @@ void main() {
 
   group('the interaction model', () {
     testWidgets('an editor writes to the data model and sends nothing', (tester) async {
-      final actions = <A2uiClientAction>[];
+      final actions = <A2uiRendererAction>[];
       final processor = MessageProcessor<FlutterComponent>(
         catalogs: [_catalog],
         onAction: actions.add,
       );
       processor.processMessages([
-        A2uiMessage.fromJson({
-          'version': 'v0.9',
+        {
+          'version': _wire,
           'createSurface': {'surfaceId': 's', 'catalogId': _catalog.id},
-        }),
-        A2uiMessage.fromJson({
-          'version': 'v0.9',
+        },
+        {
+          'version': _wire,
           'updateComponents': {
             'surfaceId': 's',
             'components': [
@@ -245,14 +267,14 @@ void main() {
                 'id': 'root',
                 'component': 'TravelerCounter',
                 'label': 'Travellers',
-                'value': {'path': '/trip/travelers'},
+                'value': {'@path': '/trip/travelers'},
               },
             ],
           },
-        }),
+        },
       ]);
 
-      final surface = processor.groupModel.getSurface('s')!;
+      final surface = processor.model.getSurface('s')!;
       surface.dataModel.set('/trip/travelers', 2);
       await _pump(tester, surface);
 
@@ -266,38 +288,41 @@ void main() {
     });
 
     testWidgets('a button sends the action the surface declared', (tester) async {
-      final actions = <A2uiClientAction>[];
+      final actions = <A2uiRendererAction>[];
       final processor = MessageProcessor<FlutterComponent>(
         catalogs: [_catalog],
         onAction: actions.add,
       );
       processor.processMessages([
-        A2uiMessage.fromJson({
-          'version': 'v0.9',
+        {
+          'version': _wire,
           'createSurface': {'surfaceId': 's', 'catalogId': _catalog.id},
-        }),
-        A2uiMessage.fromJson({
-          'version': 'v0.9',
+        },
+        {
+          'version': _wire,
           'updateComponents': {
             'surfaceId': 's',
             'components': [
+              {'id': 'buttonLabel', 'component': 'Text', 'text': 'Search flights'},
               {
                 'id': 'root',
                 'component': 'Button',
-                'label': 'Search flights',
+                // A `child` component id, which the catalog requires and 0.4
+                // enforces — `label` was never one of its properties.
+                'child': 'buttonLabel',
                 'action': {
                   'event': {
                     'name': 'search_flights',
-                    'context': {'origin': {'path': '/trip/origin'}},
+                    'context': {'origin': {'@path': '/trip/origin'}},
                   },
                 },
               },
             ],
           },
-        }),
+        },
       ]);
 
-      final surface = processor.groupModel.getSurface('s')!;
+      final surface = processor.model.getSurface('s')!;
       surface.dataModel.set('/trip/origin', 'JFK');
       await _pump(tester, surface);
 
@@ -327,7 +352,7 @@ void main() {
 
     testWidgets('waits for the dates, then draws the band on them', (tester) async {
       final processor = _process(messages);
-      final surface = processor.groupModel.getSurface('parity-surface')!;
+      final surface = processor.model.getSurface('parity-surface')!;
       await _pump(tester, surface);
 
       // The bound calendar has no dates yet; the literal one is drawn already.
@@ -336,14 +361,14 @@ void main() {
       expect(find.text('May 2027'), findsOneWidget);
 
       processor.processMessages([
-        A2uiMessage.fromJson({
-          'version': 'v0.9',
+        {
+          'version': _wire,
           'updateDataModel': {
             'surfaceId': 'parity-surface',
             'path': '/trip',
             'value': {'startDate': '2027-04-12', 'endDate': '2027-04-18'},
           },
-        }),
+        },
       ]);
       await tester.pump();
 
@@ -362,16 +387,16 @@ void main() {
     testWidgets('an inverted range is one day, not nothing', (tester) async {
       final processor = _process(messages);
       processor.processMessages([
-        A2uiMessage.fromJson({
-          'version': 'v0.9',
+        {
+          'version': _wire,
           'updateDataModel': {
             'surfaceId': 'parity-surface',
             'path': '/trip',
             'value': {'startDate': '2027-04-18', 'endDate': '2027-04-12'},
           },
-        }),
+        },
       ]);
-      final surface = processor.groupModel.getSurface('parity-surface')!;
+      final surface = processor.model.getSurface('parity-surface')!;
       await _pump(tester, surface);
       expect(find.text('April 2027'), findsOneWidget);
       expect(find.text('Dates to come'), findsNothing);

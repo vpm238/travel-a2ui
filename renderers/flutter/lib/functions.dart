@@ -32,9 +32,15 @@ num? _number(Map<String, dynamic> args, String key) {
   return null;
 }
 
+/// A catalog function, named once by its subclass.
+///
+/// `FunctionImplementation` took overridable `name` and `argumentSchema`
+/// getters in `a2ui_core` 0.1; in 0.4 they are constructor arguments on
+/// `FunctionApi`. So each function passes its own name up, and the schema —
+/// which none of these constrain — is declared once here.
 abstract class _Fn extends FunctionImplementation {
-  @override
-  Schema get argumentSchema => Schema.object(properties: const {});
+  _Fn(String name)
+      : super(name: name, argumentSchema: Schema.object(properties: const {}));
 }
 
 /// Nights slept, not days spanned: 12th to 15th is three.
@@ -43,8 +49,7 @@ abstract class _Fn extends FunctionImplementation {
 /// filled form shows a zero rather than nonsense — and so a picker mid-drag
 /// never briefly reads "-4 nights".
 class CalcNights extends _Fn {
-  @override
-  String get name => 'calcNights';
+  CalcNights() : super('calcNights');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.number;
@@ -65,8 +70,7 @@ class CalcNights extends _Fn {
 /// argument by name, and may contain a nested call whose result has already
 /// been resolved by the time it arrives here.
 class FormatString extends _Fn {
-  @override
-  String get name => 'formatString';
+  FormatString() : super('formatString');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.string;
@@ -83,8 +87,7 @@ class FormatString extends _Fn {
 }
 
 class FormatNumber extends _Fn {
-  @override
-  String get name => 'formatNumber';
+  FormatNumber() : super('formatNumber');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.string;
@@ -101,8 +104,7 @@ class FormatNumber extends _Fn {
 }
 
 class FormatCurrency extends _Fn {
-  @override
-  String get name => 'formatCurrency';
+  FormatCurrency() : super('formatCurrency');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.string;
@@ -120,8 +122,7 @@ class FormatCurrency extends _Fn {
 }
 
 class FormatDate extends _Fn {
-  @override
-  String get name => 'formatDate';
+  FormatDate() : super('formatDate');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.string;
@@ -136,8 +137,7 @@ class FormatDate extends _Fn {
 }
 
 class Pluralize extends _Fn {
-  @override
-  String get name => 'pluralize';
+  Pluralize() : super('pluralize');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.string;
@@ -150,8 +150,7 @@ class Pluralize extends _Fn {
 }
 
 class And extends _Fn {
-  @override
-  String get name => 'and';
+  And() : super('and');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.boolean;
@@ -165,8 +164,7 @@ class And extends _Fn {
 }
 
 class Or extends _Fn {
-  @override
-  String get name => 'or';
+  Or() : super('or');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.boolean;
@@ -180,8 +178,7 @@ class Or extends _Fn {
 }
 
 class Not extends _Fn {
-  @override
-  String get name => 'not';
+  Not() : super('not');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.boolean;
@@ -195,8 +192,7 @@ class Not extends _Fn {
 /// only unacceptable to `required` — everything else passes on empty, so a form
 /// does not shout at somebody who has not typed yet.
 class Required extends _Fn {
-  @override
-  String get name => 'required';
+  Required() : super('required');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.boolean;
@@ -212,8 +208,7 @@ class Required extends _Fn {
 }
 
 class RegexCheck extends _Fn {
-  @override
-  String get name => 'regex';
+  RegexCheck() : super('regex');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.boolean;
@@ -234,8 +229,7 @@ class RegexCheck extends _Fn {
 }
 
 class LengthCheck extends _Fn {
-  @override
-  String get name => 'length';
+  LengthCheck() : super('length');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.boolean;
@@ -253,8 +247,7 @@ class LengthCheck extends _Fn {
 }
 
 class NumericCheck extends _Fn {
-  @override
-  String get name => 'numeric';
+  NumericCheck() : super('numeric');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.boolean;
@@ -274,8 +267,7 @@ class NumericCheck extends _Fn {
 }
 
 class EmailCheck extends _Fn {
-  @override
-  String get name => 'email';
+  EmailCheck() : super('email');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.boolean;
@@ -296,8 +288,7 @@ class EmailCheck extends _Fn {
 /// binding that resolves to nothing, which renders as a blank — and does
 /// nothing, which is the honest behaviour rather than a silent hole.
 class OpenUrl extends _Fn {
-  @override
-  String get name => 'openUrl';
+  OpenUrl() : super('openUrl');
 
   @override
   A2uiReturnType get returnType => A2uiReturnType.void_;

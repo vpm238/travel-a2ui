@@ -47,7 +47,7 @@ RUN npm run build -w @travel-a2ui/express \
 # rendering difference in production.
 FROM debian:bookworm-slim AS flutter
 
-ARG FLUTTER_VERSION=3.47.4
+ARG FLUTTER_VERSION=3.47.9
 
 # `git` because the SDK is a git checkout and its tooling reads its own
 # revision; `xz-utils` to unpack the archive; `curl`/`ca-certificates` to fetch
