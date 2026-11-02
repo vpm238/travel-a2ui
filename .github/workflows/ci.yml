@@ -18,13 +18,19 @@ concurrency:
 env:
   #: The published SDK, and the one `apps/server/pyproject.toml` pins.
   #:
-  #: This used to be a *git commit* — the one that merged `SkillGenerator`,
-  #: because no release carried it. That made CI build the prompt with one SDK
-  #: while the image ran another, which is why `check:skills` reported stale
-  #: for weeks against a repository that was perfectly consistent with itself.
-  #: 0.9.0 carries `SkillGenerator`, so the comment that said "swap this block
-  #: the day a release carries a2ui.skill" has had its day.
-  A2UI_SDK: "a2ui-agent-sdk==0.9.0"
+  #: **There is no pin here any more, and that is the point.**
+  #:
+  #: This was a git commit once, then `a2ui-agent-sdk==0.9.0`. Both spellings
+  #: make the same mistake: a second place that decides which SDK this repo
+  #: builds against. The first time, CI built the prompt with one SDK while the
+  #: image ran another, and `check:skills` reported stale for weeks against a
+  #: repository that was perfectly consistent with itself. The second time,
+  #: `apps/server/pyproject.toml` moved to 0.10.0 and this line did not, so pip
+  #: was handed 0.9.0 and 0.10.0 in one command and CI went red on a commit
+  #: whose every suite was green.
+  #:
+  #: `-e ./apps/server` installs exactly what the image installs, because it
+  #: reads the same pyproject. One answer, and the next bump is one line.
 
 jobs:
   build:
@@ -67,7 +73,7 @@ jobs:
       # image does.
       - name: A2UI agent SDK
         run: |
-          python3 -m pip install --quiet "${{ env.A2UI_SDK }}" -e ./apps/server
+          python3 -m pip install --quiet -e ./apps/server
           python3 -c "from a2ui.skill import SkillGenerator; print('SkillGenerator ready')"
 
       - name: Typecheck
