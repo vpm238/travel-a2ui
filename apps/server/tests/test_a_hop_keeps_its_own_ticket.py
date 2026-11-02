@@ -332,3 +332,101 @@ def test_every_binding_a_hop_draws_is_a_field_a_hop_owns() -> None:
         f"the panel draws {missing} off a hop, and `onto_leg` will not let a press "
         "put them there — so those rows render empty however correctly they are saved"
     )
+
+
+class TestASaveDoesNotEraseWhatIsOnALeg:
+    """`legs` is merged hop by hop, not replaced whole.
+
+    `legs` is the one value on a trip that is a list of objects, and
+    `{**trip, **patch}` replaced it entire. `save_trip` takes the whole trip and
+    the agent re-sends the route it knows — cities, dates, party — so every save
+    quietly deleted whatever was on a leg and not in that call.
+
+    What was on the leg and not in the call was the fare. The host records a
+    press itself, so pressing the return put all five facts on `legs[0]`; the
+    agent's own `save_trip` landed moments later with the route, and three of
+    them were gone. The panel's return row drew blank where the outbound's drew
+    the airline and both times — because the trip's flat fields are hop one's,
+    and nothing was overwriting those.
+
+    This is `sieve`'s argument one level down: a save is applied field by field
+    and never refused whole, precisely so a model saving the route and a hotel
+    in one call does not lose the hotel.
+    """
+
+    PRESSED = {
+        "origin": "CPH",
+        "destination": "BER",
+        "startDate": "2026-11-09",
+        "endDate": "2026-11-12",
+        "travelers": 2,
+        "legs": [
+            {
+                "origin": "BER",
+                "destination": "CPH",
+                "startDate": "2026-11-12",
+                "travelers": 1,
+                "selectedFlight": "SK6955",
+                "flightPrice": 71,
+                "airline": "SAS",
+                "departTime": "12:19",
+                "arriveTime": "13:36",
+            }
+        ],
+    }
+
+    def test_the_agent_resending_the_route_keeps_the_fare_on_it(self) -> None:
+        from travel_a2ui.brain import trip as model
+
+        # What `save_trip` sends: the route as the agent knows it, no fare.
+        after = model.merge(
+            self.PRESSED,
+            {
+                "legs": [
+                    {
+                        "origin": "BER",
+                        "destination": "CPH",
+                        "startDate": "2026-11-12",
+                        "travelers": 1,
+                    }
+                ]
+            },
+        )
+        leg = after["legs"][0]
+        for field in ("selectedFlight", "flightPrice", "airline", "departTime", "arriveTime"):
+            assert field in leg, f"the agent's save erased {field} from the hop"
+        assert leg["airline"] == "SAS"
+        assert leg["departTime"] == "12:19"
+
+    def test_and_a_value_the_save_does_name_still_wins(self) -> None:
+        """Merging must not make a leg unwritable."""
+        from travel_a2ui.brain import trip as model
+
+        # With the route, because a leg without a destination is not a leg:
+        # `normalize` drops it, which is its own rule and not this one's.
+        after = model.merge(
+            self.PRESSED,
+            {"legs": [{"origin": "BER", "destination": "CPH", "travelers": 3}]},
+        )
+        assert after["legs"][0]["travelers"] == 3
+        assert after["legs"][0]["airline"] == "SAS", "the rest of the hop was lost"
+
+    def test_and_a_route_that_loses_a_hop_loses_it(self) -> None:
+        """The patch decides how many hops there are. Only a survivor's fields are kept."""
+        from travel_a2ui.brain import trip as model
+
+        three = {**self.PRESSED, "legs": [*self.PRESSED["legs"], {"origin": "CPH", "destination": "OSL"}]}
+        after = model.merge(three, {"legs": [{"origin": "BER", "destination": "CPH"}]})
+        assert len(after["legs"]) == 1, "a dropped hop came back"
+        assert after["legs"][0]["airline"] == "SAS"
+
+    def test_and_a_route_that_gains_one_gains_it_empty(self) -> None:
+        from travel_a2ui.brain import trip as model
+
+        after = model.merge(
+            self.PRESSED,
+            {"legs": [{"origin": "BER", "destination": "CPH"}, {"origin": "CPH", "destination": "OSL"}]},
+        )
+        assert len(after["legs"]) == 2
+        assert after["legs"][0]["airline"] == "SAS"
+        assert "airline" not in after["legs"][1], "a new hop inherited the old hop's fare"

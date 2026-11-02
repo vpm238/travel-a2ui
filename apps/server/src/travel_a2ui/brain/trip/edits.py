@@ -28,6 +28,44 @@ def normalize(value: Any) -> Trip:
     return out
 
 
+def _legs_merged(saved: Any, patched: list[Any]) -> list[Any]:
+    """Each hop merged with the hop at its index, rather than the route replaced.
+
+    `legs` is the one value on a trip that is a list of objects, and `{**trip,
+    **patch}` replaced it whole. The agent's `save_trip` takes the whole trip and
+    it re-sends the route it knows — the cities, the dates, the party — so every
+    save silently deleted whatever was on a leg and not in that call.
+
+    What was on the leg and not in the call was the fare. The host records a
+    press itself, so pressing a return put `selectedFlight`, `flightPrice`,
+    `airline`, `departTime` and `arriveTime` on `legs[0]`; the agent's own
+    `save_trip` landed moments later with the route, and three of the five were
+    gone. The panel's return row then read
+
+        BER → CPH / SK / SK6955 / Copenhagen / €71.00 / Economy
+
+    against an outbound row carrying the airline and both times — because the
+    trip's flat fields are hop one's and nothing was overwriting *those*.
+
+    This is `sieve`'s argument one level down: a save is applied field by field
+    and never refused whole, for exactly the reason that a model saving the route
+    and a hotel in one call must not lose the hotel. A leg is the same shape of
+    mistake, and it cost the same thing.
+
+    The patch decides how many hops there are, so a route that genuinely lost a
+    hop loses it. Only the *fields* of a surviving hop are preserved.
+    """
+    before = [leg if isinstance(leg, dict) else {} for leg in (saved or [])]
+    out: list[Any] = []
+    for index, leg in enumerate(patched):
+        if not isinstance(leg, dict):
+            out.append(leg)
+            continue
+        was = before[index] if index < len(before) else {}
+        out.append({**was, **leg})
+    return out
+
+
 def merge(trip: Trip, patch: Any) -> Trip:
     """A patch applied to a trip, with the patch normalised first.
 
@@ -44,6 +82,8 @@ def merge(trip: Trip, patch: Any) -> Trip:
     assumed = [key for key in (trip.get("assumed") or []) if key not in touched] + declared
 
     merged: Trip = {**trip, **nxt}
+    if isinstance(nxt.get("legs"), list):
+        merged["legs"] = _legs_merged(trip.get("legs"), nxt["legs"])
     if assumed:
         merged["assumed"] = list(dict.fromkeys(assumed))
     else:
