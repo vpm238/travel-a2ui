@@ -196,3 +196,79 @@ class TestOneCurrencyPerTrip:
         assert all(
             (fare.get("priceLabel") or fare["price"]).startswith("€") for fare in home
         ), [fare.get("priceLabel") for fare in home]
+
+
+class TestAHopHasToGoSomewhere:
+    """A hop whose origin is its destination, which nothing caught.
+
+    What an ambiguous route turns into. "JFK to Chicago then New York then back
+    home" — where home *is* New York — came back recorded as three hops ending
+    JFK → JFK, and `problems` returned nothing at all. That is not a hop: it
+    cannot be priced, `search_flights` has nothing to look for, and the panel
+    draws a row for it that can never be filled, so the agent goes on trying to
+    ticket it every turn.
+
+    Refused rather than reported, because `legs` is already REFUSABLE: the agent
+    is told and asks which city they meant, instead of committing to a reading
+    of a sentence that had two.
+    """
+
+    @staticmethod
+    def _problems(trip: dict) -> list[str]:
+        from travel_a2ui.brain import trip as model
+
+        return [found["message"] for found in model.problems(trip, "2026-11-02")]
+
+    NOWHERE = {
+        "origin": "JFK",
+        "destination": "ORD",
+        "travelers": 2,
+        "startDate": "2027-04-10",
+        "endDate": "2027-04-20",
+        "legs": [
+            {"origin": "ORD", "destination": "JFK", "travelers": 3},
+            {"origin": "JFK", "destination": "JFK", "travelers": 2},
+        ],
+    }
+
+    def test_it_is_a_problem(self) -> None:
+        found = self._problems(self.NOWHERE)
+        assert any("has to go somewhere" in message for message in found), (
+            f"a JFK → JFK hop saved cleanly: {found}"
+        )
+
+    def test_and_the_save_is_turned_away_so_the_agent_asks(self) -> None:
+        from travel_a2ui.brain import trip as model
+
+        saved = {k: v for k, v in self.NOWHERE.items() if k != "legs"}
+        _, refused = model.sieve(saved, self.NOWHERE, "2026-11-02")
+        assert refused, "the nowhere hop was recorded without a word to the agent"
+        assert any("has to go somewhere" in message for message in refused)
+
+    def test_but_a_there_and_back_is_fine(self) -> None:
+        """The commonest route there is. Coming home is not a hop to nowhere."""
+        there_and_back = {
+            "origin": "JFK",
+            "destination": "MAD",
+            "travelers": 2,
+            "startDate": "2027-04-10",
+            "endDate": "2027-04-20",
+            "legs": [{"origin": "MAD", "destination": "JFK", "travelers": 2}],
+        }
+        assert self._problems(there_and_back) == []
+
+    def test_and_a_city_visited_twice_is_fine(self) -> None:
+        """Only *consecutive* stops in the same place are nowhere to go."""
+        returning = {
+            "origin": "JFK",
+            "destination": "MAD",
+            "travelers": 1,
+            "startDate": "2027-04-10",
+            "endDate": "2027-04-24",
+            "legs": [
+                {"origin": "MAD", "destination": "LIS", "travelers": 1},
+                {"origin": "LIS", "destination": "MAD", "travelers": 1},
+                {"origin": "MAD", "destination": "JFK", "travelers": 1},
+            ],
+        }
+        assert self._problems(returning) == []

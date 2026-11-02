@@ -86,6 +86,31 @@ def _route_problems(trip: Trip) -> list[dict[str, str]]:
         if not leg.get("destination"):
             found.append({"field": "legs", "message": f"Stop {index + 1} has no destination."})
 
+        # A hop that goes nowhere.
+        #
+        # Nothing caught this, and it is what an ambiguous route turns into: "JFK
+        # to Chicago then New York then back home", where home *is* New York,
+        # was recorded as three hops ending JFK → JFK. Which is not a hop — it
+        # cannot be priced, `search_flights` has nothing to look for, and the
+        # panel draws a row for it that can never be filled. The agent then goes
+        # on trying to ticket it every turn.
+        #
+        # Refused rather than reported, so the agent is told and asks instead of
+        # inventing a reading. That is the whole point: an ambiguous route is
+        # exactly the case where it should come back and check.
+        leaving = (route[index - 1].get("destination") or "").strip().casefold()
+        arriving = (leg.get("destination") or "").strip().casefold()
+        if leaving and arriving and leaving == arriving:
+            found.append(
+                {
+                    "field": "legs",
+                    "message": (
+                        f"Stop {index + 1} flies from {where} to {where}. A hop has to go "
+                        "somewhere — drop it, or ask which city they meant."
+                    ),
+                }
+            )
+
         # Compared as dates, not as the strings they arrived as. A leg whose
         # dates came off a `DateRangePicker` holds RFC 3339 instants and the one
         # before it may hold plain dates, and `"2027-04-18" > "2027-04-12T00:00:00Z"`
