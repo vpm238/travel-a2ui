@@ -271,10 +271,30 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     began = time.perf_counter()
     marks: dict[str, float] = {}
 
+    #: A mark worth telling the client about before the turn is over.
+    #:
+    #: The marks used to go out once, in a `timing` event just before `done`, so
+    #: "Interface in 5.4 s" appeared *after* the whole turn had finished — which
+    #: on a planning turn is half a minute after the interface it is talking
+    #: about. The client already renders the figure without a total when it has
+    #: no total yet; it simply had nothing to render until the end.
+    unreported_marks = False
+
     def mark(name: str) -> None:
         """Records the first time something happened, in milliseconds."""
+        nonlocal unreported_marks
         if name not in marks:
             marks[name] = round((time.perf_counter() - began) * 1000, 1)
+            if name == "firstSurface":
+                unreported_marks = True
+
+    def timing() -> list[dict[str, Any]]:
+        """A `timing` event, when there is a mark the client has not been told."""
+        nonlocal unreported_marks
+        if not unreported_marks:
+            return []
+        unreported_marks = False
+        return [{"type": "timing", "ms": dict(marks)}]
 
     # The prompt in two halves, and only one of them goes on the wire.
     #
@@ -577,6 +597,10 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                     raw.append(event["delta"])
                     for out in rendered(stream.push(event["delta"]), "stream"):
                         yield out
+                    # The interface is on screen; say how long it took now
+                    # rather than when the whole turn is over. See `timing`.
+                    for out in timing():
+                        yield out
                 elif event["type"] == "restart":
                     # The model dropped the stream mid-sentence and the turn is
                     # starting again on the standby. What it said belongs to the
@@ -609,6 +633,8 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # is a surface the traveller can still use, and throwing it away to
         # show an error banner is a worse turn than showing both.
         for out in rendered(stream.end(), "final"):
+            yield out
+        for out in timing():
             yield out
 
         if failure is not None:
@@ -968,6 +994,8 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                     if after:
                         mark("firstSurface")
                         drew_surface = True
+                        for out in timing():
+                            yield out
                         yield {
                             "type": "ui",
                             "surfaceId": request.surface_id,

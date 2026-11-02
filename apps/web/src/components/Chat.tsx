@@ -226,6 +226,27 @@ export function Chat({ agent }: { agent: Agent }) {
                 );
               })()}
 
+              {/*
+               * The card-shaped hole the answer is about to fill.
+               *
+               * Only while this turn is the live one and has nothing at all:
+               * no prose, no surface, no tool on screen. Measured against the
+               * deployed service, that gap is 14.7 seconds — the model's
+               * time-to-first-token, of which 0.5 *milliseconds* is the host —
+               * and until now it rendered as an empty column.
+               *
+               * It stops the moment anything real arrives, including a tool
+               * row, because a spinner next to "Searching flights" already
+               * says what this says.
+               */}
+              {agent.busy && turn.parts.length === 0 && turn.tools.length === 0 ? (
+                <div className="turn__awaiting" aria-hidden="true">
+                  <div className="turn__awaitingLine" />
+                  <div className="turn__awaitingLine" />
+                  <div className="turn__awaitingLine" />
+                </div>
+              ) : null}
+
               {turn.parts.map((part, index) =>
                 part.kind === 'text' ? (
                   part.text.trim() ? (

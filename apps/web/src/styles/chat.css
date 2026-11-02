@@ -213,3 +213,71 @@
   border-color: var(--tv-line-strong);
   color: var(--tv-ink);
 }
+
+/*
+ * The wait before the agent has said anything.
+ *
+ * Measured against the deployed service: 14.7 seconds from the message being
+ * sent to the model's first token, and 0.5 *milliseconds* of that is the host.
+ * Nothing can be drawn in it, because nothing has been composed yet — a turn
+ * renders an empty `div` and the traveller watches a blank column while the
+ * composer spins.
+ *
+ * So this is not a surface and not an interface: it is the card-shaped hole the
+ * answer is about to fill, which is the one honest thing to show while there is
+ * nothing to show. It carries no controls, nothing to press and nothing bound,
+ * and it is replaced the instant the first block compiles.
+ *
+ * Deliberately *not* A2UI. A skeleton the host composed out of catalog
+ * components would be the host deciding what the answer looks like, and it
+ * would be wrong as often as it was right. This says "working", in the shape of
+ * the thing being worked on.
+ */
+.turn__awaiting {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--tv-line);
+  border-radius: 12px;
+  background: var(--tv-surface-1);
+}
+
+.turn__awaitingLine {
+  height: 0.85em;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--tv-surface-2) 0%,
+    var(--tv-line-strong) 50%,
+    var(--tv-surface-2) 100%
+  );
+  background-size: 220% 100%;
+  animation: turn-awaiting-sweep 1.25s ease-in-out infinite;
+}
+
+/* Three lines of different widths read as a card rather than as a loading bar. */
+.turn__awaitingLine:nth-child(1) {
+  width: 46%;
+}
+.turn__awaitingLine:nth-child(2) {
+  width: 88%;
+}
+.turn__awaitingLine:nth-child(3) {
+  width: 64%;
+}
+
+@keyframes turn-awaiting-sweep {
+  0% {
+    background-position: 220% 0;
+  }
+  100% {
+    background-position: -220% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn__awaitingLine {
+    animation: none;
+    background: var(--tv-surface-2);
+  }
+}
