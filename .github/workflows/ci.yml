@@ -15,23 +15,6 @@ concurrency:
   group: travel-a2ui-ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  #: The published SDK, and the one `apps/server/pyproject.toml` pins.
-  #:
-  #: **There is no pin here any more, and that is the point.**
-  #:
-  #: This was a git commit once, then `a2ui-agent-sdk==0.9.0`. Both spellings
-  #: make the same mistake: a second place that decides which SDK this repo
-  #: builds against. The first time, CI built the prompt with one SDK while the
-  #: image ran another, and `check:skills` reported stale for weeks against a
-  #: repository that was perfectly consistent with itself. The second time,
-  #: `apps/server/pyproject.toml` moved to 0.10.0 and this line did not, so pip
-  #: was handed 0.9.0 and 0.10.0 in one command and CI went red on a commit
-  #: whose every suite was green.
-  #:
-  #: `-e ./apps/server` installs exactly what the image installs, because it
-  #: reads the same pyproject. One answer, and the next bump is one line.
-
 jobs:
   build:
     name: Build and test
@@ -71,6 +54,20 @@ jobs:
       # installs it `-e` for the same reason (see the Dockerfile), so this is
       # also the rule the previous commit was applying: install it the way the
       # image does.
+      # Installed from `apps/server/pyproject.toml`, with no version named
+      # here.
+      #
+      # This step used to pin its own: a git commit once, then
+      # `a2ui-agent-sdk==0.9.0`. Both are a second place that decides which SDK
+      # this repo builds against. The first spelling had CI build the prompt
+      # with one SDK while the image ran another, and `check:skills` reported
+      # stale for weeks against a repository that was perfectly consistent with
+      # itself. The second had pyproject move to 0.10.0 while this line stayed
+      # at 0.9.0, so pip was handed both in one command and CI went red on a
+      # commit whose every suite was green.
+      #
+      # `-e ./apps/server` installs exactly what the image installs, because it
+      # reads the same file. One answer, and the next bump is one line.
       - name: A2UI agent SDK
         run: |
           python3 -m pip install --quiet -e ./apps/server
