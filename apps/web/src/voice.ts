@@ -39,6 +39,16 @@ export type VoiceEvent =
 const INPUT_RATE = 16_000;
 const OUTPUT_RATE = 24_000;
 
+/**
+ * How long after the agent stops speaking to keep ignoring the microphone.
+ *
+ * The scheduled buffers end a moment before the room does: the output device
+ * has its own latency, and a speaker keeps moving after the last sample. Both
+ * land in the microphone, and the first thing after an answer is exactly when
+ * the model is listening hardest.
+ */
+const ECHO_TAIL_MS = 250;
+
 const toBase64 = (bytes: Uint8Array): string => {
   let binary = '';
   for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]!);
@@ -159,6 +169,20 @@ export interface VoiceSession {
   say(text: string): void;
   /** True while the agent is speaking. */
   speaking(): boolean;
+  /**
+   * Cuts the agent off and starts listening again.
+   *
+   * Barge-in, made explicit. The microphone is gated while the agent speaks —
+   * see `audioprocess` — so talking over it no longer works, and that gate is
+   * not negotiable: it is the only reliable defence against the model hearing
+   * itself. What is negotiable is who ends the sentence, so this hands that to
+   * the traveller: one tap, the queue is dropped, the gate comes down.
+   *
+   * Deterministic, where a loudness threshold would have been a guess per
+   * room. Nothing is sent upstream — the model stops when the next thing it
+   * hears is somebody else, which is now possible again.
+   */
+  interrupt(): void;
 }
 
 export interface VoiceOptions {
@@ -286,6 +310,24 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
     options.onSpeakingChange?.(next);
   };
 
+  /**
+   * Whether the room is still hearing the agent, and so the microphone is not
+   * worth forwarding.
+   *
+   * Derived from the playback clock rather than from the `speaking` flag, and
+   * that is the point. `speaking` is cleared by events — an `ended` callback, a
+   * `turn_end` from the relay, a socket close — and a gate that waits for an
+   * event it never gets is a microphone that is dead for the rest of the call.
+   * That is a worse bug than the one being fixed here.
+   *
+   * `playHead` is the context time the last scheduled chunk runs out at, so
+   * this opens by itself once that time passes. Nothing has to tell it to.
+   * `hush` resets `playHead` to zero, which is also how an interruption lets
+   * the traveller straight back in.
+   */
+  const echoing = () =>
+    playHead > 0 && playback.currentTime < playHead + ECHO_TAIL_MS / 1000;
+
   // Everything scheduled and not yet finished, so an interruption can stop it.
   // Chunks arrive faster than they play, so at the moment the traveller speaks
   // over the model there can be several seconds already queued — and a queue
@@ -384,6 +426,26 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
   let open = false;
   processor.addEventListener('audioprocess', (event) => {
     if (!open || socket.readyState !== WebSocket.OPEN) return;
+    // Not while the agent is talking. This is the whole of the self-repeat.
+    //
+    // The microphone is a toggle, not a push-to-talk, so it stayed open for
+    // the length of the call and streamed the answer straight back up.
+    // `echoCancellation` is asked for and is not enough: playback runs in its
+    // own `AudioContext` at 24 kHz while capture runs at whatever the device
+    // gives, and on laptop speakers the browser's canceller leaks across that
+    // split.
+    //
+    // What leaked was speech, so the API's voice activity detection called it
+    // the traveller talking. That interrupted the turn — cutting the sentence
+    // off mid-word — and left the model's own last line sitting in the context
+    // as the newest thing the user said. Asked to respond to itself, it
+    // mostly said the same thing again. Then again.
+    //
+    // Gating here rather than tuning VAD thresholds on the server: a
+    // threshold between "the agent through a speaker" and "a person" is a
+    // guess that differs per room, and getting it wrong restores the loop.
+    // Whether we are playing audio is not a guess.
+    if (echoing()) return;
     const pcm = toPcm16(event.inputBuffer.getChannelData(0), capture.sampleRate);
     socket.send(JSON.stringify({ type: 'audio', data: toBase64(pcm) }));
   });
@@ -426,6 +488,14 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
       }
     },
     listening: () => open,
+    interrupt: () => {
+      // `hush` drops the queue and resets `playHead`, which is what opens the
+      // microphone again — see `echoing`. No tail here: the traveller is the
+      // one who stopped it and is about to speak into the gap.
+      hush();
+      void wake(capture, playback);
+      open = true;
+    },
     alive: () => socket.readyState === WebSocket.OPEN,
     say: (text: string) => {
       if (socket.readyState === WebSocket.OPEN) {

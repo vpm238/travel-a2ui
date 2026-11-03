@@ -186,9 +186,20 @@ describe('a session whose socket has gone', () => {
     }
   }
 
+  /** The `audioprocess` handlers the session registered, so a test can fire one. */
+  const mics: ((event: unknown) => void)[] = [];
+  /** `ended` handlers on scheduled playback, so a test can finish a chunk. */
+  const played: ((event: unknown) => void)[] = [];
+
+  /** Every AudioContext the session made: capture first, playback second. */
+  const contexts: { currentTime: number }[] = [];
+
   function fakeAudioContext() {
     const node = () => ({ connect: () => {} });
     return class {
+      constructor() {
+        contexts.push(this as unknown as { currentTime: number });
+      }
       state = 'running';
       sampleRate = 16000;
       currentTime = 0;
@@ -196,15 +207,48 @@ describe('a session whose socket has gone', () => {
       resume = async () => {};
       close = async () => {};
       createMediaStreamSource = () => node();
-      createScriptProcessor = () => ({ ...node(), addEventListener: () => {} });
+      createScriptProcessor = () => ({
+        ...node(),
+        addEventListener: (type: string, handler: (event: unknown) => void) => {
+          if (type === 'audioprocess') mics.push(handler);
+        },
+      });
       createGain = () => ({ ...node(), gain: { value: 1 } });
-      createBuffer = () => ({ copyToChannel: () => {}, duration: 0 });
-      createBufferSource = () => ({ ...node(), start: () => {}, addEventListener: () => {} });
+      createBuffer = () => ({ copyToChannel: () => {}, duration: 0.5 });
+      createBufferSource = () => ({
+        ...node(),
+        start: () => {},
+        stop: () => {},
+        addEventListener: (type: string, handler: (event: unknown) => void) => {
+          if (type === 'ended') played.push(handler);
+        },
+      });
     };
   }
 
+  /** One frame of microphone input, as the ScriptProcessor delivers it. */
+  const frame = () => ({
+    inputBuffer: { getChannelData: () => new Float32Array(4096).fill(0.25) },
+  });
+
+  /** Makes the session believe the agent is speaking, by sending it audio. */
+  function agentSpeaks(socket: FakeSocket) {
+    // `toBase64` is private to the module, so the frame is encoded here. Any
+    // decodable chunk will do: what matters is that the session schedules it
+    // and therefore believes it is speaking.
+    const data = Buffer.from(pcm16(1, 2, 3, 4)).toString('base64');
+    socket.fire('message', { data: JSON.stringify({ type: 'audio', data }) });
+  }
+
+  /** How many audio frames the session has forwarded upstream. */
+  const uploaded = (socket: FakeSocket) =>
+    socket.sent.filter((line) => JSON.parse(line).type === 'audio').length;
+
   async function open(onClosed?: () => void) {
     sockets.length = 0;
+    mics.length = 0;
+    played.length = 0;
+    contexts.length = 0;
     // `navigator` is getter-only on the global in Node, so it cannot simply be
     // assigned. `stubGlobal` defines over it and `unstubAllGlobals` puts it back.
     vi.stubGlobal('WebSocket', FakeSocket);
@@ -224,6 +268,87 @@ describe('a session whose socket has gone', () => {
   }
 
   afterEach(() => vi.unstubAllGlobals());
+
+  it('forwards the microphone while nobody is speaking', async () => {
+    const session = await open();
+    const socket = sockets[sockets.length - 1]!;
+    session.listen();
+
+    mics[0]!(frame());
+    expect(uploaded(socket)).toBe(1);
+  });
+
+  it('does not forward the microphone while the agent is speaking', async () => {
+    // The self-repeat, in one assertion.
+    //
+    // The microphone is a toggle, so it stays open for the whole call. With
+    // nothing gating it, the agent's own answer went back up the socket, the
+    // API's voice activity detection read it as the traveller talking, and the
+    // model was handed its own last sentence as the newest thing the user
+    // said. It answered itself — usually by repeating itself — and the
+    // interruption that came with it chopped each attempt off mid-word.
+    const session = await open();
+    const socket = sockets[sockets.length - 1]!;
+    session.listen();
+    agentSpeaks(socket);
+    expect(session.speaking()).toBe(true);
+
+    const before = uploaded(socket);
+    mics[0]!(frame());
+    mics[0]!(frame());
+    expect(uploaded(socket)).toBe(before);
+  });
+
+  it('opens the microphone again on its own once the audio has played out', async () => {
+    // The gate is the playback clock, not the `speaking` flag, and this is
+    // why: `speaking` is cleared by events — an `ended` callback, a `turn_end`
+    // from the relay, a socket close — and a gate waiting on an event that
+    // never arrives is a microphone dead for the rest of the call. That would
+    // be a worse bug than the self-repeat it was put there to stop.
+    //
+    // So no event is sent here at all. Only time passes.
+    const session = await open();
+    const socket = sockets[sockets.length - 1]!;
+    const playback = contexts[1]!;
+    session.listen();
+    agentSpeaks(socket);
+
+    const before = uploaded(socket);
+    mics[0]!(frame());
+    expect(uploaded(socket)).toBe(before);
+
+    // Still inside the tail: the output device has its own latency and the
+    // speaker keeps moving after the last sample, and just after an answer is
+    // when the model is listening hardest.
+    playback.currentTime = 0.5;
+    mics[0]!(frame());
+    expect(uploaded(socket)).toBe(before);
+
+    playback.currentTime = 0.9;
+    mics[0]!(frame());
+    expect(uploaded(socket)).toBe(before + 1);
+  });
+
+  it('lets the traveller cut the agent off and be heard at once', async () => {
+    // Barge-in, which the gate above would otherwise have taken away: talking
+    // over the agent cannot work when the microphone is not being forwarded.
+    // So it becomes a tap, which is deterministic — where a loudness threshold
+    // between "a speaker" and "a person" is a guess that differs per room, and
+    // guessing it wrong restores the loop.
+    const session = await open();
+    const socket = sockets[sockets.length - 1]!;
+    session.listen();
+    agentSpeaks(socket);
+    expect(session.speaking()).toBe(true);
+
+    session.interrupt();
+    expect(session.speaking()).toBe(false);
+    expect(session.listening()).toBe(true);
+
+    const before = uploaded(socket);
+    mics[0]!(frame());
+    expect(uploaded(socket)).toBe(before + 1);
+  });
 
   it('reports itself dead once the socket closes', async () => {
     const session = await open();

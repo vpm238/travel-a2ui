@@ -889,6 +889,15 @@ export function useAgent() {
       setSession(null);
       setListening(false);
     } else if (session) {
+      // A tap while the agent is talking means "stop talking", not "stop
+      // listening to me". The microphone is gated during playback so that the
+      // model cannot hear itself — see `audioprocess` in `voice.ts` — which
+      // also means talking over it does nothing. This is the way back in.
+      if (session.speaking()) {
+        session.interrupt();
+        setListening(true);
+        return;
+      }
       if (session.listening()) {
         session.stopListening();
         setListening(false);

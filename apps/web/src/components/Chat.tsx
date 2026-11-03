@@ -367,17 +367,32 @@ export function Chat({ agent }: { agent: Agent }) {
               pressed something else. A microphone you cannot press is not a
               microphone. The tap does the handshake now.
             */
+            /*
+              Three states, not two.
+
+              The microphone is paused while the agent speaks, so that the
+              model cannot hear its own answer and start replying to itself.
+              That makes a tap during playback mean "cut in" rather than "stop
+              listening to me" — and a button whose label says the wrong one of
+              those is how somebody taps twice and ends up muted.
+            */
             title={
               agent.live.status === 'instantiating'
                 ? 'Getting ready…'
-                : agent.voice.listening
-                  ? 'Stop talking and let it answer'
-                  : 'Talk to it'
+                : agent.voice.speaking
+                  ? 'Cut in'
+                  : agent.voice.listening
+                    ? 'Stop talking and let it answer'
+                    : 'Talk to it'
             }
           >
             <span aria-hidden>{agent.voice.listening ? '◉' : '🎙'}</span>
             <span className="visually-hidden">
-              {agent.voice.listening ? 'Stop talking and let it answer' : 'Talk to it'}
+              {agent.voice.speaking
+                ? 'Cut in'
+                : agent.voice.listening
+                  ? 'Stop talking and let it answer'
+                  : 'Talk to it'}
             </span>
           </button>
         ) : null}
@@ -399,7 +414,7 @@ export function Chat({ agent }: { agent: Agent }) {
           placeholder={
             agent.voice.listening
               ? agent.voice.speaking
-                ? 'Speaking…'
+                ? 'Speaking — tap the mic to cut in'
                 : 'Listening — or type'
               : agent.busy
                 ? 'Working…'
