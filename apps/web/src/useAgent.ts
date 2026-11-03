@@ -615,8 +615,37 @@ export function useAgent() {
   drawSurfaceRef.current = drawSurface;
 
 
+  /**
+   * Relays a press into a live call, when there is one. Returns whether it did.
+   *
+   * A ref for the same reason `drawSurfaceRef` is one: the voice session is set
+   * up below this, and a press and a call are mutually involved by nature.
+   */
+  const relayPressRef = useRef<((action: SurfaceAction) => boolean) | undefined>(undefined);
+
   const handleSurfaceEvent = useCallback(
     (event: A2uiEvent) => {
+      // During a call, a press belongs to the call.
+      //
+      // This handler used to go straight to `send` below — the typed door —
+      // whatever was happening. `Chat.tsx` checks for a call before sending
+      // what somebody *typed*, and nothing checked before sending what they
+      // *pressed*, so tapping a fare mid-call opened a separate typed turn
+      // against a thread the Live session had never heard of. From the
+      // traveller's side the agent simply did not react, and the press left no
+      // line in the call either: the Live API has no equivalent of an A2UI
+      // action, so a press only exists in a call if the client says it out
+      // loud.
+      //
+      // `tools/validate/voice.py` presses by sending that sentence itself and
+      // says it "mirrors `describeForTranscript` in `apps/web/src/useAgent.ts`"
+      // — which was true of the sentence and not of the sending. It has been
+      // testing a relay the client never performed.
+      //
+      // Before the `busy` guard, deliberately: `busy` is the typed door's flow
+      // control and a call has its own.
+      if (relayPressRef.current?.(actionFrom(event))) return;
+
       if (busy) return;
 
       const surface: SurfaceKind =
@@ -852,6 +881,22 @@ export function useAgent() {
   /** The same session, readable synchronously — `setSession` lands a tick late. */
   const sessionRef = useRef<VoiceSession | null>(null);
   const [listening, setListening] = useState(false);
+
+  // Filled in here because this is the first point where both the session and
+  // the transcript exist. Keyed on the socket being alive rather than on the
+  // microphone being open: a caller who has paused the microphone is still in
+  // the call, and their press still belongs to it.
+  relayPressRef.current = (action: SurfaceAction) => {
+    const live = sessionRef.current;
+    if (!live || !live.alive()) return false;
+    const sentence = describeForTranscript(action);
+    // Shown as well as sent. A press that produces no line is the half of this
+    // the traveller actually notices: they tap a fare, the transcript says
+    // nothing, and the answer that follows is to a question not on screen.
+    appendVoiceTurn({ kind: 'text', text: sentence, who: 'you' });
+    live.say(sentence);
+    return true;
+  };
   const [agentSpeaking, setAgentSpeaking] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
@@ -1000,6 +1045,15 @@ export function useAgent() {
     },
     voice: {
       listening,
+      /**
+       * Whether there is a call at all, which is not the same as listening.
+       *
+       * `listening` is whether the microphone is open; somebody who paused it
+       * to read something is still in the call. Typing and pressing both have
+       * to route by this, or they leave the call for the typed door and the
+       * Live session never hears what happened.
+       */
+      inCall: Boolean(session?.alive()),
       speaking: agentSpeaking,
       error: voiceError,
       toggle: toggleVoice,

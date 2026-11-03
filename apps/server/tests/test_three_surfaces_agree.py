@@ -646,10 +646,21 @@ class TestThePanelTotalsWhatHasBeenChosen:
         money = money_rows({"destination": "BER", "budget": 900})
         assert money == {"budget": 900}, f"got {money}"
 
-    def test_the_panel_binds_the_figures_rather_than_writing_them(self) -> None:
-        """Bound, so the total moves with the record and never waits on a redraw."""
-        import json
+    def test_the_host_files_the_figures_and_draws_none_of_them(self) -> None:
+        """The arithmetic is the host's. What to show of it is not.
 
+        Three `StatTile`s used to be built inside the `Trip()` macro — a
+        total, a budget, and what was left — and this test asserted all three.
+        That was the host deciding that a budget line belongs on the panel,
+        what it is called and in what order, off a request that was only "show
+        a running total".
+
+        So the figures are still filed at `/money`, bound and current every
+        turn, and the macro draws nothing from them. An agent that wants a
+        total writes one in its own `surface("sidebar")` block, against the
+        same paths, and one that is drawing a trip nobody has priced leaves it
+        off.
+        """
         from travel_a2ui.brain.catalog import parser_for
         from travel_a2ui.brain.express import as_wire
         from travel_a2ui.brain.finishing import finish
@@ -661,15 +672,16 @@ class TestThePanelTotalsWhatHasBeenChosen:
             self.TRIP,
         )
         surface = drawn[0]["createSurface"]
-        tiles = [c for c in surface["components"] if c.get("component") == "StatTile"]
-        assert len(tiles) == 3, f"expected a total, a budget and what is left: {tiles}"
-        said = json.dumps(tiles, ensure_ascii=False)
-        for path in ("/money/total", "/money/budget", "/money/remaining"):
-            assert path in said, f"{path} is not bound on the panel"
-        assert "555" not in said, "a figure was baked into the panel instead of bound"
-        # And the data is on the surface that binds it.
-        assert surface["dataModel"]["money"]["total"] == 555
 
+        assert not [c for c in surface["components"] if c.get("component") == "StatTile"], (
+            "the host composes no money tiles"
+        )
+
+        # But the numbers are there to bind to, which is the half that stays.
+        money = surface.get("dataModel", {}).get("money", {})
+        assert money.get("total") == 74 * 2 + 112 * 3 + 71 * 1
+        assert money.get("budget") == 1500
+        assert money.get("remaining") == 1500 - money["total"]
     def test_and_draws_no_tiles_before_there_is_anything_to_total(self) -> None:
         from travel_a2ui.brain.catalog import parser_for
         from travel_a2ui.brain.express import as_wire

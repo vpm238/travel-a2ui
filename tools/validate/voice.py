@@ -45,9 +45,16 @@ except ImportError:  # pragma: no cover - the SDK brings it, but say so clearly
 def press_sentence(name: str, context: dict[str, Any]) -> str:
     """A press, as the browser relays it into a call.
 
-    Mirrors `describeForTranscript` in `apps/web/src/useAgent.ts`. If that
+    Mirrors `describeForTranscript` in `apps/web/src/conversation.ts`. If that
     changes, this has to, because the whole point is to send what a traveller
     actually sends.
+
+    This covers the *server* answering a relayed press. That it is relayed at
+    all is the client's half, and was broken for as long as this file has
+    existed: `handleSurfaceEvent` sent every press to the typed door whatever
+    was happening, so a press mid-call never reached the Live session. There is
+    now a browser check for it in `tools/e2e/live.mjs` — a green suite here
+    proved the sentence was understood, never that anything sent it.
     """
     said = ", ".join(
         f"{key}: {json.dumps(value)}"

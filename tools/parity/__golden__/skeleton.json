@@ -176,18 +176,6 @@
             "money": {}
           }
         }
-      },
-      {
-        "version": "1.0",
-        "updateDataModel": {
-          "surfaceId": "inline-1",
-          "path": "/flights",
-          "value": [
-            {},
-            {},
-            {}
-          ]
-        }
       }
     ],
     "path": "/flights",
@@ -371,18 +359,6 @@
             },
             "money": {}
           }
-        }
-      },
-      {
-        "version": "1.0",
-        "updateDataModel": {
-          "surfaceId": "inline-1",
-          "path": "/hotels",
-          "value": [
-            {},
-            {},
-            {}
-          ]
         }
       }
     ],

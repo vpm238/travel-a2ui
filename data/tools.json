@@ -67,6 +67,10 @@
               "hop": {
                 "type": "integer",
                 "description": "Which hop these are for, when it is not the first — hop two is '/legs/0'. The press carries it so the choice lands on that leg."
+              },
+              "placeholders": {
+                "type": "integer",
+                "description": "How many blank rows to stand the list up with while the lookup runs, e.g. 3. A template over an empty array draws nothing, so without these the heading goes up over empty space; with them the renderer shows each row as pending until the real ones land. Omit it for a lookup whose result is not a list."
               }
             }
           }
@@ -122,6 +126,10 @@
               "hop": {
                 "type": "integer",
                 "description": "Which hop these are for, when it is not the first — hop two is '/legs/0'. The press carries it so the choice lands on that leg."
+              },
+              "placeholders": {
+                "type": "integer",
+                "description": "How many blank rows to stand the list up with while the lookup runs, e.g. 3. A template over an empty array draws nothing, so without these the heading goes up over empty space; with them the renderer shows each row as pending until the real ones land. Omit it for a lookup whose result is not a list."
               }
             }
           }
@@ -150,6 +158,10 @@
               "heading": {
                 "type": "string",
                 "description": "One line above the list, e.g. 'Worth your time in Berlin'."
+              },
+              "placeholders": {
+                "type": "integer",
+                "description": "How many blank rows to stand the list up with while the lookup runs, e.g. 3. A template over an empty array draws nothing, so without these the heading goes up over empty space; with them the renderer shows each row as pending until the real ones land. Omit it for a lookup whose result is not a list."
               }
             }
           }

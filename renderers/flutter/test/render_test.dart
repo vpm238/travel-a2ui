@@ -125,12 +125,11 @@ void main() {
   group('the skeleton, as the server sends it', () {
     late List<Map<String, dynamic>> opening;
     late List<Map<String, dynamic>> filled;
-    late int blankRows;
 
     setUpAll(() {
       // Written by `tools/parity/skeleton.py` from the host's own
-      // `opening_express` and `seed_rows`, so what is under test here is what
-      // the server sends and not a hand-written approximation of it.
+      // `opening_express`, so what is under test here is what the server
+      // sends and not a hand-written approximation of it.
       final golden = _json('tools/parity/__golden__/skeleton.json');
       final flights = (golden['search_flights'] as Map).cast<String, dynamic>();
       opening = [
@@ -141,10 +140,6 @@ void main() {
         for (final message in flights['filled'] as List)
           (message as Map).cast<String, dynamic>(),
       ];
-      // Off the golden, not a literal. This test asserted four for a while
-      // after `SEEDED_ROWS` became three, and nothing caught it because the
-      // golden it reads was never generated.
-      blankRows = ((opening.last['updateDataModel'] as Map)['value'] as List).length;
     });
 
     testWidgets('it paints the layout before any data arrives', (tester) async {
@@ -155,16 +150,23 @@ void main() {
       expect(find.text('Finding flights'), findsOneWidget);
     });
 
-    testWidgets('the blank rows read as waiting, not as empty flights', (tester) async {
+    testWidgets('and draws no rows at all until there are rows', (tester) async {
+      // There used to be three blank ones here, filed by the host at dispatch
+      // so the template had something to iterate and the renderer's pending
+      // rule could shimmer them. The host no longer invents rows a lookup has
+      // not returned, so the honest state between the card appearing and the
+      // fares landing is a heading over nothing.
+      //
+      // Asserted rather than left implicit, because the failure mode the old
+      // placeholders guarded against is still the one that matters: a row
+      // drawn with no airline and no fare reads as a real flight that happens
+      // to be called nothing, which looks like an answer. Nothing at all does
+      // not.
       final processor = _process(opening);
       final surface = processor.model.getSurface('inline-1')!;
       await _pump(tester, surface);
 
-      // Each drawn from the one template component. If the pending state were
-      // confused with empty, these would be flights with no airline and no
-      // fare — which looks like an answer, and is worse than a spinner because
-      // of it.
-      expect(find.byType(InkWell), findsNWidgets(blankRows));
+      expect(find.byType(InkWell), findsNothing);
       expect(find.textContaining(r'$'), findsNothing);
     });
 

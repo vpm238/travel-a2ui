@@ -23,14 +23,13 @@ from travel_a2ui.brain.macros import (
     DRAWN_AFTER,
     DRAWN_BY,
     LANDINGS,
-    SEEDED_ROWS,
-    clear_rows,
     closing_express,
+    clear_placeholders,
     file_rows,
     landing_for,
+    placeholder_rows,
     opening_express,
     rows_in,
-    seed_rows,
 )
 
 FOUND: dict[str, Any] = {
@@ -337,72 +336,110 @@ class TestTheCardThatCouldNotBeDrawnFirst:
         assert "sidebar" not in express, express
 
 
-class TestTheShapeShownWhileTheLookupRuns:
-    """Blank rows, so a card drawn before its data is something to look at.
+class TestTheHostFilesOnlyWhatALookupFound:
+    """No placeholders, and the shimmer that went with them.
 
-    This was the missing half of drawing-before-the-lookup, and without it the
-    other half did nothing visible: `Flights()` is one template over
-    `/flights`, a template over an empty array iterates nothing, and the card
-    went up on time and rendered blank space until the rows landed. Which is
-    the wait it was added to remove.
+    `seed_rows` filed three blank rows at a lookup's landing path the moment
+    the card went up, and `clear_rows` took them away if the lookup came back
+    empty. It bought the shimmer: `Flights()` is one template over
+    `/flights`, a template over an empty array iterates nothing, and three
+    rows of unresolvable paths let the renderer's own pending rule fill the
+    wait.
+
+    Both are gone. They were `updateDataModel` rather than components, so
+    nothing was ever composed by them — but they were still the host inventing
+    rows that no lookup had returned and no agent had asked for, and deciding
+    there should be three. `file_rows` is the host's whole share of a search.
+
+    What this costs is visible, and is the reason the tests above it are worth
+    keeping: between the card going up and the rows landing, a pre-drawn list
+    is empty space. If that wants a shimmer again it belongs in what the agent
+    draws, not here.
     """
 
-    def test_a_promised_lookup_gets_placeholders_at_its_own_address(self) -> None:
-        messages = seed_rows("search_flights", "inline-2", PROTOCOL_VERSION)
-        assert len(messages) == 1
-        update = messages[0]["updateDataModel"]
+    def test_the_host_has_no_way_to_invent_rows(self) -> None:
+        from travel_a2ui.brain import macros
+
+        assert not hasattr(macros, "seed_rows")
+        assert not hasattr(macros, "clear_rows")
+        assert not hasattr(macros, "SEEDED_ROWS")
+
+    def test_a_lookup_that_found_nothing_files_nothing(self) -> None:
+        """Unchanged, and now the only behaviour there is.
+
+        `file_rows` answers a refusal with no message at all, because filing
+        `[]` over a list the traveller is reading takes the last answer off
+        the screen. There are no placeholders of the host's left to take down,
+        so there is no longer a second case where `[]` is right.
+        """
+        assert file_rows("search_flights", {"flights": []}, "inline-2", PROTOCOL_VERSION) == []
+
+    def test_what_it_found_still_lands_at_the_promised_address(self) -> None:
+        update = file_rows(
+            "search_flights",
+            {"flights": [{"id": "IB6250", "price": "$412"}]},
+            "inline-2",
+            PROTOCOL_VERSION,
+        )[0]["updateDataModel"]
+        assert update["path"] == landing_for("search_flights") == "/flights"
+        assert update["surfaceId"] == "inline-2"
+        assert len(update["value"]) == 1
+
+
+class TestThePlaceholdersTheAgentAsksFor:
+    """The shimmer, asked for rather than assumed.
+
+    `seed_rows` filed three blank rows at every lookup whether anybody wanted
+    them or not. `draw: {placeholders: n}` makes it a decision the agent
+    makes, since it is the one that knows whether its block has a list in it.
+    """
+
+    def test_it_files_as_many_as_were_asked_for(self) -> None:
+        update = placeholder_rows("search_flights", 3, "inline-2", PROTOCOL_VERSION)[0][
+            "updateDataModel"
+        ]
         assert update["path"] == "/flights"
         assert update["surfaceId"] == "inline-2"
         assert update["value"] == [{}, {}, {}]
 
     def test_the_rows_are_empty_rather_than_fake(self) -> None:
-        """`{}` and not `{"airline": "…"}`.
+        """`{}` and not `{"airline": ""}`.
 
         The renderer's rule is that an unresolvable path is pending and an
-        empty string is empty, so a blank row shimmers and an invented one
-        would read as a real fare that happened to be called nothing. It is
-        also why this needs no loading flag and no second component: the
-        skeleton *is* the card, with no data in it.
+        empty string is empty, so a blank row reads as waiting and an invented
+        one would read as a real fare that happened to be called nothing.
         """
-        rows = seed_rows("search_hotels", "inline-3", PROTOCOL_VERSION)[0]["updateDataModel"]
-        assert rows["value"] == [{}] * SEEDED_ROWS
-        assert all(row == {} for row in rows["value"])
+        rows = placeholder_rows("search_hotels", 2, "inline-3", PROTOCOL_VERSION)[0][
+            "updateDataModel"
+        ]["value"]
+        assert all(row == {} for row in rows)
 
-    @pytest.mark.parametrize("tool", ["estimate_cost", "get_weather", "save_trip"])
-    def test_a_tool_with_no_promised_shape_seeds_nothing(self, tool: str) -> None:
-        assert seed_rows(tool, "inline-2", PROTOCOL_VERSION) == []
-        assert clear_rows(tool, "inline-2", PROTOCOL_VERSION) == []
+    @pytest.mark.parametrize("asked", [None, 0, -1, "three", True])
+    def test_nothing_is_filed_unless_a_number_was_asked_for(self, asked: object) -> None:
+        """Silence means none, and so does nonsense.
 
-    def test_the_planning_turn_gets_them_too(self) -> None:
-        update = seed_rows("get_destination", "inline-4", PROTOCOL_VERSION)[0]["updateDataModel"]
-        assert update["path"] == "/highlights"
-
-
-class TestWhenTheLookupFoundNothing:
-    """The one time filing `[]` is right, and why it is the only one."""
-
-    def test_the_placeholders_are_taken_away(self) -> None:
-        update = clear_rows("search_flights", "inline-2", PROTOCOL_VERSION)[0]["updateDataModel"]
-        assert update["path"] == "/flights"
-        assert update["value"] == []
-
-    def test_which_is_the_opposite_of_what_file_rows_does(self) -> None:
-        """Both are correct, and the difference is who put the rows there.
-
-        `file_rows` answers a refusal with no message at all, because filing
-        `[]` over a list the traveller is reading takes the last answer off the
-        screen. `clear_rows` is for rows this host seeded three seconds ago,
-        which nobody is reading and which otherwise shimmer for ever about a
-        search that is over.
+        `True` is in here on purpose: it is an `int` in Python, and a model
+        that writes `placeholders: true` should get no rows rather than one.
         """
-        assert file_rows("search_flights", {"flights": []}, "inline-2", PROTOCOL_VERSION) == []
-        assert clear_rows("search_flights", "inline-2", PROTOCOL_VERSION) != []
+        assert placeholder_rows("search_flights", asked, "inline-1", PROTOCOL_VERSION) == []
 
-    def test_they_are_cleared_at_the_same_address_they_were_seeded(self) -> None:
+    def test_a_tool_whose_result_is_not_a_list_gets_none(self) -> None:
+        for tool in ("estimate_cost", "get_weather", "save_trip"):
+            assert placeholder_rows(tool, 3, "inline-1", PROTOCOL_VERSION) == []
+
+    def test_a_number_a_model_wrote_is_capped(self) -> None:
+        """A template asked to draw two hundred pending rows is a frozen tab."""
+        rows = placeholder_rows("search_flights", 500, "inline-1", PROTOCOL_VERSION)[0][
+            "updateDataModel"
+        ]["value"]
+        assert len(rows) == 8
+
+    def test_and_they_are_cleared_at_the_address_they_went_to(self) -> None:
         for tool in ("search_flights", "search_hotels", "get_destination"):
-            seeded = seed_rows(tool, "inline-1", PROTOCOL_VERSION)[0]["updateDataModel"]
-            cleared = clear_rows(tool, "inline-1", PROTOCOL_VERSION)[0]["updateDataModel"]
-            assert seeded["path"] == cleared["path"] == landing_for(tool), tool
+            asked = placeholder_rows(tool, 3, "inline-1", PROTOCOL_VERSION)[0]["updateDataModel"]
+            cleared = clear_placeholders(tool, "inline-1", PROTOCOL_VERSION)[0]["updateDataModel"]
+            assert asked["path"] == cleared["path"] == landing_for(tool), tool
+            assert cleared["value"] == []
 
 
 class TestWhatAPressOnALaterHopIsToldToSave:

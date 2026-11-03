@@ -8,15 +8,18 @@ actually sends, rather than a hand-written approximation that agrees with
 whatever the test already believes.
 
 So this writes them. `opening_express` is what the host draws the moment a
-lookup is dispatched, `seed_rows` is the blank rows that give it something to
-shimmer, and both go through `finish` exactly as the door sends them.
+lookup is dispatched, and it goes through `finish` exactly as the door sends it.
+
+There were blank placeholder rows here too, from `seed_rows`. The host no
+longer invents rows a lookup has not returned, so what is captured is the
+layout alone — which is what a renderer is being tested on.
 
     python3 tools/parity/skeleton.py            # write it
     python3 tools/parity/skeleton.py --check     # fail if it is stale
 
-The test was referencing this file before anything produced it, which is how it
-came to expect four blank rows where `SEEDED_ROWS` is three: a golden nobody
-regenerates cannot disagree with the code, because it is not there to disagree.
+A golden nobody regenerates cannot disagree with the code, because it is not
+there to disagree — which is how the test that reads this came to expect a row
+count nothing produced.
 """
 
 from __future__ import annotations
@@ -35,7 +38,6 @@ from travel_a2ui.brain.macros import (  # noqa: E402
     expand,
     landing_for,
     opening_express,
-    seed_rows,
 )
 
 OUT = ROOT / "tools" / "parity" / "__golden__" / "skeleton.json"
@@ -99,8 +101,8 @@ def captured() -> dict[str, object]:
         )
         out[tool] = {
             "express": source,
-            # The order the door yields them in: the card, then the blank rows.
-            "opening": [*drawn, *seed_rows(tool, "inline-1", PROTOCOL_VERSION)],
+            # What the door yields at dispatch: the card, and nothing else.
+            "opening": drawn,
             "path": landing_for(tool),
             "filled": [
                 {

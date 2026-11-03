@@ -1,13 +1,19 @@
 """Putting the trip into surfaces, and closing the gaps the model leaves.
 
-Five passes run over every surface before it goes out, and all five exist
+Four passes run over every surface before it goes out, and all four exist
 because something that was *asked* of the model was sometimes not done:
 
   `seeding`   fills `/trip` and `/plan` so controls open pre-filled
   `commit`    makes sure a button carries every value on its surface
   `labels`    replaces a night count the model wrote as literal text
   `panels`    removes a `change` button from anywhere but the panel
-  `headings`  removes a heading a sibling macro already draws
+
+There was a fifth, `headings`, and it is gone. It deleted a heading when a
+sibling macro already drew one — a real duplicate, and the wrong place to fix
+it: the host does not get to edit the agent's composition. A pass that removes
+components the agent wrote is the host deciding the layout, whatever the
+components were, and the duplicate heading is a prompt problem that goes back
+to being one.
 
 Doing them here rather than in the browser is the point. The old versions of
 the first and third lived in the React app, which meant the web client knew
@@ -61,9 +67,6 @@ from .labels import (  # noqa: F401 — re-exported: this package is one module 
     _is_count_of_nights,
     _is_path_binding,
 )
-from .headings import (  # noqa: F401 — re-exported: this package is one module to its callers
-    drop_repeated_headings,
-)
 from .panels import (  # noqa: F401 — re-exported: this package is one module to its callers
     panel_events,
     strip_panel_actions,
@@ -85,8 +88,6 @@ def finish(
     on a panel is still taken back off it).
     """
     return strip_panel_actions(
-        drop_repeated_headings(
-            bind_derived_labels(bind_commit_context(seed_surface_trip(messages, trip), carried))
-        ),
+        bind_derived_labels(bind_commit_context(seed_surface_trip(messages, trip), carried)),
         standing,
     )

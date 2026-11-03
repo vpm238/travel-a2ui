@@ -26,7 +26,13 @@ from ...brain.catalog import (
 )
 from ...brain.express import ExpressStream, Ui
 from ...brain.skills import build_system_prompt
-from ...brain.finishing import REBUILT_IN_A_TURN, finish, on_its_own_surface
+from ...brain.finishing import (
+    REBUILT_IN_A_TURN,
+    STANDING_SURFACES,
+    finish,
+    on_its_own_surface,
+)
+from ...brain.macros import panel_composition
 from ...gemini import stream_interaction, supported_level
 from ..settings import DEFAULT_MODEL, PANEL_EFFORT, PANEL_MODEL, PANEL_REQUEST
 from .press import TurnRequest
@@ -56,8 +62,16 @@ async def _rebuild_panels(
         yield {"type": "__shape__", "shape": shape}
         return
 
-    async def one(surface_id: str) -> list[dict[str, Any]]:
-        """One panel, drawn whole, or nothing if drawing it failed."""
+    async def one(surface_id: str) -> tuple[list[dict[str, Any]], str]:
+        """One panel, drawn whole, with the Express it was drawn from.
+
+        The source comes back as well as the messages because the session
+        keeps it: `replay` re-renders a stored panel source when the decisions
+        change shape, which costs no model call at all. Without it, the only
+        record that a panel exists is the shape — and this draw would be asked
+        for again on the next turn, which is the per-press rebuild that was
+        removed for taking 24.8 seconds.
+        """
         system = build_system_prompt(
             variant=request.skill,
             surface=surface_id,
@@ -92,6 +106,7 @@ async def _rebuild_panels(
             ]
 
         panel: list[dict[str, Any]] = []
+        said: list[str] = []
         try:
             async for event in stream_interaction(
                 api_key=request.api_key,
@@ -116,15 +131,16 @@ async def _rebuild_panels(
                 client=request.client,
             ):
                 if event["type"] == "text":
+                    said.append(event["delta"])
                     panel.extend(drawn(stream.push(event["delta"])))
             panel.extend(drawn(stream.end()))
         except Exception:  # noqa: BLE001 - a stale panel beats an error banner
-            return []
+            return [], ""
 
         # Collected rather than streamed, unlike the main loop: a panel is one
         # surface replaced whole, and a half-drawn record on screen beside a
         # finished answer reads as a bug rather than as progress.
-        return panel
+        return panel, "".join(said)
 
     # Both panels at once. They are two independent model calls with nothing to
     # say to each other, and doing them in sequence meant the sidebar waited for
@@ -135,15 +151,20 @@ async def _rebuild_panels(
     # pulling from one script would interleave into nonsense — so tests, which
     # pass a client, keep the sequential path.
     if request.client is not None:
-        drawn_panels = [await one(surface_id) for surface_id in REBUILT_IN_A_TURN]
+        drawn = [await one(surface_id) for surface_id in REBUILT_IN_A_TURN]
     else:
-        drawn_panels = list(
-            await asyncio.gather(*(one(surface_id) for surface_id in REBUILT_IN_A_TURN))
-        )
+        drawn = list(await asyncio.gather(*(one(surface_id) for surface_id in REBUILT_IN_A_TURN)))
+
+    drawn_panels = [events for events, _ in drawn]
 
     for panel in drawn_panels:
         for event in panel:
             yield event
+
+    # The sources, so the session can replay them without a model next time.
+    composed = panel_composition("".join(said for _, said in drawn), STANDING_SURFACES)
+    if composed:
+        yield {"type": "__panels__", "panels": composed}
 
     # The shape the panels are *actually* at, which is not the same as the shape
     # of the trip whenever a draw came back empty.

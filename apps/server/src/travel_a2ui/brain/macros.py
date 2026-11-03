@@ -922,35 +922,47 @@ def without_the_rows(tool: str, result: Any, reads_them: str) -> Any:
     return kept
 
 
-#: How many placeholder rows a pre-drawn list stands up while its lookup runs.
-#:
-#: Three, because the point is to show the *shape* and the shape is "a few of
-#: these". Enough that the list reads as a list; few enough that a lookup
-#: returning two does not visibly shrink it.
-SEEDED_ROWS = 3
 
 
-def seed_rows(tool: str, surface_id: str, version: str) -> list[dict[str, Any]]:
-    """Blank rows at the landing path, so a pre-drawn list has something to be.
+# `seed_rows` and `clear_rows` are gone.
+#
+# They filed three blank rows at a lookup's landing path at dispatch, and took
+# them away again if the lookup found nothing. The point was the shimmer: a
+# template over an empty array draws nothing, so a pre-drawn list was blank
+# space until the rows arrived, and three rows of unresolved paths let the
+# renderer's own pending rule fill the wait.
+#
+# Data rather than components, so it composed nothing — but it was still the
+# host inventing rows no lookup had returned and no agent had asked for, and
+# choosing how many. `file_rows` below is the host's actual share of a search:
+# what the lookup found, at its address.
+#
+# The shimmer came back, asked for rather than assumed: see `placeholder_rows`.
 
-    This is the half of drawing-before-the-lookup that was missing, and without
-    it the other half did nothing a traveller could see: `Flights()` is one
-    `ActivityItem`-style template over `/flights`, and a template over an empty
-    array iterates nothing. The card went up at 9 seconds and rendered as
-    blank space until the rows landed — which is the wait it was added to fix.
 
-    A blank row is `{}`. Every bound field on the template then fails to
-    resolve, and the renderer's own rule turns that into the shimmer: "a path
-    that does not resolve is pending, a path that resolves to an empty string
-    is empty" (`renderers/react/src/binding.ts`). So no protocol, no loading
-    flag, no second component — the skeleton is the real card with no data in
-    it yet, which is also why it cannot drift from the real card.
+def placeholder_rows(
+    tool: str, count: Any, surface_id: str, version: str
+) -> list[dict[str, Any]]:
+    """Blank rows at a lookup's landing path, as many as the agent asked for.
 
-    Paired with `clear_rows`: a lookup that found nothing has to take these
-    away, or the placeholder shimmers for ever and becomes the bug it replaced.
+    The shimmer, restored the right way round. `seed_rows` used to file three
+    of these at every lookup whether anybody wanted them or not — the host
+    inventing rows no lookup had returned, and picking the number. This files
+    what `draw: {placeholders: n}` asked for and nothing otherwise, so the
+    decision is the agent's and the arithmetic is ours.
+
+    A blank row is `{}`, which matters: every bound field on the template then
+    fails to resolve, and the renderer's own rule turns that into the pending
+    state — "a path that does not resolve is pending, a path that resolves to
+    an empty string is empty". Rows of empty strings would paint as fares with
+    no airline and no price, which reads as an answer and is worse than a wait.
+
+    Capped, because this is a number a model wrote: a template asked to draw
+    two hundred pending rows is a frozen tab, and the shape of a list is
+    legible at three.
     """
     path = landing_for(tool)
-    if path is None:
+    if path is None or not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return []
     return [
         {
@@ -958,20 +970,20 @@ def seed_rows(tool: str, surface_id: str, version: str) -> list[dict[str, Any]]:
             "updateDataModel": {
                 "surfaceId": surface_id,
                 "path": path,
-                "value": [{} for _ in range(SEEDED_ROWS)],
+                "value": [{} for _ in range(min(count, 8))],
             },
         }
     ]
 
 
-def clear_rows(tool: str, surface_id: str, version: str) -> list[dict[str, Any]]:
-    """Take the placeholders away, for a lookup that came back with nothing.
+def clear_placeholders(tool: str, surface_id: str, version: str) -> list[dict[str, Any]]:
+    """Take them away, for a lookup that came back with nothing.
 
     The one case where filing `[]` is right. Everywhere else it would blank a
-    card the traveller is reading, which is why `rows_in` answers `None` rather
-    than `[]` for a refusal — but rows this host seeded three seconds ago are
-    not something anybody is reading, and leaving them shimmering says "still
-    looking" for ever about a search that is over.
+    card the traveller is reading, which is why `rows_in` answers `None`
+    rather than `[]` for a refusal — but rows that went up seconds ago on the
+    promise of a result nobody is reading, and leaving them pending for ever
+    says "still looking" about a search that is over.
     """
     path = landing_for(tool)
     if path is None:
@@ -1041,21 +1053,6 @@ class PanelFlight(ComponentBuilderNode):
     action: Any = None
     flightNumber: Any = None
     selected: Any = None
-    accessibility: Any = None
-
-
-class Stat(ComponentBuilderNode):
-    """One figure on the panel, bound rather than written.
-
-    `label`, `value` and `caption` are all `DynamicString` in the catalog, so a
-    binding is as valid as a string — and has to be, because the figures this
-    draws move whenever a decision does.
-    """
-
-    component: str = "StatTile"
-    label: Any = None
-    value: Any = None
-    caption: Any = None
     accessibility: Any = None
 
 
@@ -1233,33 +1230,22 @@ def trip(heading: str = "") -> Column:
                 )
             )
 
-    # What it comes to so far, and what is left of the budget.
+    # No money rows here, on purpose.
     #
-    # A running total: `money_rows` counts only what has actually been chosen,
-    # so it starts at nothing and rises as each decision lands. Bound, so it
-    # moves with the record and never waits on a redraw — which is the whole
-    # reason it is filed as data at `/money` rather than written in here.
+    # Three `StatTile`s used to be built right here — "Committed so far",
+    # "Budget", and "Left to spend" — bound to `/money/total`, `/money/budget`
+    # and `/money/remaining`. That put the layout in the host: this macro was
+    # deciding that a budget line belongs on the panel, what it is called, and
+    # in what order, for a request that was only ever "show a running total".
     #
-    # Drawn only once there is something to total, for the same reason a fare
-    # row waits for a fare: a panel saying "Total €0" is a claim about a trip
-    # nobody has priced.
-    from .finishing import money_rows
-
-    money = money_rows(record) if isinstance(record, dict) else {}
-    if money.get("total") is not None:
-        rows.append(
-            Stat(label="Committed so far", value=_money("/money/total"))
-        )
-    if money.get("budget") is not None:
-        rows.append(Stat(label="Budget", value=_money("/money/budget")))
-    if money.get("remaining") is not None:
-        rows.append(
-            Stat(
-                # Named for what the number means, which flips with its sign.
-                label="Over budget by" if money.get("over") else "Left to spend",
-                value=_money("/money/remaining"),
-            )
-        )
+    # The host's share is the arithmetic, and it keeps it: `money_rows` files
+    # the figures at `/money` every turn (see `finishing/seeding.py`), bound
+    # and current. What to *draw* of them is the agent's, in its own
+    # `surface("sidebar")` block, where it can put a total on a trip that has
+    # one and leave it off a trip that does not.
+    #
+    # The data is still there either way, so nothing is lost by this except
+    # the host's opinion about it.
 
     return Column(children=rows)
 

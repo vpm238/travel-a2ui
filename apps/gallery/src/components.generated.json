@@ -247,7 +247,7 @@
                 "@path": "/trip/endDate"
               },
               "nightsLabel": {
-                "call": "formatString",
+                "@call": "formatString",
                 "args": {
                   "value": "${calcNights(start: ${/trip/startDate}, end: ${/trip/endDate})} nights"
                 }
@@ -257,7 +257,7 @@
         }
       }
     ],
-    "bytes": 425
+    "bytes": 426
   },
   {
     "id": "component-DateTimeInput",
@@ -595,19 +595,19 @@
             }
           ],
           "dataModel": {
-            "items": {
-              "0": {
+            "items": [
+              {
                 "label": "Passport"
               },
-              "1": {
+              {
                 "label": "Adapter"
               }
-            }
+            ]
           }
         }
       }
     ],
-    "bytes": 365
+    "bytes": 357
   },
   {
     "id": "component-MapPreview",

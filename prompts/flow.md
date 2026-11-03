@@ -330,8 +330,10 @@ the step: ask for what it named.
 
 **But the card goes up before the answer does.** The shape of a flight list is
 known the moment you decide to look flights up. So draw the list first, with
-every value bound to where the rows will be filed and a few blank rows seeded
-so the shape is visible, *then* call the lookup. The host files
+every value bound to where the rows will be filed, *then* call the lookup. Ask
+for `draw: {placeholders: 3}` when you do: a template over an empty array
+draws nothing, so without them the heading goes up over empty space, and with
+them each row shows as pending until the real ones land. The host files
 `search_flights` rows at `/flights`, `search_hotels` rows at `/hotels` and
 `get_destination`'s highlights at `/highlights`, the bindings resolve as they
 land, and the traveller watched an interface fill in rather than waiting at an

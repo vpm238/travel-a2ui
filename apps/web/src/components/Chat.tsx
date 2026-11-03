@@ -152,7 +152,11 @@ export function Chat({ agent }: { agent: Agent }) {
     if (!text) return;
     // Typing during a call goes *into* the call rather than starting a second
     // conversation beside it — the Live session already holds the thread.
-    if (agent.voice.listening) {
+    //
+    // `inCall` and not `listening`: somebody who paused the microphone to read
+    // the screen is still in the call, and this used to send what they typed
+    // to the typed door instead.
+    if (agent.voice.inCall) {
       setDraft('');
       agent.voice.say(text);
       return;

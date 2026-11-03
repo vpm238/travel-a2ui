@@ -38,16 +38,16 @@ from ...brain.providers.fixture import FixtureProvider
 from ...brain.macros import (
     airport_choices,
     currency_for,
-    clear_rows,
     closing_express,
     expand as expand_macros,
     file_rows,
+    clear_placeholders,
     landing_for,
     opening_express,
+    placeholder_rows,
     panel_composition,
     replay,
     rows_in,
-    seed_rows,
     without_the_rows,
 )
 from ...brain.skills import build_prompt_parts, panel_is_stale
@@ -61,6 +61,8 @@ from ...brain.finishing import (
 from ...brain.tools import ToolContext, gemini_tools, grounding_tools, run_tool
 from ...gemini import describe_api_error, stream_interaction
 from ..settings import FALLBACK_MODEL, MAX_TOOL_ROUNDS, PANEL_REQUEST, _today
+# Safe to import: `panels` reaches into `press` and never back into this module.
+from .panels import _rebuild_panels
 from .press import (
     TurnRequest,
     TurnResult,
@@ -873,16 +875,25 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         "messages": drawn_now,
                         "done": False,
                     }
-                    # And something for the list to be while it waits.
+                    # Blank rows, if the agent asked for blank rows.
                     #
-                    # A template over an empty array iterates nothing, so until
-                    # this the card went up on time and showed blank space —
-                    # the wait it was added to remove. Three blank rows and the
-                    # renderer's pending rule do the rest. `seeded` is tracked
-                    # because a lookup that finds nothing has to take them
-                    # away again.
-                    placeholders = seed_rows(
-                        call.name, request.surface_id, PROTOCOL_VERSION
+                    # `seed_rows` used to file three of these at every lookup,
+                    # whether anybody wanted them or not. That was the host
+                    # inventing rows no lookup had returned and choosing how
+                    # many — data rather than components, so it composed
+                    # nothing, but still the host's opinion about what should
+                    # be on screen.
+                    #
+                    # `draw: {placeholders: n}` makes it the agent's. It knows
+                    # whether its own block has a list in it, and a lookup
+                    # whose result is not a list gets none.
+                    placeholders = placeholder_rows(
+                        call.name,
+                        (call.args.get("draw") or {}).get("placeholders")
+                        if isinstance(call.args.get("draw"), dict)
+                        else None,
+                        request.surface_id,
+                        PROTOCOL_VERSION,
                     )
                     if placeholders:
                         seeded = True
@@ -938,19 +949,16 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                     "rows": len(rows_in(call.name, output) or []),
                 }
             elif seeded:
-                # Nothing to file, and three placeholders of ours on screen
-                # saying otherwise. Whether the lookup refused or errored is the
-                # same to them.
-                #
-                # This is the one time filing `[]` is right: they are not
-                # something the traveller is reading — the host put them there
-                # seconds ago — and left alone they shimmer for ever about a
-                # search that is over. The agent's own sentence says what
-                # happened.
+                # Nothing to file, and rows on screen saying otherwise.
+                # Whether the lookup refused or errored is the same to them,
+                # and rows that went up seconds ago on the promise of a result
+                # are nothing anybody is reading.
                 yield {
                     "type": "ui",
                     "surfaceId": request.surface_id,
-                    "messages": clear_rows(call.name, request.surface_id, PROTOCOL_VERSION),
+                    "messages": clear_placeholders(
+                        call.name, request.surface_id, PROTOCOL_VERSION
+                    ),
                     "done": False,
                 }
 
@@ -1159,6 +1167,13 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     # Measured on the real client: pressing the first fare six seconds after it
     # drew sent `resume.trip: null`, and the turn after it was a boundaries
     # form. The answer is settled here; the panels are decoration that follows.
+    # What the agent addressed to a standing panel this turn, if anything.
+    #
+    # Computed here rather than at the end because both results carry it, and
+    # because the shape below is only allowed to move when this says a panel
+    # was actually written.
+    composed = panel_composition("".join(raw), STANDING_SURFACES)
+
     yield {
         "type": "__result__",
         "result": TurnResult(
@@ -1167,7 +1182,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             stop_reason=stop_reason,
             shape=request.shape,
             setup=setup,
-            panels=panel_composition("".join(raw), STANDING_SURFACES),
+            panels=composed,
         ),
     }
 
@@ -1203,7 +1218,71 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # press only ever changes data, and data reaches the panel with no
         # model in the path. That is the reliable version: not a redraw that
         # usually happens, but a panel that cannot go stale.
-        shape = model.decision_shape(trip)
+        #
+        # **Only when there is a panel.** This used to advance unconditionally,
+        # which told the next turn "the panel on screen is drawn for exactly
+        # these decisions" about a panel that had never been drawn at all.
+        #
+        # That is the whole of "the right-hand panel never updates". `shown` is
+        # what `panel_is_stale` compares against, so from the first turn
+        # onwards it matched the trip, the "panel is a row behind" note never
+        # appeared, the agent was never asked for the sidebar block, and no
+        # `Trip()` was ever written. The host then pushed `/trip/startDate` and
+        # every other value to a surface with no components bound to them —
+        # faithfully, every turn, onto nothing. A panel that does not exist
+        # cannot be stale, so the one signal that would have said so was the
+        # one being suppressed.
+        if composed or request.panels:
+            shape = model.decision_shape(trip)
+
+    # The panel has never been drawn. Draw it once, here in the tail.
+    #
+    # `_rebuild_panels` has been in this package the whole time, exported and
+    # never called: it was taken out of the turn because it fired on every
+    # shape move, and a model call per press cost 24.8 seconds between
+    # pressing a fare and the sidebar moving. That reasoning was about
+    # *redrawing* a panel, and it still holds.
+    #
+    # This is the other case, and it is bounded: not once per press, once per
+    # conversation, and only when there is nothing on the panel at all. It
+    # runs after `done`, so the traveller's answer is already on screen and
+    # this costs them no waiting — the events are ordinary `ui` messages that
+    # a client applies whenever they arrive.
+    #
+    # Why the host asks at all, when the prompt already says to draw it on the
+    # turn that first has a trip: because it does not. Measured over a
+    # two-turn opening that settled a destination, a party and both dates, no
+    # `surface("sidebar")` block was written either time — before the fix
+    # above or after it, with the "panel is a row behind" note now reaching
+    # the prompt. Two failures of the same instruction is the point at which
+    # this project stops rewording it.
+    #
+    # The panel is still composed by the agent. What the host decides is that
+    # there should be one, not what is on it.
+    #
+    # `request.shape` is in the condition because it is the client's receipt
+    # that it *has* a panel: it is the shape its own panel was last drawn for,
+    # sent back every turn. A client that reports one has something on screen
+    # even when this server holds no source for it — a conversation that began
+    # before the source was kept, say — and asking for a redraw there is the
+    # per-shape-change rebuild all over again, which is what
+    # `test_a_shape_change_costs_no_model_call_at_all` exists to catch. It
+    # caught it.
+    if (
+        request.surface == "inline"
+        and not composed
+        and not request.panels
+        and not request.shape
+    ):
+        async for event in _rebuild_panels(request, trip, today):
+            if event["type"] == "__shape__":
+                shape = event["shape"]
+            elif event["type"] == "__panels__":
+                # Kept, so the next shape move replays this source instead of
+                # asking a model for it again.
+                composed = {**composed, **event["panels"]}
+            else:
+                yield event
 
     mark("done")
     # Sent before `done` so a client can attach it to the turn it describes
@@ -1219,7 +1298,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             stop_reason=stop_reason,
             shape=shape,
             setup=setup,
-            panels=panel_composition("".join(raw), STANDING_SURFACES),
+            panels=composed,
         ),
     }
 

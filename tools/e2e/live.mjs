@@ -183,6 +183,58 @@ if (drew) {
   );
 }
 
+// And a press on what it drew.
+//
+// The half nobody had ever watched. A press has no equivalent in the Live
+// API, so it only exists in a call if the client says it out loud — and the
+// client did not: `handleSurfaceEvent` went straight to the typed door
+// whatever was happening, so tapping a fare mid-call opened a separate typed
+// turn against a thread the Live session had never heard of. Nothing reacted,
+// and nothing appeared in the transcript either.
+//
+// `tools/validate/voice.py` presses by sending that sentence itself, so the
+// server side was covered the whole time. This is the client side of the same
+// press, which is where it was broken.
+if (drew) {
+  console.log('\n--- pressing a card during the call ---');
+  const linesBefore = await page.locator('.bubble--user').count();
+  const card = page.locator('.turn__surface button, .turn__surface [role="button"]').first();
+  const pressable = await card.count();
+  ok('the drawn surface has something to press', pressable > 0, 'no button in the surface');
+
+  if (pressable > 0) {
+    await card.click();
+
+    // The sentence the press became, in the transcript. Asserted first because
+    // it is the part the traveller notices: a tap that leaves no line reads as
+    // a tap that did nothing, whatever the agent does next.
+    let said = true;
+    await page
+      .waitForFunction(
+        (before) =>
+          document.querySelectorAll('.bubble--user').length > before,
+        linesBefore,
+        { timeout: 30000 },
+      )
+      .catch(() => {
+        said = false;
+      });
+    ok('the press appears in the call as a line of its own', said, 'no new transcript line');
+
+    // And it reached the Live session rather than the typed door. A press sent
+    // the old way produced no `text` frame on this socket at all.
+    const after = await page.evaluate(() => window.__frames ?? []);
+    const spoken = after.filter((frame) => frame.type === 'transcript').length;
+    const tools = after.filter((frame) => frame.type === 'tool').length;
+    console.log(`  transcripts: ${spoken}, tool calls: ${tools}`);
+    ok(
+      'the call answered the press',
+      spoken > 0 || tools > 0,
+      'the Live session produced nothing after the press — it never heard it',
+    );
+  }
+}
+
 if (pageErrors.length) {
   failures += pageErrors.length;
   console.log(`\nFAIL  ${pageErrors.length} page error(s):`);

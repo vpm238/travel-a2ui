@@ -155,77 +155,14 @@ class TestOnePressSendsBoth:
         assert len(pressable) == 1, f"one final submit, found {pressable}"
 
 
-class TestASurfaceDoesNotShowOneHeadingTwice:
-    """The heading a turn writes above a macro that already draws it.
-
-    `Flights()` takes a heading and draws it, which is the point of passing
-    one. The agent writes one anyway:
-
-        heading = Text("Outbound · JFK → MAD · Mon 12 Apr")
-        fares = Flights("Outbound · JFK → MAD · Mon 12 Apr", "/trip/selectedFlight")
-        root = Column([heading, fares])
-
-    Both are correct alone and together they put the same line on screen twice.
-    Measured over a journey, on every turn that drew fares — and on the return
-    too, so one trip collected four of them.
-    """
-
-    @staticmethod
-    def _children(components: list[dict], of: str) -> list[str]:
-        from travel_a2ui.brain.finishing import drop_repeated_headings
-
-        out = drop_repeated_headings([{"createSurface": {"surfaceId": "inline-1", "components": components}}])
-        for c in out[0]["createSurface"]["components"]:
-            if c["id"] == of:
-                return c["children"]
-        raise AssertionError(f"{of} is gone")
-
-    HEADING = "Outbound · JFK → MAD · Mon 12 Apr"
-
-    def _recorded(self) -> list[dict]:
-        """Exactly the shape a journey recording caught."""
-        return [
-            {"id": "b1-heading", "component": "Text", "text": self.HEADING, "variant": "h3"},
-            {"id": "b1-fares__text_1", "component": "Text", "text": self.HEADING, "variant": "h3"},
-            {"id": "b1-fares__list_1", "component": "List", "children": {"path": "/flights"}},
-            {"id": "b1-fares", "component": "Column", "children": ["b1-fares__text_1", "b1-fares__list_1"]},
-            {"id": "b1-root", "component": "Column", "children": ["b1-heading", "b1-fares"]},
-        ]
-
-    def test_the_one_outside_the_macro_goes(self) -> None:
-        assert self._children(self._recorded(), "b1-root") == ["b1-fares"]
-
-    def test_and_the_macro_keeps_its_own(self) -> None:
-        """The copy next to the list it is a heading for is the one worth keeping."""
-        assert self._children(self._recorded(), "b1-fares") == [
-            "b1-fares__text_1",
-            "b1-fares__list_1",
-        ]
-
-    def test_a_heading_nothing_repeats_is_left_alone(self) -> None:
-        components = self._recorded()
-        components[0] = {**components[0], "text": "Choose your flight out"}
-        assert self._children(components, "b1-root") == ["b1-heading", "b1-fares"]
-
-    def test_and_two_different_sections_both_keep_their_headings(self) -> None:
-        """A turn drawing the outbound and the return must not lose one of them."""
-        components = [
-            {"id": "out", "component": "Text", "text": "Outbound", "variant": "h3"},
-            {"id": "back", "component": "Text", "text": "Return", "variant": "h3"},
-            {"id": "root", "component": "Column", "children": ["out", "back"]},
-        ]
-        assert self._children(components, "root") == ["out", "back"]
-
-    def test_a_bound_heading_is_never_touched(self) -> None:
-        """Two bindings are not known to be equal until they resolve."""
-        bound = {"@path": "/trip/destination"}
-        components = [
-            {"id": "a", "component": "Text", "text": bound},
-            {"id": "b__text_1", "component": "Text", "text": bound},
-            {"id": "b", "component": "Column", "children": ["b__text_1"]},
-            {"id": "root", "component": "Column", "children": ["a", "b"]},
-        ]
-        assert self._children(components, "root") == ["a", "b"]
+# The duplicate-heading pass is gone, and its tests with it.
+#
+# `drop_repeated_headings` deleted a heading when a sibling macro already drew
+# one. The duplicate was real — a turn that wrote "Outbound flights" above a
+# `Flights()` that draws its own heading — but the host does not get to edit
+# the agent's composition. A pass that removes components the agent wrote is
+# the host deciding the layout, whatever the components were, so this went
+# back to being a prompt problem. See `brain/finishing/__init__.py`.
 
 
 class TestTheFormsButtonSaysWhatItDoes:
