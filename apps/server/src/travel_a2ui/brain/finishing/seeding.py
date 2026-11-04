@@ -52,9 +52,17 @@ def money_rows(trip: dict[str, Any]) -> dict[str, Any]:
     party size is how a three-city trip where somebody joins in Chicago came out
     confidently and invisibly wrong, which `_estimate` documents at length.
 
-    Numbers, not display strings. The panel binds them through
-    `formatCurrency`, so the trip's own currency is applied in one place and a
-    stay quoted in euros is not totalled into dollars.
+    Numbers, not display strings, plus the currency they are in at
+    `/money/currency`. The panel binds them through `formatCurrency`, so the
+    trip's own currency is applied in one place and a stay quoted in euros is
+    not totalled into dollars.
+
+    The currency is filed rather than left to the drawing because the drawing
+    is the agent's now: three `StatTile`s used to be built in the `trip()`
+    macro, where the host could reach its own currency context var. Asking a
+    model to supply a currency code it has to infer from the destination is
+    asking for a total in dollars on a trip priced in euros, which is wrong in
+    a way nobody reads as wrong.
     """
     from .. import trip as model
 
@@ -88,7 +96,23 @@ def money_rows(trip: dict[str, Any]) -> dict[str, Any]:
             # Said rather than inferred from a minus sign, so the panel can
             # label it without doing arithmetic of its own.
             out["over"] = left < 0
+    if out:
+        # Only beside figures. A currency on its own is a fact about nothing,
+        # and `/money` being empty is what tells a panel there is no total yet.
+        out["currency"] = _currency_for(trip)
     return out
+
+
+def _currency_for(trip: dict[str, Any]) -> str:
+    """Which currency this trip's figures are in.
+
+    The destination decides it, because that is what the provider quotes in —
+    the same reading `currency_for` applies when it has the destination list in
+    hand. This is the fallback for when it does not: the trip carries one if
+    something has already worked it out.
+    """
+    named = trip.get("currency")
+    return str(named) if isinstance(named, str) and named else "USD"
 
 
 def plan_rows(trip: dict[str, Any]) -> dict[str, Any]:

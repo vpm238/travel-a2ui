@@ -31,7 +31,14 @@ from ..brain.catalog import (
     parser_for,
 )
 from ..brain.express import ExpressStream, Ui
-from ..brain.macros import without_the_rows
+from ..brain.express import as_wire
+from ..brain.macros import (
+    airport_choices,
+    closing_express,
+    currency_for,
+    expand as expand_macros,
+    without_the_rows,
+)
 from ..brain.promises import SPOKEN_NUDGE as _NUDGE, promised as _promised
 from ..brain.skills import _read, build_system_prompt
 from ..brain.finishing import REBUILT_IN_A_TURN, finish, panel_events
@@ -335,6 +342,17 @@ class VoiceSession:
     resume: str | None = None
     #: Called with each fresh handle, so the next connection has one to use.
     on_resume: Any = None
+    #: The decision shape the standing panels were last drawn for, from the
+    #: stored session rather than from the trip.
+    #:
+    #: It has to come from outside the call, and that is the whole point.
+    #: Derived from the trip instead — which is what this did — it claimed the
+    #: panel was already drawn for whatever decisions the trip happened to
+    #: hold, so a call opening on an existing trip never redrew the panel and a
+    #: call on a trip that had no panel never drew one at all.
+    shape: str | None = None
+    #: Called when a panel is drawn, so the next turn and the next call know.
+    on_shape: Any = None
     #: Injectable so a test can drive a whole call from a scripted session.
     client: Any = None
 
@@ -393,7 +411,15 @@ async def relay(
     # The decision shape when the panels were last drawn. A voice call changes
     # the trip like any other turn, and the panel beside it went on showing the
     # trip as it was when the call started — which is the gap this closes.
-    shape = model.decision_shape(trip)
+    #
+    # `session.shape`, not `decision_shape(trip)`. Initialising it from the
+    # trip claimed the panel was drawn for the decisions the trip already had,
+    # which is the same lie the typed door was telling: a call that opens on an
+    # existing trip then only ever redraws if the shape moves *past* where the
+    # call started, and a call on a trip with no panel at all never draws one.
+    # The session carries what was actually drawn, across calls, which is the
+    # only thing that can answer "is there a panel".
+    shape = session.shape
     #: How many surfaces this call has drawn, so each gets its own id.
     drawings = 0
     #: Whether the turn in flight has already been handed back once.
@@ -496,6 +522,8 @@ async def relay(
                 spoken_this_turn = ""
                 called_this_turn = False
                 cut_off = False
+                #: Whether this turn put a panel up, by whatever route.
+                drew_panel = False
                 async for frame in live.receive():
                     alive = True
                     content = getattr(frame, "server_content", None)
@@ -615,6 +643,39 @@ async def relay(
                                         "done": True,
                                     }
                                 )
+                            # And the card the agent asked for on a write.
+                            #
+                            # `draw: {macro: "Ask"}` on `save_trip` is how the
+                            # opening form gets on screen — the date range, a
+                            # counter per hop, the airport picker — and how the
+                            # panel gets its first `Trip()`. The typed door has
+                            # honoured it since it was added. This door ran the
+                            # tool and dropped the argument on the floor.
+                            #
+                            # Measured: "I want to go to Madrid" produced
+                            # `save_trip(draw: {macro: "Ask", ...})` and no
+                            # surface at all, and the agent then asked for the
+                            # departure airport out loud with nothing on screen
+                            # to answer it with. Every spoken turn that needed
+                            # a control was a question with no controls — which
+                            # is the thing this mode's brief spends a section
+                            # telling it not to do.
+                            after = await _closing_draw(
+                                function.name, args, trip, context, drawings + 1
+                            )
+                            if after:
+                                drawings += 1
+                                for event in after:
+                                    await announce(event)
+                                    # The agent drew the panel itself, so the
+                                    # host has nothing to spend a model call
+                                    # on. `draw: {macro: "Trip"}` is routed to
+                                    # the sidebar by `DRAWS_ONTO`, which is how
+                                    # one card in a tool call becomes the
+                                    # panel.
+                                    if event["surfaceId"] in REBUILT_IN_A_TURN:
+                                        drew_panel = True
+
                             responses.append(
                                 {
                                     "id": getattr(function, "id", None),
@@ -643,10 +704,20 @@ async def relay(
                         # only when it is warranted.
                         moved = model.decision_shape(trip)
                         if moved != shape and trip.get("destination"):
+                            # Drawn by the agent already, or by us if not.
+                            #
+                            # `_redraw_panels` is a whole further model call,
+                            # and it is the fallback now rather than the only
+                            # route: the agent naming `Trip` in the call it was
+                            # already making costs nothing and draws the panel
+                            # in its own words.
+                            if not drew_panel:
+                                await _redraw_panels(
+                                    session, trip, today, announce, genai
+                                )
                             shape = moved
-                            await _redraw_panels(
-                                session, trip, today, announce, genai
-                            )
+                            if session.on_shape:
+                                session.on_shape(shape)
 
                     # A fresh handle, as the API issues them.
                     #
@@ -696,6 +767,79 @@ async def relay(
         await announce({"type": "error", "message": _describe_live_error(error)})
     finally:
         await announce({"type": "turn_end"})
+
+
+async def _closing_draw(
+    tool: str,
+    args: dict[str, Any],
+    trip: dict[str, Any],
+    context: Any,
+    number: int,
+) -> list[dict[str, Any]]:
+    """The card a write asked for, as `ui` events. See `closing_express`.
+
+    The same macro expansion the typed door does, from the same table, so a
+    spoken `save_trip(draw: {macro: "Ask"})` draws the form a typed one draws.
+    It was not here at all, which is why a call could ask for a departure
+    airport and put no picker up to answer with.
+
+    `airports` and `currency` are fetched because the form is useless without
+    them: `Ask()` builds its origin picker from the airports the provider
+    actually flies, and `ChoicePicker.options` is static in the schema, so the
+    choices have to be in hand at the moment the macro expands. An empty list
+    draws a picker with nothing in it, which is worse than the question.
+
+    Failures are silent, as they are on the other door: a bad `draw` must not
+    cost the traveller a turn they are in the middle of saying.
+    """
+    surface_id = f"voice-{number}"
+    closing = closing_express(tool, args.get("draw"), surface_id)
+    if not closing:
+        return []
+    try:
+        where_to = await context.provider.destinations()
+        airports = airport_choices(await context.provider.origins(), where_to)
+        currency = currency_for(where_to, trip)
+        # On the record for the same reason as the typed door: the finishing
+        # passes total in numbers and file the code beside them.
+        if currency:
+            trip["currency"] = currency
+    except Exception:  # noqa: BLE001 - a picker nobody can fill is not a dead turn
+        airports, currency = {}, "USD"
+    try:
+        drawn = finish(
+            as_wire(
+                expand_macros(
+                    parser_for(surface_id).compile(closing, is_final=True),
+                    trip,
+                    airports,
+                    currency,
+                )
+            ),
+            trip,
+        )
+    except Exception as why:  # noqa: BLE001 - reported, never raised at a caller
+        print(f"voice draw failed after {tool}: {why!r}", flush=True)
+        return []
+    # Grouped by the surface each message addresses, because a `Trip()` goes to
+    # the panel rather than to this turn's card — see `DRAWS_ONTO`.
+    out: list[dict[str, Any]] = []
+    for message in drawn:
+        body = (
+            message.get("createSurface")
+            or message.get("updateComponents")
+            or message.get("updateDataModel")
+            or {}
+        )
+        out.append(
+            {
+                "type": "ui",
+                "surfaceId": body.get("surfaceId") or surface_id,
+                "messages": [message],
+                "done": True,
+            }
+        )
+    return out
 
 
 async def _redraw_panels(

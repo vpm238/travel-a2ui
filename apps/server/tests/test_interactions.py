@@ -2170,3 +2170,177 @@ class TestRowsAreEitherFiledOrHandedOver:
         assert "rowsAre" not in said, (
             f"the agent was told rows are elsewhere when they were never filed: {said}"
         )
+
+
+class TestTwoCardsInOneTurn:
+    """Which host draw replaces another, and which sits beside it.
+
+    Both of these go through `stack_blocks`, and the slot each takes decides
+    whether the traveller sees one card or two. Both failures were seen on a
+    real model before they were tests, and they pull in opposite directions —
+    which is why the slots are not one counter.
+    """
+
+    @staticmethod
+    def _ids(events: list[dict[str, Any]]) -> dict[str, str]:
+        found: dict[str, str] = {}
+        for event in events:
+            if event.get("type") != "ui" or event.get("surfaceId") != "inline-1":
+                continue
+            for message in event.get("messages", []):
+                body = message.get("createSurface") or message.get("updateComponents") or {}
+                for node in body.get("components") or []:
+                    found[node["id"]] = node.get("component")
+        return found
+
+    @staticmethod
+    def _root(events: list[dict[str, Any]]) -> list[str]:
+        children: list[str] = []
+        for event in events:
+            if event.get("type") != "ui" or event.get("surfaceId") != "inline-1":
+                continue
+            for message in event.get("messages", []):
+                body = message.get("createSurface") or message.get("updateComponents") or {}
+                for node in body.get("components") or []:
+                    if node.get("id") == "root":
+                        children = list(node.get("children") or [])
+        return children
+
+    def test_a_second_host_card_sits_beside_the_first(self) -> None:
+        """`Highlights` then `Itinerary` is two cards, not one replaced.
+
+        A planning turn looks up the highlights, draws them, writes the plan
+        and draws that. Both land on the turn's surface and both define a
+        `root`, so the second used to replace the first: the traveller saw a
+        short card appear and then lose it to a long one, which reads as the
+        interface changing its mind rather than filling in.
+        """
+        import asyncio
+
+        model = FakeModel(
+            [
+                (
+                    [],
+                    [
+                        ToolCall(
+                            id="c1",
+                            name="get_destination",
+                            args={"destination": "Madrid", "draw": {"heading": "Worth it"}},
+                        )
+                    ],
+                ),
+                (
+                    [],
+                    [
+                        ToolCall(
+                            id="c2",
+                            name="save_trip",
+                            args={
+                                "planned": True,
+                                "days": [{"date": "2027-04-12", "activities": []}],
+                                "draw": {"macro": "Itinerary", "heading": "Your week"},
+                            },
+                        )
+                    ],
+                ),
+                (["Done."], []),
+            ]
+        )
+        events = asyncio.run(
+            collect(
+                base(
+                    message="plan the days",
+                    trip={
+                        "destination": "Madrid",
+                        "origin": "JFK",
+                        "startDate": "2027-04-12",
+                        "endDate": "2027-04-19",
+                    },
+                    client=model,
+                )
+            )
+        )
+        ids = self._ids(events)
+        root = self._root(events)
+
+        assert "b0-root" in root and any(
+            child.startswith("b1-") for child in root
+        ), f"both cards have to be under root: {root}"
+        assert all(child in ids for child in root), f"root names a missing child: {root} {ids}"
+        assert any(kind == "ItineraryDay" for kind in ids.values()), ids
+
+    def test_but_the_agent_s_own_block_replaces_the_pre_draw(self) -> None:
+        """The pre-draw is provisional. The agent's block is the card.
+
+        The pre-draw exists so something is on screen while the lookup runs,
+        and the agent writing its own list for the same fares means it wanted
+        to draw them itself. Composing those produced the list *twice* — once
+        as `rows__*` and again as `b1-fares__*` — on a real run.
+        """
+        import asyncio
+
+        model = FakeModel(
+            [
+                (
+                    [],
+                    [
+                        ToolCall(
+                            id="c1",
+                            name="search_flights",
+                            args={
+                                "destination": "Madrid",
+                                "origin": "JFK",
+                                "date": "2027-04-12",
+                                "draw": {"heading": "Outbound"},
+                            },
+                        )
+                    ],
+                ),
+                (
+                    [
+                        "<a2ui>\n"
+                        'head = Text("Outbound", variant="h3")\n'
+                        "fares = Flights()\n"
+                        "root = Column([head, fares])\n"
+                        "</a2ui>"
+                    ],
+                    [],
+                ),
+            ]
+        )
+        events = asyncio.run(
+            collect(
+                base(
+                    message="show me the flights",
+                    trip={
+                        "destination": "Madrid",
+                        "origin": "JFK",
+                        "startDate": "2027-04-12",
+                        "endDate": "2027-04-19",
+                    },
+                    client=model,
+                )
+            )
+        )
+        ids = self._ids(events)
+        lists = [node for node, kind in ids.items() if kind == "List"]
+
+        root = self._root(events)
+
+        # `root` is the agent's own column, not a column *over* two blocks.
+        # A composed root names `b0-root` and `b1-root`; this one names the
+        # agent's own children, which is what "replaced" looks like.
+        assert not [child for child in root if child.endswith("-root")], (
+            f"the pre-draw should have been replaced, not composed with: {root}"
+        )
+        assert root == ["head", "fares"], root
+
+        # The pre-draw's list is still in the component set — a renderer merges
+        # by id and nothing deletes it — but it is unreachable from `root`, so
+        # it does not draw. That is the distinction that matters: one list on
+        # screen, not two.
+        reachable = {"root", *root}
+        assert "fares__list_1" in lists, lists
+        assert "rows__list_1" not in reachable, (
+            f"the pre-draw's list must not be reachable from root: {root}"
+        )

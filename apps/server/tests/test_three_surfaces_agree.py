@@ -644,7 +644,87 @@ class TestThePanelTotalsWhatHasBeenChosen:
         from travel_a2ui.brain.finishing import money_rows
 
         money = money_rows({"destination": "BER", "budget": 900})
-        assert money == {"budget": 900}, f"got {money}"
+        # The currency rides along with any figure, because the panel binds
+        # `formatCurrency($/money/total, $/money/currency)` and the agent
+        # drawing it has no way to know which currency a city prices in.
+        assert money == {"budget": 900, "currency": "USD"}, f"got {money}"
+
+    def test_the_panel_shows_the_money_when_it_is_asked_for(self) -> None:
+        """`Trip("…", true)`, and the figures bound rather than written.
+
+        The tiles were built unconditionally once — the host deciding a budget
+        line belongs on the panel. Taking them out went too far: the panel is
+        usually drawn as `draw: {macro: "Trip"}`, where the macro call is the
+        whole block, so an agent that wanted a total had nowhere to put one.
+        The flag is the opinion handed back: the host totals and knows the
+        currency, the agent says whether to show it.
+        """
+        from travel_a2ui.brain.catalog import parser_for
+        from travel_a2ui.brain.express import as_wire
+        from travel_a2ui.brain.finishing import finish
+        from travel_a2ui.brain.macros import expand
+
+        src = 'surface("sidebar")\npanel = Trip("Trip", true)\nroot = Column([panel])'
+        drawn = finish(
+            as_wire(
+                expand(
+                    parser_for("sidebar").compile(src, is_final=True),
+                    self.TRIP,
+                    None,
+                    "EUR",
+                )
+            ),
+            self.TRIP,
+        )
+        tiles = [
+            c
+            for c in drawn[0]["createSurface"]["components"]
+            if c.get("component") == "StatTile"
+        ]
+        assert [t["label"] for t in tiles] == [
+            "Committed so far",
+            "Budget",
+            "Left to spend",
+        ], tiles
+        # Through `formatCurrency`, because the record keeps a number: bound
+        # straight, a total draws as `584` beside a fare list saying `€292`.
+        assert tiles[0]["value"]["@call"] == "formatCurrency"
+        assert tiles[0]["value"]["args"]["value"] == {"@path": "/money/total"}
+
+    def test_and_says_over_budget_rather_than_leaving_a_minus_sign(self) -> None:
+        from travel_a2ui.brain.catalog import parser_for
+        from travel_a2ui.brain.express import as_wire
+        from travel_a2ui.brain.finishing import finish
+        from travel_a2ui.brain.macros import expand
+
+        broke = {**self.TRIP, "budget": 100}
+        src = 'surface("sidebar")\npanel = Trip("Trip", true)\nroot = Column([panel])'
+        drawn = finish(
+            as_wire(
+                expand(parser_for("sidebar").compile(src, is_final=True), broke, None, "EUR")
+            ),
+            broke,
+        )
+        labels = [
+            c["label"]
+            for c in drawn[0]["createSurface"]["components"]
+            if c.get("component") == "StatTile"
+        ]
+        assert "Over budget by" in labels, labels
+        assert "Left to spend" not in labels
+
+    def test_the_draw_argument_carries_the_flag_as_a_flag(self) -> None:
+        """`quoted(False)` is `""`, which the trailing trim then drops."""
+        from travel_a2ui.brain.macros import closing_express
+
+        asked = closing_express("save_trip", {"macro": "Trip", "heading": "T", "money": True}, "i")
+        assert 'rows = Trip("T", true)' in asked, asked
+
+        # And left off entirely when it was not asked for, rather than passed
+        # as `false`: a trailing default only repeats what the macro already
+        # does, and `Trip("T")` is what the brief's examples show.
+        plain = closing_express("save_trip", {"macro": "Trip", "heading": "T"}, "i")
+        assert 'rows = Trip("T")' in plain, plain
 
     def test_the_host_files_the_figures_and_draws_none_of_them(self) -> None:
         """The arithmetic is the host's. What to show of it is not.

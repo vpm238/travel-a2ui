@@ -561,8 +561,14 @@ async def _controls(
     carried = (
         ", legs: $/filters/legs" if len(route) > 1 else ""
     )
+    # Honoured rather than hardcoded, like every other inline flow. This
+    # builder named `mcp-sidebar` outright and ignored the id it was handed, so
+    # the voice relay's one-card-per-turn ids did nothing here: two rounds of
+    # controls in one call wrote to the same surface and the second replaced
+    # the first while the traveller was filling in the first.
+    surface_id = _surface_id_for(_flow_of(args), "mcp-sidebar", args)
     lines = [
-        'surface("mcp-sidebar")',
+        f"surface({_q(surface_id)})",
         f"$/filters/start = {_q(rfc(start_date))}",
         f"$/filters/end = {_q(rfc(end_date))}",
         f"$/filters/travelers = {travelers}",
@@ -587,7 +593,7 @@ async def _controls(
 
     return Surface(
         express="\n".join(lines),
-        surface_id="mcp-sidebar",
+        surface_id=surface_id,
         summary=(
             f"Controls for {place}: dates, party size, fare cap and stops."
             if place

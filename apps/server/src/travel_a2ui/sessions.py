@@ -244,6 +244,25 @@ class SessionStore:
             self._sessions[session_id] = session
             return session
 
+    def set_shape(self, session_id: str, shape: str | None) -> Session:
+        """Remembers which decisions the standing panels were drawn for.
+
+        Written by a call as well as a typed turn, because both draw the panel
+        and either can be the one that drew it. A call used to derive this from
+        the trip at connect time, which told it a panel existed whenever the
+        trip had decisions in it — so the panel was never drawn in a call that
+        opened on a trip without one.
+
+        Not a turn, for the same reason as the handle below: drawing a panel is
+        not the traveller saying something.
+        """
+        with self._lock:
+            session = self._sessions.get(session_id) or Session(id=session_id)
+            session.shape = shape
+            session.updated_at = time.time()
+            self._sessions[session_id] = session
+            return session
+
     def set_live_handle(self, session_id: str, handle: str | None) -> Session:
         """Remembers where a Live conversation can be picked up from.
 

@@ -23,6 +23,7 @@ from typing import Any
 
 import pytest
 
+from travel_a2ui.brain import trip as trip_model
 from travel_a2ui.brain.providers.fixture import FixtureProvider
 from travel_a2ui.doors.live import VoiceSession, relay, setup_config, voice_tools
 
@@ -171,8 +172,15 @@ def run_call(
     trip: dict[str, Any] | None = None,
     incoming: list[dict[str, Any]] | None = None,
     interactions: list[list[str]] | None = None,
+    shape: str | None = None,
 ) -> tuple[list[dict[str, Any]], FakeClient, dict[str, Any]]:
-    """Runs one call and returns what the browser saw."""
+    """Runs one call and returns what the browser saw.
+
+    `shape` is the receipt that a panel is already on screen, drawn for those
+    decisions — the same thing the typed door's `request.shape` is. It defaults
+    to `None`, which means no panel, because that is what a new session holds.
+    A test about the panel *not* being redrawn has to say there is one.
+    """
     client = FakeClient(frames, interactions)
     seen: list[dict[str, Any]] = []
     saved: dict[str, Any] = {}
@@ -190,6 +198,7 @@ def run_call(
         provider=FixtureProvider(),
         contract="stamp-1",
         on_trip=lambda value: saved.update(value),
+        shape=shape,
         client=client,
     )
     asyncio.run(relay(session, send, messages()))
@@ -534,12 +543,34 @@ class TestThePanel:
         assert "Trip()" in asked, asked
 
     def test_an_unchanged_shape_costs_no_model_turn(self) -> None:
+        """A note is not a decision, so nothing needs different controls.
+
+        `shape` says a panel is already on screen for exactly these decisions,
+        and it has to be said rather than inferred. The call used to derive it
+        from the trip, which meant any trip with decisions in it was treated as
+        a trip with a panel — so a call that opened on one with no panel never
+        drew a panel, and this test passed for the wrong reason.
+        """
+        trip = {"destination": "Madrid", "origin": "JFK"}
         _, client, _ = run_call(
-            # A note is not a decision, so nothing needs different controls.
+            [tool_frame("save_trip", {"neighborhood": "Lavapiés"})],
+            trip=trip,
+            shape=trip_model.decision_shape(trip_model.normalize(trip)),
+        )
+        assert client.interaction_bodies == []
+
+    def test_but_a_call_with_no_panel_yet_draws_one(self) -> None:
+        """The bug this pair exists for.
+
+        No `shape` means nothing has been drawn, whatever the trip knows. A
+        caller saying "I want to go to Madrid" got a panel only if the shape
+        moved past where the call began, so most calls never had one.
+        """
+        _, client, _ = run_call(
             [tool_frame("save_trip", {"neighborhood": "Lavapiés"})],
             trip={"destination": "Madrid", "origin": "JFK"},
         )
-        assert client.interaction_bodies == []
+        assert client.interaction_bodies != [], "a call with no panel has to draw one"
 
     def test_nothing_is_redrawn_before_there_is_a_trip(self) -> None:
         _, client, _ = run_call([tool_frame("save_trip", {"travelers": 2})], trip={})

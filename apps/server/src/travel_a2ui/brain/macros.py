@@ -591,7 +591,7 @@ DRAWN_AFTER: dict[str, dict[str, tuple[str, ...]]] = {
         # goes up because the agent asked for it, and that one went up because
         # the host decided the panel was stale. Asking costs the agent four
         # words in a call it was already making.
-        "Trip": ("heading",),
+        "Trip": ("heading", "money"),
     },
 }
 
@@ -718,12 +718,18 @@ def _macro_call(
             if isinstance(value, int) and value > 1:
                 args.append(str(value))
             continue
+        if key == "money":
+            # A flag, not a string. `quoted(False)` is `""`, which the trailing
+            # trim below then drops — so asking for the total would have
+            # compiled to a macro call that never mentioned it.
+            args.append("true" if value is True else "false")
+            continue
         args.append(quoted(value))
     # Trailing empties only repeat the macro's own defaults. Dropping them from
     # the end — never the middle — keeps `Flights("", "/trip/selectedOutbound")`
     # addressing `selected` by position while `Highlights()` stays nine
     # characters, which is the whole reason a turn will spend them.
-    while args and args[-1] == '""':
+    while args and args[-1] in ('""', "false"):
         args.pop()
     return "\n".join(
         [
@@ -1056,6 +1062,21 @@ class PanelFlight(ComponentBuilderNode):
     accessibility: Any = None
 
 
+class Stat(ComponentBuilderNode):
+    """One figure on the panel, bound rather than written.
+
+    `label`, `value` and `caption` are all `DynamicString` in the catalog, so a
+    binding is as valid as a string — and has to be, because the figures this
+    draws move whenever a decision does.
+    """
+
+    component: str = "StatTile"
+    label: Any = None
+    value: Any = None
+    caption: Any = None
+    accessibility: Any = None
+
+
 class BoundText(ComponentBuilderNode):
     """A `Text` whose content may be a function call, not only a string.
 
@@ -1076,7 +1097,7 @@ class BoundText(ComponentBuilderNode):
 
 
 @macro
-def trip(heading: str = "") -> Column:
+def trip(heading: str = "", money: Any = False) -> Column:
     """The trip as it stands, as the standing panel draws it.
 
     One section per hop of the route the trip currently has, every value bound
@@ -1086,6 +1107,10 @@ def trip(heading: str = "") -> Column:
 
     Args:
         heading: Optional line at the top, e.g. 'Your trip to Madrid'.
+        money: Whether to show what has been committed and what is left of the
+            budget. Off by default — a panel saying "Total 0" is a claim about
+            a trip nobody has priced — and worth asking for the moment a fare
+            or a nightly rate is chosen.
     """
     from . import trip as model
 
@@ -1230,22 +1255,40 @@ def trip(heading: str = "") -> Column:
                 )
             )
 
-    # No money rows here, on purpose.
+    # What it comes to, and what is left of the budget — when asked for.
     #
-    # Three `StatTile`s used to be built right here — "Committed so far",
-    # "Budget", and "Left to spend" — bound to `/money/total`, `/money/budget`
-    # and `/money/remaining`. That put the layout in the host: this macro was
-    # deciding that a budget line belongs on the panel, what it is called, and
-    # in what order, for a request that was only ever "show a running total".
+    # These three tiles were built here unconditionally once, which was the
+    # host deciding that a budget line belongs on the panel off a request that
+    # was only "show a running total". Taking them out went too far the other
+    # way: the panel is usually drawn as `draw: {macro: "Trip"}`, where the
+    # macro call *is* the whole block, so an agent that wanted a total had
+    # nowhere to put one and the figures went nowhere. Removing the host's
+    # opinion removed the feature.
     #
-    # The host's share is the arithmetic, and it keeps it: `money_rows` files
-    # the figures at `/money` every turn (see `finishing/seeding.py`), bound
-    # and current. What to *draw* of them is the agent's, in its own
-    # `surface("sidebar")` block, where it can put a total on a trip that has
-    # one and leave it off a trip that does not.
+    # `money` is the opinion, handed back: the arithmetic and the currency are
+    # the host's — `money_rows` files them at `/money` every turn, bound, so
+    # they move as decisions land without a redraw — and whether this panel
+    # shows them is the agent's, in one word, on a call it is already making.
     #
-    # The data is still there either way, so nothing is lost by this except
-    # the host's opinion about it.
+    # Bound through `formatCurrency`, because the record keeps a number: a
+    # total read straight out of `/money/total` draws as `584` beside a fare
+    # list that says `€292`.
+    if money not in (False, None, "", "false", "no", 0):
+        from .finishing import money_rows
+
+        figures = money_rows(record) if isinstance(record, dict) else {}
+        if figures.get("total") is not None:
+            rows.append(Stat(label="Committed so far", value=_money("/money/total")))
+        if figures.get("budget") is not None:
+            rows.append(Stat(label="Budget", value=_money("/money/budget")))
+        if figures.get("remaining") is not None:
+            rows.append(
+                Stat(
+                    # Named for what the number means, which flips with its sign.
+                    label="Over budget by" if figures.get("over") else "Left to spend",
+                    value=_money("/money/remaining"),
+                )
+            )
 
     return Column(children=rows)
 

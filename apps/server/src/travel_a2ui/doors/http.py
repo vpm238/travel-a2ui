@@ -546,6 +546,11 @@ async def voice(socket: WebSocket) -> None:
         # looks like.
         resume=stored.live_handle,
         on_resume=lambda handle: sessions.set_live_handle(session_id, handle),
+        # What the panels are drawn for, carried in and written back. A call
+        # draws the panel like any other turn, so it reads and records the same
+        # receipt the typed door does rather than guessing from the trip.
+        shape=stored.shape,
+        on_shape=lambda value: sessions.set_shape(session_id, value),
         # Same reading of "today" as the typed path: a call plans dates too.
         client_hints=opening.get("client") if isinstance(opening.get("client"), dict) else None,
     )

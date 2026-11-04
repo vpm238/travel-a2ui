@@ -122,3 +122,66 @@ def test_two_blocks_still_compose_when_one_of_them_named_another_surface() -> No
         if node.get("id") == "root"
     ]
     assert roots and roots[-1]["children"] == ["b0-root", "b1-root"]
+
+
+class TestASecondBlockKeepsItsTemplateRows:
+    """A child *list* is not always a list of ids.
+
+    `stack_blocks` prefixes the second block's component ids so they cannot
+    collide with the first's, and it rewrites the references that point at
+    them. It walked strings and lists, and a `_template` is neither: it is
+    `{"path": "/flights", "componentId": "row"}` sitting in a `children`
+    property. So the row component was renamed and the template went on naming
+    the old id, matched nothing, and drew no rows at all.
+
+    Reachable only once a block has a sibling to sit behind — which is exactly
+    what drawing a highlights card and an itinerary in one turn does. Seen as
+    "2 hop(s) ticketed — got 0" in the journey validator: a fare list that was
+    a heading over nothing, so there was no fare to press.
+    """
+
+    BLOCK = [
+        {"id": "row", "component": "FlightOption", "airline": {"@path": "airline"}},
+        {"id": "list", "component": "List", "children": {"path": "/flights", "componentId": "row"}},
+        {"id": "root", "component": "Column", "children": ["list"]},
+    ]
+
+    def stacked(self) -> list[dict]:
+        state: dict = {}
+        stack_blocks(
+            [{"createSurface": {"surfaceId": "inline-1", "components": [
+                {"id": "head", "component": "Text", "text": "First"},
+                {"id": "root", "component": "Column", "children": ["head"]},
+            ]}}],
+            "inline-1",
+            0,
+            state,
+        )
+        out = stack_blocks(
+            [{"createSurface": {"surfaceId": "inline-1", "components": list(self.BLOCK)}}],
+            "inline-1",
+            1,
+            state,
+        )
+        found: list[dict] = []
+        for message in out:
+            body = message.get("createSurface") or message.get("updateComponents") or {}
+            found.extend(body.get("components") or [])
+        return found
+
+    def test_the_template_points_at_the_renamed_row(self) -> None:
+        by_id = {node["id"]: node for node in self.stacked()}
+        assert "b1-row" in by_id, "the row was prefixed"
+        template = by_id["b1-list"]["children"]
+        assert template["componentId"] == "b1-row", (
+            f"the template still names the old id: {template}"
+        )
+        # The path is data, not an id, and must survive untouched.
+        assert template["path"] == "/flights"
+
+    def test_and_the_rows_are_still_reachable_from_root(self) -> None:
+        by_id = {node["id"]: node for node in self.stacked()}
+        root = by_id["root"]
+        assert "b1-root" in root["children"]
+        assert by_id["b1-root"]["children"] == ["b1-list"]
+        assert by_id["b1-list"]["children"]["componentId"] in by_id

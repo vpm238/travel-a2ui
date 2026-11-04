@@ -96,6 +96,21 @@ def _rename_components(components: list[dict[str, Any]], prefix: str) -> list[di
             return f"{prefix}{value}" if value in known else value
         if isinstance(value, list):
             return [renamed(item) for item in value]
+        # And into a dict, because a child *list* is not always a list of ids.
+        #
+        # A `_template` is `{"path": "/flights", "componentId": "row"}` sitting
+        # in a `children` property, and this walked strings and lists only — so
+        # `row` was renamed to `b1-row` while the template went on naming `row`.
+        # The template then matched no component, drew no rows, and a fare list
+        # became a heading over nothing. Which is only reachable once a block
+        # has a sibling to be prefixed behind: four fares on screen, and then
+        # none, from drawing a second card in the same turn.
+        #
+        # Only the keys in `_ID_REFERENCES` are walked and only exact matches
+        # to this block's own ids are renamed, so a data value that happens to
+        # read like an id is left alone.
+        if isinstance(value, dict):
+            return {key: renamed(item) for key, item in value.items()}
         return value
 
     out: list[dict[str, Any]] = []

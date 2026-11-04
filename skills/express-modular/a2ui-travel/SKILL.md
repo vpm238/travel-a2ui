@@ -259,7 +259,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - caption: Qualifier, e.g. 'Age 12+'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
-• Trip(heading? (static))
+• Trip(heading? (static), money? (static))
   - Description: The trip as it stands, as the standing panel draws it.
     
     One section per hop of the route the trip currently has, every value bound
@@ -267,6 +267,7 @@ Use these exact positional signatures to instantiate components. Do not output p
     another turn. Write it on the panel — `surface("sidebar")` — and nothing
     needs to redraw it again.
   - heading: Optional line at the top, e.g. 'Your trip to Madrid'.
+  - money: Whether to show what has been committed and what is left of the budget. Off by default — a panel saying "Total 0" is a claim about a trip nobody has priced — and worth asking for the moment a fare or a nightly rate is chosen.
 • TripCalendar(start, end?, marks? (static), title?, caption?, action? (static), weight? (static), accessibility? (static))
   - Description: The trip's dates on a month grid: the travel days drawn as one highlighted band, with a glyph on any day worth marking. Read-only — use it wherever a traveler should *see* when they are going (the panel, the home surface, beside a chosen flight), and DateRangePicker when they are still choosing.
   - start: First travel day as yyyy-MM-dd, e.g. '2027-04-12'. Bind it to the trip — `$/trip/startDate` — so the band moves when the dates do.

@@ -23,11 +23,23 @@ A persistent panel beside the conversation showing the trip as it stands. It is
     `$/trip/endDate`, with the flights marked on their days
   - where the stops are → `MapPreview`
   - what it will be like → `WeatherStrip`
-  - the money → `Trip()` already carries it: what has been committed so far,
-    the budget, and what is left of it, each bound so it moves as decisions
-    land. Do not add your own total beside it — two totals on one panel is one
-    too many, and yours cannot update itself. `PriceSummary` is for a *quote* on
-    an inline card, where the lines are the point
+  - the money → ask `Trip()` for it: `Trip("Your trip to Madrid", true)`, or
+    `draw: {macro: "Trip", heading: "…", money: true}` on the call that records
+    the decision. The host does the totalling and knows the currency — each
+    hop's fare times that hop's party, plus the nights — and files the figures
+    at `/money`, bound, so they move as later decisions land without another
+    turn.
+
+    Ask for it from the first fare or nightly rate onwards. Before anything is
+    priced there is nothing to total and it draws nothing, which is right: a
+    panel saying "Total 0" is a claim about a trip nobody has priced.
+
+    Composing the panel by hand instead, the same figures are yours to bind —
+    `/money/total`, `/money/budget`, `/money/remaining`, and `/money/over` to
+    label an overspend rather than leaving a minus sign to say it — through
+    `formatCurrency($/money/total, $/money/currency)`, because the record keeps
+    a number. `PriceSummary` is for a *quote* on an inline card, where the lines
+    are the point
   - `Card`, `Row`, `Column` and `Icon` to arrange it
 
   Imagery comes from the component that owns it — `HotelCard`'s `imageUrl`,

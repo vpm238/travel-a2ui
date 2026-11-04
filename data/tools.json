@@ -479,6 +479,10 @@
               "label": {
                 "type": "string",
                 "description": "`Ask` only: what the button says. Defaults to 'Find flights'."
+              },
+              "money": {
+                "type": "boolean",
+                "description": "With `macro: \"Trip\"`, whether the panel shows what has been committed so far and what is left of the budget. The host totals it and knows the currency; this is whether to show it. Ask for it from the first fare or nightly rate onwards — before anything is priced there is nothing to total and it draws nothing."
               }
             },
             "required": [

@@ -207,6 +207,18 @@ call:
 
     save_trip({…, draw: {macro: "Trip", heading: "Your trip to Madrid"}})
 
+**Add `money: true` once anything is priced.** From the first fare or nightly
+rate onwards, the panel should carry what has been committed and what is left
+of the budget:
+
+    save_trip({…, draw: {macro: "Trip", heading: "Your trip to Madrid", money: true}})
+
+The host does the totalling — each hop's fare times that hop's party, plus the
+nights — and knows which currency the trip is priced in, so this is one word
+and the figures stay current on their own. Before anything is priced it draws
+nothing, which is why it is off by default rather than something to decide
+about: a panel saying "Total 0" is a claim about a trip nobody has costed.
+
 The panel goes up the moment the write lands, which is the start of your turn
 rather than the end of it. A block of your own is for the turn that has no write
 to hang it on. Measured when neither happens and the host has to spend a further

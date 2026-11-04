@@ -441,6 +441,80 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     thin: str | None = None
     retried_thin = False
 
+        #: This turn's blocks on the answering surface, and the paths they ask
+    #: about. Both span the turn rather than the block, because a turn that
+    #: writes two blocks still owes the traveller one surface and one
+    #: button that sends all of it. See `stack_blocks`.
+    #:
+    #: **Outside the round loop**, which is where the comment above always
+    #: said they were and where they were not. Declared per round, every
+    #: round started at block zero — so two cards drawn in different
+    #: rounds each called their top component `root` and the second
+    #: replaced the first. That is the highlights card a planning turn
+    #: drew and then lost to the itinerary: `get_destination` and
+    #: `save_trip` are two rounds, so nothing composed them.
+    blocks: dict[str, Any] = {}
+    carried: dict[str, dict[str, None]] = {}
+    #: Which slot the next block to land on this turn's surface takes.
+    #:
+    #: Shared between the agent's blocks and the host's macro draws,
+    #: because they land on the same surface and the renderer draws
+    #: whichever component is called `root`. Two of them means the second
+    #: replaces the first, which is what `stack_blocks` exists to stop —
+    #: and the host's two draws were not going through it.
+    #:
+    #: Seen as a planning turn: `get_destination` pre-drew "Worth your time
+    #: in Madrid" as five components, then the `Itinerary` the same turn
+    #: asked for landed on the same surface as thirty-eight, and the first
+    #: card was simply gone. Not a skeleton filling in — a different card,
+    #: replaced wholesale, which reads as the interface changing its mind.
+    #: Only the host's own macro draws are counted here. The agent's blocks
+    #: keep using the index the stream gives them.
+    #:
+    #: Sharing one counter between the two was wrong, and measurably: a turn
+    #: where the agent asks for a pre-draw *and* writes its own block for the
+    #: same thing then drew the flight list twice, once as `rows__*` and again
+    #: as `b1-fares__*`. The pre-draw is provisional — it exists so the card is
+    #: up while the lookup runs — and the agent's block is the real one, so it
+    #: is *meant* to take the same slot and replace it.
+    #:
+    #: Two host macros in one turn are the opposite: a `Highlights` from
+    #: `get_destination` and an `Itinerary` from `save_trip` are two different
+    #: cards, and the second replacing the first is what made a planning turn
+    #: show a short card and then lose it to a long one.
+    #: The highest block slot anything has taken on this turn's surface.
+    highest_slot = -1
+
+    def took(slot: int) -> int:
+        nonlocal highest_slot
+        highest_slot = max(highest_slot, slot)
+        return slot
+
+    def provisional_slot() -> int:
+        """Slot zero, for the card drawn while a lookup runs.
+
+        Always zero, because the agent's own first block takes zero too and is
+        *meant* to replace this: the pre-draw exists so something is on screen
+        during the lookup, and the agent's block is the real card.
+
+        Sharing one counter between the two was wrong, and measurably — a turn
+        that asked for a pre-draw and then wrote its own block for the same
+        fares drew the list twice, once as `rows__*` and again as
+        `b1-fares__*`.
+        """
+        return took(0)
+
+    def next_slot() -> int:
+        """A slot after everything already drawn, for a card of its own.
+
+        For the closing draw, which is a *different* card rather than a better
+        version of one: a `Highlights` from `get_destination` and an
+        `Itinerary` from `save_trip` are two things, and the second replacing
+        the first is what made a planning turn show a short card and lose it to
+        a long one.
+        """
+        return took(highest_slot + 1 if highest_slot >= 0 else 0)
+
     for round_index in range(MAX_TOOL_ROUNDS):
         # A fresh splitter per round: each round is its own stream of prose and
         # Express, and a block left open at the end of one is not continued by
@@ -463,6 +537,14 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             # Off the same list, so the panel says "€69" rather than "69"
             # without a second call to find out which currency that is.
             currency = currency_for(where_to, trip)
+            # Kept on the record, because the finishing passes need it and do
+            # not have the destination list this was read from. `money_rows`
+            # totals in numbers and files the code beside them, so a panel can
+            # bind `formatCurrency($/money/total, $/money/currency)` without a
+            # model having to infer a currency from a city name — which is how
+            # a trip priced in euros gets a total in dollars.
+            if currency:
+                trip["currency"] = currency
         except Exception:  # noqa: BLE001 - a picker nobody can fill is not a dead turn
             airports, currency = {}, "USD"
 
@@ -486,13 +568,6 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # so it is always a mistake, and the only question is whether it is one
         # worth telling the model about.
         gate = FenceGate()
-        #: This turn's blocks on the answering surface, and the paths they ask
-        #: about. Both span the turn rather than the block, because a turn that
-        #: writes two blocks still owes the traveller one surface and one
-        #: button that sends all of it. See `stack_blocks`.
-        blocks: dict[str, Any] = {}
-        carried: dict[str, dict[str, None]] = {}
-
         def rendered(events: Sequence[Any], source: str) -> list[dict[str, Any]]:
             """Splitter events, as events for the browser."""
             nonlocal unreported, misdrawn, spoken, did_something, thin, drew_surface
@@ -539,7 +614,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                                         event.messages, request.surface_id
                                     ),
                                     request.surface_id,
-                                    event.block_index,
+                                    took(event.block_index),
                                     blocks,
                                 ),
                                 trip,
@@ -846,15 +921,28 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                     # it opened empty over a trip that knew the answer. See
                     # `seed_surface_trip`.
                     drawn_now = finish(
-                        as_wire(
-                            expand_macros(
-                                parser_for(request.surface_id).compile(opening, is_final=True),
-                                trip,
-                                airports,
-                                currency,
-                            )
+                        # Through `stack_blocks`, like the agent's own blocks.
+                        # A macro the host expands still lands on this turn's
+                        # surface and still defines a `root`, so without this
+                        # it replaces whatever is already there instead of
+                        # composing with it.
+                        stack_blocks(
+                            as_wire(
+                                expand_macros(
+                                    parser_for(request.surface_id).compile(
+                                        opening, is_final=True
+                                    ),
+                                    trip,
+                                    airports,
+                                    currency,
+                                )
+                            ),
+                            request.surface_id,
+                            provisional_slot(),
+                            blocks,
                         ),
                         trip,
+                        carried=carried,
                     )
                 except Exception as why:  # noqa: BLE001 - a bad `draw` must not cost the turn
                     # Said out loud. Swallowed in silence, a card the agent
@@ -986,15 +1074,26 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                         # going out unseeded — so the form asked for what had
                         # just been said in the same sentence.
                         after = finish(
-                            as_wire(
-                                expand_macros(
-                                    parser_for(request.surface_id).compile(closing, is_final=True),
-                                    trip,
-                                    airports,
-                                    currency,
-                                )
+                            # Likewise. This is the path that turned a
+                            # highlights card into a seven-day itinerary by
+                            # replacing it.
+                            stack_blocks(
+                                as_wire(
+                                    expand_macros(
+                                        parser_for(request.surface_id).compile(
+                                            closing, is_final=True
+                                        ),
+                                        trip,
+                                        airports,
+                                        currency,
+                                    )
+                                ),
+                                request.surface_id,
+                                next_slot(),
+                                blocks,
                             ),
                             trip,
+                            carried=carried,
                         )
                     except Exception as why:  # noqa: BLE001 - a bad `draw` must not cost the turn
                         print(f"draw failed after {call.name}: {why!r}", flush=True)
