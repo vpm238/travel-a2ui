@@ -312,18 +312,44 @@ class TestNothingIsPromisedThatCannotBeDrawn:
         return {name for name in catalog["components"] if name in skill}
 
     def test_the_flutter_client_draws_everything_it_is_told_about(self) -> None:
+        """`a2ui_flutter` draws the basic components; `travelViews` the rest."""
         import re
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            from a2ui.core.basic_catalog import BasicCatalog
 
         source = (ROOT / "renderers" / "flutter" / "lib" / "components.dart").read_text("utf-8")
-        drawn = set(re.findall(r"^\s*'([A-Za-z]+)':\s*_", source, re.M))
+        views = source[source.index("const Map<String, TravelView> travelViews"):]
+        travel = set(re.findall(r"^\s*'([A-Za-z]+)':\s*_", views, re.M))
+        drawn = set(BasicCatalog("1.0").to_json()["components"]) | travel
         missing = sorted(self._told() - drawn)
         assert not missing, f"the agent is told to use {missing}, which Flutter draws as a box"
 
-    def test_the_react_client_draws_everything_it_is_told_about(self) -> None:
-        import re
+    @staticmethod
+    def _react_draws() -> set[str]:
+        """The A2UI SDK's basic components, plus the travel views this app adds.
 
-        source = (ROOT / "renderers" / "react" / "src" / "Surface.tsx").read_text("utf-8")
-        drawn = set(re.findall(r"^\s*([A-Z][A-Za-z]+):\s*(?:basic|travel|map)\.", source, re.M))
+        The React client renders with `@a2ui/react`: the basic components are the
+        SDK's own (the same v1.0 basic catalog the Python SDK bundles), and the
+        travel ones are the `TRAVEL_VIEWS` map in `renderers/react`.
+        """
+        import re
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            from a2ui.core.basic_catalog import BasicCatalog
+
+        basic = set(BasicCatalog("1.0").to_json()["components"])
+        source = (ROOT / "renderers" / "react" / "src" / "components" / "travel.tsx").read_text("utf-8")
+        views = source[source.index("export const TRAVEL_VIEWS"):]
+        travel = set(re.findall(r"^\s*([A-Z][A-Za-z]+),$", views, re.M))
+        return basic | travel
+
+    def test_the_react_client_draws_everything_it_is_told_about(self) -> None:
+        drawn = self._react_draws()
         missing = sorted(self._told() - drawn)
         assert not missing, f"the agent is told to use {missing}, which React does not draw"
 
@@ -336,18 +362,11 @@ class TestNothingIsPromisedThatCannotBeDrawn:
         is a component *no* renderer has, so that is what this asserts.
         """
         import json
-        import re
 
         catalog = json.loads(
             (ROOT / "catalogs" / "a2ui-travel" / "catalog.json").read_text("utf-8")
         )
-        react = set(
-            re.findall(
-                r"^\s*([A-Z][A-Za-z]+):\s*(?:basic|travel|map)\.",
-                (ROOT / "renderers" / "react" / "src" / "Surface.tsx").read_text("utf-8"),
-                re.M,
-            )
-        )
+        react = self._react_draws()
         undrawable = sorted(set(catalog["components"]) - react)
         assert not undrawable, f"the catalog offers {undrawable} and nothing renders them"
 

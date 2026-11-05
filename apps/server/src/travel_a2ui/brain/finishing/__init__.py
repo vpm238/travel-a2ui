@@ -4,7 +4,8 @@ Four passes run over every surface before it goes out, and all four exist
 because something that was *asked* of the model was sometimes not done:
 
   `seeding`   fills `/trip` and `/plan` so controls open pre-filled
-  `commit`    makes sure a button carries every value on its surface
+  `commit`    asks for every value back (`sendDataModel`), and adds a button
+              to a form that has none
   `labels`    replaces a night count the model wrote as literal text
   `panels`    removes a `change` button from anywhere but the panel
 
@@ -58,8 +59,8 @@ from .blocks import (  # noqa: F401 — re-exported: this package is one module 
     _rename_components,
 )
 from .commit import (  # noqa: F401 — re-exported: this package is one module to its callers
-    bind_commit_context,
-    _key_for,
+    declare_send_data_model,
+    ensure_commit_button,
 )
 from .labels import (  # noqa: F401 — re-exported: this package is one module to its callers
     bind_derived_labels,
@@ -80,14 +81,17 @@ def finish(
     standing: Iterable[str] = STANDING_SURFACES,
     carried: dict[str, dict[str, None]] | None = None,
 ) -> list[A2uiMessage]:
-    """All four passes, in the order the Worker runs them.
+    """Every pass, in the order the server runs them.
 
-    The order matters in one place: `bind_commit_context` may *add* a button,
+    The order matters in one place: `ensure_commit_button` may *add* a button,
     and `strip_panel_actions` may remove one, so seeding has to happen first
     (it is what a control opens showing) and stripping last (so a button added
-    on a panel is still taken back off it).
+    on a panel is still taken back off it). `declare_send_data_model` is last
+    of all, so every surface that goes out asks for its values back.
     """
-    return strip_panel_actions(
-        bind_derived_labels(bind_commit_context(seed_surface_trip(messages, trip), carried)),
-        standing,
+    return declare_send_data_model(
+        strip_panel_actions(
+            bind_derived_labels(ensure_commit_button(seed_surface_trip(messages, trip), carried)),
+            standing,
+        )
     )

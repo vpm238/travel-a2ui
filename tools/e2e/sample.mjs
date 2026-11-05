@@ -121,7 +121,7 @@ try {
     // It is live: carrying on from it runs a model, and that asks. By pressing
     // the newest card when the agent drew something pressable there, and by
     // typing when it did not — a list of highlights is a fine last card.
-    const press = page.locator('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-button').first();
+    const press = page.locator('.chat__feed .turn__surface:not(.turn__surface--spent) .a2ui-button').first();
     const how = (await press.count()) > 0 ? 'pressing its newest card' : 'typing after it';
     if ((await press.count()) > 0) await press.click();
     else {

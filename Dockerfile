@@ -20,14 +20,11 @@ WORKDIR /build
 # This is the layer that takes a minute; the source layer takes a second.
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
-COPY apps/gallery/package.json apps/gallery/
-COPY packages/express/package.json packages/express/
 COPY renderers/react/package.json renderers/react/
 RUN npm ci
 
 COPY . .
-RUN npm run build -w @travel-a2ui/express \
- && npm run build -w @travel-a2ui/renderer \
+RUN npm run build -w @travel-a2ui/renderer \
  && npm run build -w @travel-a2ui/web
 
 # ---------------------------------------------------------------------------

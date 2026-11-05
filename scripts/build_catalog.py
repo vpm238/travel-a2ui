@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Builds the `a2ui-travel` catalog by extending the upstream A2UI basic catalog.
+"""Builds the `a2ui-travel` catalog by extending the A2UI v1.0 basic catalog.
 
-The A2UI basic catalog (vendored at ``catalogs/basic/catalog.json`` from
-google/a2ui ``specification/v0_9_1``) gives us layout and form primitives. A
-travel product needs a handful of domain components on top — a flight option, a
+The basic catalog comes from the A2UI SDK itself — `a2ui.core.basic_catalog`'s
+bundled v1.0 catalog — and gives us layout and form primitives. It used to be a
+copy vendored from 0.9.1 and patched toward 1.0, and the patches missed things:
+`Text` still offered `h1`…`h5`, which v1.0 removed (a heading is Markdown in
+the text), so every heading this app drew was rejected by `@a2ui/web_core`'s
+renderer, while our own validator, reading our copy, passed it. Taking the
+catalog from the SDK means the two cannot disagree. A travel product needs a handful of domain components on top — a flight option, a
 hotel card, an itinerary day, a price summary — so that the agent composes
 *travel* nouns instead of re-deriving them from rows and columns every turn.
 
@@ -26,7 +30,6 @@ import sys
 from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-BASIC = ROOT / "catalogs" / "basic" / "catalog.json"
 OUT = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
 
 #: Where the protocol's shared types live, for this catalog's `$ref`s.
@@ -616,6 +619,35 @@ def _tag_as_client_side(functions: dict[str, Any]) -> dict[str, Any]:
 
 
 TRAVEL_FUNCTIONS: dict[str, dict[str, Any]] = {
+    #: Whether two values are the same, for a card that should be marked chosen.
+    #:
+    #: A list row's `selected` is a boolean, and what the trip records is an id.
+    #: Binding the one to the other gave every row the chosen id — a string,
+    #: which no renderer reads as `true` — so the fare you picked was never
+    #: marked on any list. The comparison has to happen per row, where the row's
+    #: own id is in scope, and the basic catalog has no equality function.
+    "equals": {
+        "type": "object",
+        "description": (
+            "Returns true when the two values are equal, compared as text. For marking a "
+            "list row chosen: selected=equals(a: ${id}, b: ${/trip/selectedFlight})."
+        ),
+        "properties": {
+            "call": {"const": "equals"},
+            "args": {
+                "type": "object",
+                "properties": {
+                    "a": dyn_str("The first value, usually the row's own id."),
+                    "b": dyn_str("The second value, usually what the trip recorded."),
+                },
+                "required": ["a", "b"],
+                "unevaluatedProperties": False,
+            },
+            "returnType": {"const": "boolean"},
+        },
+        "required": ["call", "args"],
+        "unevaluatedProperties": False,
+    },
     "calcNights": {
         "type": "object",
         "description": (
@@ -782,34 +814,23 @@ ACCESSIBILITY = {
 }
 
 
-#: Where the vendored basic catalog points its shared types, before this fixes it.
-VENDORED_COMMON = "https://a2ui.org/specification/v0_9/common_types.json#/$defs"
+#: Where the SDK's basic catalog points its shared types: relative, as the spec
+#: now writes them. Made absolute here; see `COMMON` for why.
+SDK_COMMON = "common_types.json#/$defs"
 
 
 def _at_declared_version(node: Any) -> Any:
-    """Every `$ref` in this catalog pointed at the version it declares.
+    """Every reference to the shared types, written one way: absolute, at 1.0.
 
-    The basic catalog is vendored from 0.9.1, so its component schemas name
-    `v0_9/common_types.json` — 78 references, against a catalog whose header now
-    says 1.0. For most of the shared types that is only untidy: `DynamicString`
-    means the same thing in both.
-
-    `DataBinding` does not. 0.9 spells a binding `{"path": …}` and 1.0 spells it
-    `{"@path": …}`, and everything this app sends has been `@path` since the
-    migration. So a resolver that followed those references would read the
-    catalog as declaring that the one notation the app never emits is the only
-    one allowed, and reject every bound property on every basic component. That
-    is the sort of disagreement nothing complains about until something does.
-
-    Safe as a sweep rather than a per-type decision because 1.0 removed no
-    definition from `common_types` — `set(v0_9) - set(v1_0)` is empty — so every
-    name these references use resolves on the other side.
+    The SDK's catalog writes them relative (`common_types.json#/$defs/…`), and a
+    relative reference resolves against wherever the file is read from — the
+    SDK, the renderer and the gallery build read this one from three places.
     """
     if isinstance(node, dict):
         return {
             key: (
-                value.replace(VENDORED_COMMON, COMMON)
-                if key == "$ref" and isinstance(value, str)
+                COMMON + value[len(SDK_COMMON):]
+                if key == "$ref" and isinstance(value, str) and value.startswith(SDK_COMMON)
                 else _at_declared_version(value)
             )
             for key, value in node.items()
@@ -820,24 +841,19 @@ def _at_declared_version(node: Any) -> Any:
 
 
 def _defs_for_1_0(defs: dict[str, Any]) -> dict[str, Any]:
-    """The basic catalog's definitions, brought to 1.0.
+    """The basic catalog's definitions, and what the travel components share.
 
-    Two changes, both of them the protocol's rather than ours.
-
-    `theme` is gone: 1.0 removed it from the catalog and from `createSurface`,
-    to separate layout from branding. Leaving it in a catalog that declares
-    `protocolVersion: 1.0` is a definition nothing may reference.
-
-    And every component gains `accessibility`. 1.0 made plumbing it normative
-    for renderers, and it is the one thing in the protocol that the agent
-    cannot route around: a traveller using a screen reader gets whatever the
-    agent labelled, and until now the agent had nowhere to put a label.
+    The travel components carry `accessibility` through `CatalogComponentCommon`.
+    1.0 made plumbing it normative for renderers, and it is the one thing in the
+    protocol the agent cannot route around: a traveller using a screen reader
+    gets whatever the agent labelled.
     """
-    out = {name: schema for name, schema in defs.items() if name != "theme"}
+    out = dict(defs)
     out["AccessibilityAttributes"] = ACCESSIBILITY
 
     shared = dict(out.get("CatalogComponentCommon") or {"type": "object", "properties": {}})
     shared["properties"] = {
+        "weight": {"$ref": "#/$defs/Weight"},
         **(shared.get("properties") or {}),
         "accessibility": {
             "$ref": "#/$defs/AccessibilityAttributes",
@@ -854,59 +870,70 @@ def _defs_for_1_0(defs: dict[str, Any]) -> dict[str, Any]:
 
 
 def build() -> dict[str, Any]:
-    basic = json.loads(BASIC.read_text(encoding="utf-8"))
+    """The travel catalog: the SDK's v1.0 basic catalog, derived.
+
+    `Catalog.derive` keeps every basic component and function, adds the travel
+    ones, and writes the `anyComponent` and `anyFunction` unions to match, so
+    nothing here patches a union by hand. What is added after is this
+    catalog's own: its document fields, the shared accessibility definition,
+    and the order the model is taught positional arguments in.
+    """
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        from a2ui.core.basic_catalog import BasicCatalog
+        from a2ui.core.catalog import ComponentApi, FunctionApi
+
+    basic = BasicCatalog(PROTOCOL_VERSION)
+    date_time_input = _label_leads(basic.to_json()["components"]["DateTimeInput"])
+    derived = basic.derive(
+        catalog_id=CATALOG_ID,
+        components=[
+            *basic.components,
+            ComponentApi("DateTimeInput", date_time_input, from_document=True),
+            *(ComponentApi(name, schema, from_document=True) for name, schema in TRAVEL_COMPONENTS.items()),
+        ],
+        functions=[
+            *basic.functions,
+            *(
+                FunctionApi(
+                    name,
+                    return_type=schema["properties"]["returnType"]["const"],
+                    schema=schema,
+                    is_definition=True,
+                    from_document=True,
+                )
+                for name, schema in TRAVEL_FUNCTIONS.items()
+            ),
+        ],
+        instructions=CATALOG_INSTRUCTIONS,
+    ).to_json()
 
     catalog: dict[str, Any] = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$schema": derived["$schema"],
         "$id": CATALOG_ID,
         "catalogId": CATALOG_ID,
         # Which protocol this catalog is written against, and therefore which
         # protocol the server speaks: `brain/catalog.py` reads it from here
-        # rather than carrying a second copy. A catalog that does not say is
-        # 0.9 by the spec's own default, so saying so is not optional at 1.0.
+        # rather than carrying a second copy.
         "protocolVersion": PROTOCOL_VERSION,
         "title": "A2UI Travel Catalog",
         "description": CATALOG_DESCRIPTION,
         "instructions": CATALOG_INSTRUCTIONS,
-        "extends": basic["catalogId"],
+        "extends": basic.catalog_id,
+        # Every component, ours and the basic catalog's alike. This decides the
+        # positional argument order the model is taught, and leaving it to
+        # `allOf` order as written made `weight` argument one.
         "components": {
-            **basic["components"],
-            "DateTimeInput": _label_leads(basic["components"]["DateTimeInput"]),
-            **TRAVEL_COMPONENTS,
+            name: _own_properties_lead(schema) for name, schema in derived["components"].items()
         },
-        "functions": _tag_as_client_side({**basic["functions"], **TRAVEL_FUNCTIONS}),
-        "$defs": _defs_for_1_0(basic["$defs"]),
+        "functions": _tag_as_client_side(derived["functions"]),
+        "$defs": _defs_for_1_0(derived["$defs"]),
     }
 
-    # Every component, ours and the basic catalog's alike. See the note on the
-    # function: this decides the positional argument order the model is taught,
-    # and leaving it to `allOf` order as written made `weight` argument one.
-    catalog["components"] = {
-        name: _own_properties_lead(schema) for name, schema in catalog["components"].items()
-    }
-
-    # `anyComponent` / `anyFunction` are the catalog's own union of what it
-    # offers; extending the component map without extending the union would
-    # leave the travel components unvalidatable.
-    any_component = catalog["$defs"].get("anyComponent")
-    if isinstance(any_component, dict) and "oneOf" in any_component:
-        existing = {json.dumps(x, sort_keys=True) for x in any_component["oneOf"]}
-        for name in TRAVEL_COMPONENTS:
-            ref = {"$ref": f"#/components/{name}"}
-            if json.dumps(ref, sort_keys=True) not in existing:
-                any_component["oneOf"].append(ref)
-
-    any_function = catalog["$defs"].get("anyFunction")
-    if isinstance(any_function, dict) and "oneOf" in any_function:
-        existing = {json.dumps(x, sort_keys=True) for x in any_function["oneOf"]}
-        for name in TRAVEL_FUNCTIONS:
-            ref = {"$ref": f"#/functions/{name}"}
-            if json.dumps(ref, sort_keys=True) not in existing:
-                any_function["oneOf"].append(ref)
-
-    # Last, so it catches the vendored components, the vendored functions and
-    # the definitions alike. Idempotent on everything written above, which
-    # already points at `COMMON`.
+    # Last, so it catches the basic components, the basic functions and the
+    # definitions alike. Idempotent on what already points at `COMMON`.
     return _at_declared_version(catalog)
 
 

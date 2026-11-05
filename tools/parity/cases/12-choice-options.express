@@ -1,2 +1,0 @@
-pick = ChoicePicker("Cabin", "mutuallyExclusive", ["economy", "business"], $/trip/cabin)
-root = Column([pick])

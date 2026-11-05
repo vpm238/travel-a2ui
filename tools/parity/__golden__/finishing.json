@@ -719,7 +719,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -767,20 +768,7 @@
               "action": {
                 "event": {
                   "name": "search_flights",
-                  "context": {
-                    "origin": {
-                      "@path": "/trip/origin"
-                    },
-                    "startDate": {
-                      "@path": "/trip/startDate"
-                    },
-                    "endDate": {
-                      "@path": "/trip/endDate"
-                    },
-                    "travelers": {
-                      "@path": "/trip/travelers"
-                    }
-                  }
+                  "context": {}
                 }
               }
             },
@@ -866,7 +854,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -900,9 +889,6 @@
                   "context": {
                     "departingFrom": {
                       "@path": "/trip/origin"
-                    },
-                    "travelers": {
-                      "@path": "/trip/travelers"
                     }
                   }
                 }
@@ -989,7 +975,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -1031,17 +1018,11 @@
               "id": "__commit",
               "component": "Button",
               "child": "__commit_label",
+              "variant": "primary",
               "action": {
                 "event": {
                   "name": "commit_surface",
-                  "context": {
-                    "origin": {
-                      "@path": "/trip/origin"
-                    },
-                    "travelers": {
-                      "@path": "/trip/travelers"
-                    }
-                  }
+                  "context": {}
                 }
               }
             }
@@ -1117,7 +1098,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -1149,14 +1131,7 @@
               "action": {
                 "event": {
                   "name": "search_flights",
-                  "context": {
-                    "startDate": {
-                      "@path": "/trip/startDate"
-                    },
-                    "endDate": {
-                      "@path": "/trip/endDate"
-                    }
-                  }
+                  "context": {}
                 }
               }
             },
@@ -1167,14 +1142,7 @@
               "action": {
                 "event": {
                   "name": "search_hotels",
-                  "context": {
-                    "startDate": {
-                      "@path": "/trip/startDate"
-                    },
-                    "endDate": {
-                      "@path": "/trip/endDate"
-                    }
-                  }
+                  "context": {}
                 }
               }
             },
@@ -1259,7 +1227,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -1290,14 +1259,7 @@
               "action": {
                 "event": {
                   "name": "go",
-                  "context": {
-                    "origin": {
-                      "@path": "/trip/origin"
-                    },
-                    "legOrigin": {
-                      "@path": "/leg/origin"
-                    }
-                  }
+                  "context": {}
                 }
               }
             },
@@ -1382,7 +1344,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -1424,17 +1387,11 @@
               "id": "__commit",
               "component": "Button",
               "child": "__commit_label",
+              "variant": "primary",
               "action": {
                 "event": {
                   "name": "commit_surface",
-                  "context": {
-                    "startDate": {
-                      "@path": "/trip/startDate"
-                    },
-                    "endDate": {
-                      "@path": "/trip/endDate"
-                    }
-                  }
+                  "context": {}
                 }
               }
             }
@@ -1510,7 +1467,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -1552,17 +1510,11 @@
               "id": "__commit",
               "component": "Button",
               "child": "__commit_label",
+              "variant": "primary",
               "action": {
                 "event": {
                   "name": "commit_surface",
-                  "context": {
-                    "startDate": {
-                      "@path": "/trip/startDate"
-                    },
-                    "endDate": {
-                      "@path": "/trip/endDate"
-                    }
-                  }
+                  "context": {}
                 }
               }
             }
@@ -1638,7 +1590,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -1658,8 +1611,26 @@
               "id": "root",
               "component": "Column",
               "children": [
-                "when"
+                "when",
+                "__commit"
               ]
+            },
+            {
+              "id": "__commit_label",
+              "component": "Text",
+              "text": "Send"
+            },
+            {
+              "id": "__commit",
+              "component": "Button",
+              "child": "__commit_label",
+              "variant": "primary",
+              "action": {
+                "event": {
+                  "name": "commit_surface",
+                  "context": {}
+                }
+              }
             }
           ]
         }
@@ -1733,7 +1704,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -1838,7 +1810,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -1930,7 +1903,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -2036,7 +2010,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -2078,17 +2053,11 @@
               "id": "__commit",
               "component": "Button",
               "child": "__commit_label",
+              "variant": "primary",
               "action": {
                 "event": {
                   "name": "commit_surface",
-                  "context": {
-                    "startDate": {
-                      "@path": "/trip/startDate"
-                    },
-                    "endDate": {
-                      "@path": "/trip/endDate"
-                    }
-                  }
+                  "context": {}
                 }
               }
             }
@@ -2164,7 +2133,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       },
       {
@@ -2202,11 +2172,7 @@
               "action": {
                 "event": {
                   "name": "go",
-                  "context": {
-                    "neighborhood": {
-                      "@path": "/trip/neighborhood"
-                    }
-                  }
+                  "context": {}
                 }
               }
             },

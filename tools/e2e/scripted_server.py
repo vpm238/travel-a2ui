@@ -53,7 +53,7 @@ SCRIPT: list[tuple[list[str], list[ToolCall]]] = [
             "Here are four, cheapest first. ",
             A2UI_OPEN,
             '\nsurface("inline-1")\n',
-            'head = Text("Flights to Madrid", variant="h3")\n',
+            'head = Text("### Flights to Madrid")\n',
             "row = FlightOption($airline, $departTime, $arriveTime, $origin, $destination, "
             '$price, Event("select_flight", {id: $id, price: $price}), duration=$duration, '
             "stops=$stops, flightNumber=$flightNumber)\n",

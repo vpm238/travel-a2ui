@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@travel-a2ui/express": "0.1.0",
+    "@a2ui/react": "^0.15.0",
+    "@a2ui/web_core": "^0.15.0",
     "@travel-a2ui/renderer": "0.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

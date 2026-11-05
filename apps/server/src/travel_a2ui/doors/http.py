@@ -47,6 +47,7 @@ from ..sessions import SessionStore
 from ..brain import host_actions
 from ..brain import trip as model
 from ..brain.finishing import STANDING_SURFACES, panel_events, trip_updates
+from ..brain.finishing.lifecycle import SurfaceLifecycle, held_by_client
 from .live import VoiceSession, relay
 from ..brain.skills import SKILL_VARIANTS, describe_all_skills, is_skill_variant
 
@@ -239,6 +240,30 @@ async def catalog() -> JSONResponse:
     return JSONResponse(CATALOG_JSON, headers={"cache-control": "public, max-age=300"})
 
 
+@app.post("/api/express")
+async def express(request: Request) -> JSONResponse:
+    """A surface's messages, as Express — by the A2UI SDK's decompiler.
+
+    For the Wire view. It used to run a TypeScript port of the decompiler in the
+    browser, which meant the page that shows the protocol also shipped a copy of
+    it to keep in step with the SDK. The server already holds the catalog and
+    the SDK, so it answers.
+    """
+    from a2ui.inference_formats.express.decompiler import ExpressDecompiler
+
+    from ..brain.catalog import CATALOG
+
+    body = await _json_body(request)
+    messages = body.get("messages")
+    if not isinstance(messages, list) or not messages or len(messages) > 50:
+        raise HTTPException(status_code=400, detail="messages must be a list of 1 to 50 A2UI messages")
+    try:
+        text = ExpressDecompiler([CATALOG]).decompile(messages)
+    except Exception as error:  # noqa: BLE001 - a surface that does not decompile is a 422, not a 500
+        return JSONResponse({"error": f"{type(error).__name__}: {error}"}, status_code=422)
+    return _no_store({"express": text})
+
+
 @app.get("/api/session")
 async def get_session(sessionId: str = "") -> JSONResponse:  # noqa: N803 - wire name
     if not sessionId:
@@ -351,6 +376,19 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
         provider=provider,
     )
 
+    # Each surface created once; see `brain/finishing/lifecycle.py`. The client
+    # says what it holds when it can, because only it knows.
+    said = held_by_client(body)
+    lifecycle = SurfaceLifecycle(session.surfaces if said is None else said)
+    # A press proves its surface is on the client, whatever else it says.
+    if action is not None:
+        lifecycle.held.add(action.surface_id)
+    session.surfaces = lifecycle.held
+
+    def surfaced(event: dict[str, Any]) -> bytes | None:
+        conformant = lifecycle.event(event)
+        return _sse(conformant) if conformant is not None else None
+
     async def events() -> AsyncIterator[bytes]:
         # The session id goes out first, so a client that did not send one
         # knows what to send next time. Everything after it is a turn event.
@@ -373,7 +411,7 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
                 # pressed on first, then the panels beside it.
                 pressed = trip_updates(action.surface_id, trip)
                 if pressed:
-                    yield _sse(
+                    out = surfaced(
                         {
                             "type": "ui",
                             "surfaceId": action.surface_id,
@@ -381,8 +419,12 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
                             "done": True,
                         }
                     )
+                    if out:
+                        yield out
                 for event in panel_events(trip):
-                    yield _sse(event)
+                    out = surfaced(event)
+                    if out:
+                        yield out
                 yield _sse({"type": "trip", "trip": trip})
                 yield _sse({"type": "resume", "trip": trip})
                 yield _sse({"type": "done", "stopReason": "host"})
@@ -431,7 +473,9 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
             # screen at the time, in a sidebar drawn by the turn before.
             if event["type"] == "trip" and isinstance(event.get("trip"), dict):
                 sessions.save(session_id, trip=event["trip"])
-            yield _sse(event)
+            out = surfaced(event)
+            if out:
+                yield out
 
     return StreamingResponse(
         events(),
@@ -527,8 +571,17 @@ async def voice(socket: WebSocket) -> None:
     )
     stored = sessions.get(session_id)
 
+    # Each surface created once, as on the typed door. The voice client says
+    # what it holds in its opening frame; without that, the conversation's own
+    # record is used, and it is the same record the typed door keeps.
+    said = held_by_client(opening)
+    lifecycle = SurfaceLifecycle(stored.surfaces if said is None else said)
+    stored.surfaces = lifecycle.held
+
     async def send(message: dict[str, Any]) -> None:
-        await socket.send_json(message)
+        conformant = lifecycle.event(message)
+        if conformant is not None:
+            await socket.send_json(conformant)
 
     async def incoming():
         while True:

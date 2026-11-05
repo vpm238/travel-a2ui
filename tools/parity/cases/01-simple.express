@@ -1,3 +1,0 @@
-title = Text("Madrid in April", variant="h1")
-sub = Text("Six nights, two travelers")
-root = Column([title, sub])

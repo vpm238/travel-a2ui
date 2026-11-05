@@ -68,8 +68,24 @@ a {
 }
 
 .topbar__mark {
-  font-size: 1.35rem;
-  line-height: 1;
+  display: grid;
+  line-height: 0;
+}
+
+.topbar__mark rect {
+  fill: var(--tv-accent);
+}
+
+.topbar__mark path {
+  fill: none;
+  stroke: var(--tv-accent-ink);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 3 3.2;
+}
+
+.topbar__mark circle {
+  fill: var(--tv-accent-ink);
 }
 
 .topbar__brand strong {
@@ -299,9 +315,44 @@ a {
   overflow-y: auto;
 }
 
+/*
+ * On a narrow screen the conversation owns the height and the trip panel is a
+ * bar above it, opened on demand (see `Sidebar.tsx`). Stacking the two gave the
+ * conversation a sliver between the panel and the composer.
+ */
 @media (max-width: 900px) {
   .main--chat {
     grid-template-columns: 1fr;
-    overflow-y: auto;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .main--chat .sidebar {
+    order: -1;
+    max-height: 62vh;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--tv-line);
+    box-shadow: var(--tv-shadow-sm);
+  }
+  .main--chat .sidebar:not(.is-open) > :not(.sidebar__head) {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    gap: 8px 10px;
+    padding: 8px 12px;
+  }
+  .topbar__brand span {
+    display: none;
+  }
+  .topbar__controls {
+    margin-left: auto;
+  }
+  .topbar__views {
+    order: 3;
+    width: 100%;
+  }
+  .topbar__views button {
+    flex: 1;
   }
 }

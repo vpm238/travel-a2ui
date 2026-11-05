@@ -17,6 +17,27 @@
   gap: 10px;
 }
 
+.sidebar__toggle {
+  display: none;
+  appearance: none;
+  margin-left: auto;
+  padding: 5px 12px;
+  border: 1px solid var(--tv-line-strong);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--tv-accent);
+  background: var(--tv-surface);
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .sidebar__toggle {
+    display: inline-flex;
+  }
+}
+
 .sidebar__head h2 {
   margin: 0;
   font-size: 0.74rem;

@@ -20,166 +20,78 @@
  */
 
 /**
- * A component, compiled and drawn on its own little surface.
+ * A component, drawn on its own little surface.
  *
- * Each preview gets its own store, so a Slider moved in one does not move the
- * one three rows down, and an interaction goes nowhere: this is a specimen, not
- * a conversation.
+ * Each preview gets its own SDK processor, so a Slider moved in one does not
+ * move the one three rows down, and an interaction goes nowhere: this is a
+ * specimen, not a conversation. The messages were compiled at build time by
+ * the A2UI SDK's own parser (`scripts/build_catalog_reference.py`), so this
+ * page ships no compiler.
  */
-function Preview({
-  catalog,
-  name,
-  withSource = true,
-}: {
-  catalog: CatalogSchema;
-  name: string;
-  /** The Express that drew it. Off on a card face, where thirty copies of
-   *  a disclosure nobody opened is the only thing the eye can see. */
-  withSource?: boolean;
-}) {
-  const { store, source, error } = useMemo(() => {
-    const express = exampleExpress(catalog, name);
-    if (!express) return { store: null, source: '', error: 'No example for this component.' };
-    try {
-      const compiler = new ExpressCompiler(catalog, CATALOG_VERSION);
-      const messages = compiler.compile(express, {
-        surfaceId: `preview-${name}`,
-        catalogId: String(catalog.catalogId),
-        version: CATALOG_VERSION,
-      });
-      const next = new SurfaceStore();
-      next.apply(messages);
-      return { store: next, source: express, error: null as string | null };
-    } catch (cause) {
-      return {
-        store: null,
-        source: express,
-        error: cause instanceof Error ? cause.message : String(cause),
-      };
-    }
-  }, [catalog, name]);
+function Preview({ component, withSource = true }: { component: Entry; withSource?: boolean }) {
+  const surfaces = useMemo(() => {
+    if (!component.messages) return null;
+    const preview = new Surfaces();
+    preview.apply(component.messages);
+    return preview;
+  }, [component]);
+  const surfaceId = surfaces?.ids()[0];
 
   return (
     <div className="preview">
-      {store ? (
+      {surfaces && surfaceId ? (
         <div className="preview__stage">
-          <A2uiSurface store={store} surfaceId={`preview-${name}`} onEvent={() => undefined} />
+          <SurfaceView surfaces={surfaces} surfaceId={surfaceId} />
         </div>
       ) : (
-        <p className="preview__error">{error}</p>
+        <p className="preview__error">{component.error ?? 'No example for this component.'}</p>
       )}
-      {source && withSource ? (
+      {withSource ? (
         <details className="preview__source">
           <summary>The Express that drew it</summary>
-          <pre>{source}</pre>
+          <pre>{component.express}</pre>
         </details>
       ) : null}
     </div>
   );
 }
 
-import { useEffect, useMemo, useState } from 'react';
-import { CatalogHelper, ExpressCompiler, exampleExpress, type CatalogSchema } from '@travel-a2ui/express';
-import { A2uiSurface, SurfaceStore, supportedComponents } from '@travel-a2ui/renderer';
+import { useMemo, useState } from 'react';
 
+import reference from '../generated/catalog-reference.json';
 import { catalogUrl } from '../api.js';
-import { Empty, Spinner } from './bits.js';
+import { Surfaces } from '../surfaces.js';
+import { Empty } from './bits.js';
+import { SurfaceView } from './SurfaceView.js';
 
-interface Signature {
+interface Prop {
+  name: string;
+  required: boolean;
+  static: boolean;
+  enum?: string[];
+  description?: string;
+}
+
+interface Entry {
   name: string;
   args: string;
   description?: string;
-  /** From the travel catalog rather than the upstream A2UI basic one. */
-  travel: boolean;
-  /** Whether this host can actually draw it. */
-  rendered: boolean;
-  props: Array<{ name: string; required: boolean; static: boolean; enum?: string[]; description?: string }>;
+  /** From the travel catalog rather than the A2UI basic one. */
+  travel?: boolean;
+  props: Prop[];
+  express?: string;
+  messages?: unknown[];
+  error?: string;
 }
 
-/** Names in the upstream A2UI basic catalog, used to tell the two apart. */
-const BASIC = new Set([
-  'Text', 'Image', 'Icon', 'Video', 'AudioPlayer', 'Row', 'Column', 'List', 'Card',
-  'Tabs', 'Modal', 'Divider', 'Button', 'TextField', 'CheckBox', 'ChoicePicker',
-  'Slider', 'DateTimeInput',
-]);
-
-function signaturesOf(catalog: CatalogSchema): { components: Signature[]; functions: Signature[] } {
-  const helper = new CatalogHelper(catalog);
-  const rendered = new Set(supportedComponents());
-
-  const components = helper.componentNames().map((name): Signature => {
-    const required = new Set(helper.getComponentRequired(name));
-    const props = helper.getComponentProperties(name).map((prop) => {
-      const schema = helper.getPropertySchema(name, prop);
-      const ref = typeof schema?.['$ref'] === 'string' ? schema['$ref'] : '';
-      const dynamic = /DataBinding|Dynamic|ChildList/.test(ref);
-      const entry: Signature['props'][number] = {
-        name: prop,
-        required: required.has(prop),
-        static: !dynamic,
-      };
-      const values = helper.getPropertyEnum(name, prop);
-      if (values) entry.enum = values;
-      const description = schema?.['description'];
-      if (typeof description === 'string') entry.description = description;
-      return entry;
-    });
-
-    return {
-      name,
-      args: props
-        .map((prop) => `${prop.name}${prop.required ? '' : '?'}`)
-        .join(', '),
-      ...(helper.getComponentDescription(name) ? { description: helper.getComponentDescription(name)! } : {}),
-      travel: !BASIC.has(name),
-      rendered: rendered.has(name),
-      props,
-    };
-  });
-
-  const functions = helper.functionNames().map((name): Signature => {
-    const required = new Set(helper.getFunctionRequired(name));
-    const props = helper.getFunctionProperties(name).map((prop) => ({
-      name: prop,
-      required: required.has(prop),
-      static: false,
-    }));
-    return {
-      name,
-      args: props.map((prop) => `${prop.name}${prop.required ? '' : '?'}`).join(', '),
-      ...(helper.getFunctionDescription(name) ? { description: helper.getFunctionDescription(name)! } : {}),
-      travel: false,
-      rendered: true,
-      props,
-    };
-  });
-
-  return { components, functions };
-}
-
-//: The protocol these previews are compiled at. The catalog page draws the
-//: same components the agent draws, so it compiles them the same way.
-const CATALOG_VERSION = '1.0' as const;
+const components = reference.components as Entry[];
+const functions = reference.functions as Entry[];
 
 export function Catalog() {
-  const [catalog, setCatalog] = useState<CatalogSchema | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [only, setOnly] = useState<'all' | 'travel' | 'basic'>('all');
-  /** Which component is showing its preview. One at a time: they are tall. */
+  /** Which component is showing its reference. One at a time: they are tall. */
   const [open, setOpen] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch(catalogUrl())
-      .then((response) => response.json() as Promise<CatalogSchema>)
-      .then(setCatalog)
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
-  }, []);
-
-  const { components, functions } = useMemo(
-    () => (catalog ? signaturesOf(catalog) : { components: [], functions: [] }),
-    [catalog],
-  );
 
   const query = filter.trim().toLowerCase();
   const visible = components.filter((component) => {
@@ -193,8 +105,7 @@ export function Catalog() {
     );
   });
 
-  const unrenderable = components.filter((component) => !component.rendered);
-
+  
   return (
     <section className="catalog" aria-label="Component catalog">
       <header className="catalog__head">
@@ -207,17 +118,14 @@ export function Catalog() {
           </p>
         </div>
         <div className="catalog__meta">
-          <code>{catalog?.catalogId ?? '…'}</code>
+          <code>{reference.catalogId}</code>
           <a href={catalogUrl()} target="_blank" rel="noreferrer">
             raw JSON →
           </a>
         </div>
       </header>
 
-      {error ? <p className="catalog__error">{error}</p> : null}
-      {!catalog && !error ? <Spinner label="Loading the catalog" /> : null}
-
-      {catalog ? (
+      {(
         <>
           <div className="catalog__controls">
             <input
@@ -246,14 +154,6 @@ export function Catalog() {
               ))}
             </div>
           </div>
-
-          {unrenderable.length > 0 ? (
-            <p className="catalog__warn">
-              {unrenderable.length} component(s) in the catalog have no renderer here:{' '}
-              {unrenderable.map((component) => component.name).join(', ')}. The agent would be told
-              about them and the host could not draw them.
-            </p>
-          ) : null}
 
           {visible.length === 0 ? (
             <Empty title="Nothing matches">Try a different filter.</Empty>
@@ -285,11 +185,9 @@ export function Catalog() {
                       aria-expanded={isOpen}
                       onClick={() => setOpen(isOpen ? null : component.name)}
                     >
-                      {catalog ? (
-                        <div className="catalog__render" aria-hidden>
-                          <Preview catalog={catalog} name={component.name} withSource={false} />
-                        </div>
-                      ) : null}
+                      <div className="catalog__render" aria-hidden inert>
+                        <Preview component={component} withSource={false} />
+                      </div>
                       <span className="catalog__label">
                         <span className="catalog__name">{component.name}</span>
                         {component.travel ? <span className="catalog__tag">travel</span> : null}
@@ -300,9 +198,7 @@ export function Catalog() {
                     {isOpen ? (
                       <div className="catalog__detail">
                         <p className="catalog__args">({component.args})</p>
-                        {catalog ? (
-                          <Preview catalog={catalog} name={component.name} />
-                        ) : null}
+                        <Preview component={component} />
                         {component.description ? <p>{component.description}</p> : null}
                         <dl>
                           {component.props.map((prop) => (
@@ -353,7 +249,7 @@ export function Catalog() {
             </ul>
           </section>
         </>
-      ) : null}
+      )}
     </section>
   );
 }

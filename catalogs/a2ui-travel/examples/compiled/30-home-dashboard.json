@@ -8,8 +8,7 @@
         {
           "id": "hello",
           "component": "Text",
-          "text": "17 days to Madrid",
-          "variant": "h1"
+          "text": "# 17 days to Madrid"
         },
         {
           "id": "t1",

@@ -19,11 +19,10 @@
 //   this client can exist at all without being taught anything.
 
 import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/material.dart';
 
 import 'api.dart';
-import 'catalog.dart';
-import 'surface.dart';
 
 /// One thing in the feed.
 sealed class Part {}
@@ -49,35 +48,6 @@ class Failed extends Part {
   final String message;
 }
 
-/// The version string, reconciled between the two official SDKs.
-///
-/// **The version string.** The two official SDKs disagree about how A2UI 1.0
-/// spells itself on the wire, and this is where that is reconciled.
-///
-/// `a2ui-core` for Python — which this server is built on — writes `1.0`.
-/// `a2ui_core` for Dart writes `v1.0`, keeps the `v` it used for `v0.9`, and
-/// its wire parser is deliberately strict: "Only the exact wire value
-/// matches". So every message this server sends was rejected outright, with
-/// `A2UI message must have version 'v0.9' (got '1.0')` before the package
-/// bump and `Unsupported A2UI protocol version '1.0'` after it — and a
-/// rejected envelope renders nothing at all. The whole Flutter client drew a
-/// blank page against a server the React client was walking fine.
-///
-/// Normalised here rather than on the wire, for the same reason the 0.9
-/// version of this comment gave: the React client and every other consumer
-/// read what the Python SDK emits, and changing what the server sends to
-/// suit one client's dependency is the wrong way round. Delete this when the
-/// two SDKs agree.
-Map<String, dynamic> readableVersion(Map<String, dynamic> message) {
-  final version = message['version'];
-  if (version is! String) return message;
-  final adapted = A2uiProtocolVersion.tryParse(version) ??
-      A2uiProtocolVersion.tryParseSemVer(version);
-  if (adapted == null || adapted.jsonValue == version) return message;
-  return {...message, 'version': adapted.jsonValue};
-}
-
-
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
     super.key,
@@ -88,7 +58,7 @@ class ChatScreen extends StatefulWidget {
 
   final TravelApi api;
   final ServerMeta meta;
-  final Catalog<FlutterComponent, FunctionImplementation> catalog;
+  final CatalogImplementation catalog;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -102,7 +72,7 @@ class ChatScreen extends StatefulWidget {
 const Set<String> _standing = {'sidebar', 'home'};
 
 class _ChatScreenState extends State<ChatScreen> {
-  late final MessageProcessor<FlutterComponent> _processor;
+  late final MessageProcessor<ComponentImplementation> _processor;
   final _parts = <Part>[];
   final _composer = TextEditingController();
   final _scroll = ScrollController();
@@ -124,8 +94,9 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _processor = MessageProcessor<FlutterComponent>(
+    _processor = MessageProcessor<ComponentImplementation>(
       catalogs: [widget.catalog],
+      defaultVersion: A2uiProtocolVersion.v1_0,
       onAction: _onAction,
     );
   }
@@ -139,11 +110,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// Somebody pressed something. That is their turn.
   ///
-  /// Sent as the action the renderer produced, with the surface's data model
-  /// attached: the context is what the button declared it was sending, and the
-  /// data model is everything else they set that no binding named. A client
-  /// that omits the second still works, which is the test of whether this is a
-  /// protocol or an arrangement.
+  /// Sent as the action the renderer produced. The context is what the button
+  /// declared it was sending; the surface's data model rides along when the
+  /// surface was created with `sendDataModel`, which is how every value the
+  /// traveller set reaches the agent, not only the ones a binding named.
   void _onAction(A2uiRendererAction action) {
     if (_busy) return;
     // A press on the panel is a request to re-open a decision, and deciding
@@ -160,7 +130,9 @@ class _ChatScreenState extends State<ChatScreen> {
         'sourceComponentId': action.sourceComponentId,
         'timestamp': action.timestamp.toIso8601String(),
         'context': action.context,
-        if (surface != null) 'dataModel': surface.dataModel.get('/'),
+        if (action.userMessage case final String said) 'userMessage': said,
+        // Only when the surface asked for it, as A2UI's `sendDataModel` says.
+        if (surface != null && surface.sendDataModel) 'dataModel': surface.dataModel.get('/'),
       },
     );
   }
@@ -191,6 +163,7 @@ class _ChatScreenState extends State<ChatScreen> {
         sessionId: _sessionId,
         resume: _resume,
         surfaceId: surfaceId,
+        surfaces: [for (final surface in _processor.model.allSurfaces) surface.id],
       );
 
       await for (final event in stream) {
@@ -238,27 +211,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _draw(TurnEvent event) {
-    // One message at a time, and a failure skips only that message.
-    //
-    // Processing the batch as a unit looks tidier and is wrong: the agent draws
-    // a skeleton into `inline-1`, and its own surface then arrives for the same
-    // id. That second `createSurface` raises — the surface exists — and taking
-    // the whole batch down with it drops the `updateComponents` behind it. The
-    // result is a turn that renders the *skeleton* forever: the rows fill in,
-    // the heading still says "Finding flights", and nothing reports a thing.
-    for (final message in event.messages) {
-      try {
-        _processor.processMessages([readableVersion(message)]);
-      } on A2uiStateError {
-        // A surface that already exists, or components for one that does not.
-        // Both are ordinary while streaming.
-        continue;
-      } on A2uiValidationError catch (error) {
-        setState(() => _parts.add(Failed('That surface could not be read: ${error.message}')));
-        continue;
-      }
+    // The server keeps the A2UI lifecycle: a surface is created once and
+    // updated after that, so the SDK processor takes the batch as it comes. A
+    // message it refuses is reported and the rest still apply.
+    final refused = _processor.processMessagesWithErrors(event.messages);
+    for (final error in refused) {
+      setState(() => _parts.add(Failed('That surface could not be read: ${error.error.message}')));
     }
-    _seed(event.messages);
 
     // The panel lives beside the conversation, not inside it.
     //
@@ -281,27 +240,6 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!existing && _processor.model.getSurface(event.surfaceId) != null) {
       setState(() => _parts.add(Drawn(event.surfaceId)));
       _toBottom();
-    }
-  }
-
-  /// **The seeded data model.** The server fills `createSurface.dataModel` with
-  /// the trip and the plan, so a control opens showing what is already decided
-  /// and a panel has its checklist before anything is decided. This build of
-  /// the core's `CreateSurfaceMessage` has no such field and drops it — so the
-  /// seed is applied here, after the surface exists.
-  ///
-  /// Without this the Flutter client renders every control empty while the
-  /// React client renders them pre-filled, from identical messages. Nothing
-  /// would report it.
-  void _seed(List<Map<String, dynamic>> messages) {
-    for (final message in messages) {
-      final created = message['createSurface'];
-      if (created is! Map) continue;
-      final seed = created['dataModel'];
-      if (seed is! Map) continue;
-      final surface = _processor.model.getSurface(created['surfaceId'] as String);
-      if (surface == null) continue;
-      seed.forEach((key, value) => surface.dataModel.set('/$key', value));
     }
   }
 
@@ -530,7 +468,7 @@ class _Composer extends StatelessWidget {
 class _Panel extends StatelessWidget {
   const _Panel({required this.surface});
 
-  final SurfaceModel<FlutterComponent> surface;
+  final SurfaceModel<ComponentImplementation> surface;
 
   @override
   Widget build(BuildContext context) {

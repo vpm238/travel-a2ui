@@ -14,7 +14,8 @@
  *    consistent for the next message.
  */
 
-import type { A2uiMessage } from '@travel-a2ui/express';
+/** One A2UI message, as the server sends it; `@a2ui/web_core` validates it on arrival. */
+type A2uiMessage = Record<string, unknown>;
 
 export type SkillVariant = 'express-modular';
 export type SurfaceKind = 'inline' | 'sidebar' | 'home';
@@ -166,6 +167,8 @@ export interface SurfaceAction {
   name: string;
   surfaceId: string;
   sourceComponentId?: string;
+  /** The surface's own sentence for this press, when it wrote one. */
+  userMessage?: string;
   timestamp?: string;
   context: Record<string, unknown>;
   dataModel?: Record<string, unknown>;
@@ -211,13 +214,23 @@ export interface ChatRequest {
    * UTC; at 18:00 in Los Angeles it has already turned the page, so "tomorrow"
    * comes back a day late and "this Saturday" is the wrong Saturday.
    */
-  client?: { today?: string; locale?: string };
+  client?: { today?: string; locale?: string; surfaces?: string[] };
 }
 
-/** What day it is where the traveler is, and what language they read. */
-export function clientHints(): ChatRequest['client'] {
+/**
+ * What day it is where the traveler is, what language they read, and which
+ * surfaces are on screen.
+ *
+ * The surfaces because only the client knows what it holds — a stream it cut
+ * short never delivered what the server sent, and a sample it opened on was
+ * never sent by this server at all. The server creates each surface once and
+ * sends values only to surfaces that exist (`finishing/lifecycle.py`), and this
+ * is what it decides that from.
+ */
+export function clientHints(surfaces?: string[]): ChatRequest['client'] {
   try {
     return {
+      ...(surfaces ? { surfaces } : {}),
       // `en-CA` is the shortest honest way to get a local `YYYY-MM-DD` out of
       // the browser: `toISOString` would convert to UTC first, which is the bug
       // this exists to fix.
@@ -322,6 +335,18 @@ export async function probeBackend(origin: string): Promise<Meta> {
 }
 
 export const catalogUrl = () => api('/api/catalog');
+
+/** A surface's messages as Express, by the A2UI SDK's own decompiler on the server. */
+export async function decompile(messages: unknown[]): Promise<string> {
+  const response = await fetch(api('/api/express'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ messages }),
+  });
+  if (!response.ok) throw new Error(`decompile failed: ${response.status}`);
+  const body = (await response.json()) as { express?: string };
+  return body.express ?? '';
+}
 
 export async function fetchMeta(): Promise<Meta> {
   const response = await fetch(api('/api/meta'));

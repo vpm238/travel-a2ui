@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { A2uiSurface } from '@travel-a2ui/renderer';
+import { SurfaceView } from './SurfaceView.js';
 
 import type { Agent } from '../useAgent.js';
 import { Disclosure, Empty, Spinner } from './bits.js';
@@ -295,10 +295,9 @@ export function Chat({ agent }: { agent: Agent }) {
                     key={index}
                     className={`turn__surface${part.surfaceId === liveSurfaceId ? '' : ' turn__surface--spent'}`}
                   >
-                    <A2uiSurface
-                      store={agent.store}
+                    <SurfaceView
+                      surfaces={agent.store}
                       surfaceId={part.surfaceId}
-                      onEvent={agent.handleSurfaceEvent}
                       interactive={part.surfaceId === liveSurfaceId && !agent.busy}
                     />
                     {part.surfaceId === liveSurfaceId ? null : (

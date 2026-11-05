@@ -10,10 +10,11 @@ a surface id, and streams. `SkillGenerator` landed with it.
 So the port is gone and this drives the real thing. What survives is the part
 upstream does not have:
 
-  **Pruning.** `A2uiCatalog.with_pruning` narrows components; `prune.py` also
-  narrows *functions*, which is where the tokens actually were — a catalog of
-  check-rule validators for a `checks=` argument this agent never writes. The
-  allow-list lives beside the catalog it prunes.
+  **What the model is shown.** The SDK's `ComponentPruningTransformer` and
+  `FunctionPruningTransformer` narrow the catalog to the allow-list beside it;
+  functions are where the tokens were, a block of check-rule validators for a
+  `checks=` argument this agent never writes. `prune.py` keeps only the worked
+  examples that use what survives.
 
   **Metadata.** `Skill.metadata` carries the fields the Worker reads back out of
   the frontmatter to report which skill is loaded.
@@ -37,7 +38,7 @@ warnings.filterwarnings("ignore")
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from prune import Vocabulary, uses_only, with_pruning  # noqa: E402
+from prune import Vocabulary, uses_only  # noqa: E402
 
 CATALOG = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
 EXAMPLES = ROOT / "catalogs" / "a2ui-travel" / "examples"
@@ -69,40 +70,30 @@ ALLOWED_MESSAGES = ["createSurface", "updateComponents", "updateDataModel", "del
 
 
 def pruned_catalog(schema: dict, scratch: pathlib.Path):
-    """The catalog the model is shown, pruned by the SDK's own `with_pruning`.
+    """The catalog the model is shown, pruned by the SDK's own transformers.
 
-    This used to build an `A2uiCatalog` by hand with `s2c_schema={}` and
-    `common_types_schema={}`, and call the local port instead. That worked, and
-    it also meant three of upstream's four pruning passes had nothing to act on:
-    message pruning and common-type pruning both read schemas that were not
-    there. Loading the catalog the way the SDK intends — `from_config`, which
-    pulls the bundled spec schemas for the version — is what makes
-    `with_pruning(allowed_components=…, allowed_messages=…)` mean anything.
-
-    Measured afterwards: for Express it is byte-identical, because Express
-    renders neither messages nor common types — it has `surface()` and `$path =`
-    instead. For direct JSON it is not, because that format prints the message
-    schemas, and it had been printing an empty set of them.
-
-    `allowed_functions` stays local. Upstream does not prune functions, and on
-    this catalog that axis was worth three times the component one — most of it
-    check-rule validators for a `checks=` argument this agent never writes.
+    `CatalogConfig.from_path` loads it the way the SDK intends, against the
+    bundled spec schemas for the version, and applies the two pruning
+    transformers: components to `allowedComponents`, functions to
+    `allowedFunctions`. Messages are pruned by the format instead; see
+    `make_format`, which is handed `allowed_messages`.
     """
-    from a2ui.catalog_transformers import ComponentPruningTransformer
+    from a2ui.catalog_transformers import (
+        ComponentPruningTransformer,
+        FunctionPruningTransformer,
+    )
     from a2ui.processor.catalog_config import CatalogConfig
 
-    path = scratch / "catalog.pruned.json"
+    path = scratch / "catalog.json"
     path.write_text(json.dumps(schema, indent=2), encoding="utf-8")
 
     allow = json.loads(PRUNING.read_text(encoding="utf-8"))
-
-    # Pruning moved in agent-sdk 0.9. `Catalog.with_pruning` is gone; component
-    # pruning is a catalog *transformer* now, and message pruning belongs to
-    # the format rather than the catalog — see `make_format`, which is handed
-    # `allowed_messages`. Same two axes, two different owners.
     config = CatalogConfig.from_path(
         str(path),
-        transformers=[ComponentPruningTransformer(allow["allowedComponents"])],
+        transformers=[
+            ComponentPruningTransformer(allow["allowedComponents"]),
+            FunctionPruningTransformer(allow["allowedFunctions"]),
+        ],
         protocol_version=PROTOCOL_VERSION.removeprefix("v"),
     )
     # Macros are added *after* pruning, deliberately. Pruning keeps the prompt
@@ -158,21 +149,15 @@ VARIANTS: list[tuple[str, str]] = [
 ]
 
 
-def pruned_schema() -> tuple[dict, set[str], set[str]]:
-    """The catalog with functions narrowed — the axis upstream does not have.
-
-    Components are left to `A2uiCatalog.with_pruning`, which also sweeps the
-    message and common-type schemas that only it can see. What comes back here
-    is what survives *both*, which is what the example filter has to match.
-    """
-    schema = json.loads(CATALOG.read_text(encoding="utf-8"))
+def vocabulary_of(schema: dict) -> Vocabulary:
+    """What the pruned catalog still offers, against everything it declares."""
     allow = json.loads(PRUNING.read_text(encoding="utf-8"))
-
-    narrowed = with_pruning(schema, allowed_functions=allow.get("allowedFunctions"))
-    return (
-        narrowed,
-        set(allow["allowedComponents"]) & set(narrowed.get("components", {})),
-        set(narrowed.get("functions", {})),
+    components, functions = set(schema["components"]), set(schema["functions"])
+    return Vocabulary(
+        allowed_components=set(allow["allowedComponents"]) & components,
+        known_components=components,
+        allowed_functions=set(allow["allowedFunctions"]) & functions,
+        known_functions=functions,
     )
 
 
@@ -250,13 +235,8 @@ def build(out: pathlib.Path) -> list[pathlib.Path]:
     except ImportError as error:  # pragma: no cover - environment, not logic
         raise SystemExit(SDK_MISSING) from error
 
-    schema, components, functions = pruned_schema()
-    vocabulary = Vocabulary(
-        allowed_components=components,
-        known_components=set(json.loads(CATALOG.read_text("utf-8"))["components"]),
-        allowed_functions=functions,
-        known_functions=set(json.loads(CATALOG.read_text("utf-8"))["functions"]),
-    )
+    schema = json.loads(CATALOG.read_text(encoding="utf-8"))
+    vocabulary = vocabulary_of(schema)
 
     catalog_id = str(schema.get("catalogId") or schema.get("$id") or "")
     written: list[pathlib.Path] = []

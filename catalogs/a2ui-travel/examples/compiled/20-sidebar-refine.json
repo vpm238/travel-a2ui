@@ -8,8 +8,7 @@
         {
           "id": "title",
           "component": "Text",
-          "text": "Refine",
-          "variant": "h3"
+          "text": "### Refine"
         },
         {
           "id": "dates",

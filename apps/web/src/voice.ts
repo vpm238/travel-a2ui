@@ -190,6 +190,8 @@ export interface VoiceOptions {
   sessionId: string;
   apiKey: string;
   onEvent: (event: VoiceEvent) => void;
+  /** The surfaces on screen when the call opens; see `clientHints`. */
+  surfaces?: string[];
   onSpeakingChange?: (speaking: boolean) => void;
   /** The socket went away. Whoever holds this session should stop holding it. */
   onClosed?: () => void;
@@ -374,7 +376,9 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
   // The same hints a typed turn sends. A call had none of them, so it asked
   // people to say an airport code out loud — the exact question a
   // suggestion exists to avoid.
-  socket.send(JSON.stringify({ type: 'start', apiKey: options.apiKey, client: clientHints() }));
+  socket.send(
+    JSON.stringify({ type: 'start', apiKey: options.apiKey, client: clientHints(options.surfaces) }),
+  );
 
   socket.addEventListener('message', (event) => {
     const message = JSON.parse(String(event.data)) as VoiceEvent;

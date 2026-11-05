@@ -5,18 +5,18 @@ packages:
     dependency: "direct main"
     description:
       name: a2ui_core
-      sha256: "1067c6964267a381b666154b10c734528dd8ada369a7de3da4aee587af762e38"
+      sha256: "72457ec49de30f1503959a96a9f90dfb4cc5d5c35016a499a8491a17f3114b93"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.0"
+    version: "0.5.0"
   a2ui_flutter:
     dependency: "direct main"
     description:
       name: a2ui_flutter
-      sha256: "4f989c5969683675e6f042d9a2c492f39c45fe169aaf2d3e922a432398535509"
+      sha256: "29014226f4e295850cb9e80f67d7a9334fa6a176f9c22bf3b2332c0dab2907e6"
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.1-wip003"
+    version: "0.1.0"
   args:
     dependency: transitive
     description:

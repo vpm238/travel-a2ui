@@ -73,7 +73,7 @@ class TestBothVocabulariesResolve:
         drawn = components(
             extra,
             'mark = Stamp(label="paid")\n'
-            'head = Text("Receipt", variant="h3")\n'
+            'head = Text("### Receipt")\n'
             "root = Column([head, mark])",
         )
         assert {node["component"] for node in drawn} == {"Stamp", "Text", "Column"}

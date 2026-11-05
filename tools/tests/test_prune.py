@@ -1,9 +1,7 @@
-"""Pruning the catalog the model is shown.
+"""Which worked examples survive pruning, and what the shipped prompt documents.
 
-Generating the skill is upstream's job now. This is the piece that is not, and
-the piece that decides which components and functions ever reach a prompt — so
-it keeps its own tests, and `test_sdk_parity.py` diffs it against the real
-`A2uiCatalog.with_pruning` whenever the SDK is installed.
+Pruning the catalog is the SDK's, and `test_sdk_parity.py` pins what it leaves.
+This is the part that is ours: dropping an example that calls something pruned.
 """
 
 from __future__ import annotations
@@ -18,89 +16,11 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from prune import Vocabulary, uses_only, with_pruning  # noqa: E402
+from prune import Vocabulary, uses_only  # noqa: E402
 
 CATALOG = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
 SKILLS = ROOT / "skills"
 ALLOW = ROOT / "catalogs" / "a2ui-travel" / "agent-components.json"
-
-ALLOWED = ["Text", "Row", "Column", "Button", "FlightOption"]
-
-
-@pytest.fixture(scope="module")
-def schema() -> dict:
-    return json.loads(CATALOG.read_text(encoding="utf-8"))
-
-
-class TestComponents:
-    def test_keeps_only_the_named_components(self, schema):
-        pruned = with_pruning(schema, allowed_components=ALLOWED)
-        assert set(pruned["components"]) == set(ALLOWED)
-        assert "Video" in schema["components"], "the source catalog is not mutated"
-
-    def test_drops_the_component_from_the_union_too(self, schema):
-        pruned = with_pruning(schema, allowed_components=ALLOWED)
-        refs = {
-            entry.get("$ref")
-            for entry in pruned["$defs"]["anyComponent"]["oneOf"]
-            if isinstance(entry, dict)
-        }
-        assert "#/components/FlightOption" in refs
-        assert "#/components/Video" not in refs
-
-    def test_unknown_names_narrow_rather_than_raise(self, schema):
-        pruned = with_pruning(schema, allowed_components=["Text", "NoSuchComponent"])
-        assert set(pruned["components"]) == {"Text"}
-
-    def test_no_allow_list_is_the_whole_catalog(self, schema):
-        assert with_pruning(schema) is schema
-
-
-class TestFunctions:
-    def test_keeps_only_the_named_functions(self, schema):
-        pruned = with_pruning(schema, allowed_functions=["formatCurrency", "calcNights"])
-        assert set(pruned["functions"]) == {"formatCurrency", "calcNights"}
-        # Components are untouched when only functions are named.
-        assert set(pruned["components"]) == set(schema["components"])
-
-    def test_drops_the_function_from_its_union(self, schema):
-        pruned = with_pruning(schema, allowed_functions=["formatCurrency"])
-        refs = {
-            entry.get("$ref")
-            for entry in pruned["$defs"]["anyFunction"]["oneOf"]
-            if isinstance(entry, dict)
-        }
-        assert "#/functions/regex" not in refs
-
-
-class TestDefinitions:
-    def test_unreachable_defs_are_pruned(self):
-        schema = {
-            "components": {"Kept": {"$ref": "#/$defs/Used"}},
-            "$defs": {
-                "Used": {"properties": {"x": {"$ref": "#/$defs/Chained"}}},
-                "Chained": {"type": "number"},
-                "Orphan": {"type": "boolean"},
-            },
-        }
-        result = with_pruning(schema, allowed_components=["Kept"])
-        assert set(result["$defs"]) == {"Used", "Chained"}, "reachable through Used"
-
-    def test_structural_definitions_survive(self, schema):
-        """`anyComponent` is pointed at from outside the catalog, never inside.
-
-        A reachability sweep that treats "unreferenced" as "unused" deletes
-        exactly the definitions that make a catalog a catalog.
-
-        `theme` used to be the third name here and is not a regression: 1.0
-        removed it from the catalog and from `createSurface`, so a catalog
-        declaring 1.0 that still carried it would be advertising a definition
-        nothing may reference.
-        """
-        pruned = with_pruning(schema, allowed_components=ALLOWED)
-        assert {"anyComponent", "anyFunction"} <= set(pruned["$defs"])
-        assert "theme" not in pruned["$defs"], "1.0 has no catalog theme"
-
 
 class TestExamples:
     """Which worked examples survive, given what the prompt still documents."""

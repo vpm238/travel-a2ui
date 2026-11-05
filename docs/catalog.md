@@ -4,12 +4,13 @@
 mockup. Each picture is a screenshot of the real component, beside the single line
 of A2UI Express that produced it.
 
-This page is generated from `catalogs/a2ui-travel/catalog.json` and the gallery
-build (`node tools/screenshots/catalog.mjs`), so it cannot describe a component
-that no longer exists or miss a prop that was added.
+This page is generated from `catalogs/a2ui-travel/catalog.json` and the web
+app's `/catalog/<Name>` pages (`node tools/screenshots/catalog.mjs`), so it cannot
+describe a component that no longer exists or miss a prop that was added.
 
 **Lifting one of these.** A component is three things: an entry in the catalog
-schema, a React function in `renderers/react/src/components/`, and whatever the
+schema, a React view in `renderers/react/src/components/travel.tsx` (bound by the
+A2UI SDK's `createComponentImplementation`), and whatever the
 skill says about when to use it. Copy all three and it works in another A2UI
 project — nothing here is coupled to travel except the names.
 
@@ -46,15 +47,16 @@ root = ActivityItem("Prado Museum", "10:00", category="sight", location="Paseo d
 </picture>
 
 ```
-buttonChild = Text("Inside Button")
-root = Button(buttonChild, variant="default", action=Event("example", {component: "Button"}))
+face = Text("Search flights")
+root = Button(face, action=Event("search_flights"), variant="primary")
 ```
 
 | prop | type | | what it is |
 | --- | --- | --- | --- |
-| `child` | componentid | **required** | The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button. |
+| `child` | child | **required** | The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button. |
 | `variant` | `default` \\| `primary` \\| `borderless` |  | A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link. |
 | `action` | action | **required** |  |
+| `weight` | weight |  |  |
 
 ## CheckBox
 
@@ -71,8 +73,11 @@ root = CheckBox("I need somewhere to stay in Chicago", $/stops/1/needsStay)
 | --- | --- | --- | --- |
 | `label` | bindable string | **required** | The text to display next to the checkbox. |
 | `value` | bindable boolean | **required** | The current state of the checkbox (true for checked, false for unchecked). |
+| `weight` | weight |  |  |
 
 ## ChoicePicker
+
+A component that allows selecting one or more options from a list.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="catalog/ChoicePicker-dark.png">
@@ -91,8 +96,11 @@ root = ChoicePicker("Cabin", "mutuallyExclusive", [{label: "Economy", value: "ec
 | `value` | bindable stringlist | **required** | The list of currently selected values. This should be bound to a string array in the data model. |
 | `displayStyle` | `checkbox` \\| `chips` |  | The display style of the component. |
 | `filterable` | boolean |  | If true, displays a search input to filter the options. |
+| `weight` | weight |  |  |
 
 ## Column
+
+A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="catalog/Column-dark.png">
@@ -100,7 +108,7 @@ root = ChoicePicker("Cabin", "mutuallyExclusive", [{label: "Economy", value: "ec
 </picture>
 
 ```
-a = Text("Outbound", variant="h4")
+a = Text("#### Outbound")
 b = Text("JFK → MAD · Sun 12 Apr")
 root = Column([a, b], align="stretch")
 ```
@@ -108,8 +116,9 @@ root = Column([a, b], align="stretch")
 | prop | type | | what it is |
 | --- | --- | --- | --- |
 | `children` | childlist | **required** | Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID. |
-| `justify` | `start` \\| `center` \\| `end` \\| `spaceBetween` \\| `spaceAround` \\| `spaceEvenly` \\| `stretch` |  | Defines the arrangement of children along the main axis (vertically). Use 'spaceBetween' to push items to the edges (e.g. header at top, footer at bottom), or 'start'/'end'/'center' to pack them together. |
-| `align` | `center` \\| `end` \\| `start` \\| `stretch` |  | Defines the alignment of children along the cross axis (horizontally). This is similar to the CSS 'align-items' property. |
+| `justify` | `center` \\| `end` \\| `spaceAround` \\| `spaceBetween` \\| `spaceEvenly` \\| `start` \\| `stretch` |  | Defines the arrangement of children along the main axis (vertically). Use 'spaceBetween' to push items to the edges (e.g. header at top, footer at bottom), or 'start'/'end'/'center' to pack them together. |
+| `align` | `start` \\| `center` \\| `end` \\| `stretch` |  | Defines the alignment of children along the cross axis (horizontally). This is similar to the CSS 'align-items' property. |
+| `weight` | weight |  |  |
 
 ## DateRangePicker
 
@@ -119,6 +128,8 @@ root = Column([a, b], align="stretch")
 </picture>
 
 ```
+$/trip/startDate = "2027-04-12"
+$/trip/endDate = "2027-04-19"
 root = DateRangePicker("Trip dates", $/trip/startDate, $/trip/endDate, nightsLabel=formatString("${calcNights(start: ${/trip/startDate}, end: ${/trip/endDate})} nights"))
 ```
 
@@ -138,7 +149,8 @@ root = DateRangePicker("Trip dates", $/trip/startDate, $/trip/endDate, nightsLab
 </picture>
 
 ```
-root = DateTimeInput("Madrid", 3)
+$/trip/startDate = "2027-04-12"
+root = DateTimeInput("Departure", $/trip/startDate, enableDate=true)
 ```
 
 | prop | type | | what it is |
@@ -149,6 +161,7 @@ root = DateTimeInput("Madrid", 3)
 | `enableTime` | boolean |  | If true, allows the user to select a time. |
 | `min` | any |  | The minimum allowed date/time in ISO 8601 format. |
 | `max` | any |  | The maximum allowed date/time in ISO 8601 format. |
+| `weight` | weight |  |  |
 
 ## ExpenseSplit
 
@@ -261,6 +274,7 @@ root = List(_template($/items, row))
 | `children` | childlist | **required** | Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. |
 | `direction` | `vertical` \\| `horizontal` |  | The direction in which the list items are laid out. |
 | `align` | `start` \\| `center` \\| `end` \\| `stretch` |  | Defines the alignment of children along the cross axis. |
+| `weight` | weight |  |  |
 
 ## MapPreview
 
@@ -320,6 +334,8 @@ root = ProgressMeter("Spent of budget", 1840, 3000, caption="$1,160 left")
 
 ## Row
 
+A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="catalog/Row-dark.png">
   <img src="catalog/Row-light.png" alt="Row as the renderer draws it" width="560">
@@ -336,6 +352,7 @@ root = Row([a, b], justify="spaceBetween")
 | `children` | childlist | **required** | Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID. |
 | `justify` | `center` \\| `end` \\| `spaceAround` \\| `spaceBetween` \\| `spaceEvenly` \\| `start` \\| `stretch` |  | Defines the arrangement of children along the main axis (horizontally). Use 'spaceBetween' to push items to the edges, or 'start'/'end'/'center' to pack them together. |
 | `align` | `start` \\| `center` \\| `end` \\| `stretch` |  | Defines the alignment of children along the cross axis (vertically). This is similar to the CSS 'align-items' property, but uses camelCase values (e.g., 'start'). |
+| `weight` | weight |  |  |
 
 ## Slider
 
@@ -345,6 +362,7 @@ root = Row([a, b], justify="spaceBetween")
 </picture>
 
 ```
+$/trip/budget = 2400
 root = Slider("Budget, all in", 500, 6000, $/trip/budget)
 ```
 
@@ -354,6 +372,8 @@ root = Slider("Budget, all in", 500, 6000, $/trip/budget)
 | `min` | number |  | The minimum value of the slider. |
 | `max` | number | **required** | The maximum value of the slider. |
 | `value` | bindable number | **required** | The current value of the slider. |
+| `steps` | integer |  | The number of discrete divisions in the slider range. If specified, the slider will snap to discrete values. |
+| `weight` | weight |  |  |
 
 ## StatTile
 
@@ -382,13 +402,14 @@ root = StatTile("Nights in Madrid", "7", caption="12–19 April", tone="accent")
 </picture>
 
 ```
-root = Text("Madrid · 2 travellers · 12–19 April", variant="h3")
+root = Text("### Madrid · 2 travellers · 12–19 April")
 ```
 
 | prop | type | | what it is |
 | --- | --- | --- | --- |
 | `text` | bindable string | **required** | The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation. |
-| `variant` | `h1` \\| `h2` \\| `h3` \\| `h4` \\| `h5` \\| `caption` \\| `body` |  | A hint for the base text style. |
+| `variant` | `caption` \\| `body` |  | A hint for the base text style. |
+| `weight` | weight |  |  |
 
 ## TextField
 
@@ -398,15 +419,16 @@ root = Text("Madrid · 2 travellers · 12–19 April", variant="h3")
 </picture>
 
 ```
-root = TextField("Flying from", $/trip/origin, validationRegexp="^[A-Za-z]{3}$")
+root = TextField("Flying from", $/trip/origin, placeholder="City or airport")
 ```
 
 | prop | type | | what it is |
 | --- | --- | --- | --- |
 | `label` | bindable string | **required** | The text label for the input field. |
 | `value` | bindable string |  | The value of the text field. |
+| `placeholder` | bindable string |  | The placeholder text for the input field. |
 | `variant` | `longText` \\| `number` \\| `shortText` \\| `obscured` |  | The type of input field to display. |
-| `validationRegexp` | string |  | A regular expression used for client-side validation of the input. |
+| `weight` | weight |  |  |
 
 ## TravelerCounter
 
@@ -416,6 +438,7 @@ root = TextField("Flying from", $/trip/origin, validationRegexp="^[A-Za-z]{3}$")
 </picture>
 
 ```
+$/trip/travelers = 2
 root = TravelerCounter("Travelers", $/trip/travelers, min=1, max=9, caption="Adults on this leg")
 ```
 
@@ -455,7 +478,7 @@ root = TripCalendar("2027-04-12", "2027-04-18", marks=[{date: "2027-04-12", icon
 </picture>
 
 ```
-root = WeatherStrip([{day: "Mon", high: 21, low: 11, condition: "sunny"}, {day: "Tue", high: 19, low: 10, condition: "cloudy"}], place="Madrid")
+root = WeatherStrip([{day: "Mon", high: "21°", low: "11°", condition: "sun"}, {day: "Tue", high: "19°", low: "10°", condition: "cloud"}, {day: "Wed", high: "17°", low: "9°", condition: "rain"}], place="Madrid", caption="Pack a light jacket for Wednesday")
 ```
 
 | prop | type | | what it is |

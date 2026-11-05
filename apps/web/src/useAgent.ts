@@ -29,7 +29,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SurfaceStore, type A2uiEvent } from '@travel-a2ui/renderer';
+import { Surfaces, type SurfacePress } from './surfaces.js';
 
 import { consumeKeyFromUrl } from './apiKey.js';
 import { instantiateLive, startVoice as openVoice, type VoiceSession } from './voice.js';
@@ -106,10 +106,10 @@ interface SendOptions {
 }
 
 export function useAgent() {
-  const store = useMemo(() => new SurfaceStore(), []);
+  const store = useMemo(() => new Surfaces(), []);
   /** What the transcript asks to name a press: the component, on its surface. */
   const lookup = useCallback<ComponentLookup>(
-    (surfaceId, id) => store.get(surfaceId)?.components.get(id) as Record<string, unknown> | undefined,
+    (surfaceId, id) => store.component(surfaceId, id),
     [store],
   );
 
@@ -616,7 +616,7 @@ export function useAgent() {
             ...(options.surfaceId ? { surfaceId: options.surfaceId } : {}),
             ...(resumeRef.current ? { resume: resumeRef.current } : {}),
             ...((): object => {
-              const hints = clientHints();
+              const hints = clientHints(store.ids());
               return hints ? { client: hints } : {};
             })(),
           },
@@ -722,7 +722,7 @@ export function useAgent() {
   const relayPressRef = useRef<((action: SurfaceAction) => boolean) | undefined>(undefined);
 
   const handleSurfaceEvent = useCallback(
-    (event: A2uiEvent) => {
+    (event: SurfacePress) => {
       // During a call, a press belongs to the call.
       //
       // This handler used to go straight to `send` below — the typed door —
@@ -766,6 +766,13 @@ export function useAgent() {
     },
     [busy, send],
   );
+
+  // The SDK reports presses to the processor's action listener, which is fixed
+  // when the processor is made; this keeps it pointed at the current handler.
+  useEffect(() => {
+    store.onPress(handleSurfaceEvent);
+    return () => store.onPress(null);
+  }, [store, handleSurfaceEvent]);
 
   /**
    * Starts the conversation before the traveller finishes typing.
@@ -1136,6 +1143,7 @@ export function useAgent() {
         origin: backendRef.current,
         sessionId,
         apiKey: keyRef.current,
+        surfaces: store.ids(),
         onSpeakingChange: setAgentSpeaking,
         // The relay ends when either side does, so an upstream session that
         // reaches its own limit takes this socket with it — without anybody

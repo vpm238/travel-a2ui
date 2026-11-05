@@ -105,7 +105,7 @@ class TestOneBlockIsUnchanged:
         held = drawn(ROUTE)
         assert "when" in reachable(held)
         # A surface of editors with nothing to press gets a commit button, which
-        # is `bind_commit_context` doing its usual job and not composition.
+        # is `ensure_commit_button` doing its usual job and not composition.
         assert held["root"]["children"][0] == "when"
 
 
@@ -127,23 +127,21 @@ class TestBothBlocksSurvive:
 
 
 class TestOnePressSendsBoth:
-    def test_the_button_carries_both_blocks_paths(self) -> None:
-        """The whole point: one final submit, not one per block."""
+    def test_both_blocks_answer_on_one_surface(self) -> None:
+        """The whole point: one final submit, not one per block.
+
+        The values travel as the surface's data model (`sendDataModel`), so
+        what makes one press carry both blocks is that both are one surface.
+        """
         held = drawn(ROUTE, PARTY)
-        button = next(
-            held[node_id]
-            for node_id in reachable(held)
-            if held[node_id].get("component") == "Button" and held[node_id].get("action")
-        )
-        context = button["action"]["event"]["context"]
         bound = {
             value["@path"]
-            for value in context.values()
+            for node_id in reachable(held)
+            for value in held[node_id].values()
             if isinstance(value, dict) and "@path" in value
         }
         assert "/trip/travelers" in bound, "its own block"
-        assert "/trip/startDate" in bound, "and the block before it"
-        assert "/trip/endDate" in bound
+        assert {"/trip/startDate", "/trip/endDate"} <= bound, "and the block before it"
 
     def test_there_is_exactly_one_thing_to_press(self) -> None:
         held = drawn(ROUTE, PARTY)

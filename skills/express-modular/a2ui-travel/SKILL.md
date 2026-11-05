@@ -35,17 +35,15 @@ Use these exact positional signatures to instantiate components. Do not output p
     no date control, and nothing already settled is asked again.
   - heading: The line at the top, e.g. 'Madrid in April — two travellers'.
   - label: What the button says. Defaults to 'Find flights'.
-• Button(child (component ID), variant? (static), action (static), weight? (static), accessibility? (static), checks? (static))
+• Button(child (static), variant? (static), action (static), weight? (static), checks? (static))
   - child: The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button.
   - variant: A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link. Must be one of: 'default', 'primary', 'borderless'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-  - accessibility: Assistive technology: {label, description, live, hidden}.
-• CheckBox(label, value, weight? (static), accessibility? (static), checks? (static))
+• CheckBox(label, value, weight? (static), checks? (static))
   - label: The text to display next to the checkbox.
   - value: The current state of the checkbox (true for checked, false for unchecked).
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-  - accessibility: Assistive technology: {label, description, live, hidden}.
-• ChoicePicker(label?, variant? (static), options (static), value, displayStyle? (static), filterable? (static), weight? (static), accessibility? (static), checks? (static))
+• ChoicePicker(label?, variant? (static), options (static), value, displayStyle? (static), filterable? (static), weight? (static), checks? (static))
   - Description: A component that allows selecting one or more options from a list.
   - label: The label for the group of options.
   - variant: A hint for how the choice picker should be displayed and behave. Must be one of: 'multipleSelection', 'mutuallyExclusive'
@@ -57,14 +55,12 @@ Use these exact positional signatures to instantiate components. Do not output p
   - displayStyle: The display style of the component. Must be one of: 'checkbox', 'chips'
   - filterable: If true, displays a search input to filter the options.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-  - accessibility: Assistive technology: {label, description, live, hidden}.
-• Column(children, justify? (static), align? (static), weight? (static), accessibility? (static))
+• Column(children, justify? (static), align? (static), weight? (static))
   - Description: A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
-  - justify: Defines the arrangement of children along the main axis (vertically). Use 'spaceBetween' to push items to the edges (e.g. header at top, footer at bottom), or 'start'/'end'/'center' to pack them together. Must be one of: 'start', 'center', 'end', 'spaceBetween', 'spaceAround', 'spaceEvenly', 'stretch'
-  - align: Defines the alignment of children along the cross axis (horizontally). This is similar to the CSS 'align-items' property. Must be one of: 'center', 'end', 'start', 'stretch'
+  - justify: Defines the arrangement of children along the main axis (vertically). Use 'spaceBetween' to push items to the edges (e.g. header at top, footer at bottom), or 'start'/'end'/'center' to pack them together. Must be one of: 'center', 'end', 'spaceAround', 'spaceBetween', 'spaceEvenly', 'start', 'stretch'
+  - align: Defines the alignment of children along the cross axis (horizontally). This is similar to the CSS 'align-items' property. Must be one of: 'start', 'center', 'end', 'stretch'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-  - accessibility: Assistive technology: {label, description, live, hidden}.
 • DateRangePicker(label, start, end, action? (static), nightsLabel?, weight? (static), accessibility? (static), checks? (static))
   - Description: Picks the trip's start and end dates. Both bound values are ISO 8601 calendar dates with no time or offset, e.g. '2026-04-12'.
   - label: What the range is for, e.g. 'When are you going?'.
@@ -74,7 +70,7 @@ Use these exact positional signatures to instantiate components. Do not output p
   - nightsLabel: Derived caption, e.g. '6 nights'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
-• DateTimeInput(label, value, enableDate? (static), enableTime? (static), min?, max?, weight? (static), accessibility? (static), checks? (static))
+• DateTimeInput(label, value, enableDate? (static), enableTime? (static), min?, max?, weight? (static), checks? (static))
   - label: The text label for the input field.
   - value: The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string.
   - enableDate: If true, allows the user to select a date.
@@ -82,7 +78,6 @@ Use these exact positional signatures to instantiate components. Do not output p
   - min: The minimum allowed date/time in ISO 8601 format.
   - max: The maximum allowed date/time in ISO 8601 format.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-  - accessibility: Assistive technology: {label, description, live, hidden}.
 • ExpenseSplit(title, total, participants (static), action? (static), actionLabel?, weight? (static), accessibility? (static))
   - Description: Splits a shared trip cost between travelers and shows who owes what.
   - title: What was paid for, e.g. 'Dinner at Sobrino'.
@@ -167,12 +162,11 @@ Use these exact positional signatures to instantiate components. Do not output p
   - onAdd: Fired when the traveler wants something else in this day.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
-• List(children, direction? (static), align? (static), weight? (static), accessibility? (static))
+• List(children, direction? (static), align? (static), weight? (static))
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list.
   - direction: The direction in which the list items are laid out. Must be one of: 'vertical', 'horizontal'
   - align: Defines the alignment of children along the cross axis. Must be one of: 'start', 'center', 'end', 'stretch'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-  - accessibility: Assistive technology: {label, description, live, hidden}.
 • MapPreview(markers (static), caption?, action? (static), weight? (static), accessibility? (static))
   - Description: A lightweight schematic map of the places in play. Not a live map — it orients the traveler and is safe to render offline.
   - markers: Places to pin. Static values only — the host lays them out relative to each other.
@@ -207,20 +201,19 @@ Use these exact positional signatures to instantiate components. Do not output p
   - tone: Colour role for the bar. Must be one of: 'neutral', 'positive', 'caution', 'critical', 'accent'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
-• Row(children, justify? (static), align? (static), weight? (static), accessibility? (static))
+• Row(children, justify? (static), align? (static), weight? (static))
   - Description: A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.
   - children: Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
   - justify: Defines the arrangement of children along the main axis (horizontally). Use 'spaceBetween' to push items to the edges, or 'start'/'end'/'center' to pack them together. Must be one of: 'center', 'end', 'spaceAround', 'spaceBetween', 'spaceEvenly', 'start', 'stretch'
   - align: Defines the alignment of children along the cross axis (vertically). This is similar to the CSS 'align-items' property, but uses camelCase values (e.g., 'start'). Must be one of: 'start', 'center', 'end', 'stretch'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-  - accessibility: Assistive technology: {label, description, live, hidden}.
-• Slider(label?, min? (static), max (static), value, weight? (static), accessibility? (static), checks? (static))
+• Slider(label?, min? (static), max (static), value, steps? (static), weight? (static), checks? (static))
   - label: The label for the slider.
   - min: The minimum value of the slider.
   - max: The maximum value of the slider.
   - value: The current value of the slider.
+  - steps: The number of discrete divisions in the slider range. If specified, the slider will snap to discrete values.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-  - accessibility: Assistive technology: {label, description, live, hidden}.
 • StatTile(label, value, caption?, tone? (static), action? (static), weight? (static), accessibility? (static))
   - Description: One number that matters, sized for a dashboard grid. Home-surface staple: days until departure, budget left, bookings confirmed.
   - label: What the number measures.
@@ -238,18 +231,16 @@ Use these exact positional signatures to instantiate components. Do not output p
   - heading: Optional line above the list, e.g. 'Stays in Madrid'.
   - selected: Data path holding the current choice, e.g. '/trip/selectedHotel'.
   - hop: Which hop is staying the night, when it is not the first.
-• Text(text, variant? (static), weight? (static), accessibility? (static))
+• Text(text, variant? (static), weight? (static))
   - text: The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation.
-  - variant: A hint for the base text style. Must be one of: 'h1', 'h2', 'h3', 'h4', 'h5', 'caption', 'body'
+  - variant: A hint for the base text style. Must be one of: 'caption', 'body'
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-  - accessibility: Assistive technology: {label, description, live, hidden}.
-• TextField(label, value?, variant? (static), validationRegexp? (static), weight? (static), accessibility? (static), checks? (static))
+• TextField(label, value?, placeholder?, variant? (static), weight? (static), checks? (static))
   - label: The text label for the input field.
   - value: The value of the text field.
+  - placeholder: The placeholder text for the input field.
   - variant: The type of input field to display. Must be one of: 'longText', 'number', 'shortText', 'obscured'
-  - validationRegexp: A regular expression used for client-side validation of the input.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
-  - accessibility: Assistive technology: {label, description, live, hidden}.
 • TravelerCounter(label, value, min? (static), max? (static), caption?, weight? (static), accessibility? (static), checks? (static))
   - Description: A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.
   - label: What is being counted, e.g. 'Adults'.
@@ -334,9 +325,9 @@ Examples:
   - decimals: Optional. The number of decimal places to show. Defaults to 0 or 2 depending on locale.
   - grouping: Optional. If true, uses locale-specific grouping separators (e.g. '1,000'). If false, returns raw digits (e.g. '1000'). Defaults to true.
 • formatString(value)
-  - Description: Performs string interpolation of data model values and other functions in the catalog functions list and returns the resulting string. The value string can contain interpolated expressions in the `${expression}` format. Supported expression types include: JSON Pointer paths to the data model (e.g., `${/absolute/path}` or `${relative/path}`), and client-side function calls (e.g., `${now()}`). Function arguments must be named (e.g., `${formatDate(value:${/currentDate}, format:'MM-dd')}`). To include a literal `${` sequence, escape it as `\${`.
+  - Description: Performs string interpolation of data model values and other functions in the catalog functions list and returns the resulting string. The value string can contain interpolated expressions in the `${expression}` format. Supported expression types include: JSON Pointer paths to the data model (e.g., `${/absolute/path}` or `${relative/path}`), and renderer-side function calls (e.g., `${now()}`). Function arguments must be named (e.g., `${formatDate(value:${/currentDate}, format:'MM-dd')}`). To include a literal `${` sequence, escape it as `\${`.
 • openUrl(url)
-  - Description: Opens the specified URL in a browser or handler. This function has no return value.
+  - Description: Opens the specified URL in a browser or handler (requires user activation). This function has no return value.
   - url: The URL to open.
 • pluralize(value, zero?, one?, two?, few?, many?, other)
   - Description: Returns a localized string based on the Common Locale Data Repository (CLDR) plural category of the count (zero, one, two, few, many, other). Requires an 'other' fallback. For English, just use 'one' and 'other'.
@@ -416,7 +407,7 @@ root = Column([fares, note])
 surface("sidebar")
 $/filters/adults = 2
 $/filters/maxPrice = 600
-title = Text("Refine", "h3")
+title = Text("### Refine")
 dates = DateRangePicker("Travel dates", $/filters/start, $/filters/end, Event("dates_changed"), "6 nights")
 who = TravelerCounter("Adults", $/filters/adults, 1, 8)
 budget = Slider("Max fare", 150, 1500, $/filters/maxPrice)
@@ -428,7 +419,7 @@ root = Column([title, dates, who, budget, stops, apply], _, "stretch")
 
 <a2ui>
 surface("home")
-hello = Text("17 days to Madrid", "h1")
+hello = Text("# 17 days to Madrid")
 t1 = StatTile("Booked", "3 of 5", "flights, hotel, transfer", "positive")
 t2 = StatTile("Budget left", "$680", "of $2,000", "caution")
 t3 = StatTile("Next up", "Pick dinner", "Sat 11 Apr", "accent", Event("open_task", {id: "dinner"}))
@@ -449,13 +440,13 @@ a3 = ActivityItem("Retiro Park", "16:00", "outdoors", _, "1h 30m", "Rowboats unt
 day2 = ItineraryDay("Day 2 — Old Madrid", [a1, a2, a3], "Mon 13 Apr", "Art in the morning, a long lunch, green afternoon")
 packingRow = CheckBox($item, $done)
 packing = List(_template($/packing, packingRow))
-packingTitle = Text("Packing", "h4")
+packingTitle = Text("#### Packing")
 root = Column([day2, packingTitle, packing])
 </a2ui>
 
 <a2ui>
 surface("inline-traveler")
-title = Text("Who is travelling?", "h3")
+title = Text("### Who is travelling?")
 name = TextField("Full name (as on passport)", $/traveler/name)
 email = TextField("Email", $/traveler/email, "shortText")
 seat = ChoicePicker("Seat", "mutuallyExclusive", [{label: "Window", value: "window"}, {label: "Aisle", value: "aisle"}], $/traveler/seat)

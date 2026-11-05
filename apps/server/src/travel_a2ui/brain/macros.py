@@ -70,6 +70,18 @@ _AIRPORTS: contextvars.ContextVar[dict[str, list[dict[str, str]]]] = contextvars
     "airports", default={}
 )
 
+
+def heading_text(text: str, level: int = 3) -> Text:
+    """A heading, written the way A2UI 1.0 writes one: as Markdown in a `Text`.
+
+    1.0's basic `Text` has two variants, `caption` and `body`; `h1`…`h5` were
+    0.9's. Headings drawn as `variant="h3"` were rejected by `@a2ui/web_core`
+    and passed only our own validator, which read a stale copy of the basic
+    catalog. The heading level is the Markdown's, so it still renders as one.
+    """
+    return Text(text=f"{'#' * level} {text.lstrip('#').strip()}")
+
+
 #: The ISO code this turn's money is quoted in. See `currency_for`.
 #:
 #: Here for the same reason the airports are: `formatCurrency` takes the code
@@ -157,7 +169,7 @@ def itinerary(heading: str = "") -> Column:
     rows: list[Any] = []
     drew_a_day = False
     if isinstance(heading, str) and heading.strip():
-        rows.append(Text(text=heading, variant="h3"))
+        rows.append(heading_text(heading))
 
     for index, day in enumerate(days if isinstance(days, list) else []):
         if not isinstance(day, dict):
@@ -296,6 +308,17 @@ def bind(path: str) -> dict[str, str]:
     return {PATH_KEY: path}
 
 
+def chosen(path: str) -> dict[str, Any]:
+    """Whether the row being drawn is the one recorded at `path`.
+
+    `selected` is a boolean and the trip records an id, so binding one to the
+    other gave every row the chosen id: a string, which no renderer reads as
+    `true`, and the fare you picked was never marked on the list. The catalog's
+    `equals` compares them per row, against the row's own `id`.
+    """
+    return {"@call": "equals", "args": {"a": bind("id"), "b": bind(path)}}
+
+
 def _reads(*fields: str) -> dict[str, Any]:
     """A label that reads the row aloud as a sentence.
 
@@ -430,7 +453,7 @@ def flights(heading: str = "", selected: str = "", hop: Any = None) -> Column:
         # to the cabin, which is what every single-traveller trip wants.
         total=bind("total"),
         badge=bind("badge"),
-        selected=bind(selected) if selected else None,
+        selected=chosen(selected) if selected else None,
         # `${total}` last and unpunctuated: it resolves to nothing on a
         # single-traveller row, and to "$1,978 for 2" on a row that carries
         # one, so the sentence reads correctly either way without the host
@@ -443,7 +466,7 @@ def flights(heading: str = "", selected: str = "", hop: Any = None) -> Column:
     )
     rows: list[Any] = []
     if isinstance(heading, str) and heading.strip():
-        rows.append(Text(text=heading, variant="h3"))
+        rows.append(heading_text(heading))
     rows.append(ListC(children=DynamicChildList(path=FLIGHTS, template=row)))
     return Column(children=rows)
 
@@ -479,12 +502,12 @@ def stays(heading: str = "", selected: str = "", hop: Any = None) -> Column:
         rating=bind("rating"),
         amenities=bind("amenities"),
         badge=bind("badge"),
-        selected=bind(selected) if selected else None,
+        selected=chosen(selected) if selected else None,
         accessibility=_reads("${name}, ${neighborhood},", "rated ${rating}, ${price}"),
     )
     rows: list[Any] = []
     if isinstance(heading, str) and heading.strip():
-        rows.append(Text(text=heading, variant="h3"))
+        rows.append(heading_text(heading))
     rows.append(ListC(children=DynamicChildList(path=STAYS, template=row)))
     return Column(children=rows)
 
@@ -514,7 +537,7 @@ def highlights(heading: str = "") -> Column:
     )
     rows: list[Any] = []
     if isinstance(heading, str) and heading.strip():
-        rows.append(Text(text=heading, variant="h3"))
+        rows.append(heading_text(heading))
     rows.append(ListC(children=DynamicChildList(path=HIGHLIGHTS, template=row)))
     return Column(children=rows)
 
@@ -1118,7 +1141,7 @@ def trip(heading: str = "", money: Any = False) -> Column:
     record = _TRIP.get()
     rows: list[Any] = []
     if isinstance(heading, str) and heading.strip():
-        rows.append(Text(text=heading, variant="h3"))
+        rows.append(heading_text(heading))
 
     hops = model.journey(record) if isinstance(record, dict) else []
     if not hops:
@@ -1134,7 +1157,7 @@ def trip(heading: str = "", money: Any = False) -> Column:
         # Hop one owns the trip's own fields; every hop after it owns its leg.
         prefix = "" if index == 0 else f"legs/{index - 1}/"
         where = f"{hop.get('from') or ''} → {hop.get('to') or ''}"
-        rows.append(Text(text=where.strip(" →"), variant="h4"))
+        rows.append(heading_text(where.strip(" →"), level=4))
 
 
         # Does *this* hop know this fact?
@@ -1229,7 +1252,8 @@ def trip(heading: str = "", money: Any = False) -> Column:
                     # provider happens to use one as its id — the sample trip
                     # showed TP2077 beside a card that said TP787.
                     flightNumber=bind(model.binding_for(f"{prefix}{number}")),
-                    selected=bind(model.binding_for(f"{prefix}selectedFlight")),
+                    # The panel draws this row only once a fare is chosen.
+                    selected=True,
                     accessibility=_reads(
                         "${/trip/" + prefix + number + "},",
                         "${/trip/" + prefix + "flightPrice}",
@@ -1253,7 +1277,7 @@ def trip(heading: str = "", money: Any = False) -> Column:
                     action={
                         "event": {"name": "change", "context": {"what": "stay", "hop": index}}
                     },
-                    selected=bind(model.binding_for(f"{prefix}selectedHotel")),
+                    selected=True,
                     accessibility=_reads(
                         "${/trip/" + prefix + "hotelName},",
                         "${/trip/" + prefix + "nightlyPrice}",
@@ -1397,9 +1421,8 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
         return key not in (record.get("assumed") or [])
 
     rows: list[Any] = []
-    edits: list[str] = []
     if isinstance(heading, str) and heading.strip():
-        rows.append(Text(text=heading, variant="h3"))
+        rows.append(heading_text(heading))
 
     hops = model.journey(record)
     # A range picker is for there and back and nothing else: it cannot say when
@@ -1444,7 +1467,6 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
                 filterable=len(choices) > 8,
             )
         )
-        edits.append(path)
 
     # Dates. One range for there and back, one input per hop otherwise — a
     # range cannot say when the middle hop of a three-city route leaves, which
@@ -1458,7 +1480,6 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
                 action={"event": {"name": "dates_changed", "context": {}}},
             )
         )
-        edits += [model.binding_for("startDate"), model.binding_for("endDate")]
     else:
         for hop in hops:
             index = hop.get("hop") or 0
@@ -1475,7 +1496,6 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
                     value=bind(model.binding_for(f"{prefix}startDate")),
                 )
             )
-            edits.append(model.binding_for(f"{prefix}startDate"))
 
     # Who is on each hop. One counter per hop, labelled by hop, because the
     # party is a property of the hop — "my partner joins me in Chicago" is a
@@ -1492,10 +1512,9 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
                 max=8,
             )
         )
-        edits.append(path)
 
-    # One button, carrying every path above. A surface whose values never reach
-    # the trip is a form nobody can submit.
+    # One button. A surface whose values never reach the trip is a form nobody
+    # can submit; the values themselves travel as the surface's data model.
     # The SDK's own `Button`, not a node of this file's own: `child` is a
     # component *id* on the wire, and the builder's annotated field is what
     # hoists the inline `Text` out and leaves the reference behind. Declaring it
@@ -1506,7 +1525,9 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
         Button(
             child=Text(text=label or "Find flights"),
             variant="primary",
-            action=Action(event=ActionEvent(name="commit_surface", context={"paths": edits})),
+            # Every value on the surface travels with the press as its data
+            # model (`sendDataModel`), so the button need not list them.
+            action=Action(event=ActionEvent(name="commit_surface", context={})),
         )
     )
     return Column(children=rows, align="stretch")

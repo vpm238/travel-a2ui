@@ -96,7 +96,7 @@ class TestItExpands:
 
     def test_the_heading_is_the_agents_own_words(self) -> None:
         headings = [n for n in drawn() if n["component"] == "Text"]
-        assert [h["text"] for h in headings] == ["Four days in Berlin"]
+        assert [h["text"] for h in headings] == ["### Four days in Berlin"]
 
     def test_and_is_left_out_when_the_agent_does_not_pass_one(self) -> None:
         nodes = drawn('plan = Itinerary()\nroot = Column([plan])')
@@ -198,7 +198,7 @@ class TestHighlightsIsBoundRatherThanLiteral:
     def test_a_heading_is_drawn_and_the_rest_is_not(self) -> None:
         nodes = drawn('rows = Highlights("Worth your time")\nroot = Column([rows])', trip={})
         texts = [node for node in nodes if node.get("component") == "Text"]
-        assert [node.get("text") for node in texts] == ["Worth your time"]
+        assert [node.get("text") for node in texts] == ["### Worth your time"]
 
 
 SETTLED = {
@@ -257,7 +257,17 @@ class TestThePanelBindsToWhatTheTripActuallyHolds:
         stays = [n for n in self.panel(SETTLED) if n.get("component") == "HotelCard"]
         assert len(stays) == 1
         assert stays[0]["name"] == {"@path": "/trip/hotelName"}
-        assert stays[0]["selected"] == {"@path": "/trip/selectedHotel"}, "the id still marks it"
+        # Drawn only once a stay is chosen, so it is the chosen one. It was bound
+        # to the id — a string in a boolean slot, which marked nothing.
+        assert stays[0]["selected"] is True
+
+    def test_a_list_marks_the_row_the_trip_chose(self) -> None:
+        nodes = drawn('fares = Flights("Outbound", "/trip/selectedFlight")\nroot = Column([fares])')
+        row = next(n for n in nodes if n.get("component") == "FlightOption")
+        assert row["selected"] == {
+            "@call": "equals",
+            "args": {"a": {"@path": "id"}, "b": {"@path": "/trip/selectedFlight"}},
+        }
 
 
 class TestThePanelDrawsOnlyWhatIsSettled:
@@ -344,13 +354,18 @@ class TestAskHasSomewhereToSayWhereFrom:
         assert set(self.pickers({"origin": "CPH"})) == {"Where to"}
         assert self.pickers({"destination": "Berlin", "origin": "CPH"}) == {}
 
-    def test_the_button_carries_both_paths(self) -> None:
-        """A control whose value never reaches the trip is a form nobody can submit."""
-        buttons = [n for n in asked({}) if n.get("component") == "Button"]
+    def test_one_button_sends_both_answers(self) -> None:
+        """A control whose value never reaches the trip is a form nobody can submit.
+
+        The answers travel as the surface's data model (`sendDataModel`), so the
+        button needs only to exist, on the surface whose editors hold them.
+        """
+        nodes = asked({})
+        buttons = [n for n in nodes if n.get("component") == "Button"]
         assert len(buttons) == 1
-        paths = buttons[0]["action"]["event"]["context"]["paths"]
-        assert "/trip/destination" in paths
-        assert "/trip/origin" in paths
+        assert buttons[0]["action"]["event"]["name"] == "commit_surface"
+        bound = {n["value"]["@path"] for n in nodes if isinstance(n.get("value"), dict) and "@path" in n["value"]}
+        assert {"/trip/destination", "/trip/origin"} <= bound
 
     def test_with_no_airport_list_it_asks_nothing_it_cannot_offer(self) -> None:
         """A picker with no options is a question with no answers on it.

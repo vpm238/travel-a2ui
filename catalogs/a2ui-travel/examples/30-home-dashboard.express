@@ -1,7 +1,7 @@
 # Home: a generative dashboard, reassembled for what matters today.
 # Stat tiles first, then the thing that needs a decision, then context.
 surface("home")
-hello = Text("17 days to Madrid", variant="h1")
+hello = Text("# 17 days to Madrid")
 t1 = StatTile("Booked", "3 of 5", caption="flights, hotel, transfer", tone="positive")
 t2 = StatTile("Budget left", "$680", caption="of $2,000", tone="caution")
 t3 = StatTile("Next up", "Pick dinner", caption="Sat 11 Apr", tone="accent", action=Event("open_task", {id: "dinner"}))

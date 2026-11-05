@@ -4,12 +4,12 @@
  *
  * A component reference that describes components in prose is a reference
  * nobody trusts, because the only way to know what `FlightOption` looks like is
- * to run it. So this drives the real gallery in a real browser, screenshots
+ * to run it. So this drives the real app's /catalog/<Name> pages in a real browser, screenshots
  * each component as the renderer actually draws it, and writes a page pairing
  * that picture with the one line of Express that produced it and the props the
  * catalog declares.
  *
- * Everything on the page is generated from `catalog.json` and the gallery
+ * Everything on the page is generated from `catalog.json` and the web app's
  * build, so it cannot drift: add a component and it appears, change a prop and
  * the table changes, rename one and the old entry disappears. The alternative —
  * a hand-written table of props — is a document that is wrong within a month
@@ -18,7 +18,7 @@
  *   node tools/screenshots/catalog.mjs            # write docs/catalog/
  *   node tools/screenshots/catalog.mjs --check    # fail if anything is stale
  *
- * Needs the gallery built (`npm run build`) and a browser. Light and dark are
+ * Needs the web app built (`npm run build`) and a browser. Light and dark are
  * both captured because a component that only works on one is a component that
  * is broken for half the people who open it.
  */
@@ -31,9 +31,9 @@ import { fileURLToPath } from 'node:url';
 import { launchBrowser } from '../browser.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-// The gallery is its own build — a standalone page, so the reference can be
-// regenerated without the app or a Worker running.
-const DIST = join(ROOT, 'apps', 'gallery', 'dist');
+// The web app's own build: each component is drawn at `/catalog/<Name>` by
+// the same A2UI SDK renderer the app uses, so no server needs to be running.
+const DIST = join(ROOT, 'apps', 'web', 'dist');
 const OUT = join(ROOT, 'docs', 'catalog');
 const PAGE = join(ROOT, 'docs', 'catalog.md');
 
@@ -43,9 +43,10 @@ const catalog = JSON.parse(readFileSync(join(ROOT, 'catalogs', 'a2ui-travel', 'c
 const allow = JSON.parse(
   readFileSync(join(ROOT, 'catalogs', 'a2ui-travel', 'agent-components.json'), 'utf8'),
 );
+// Built by `scripts/build_catalog_reference.py` with the A2UI SDK's parser.
 const previews = JSON.parse(
-  readFileSync(join(ROOT, 'apps', 'gallery', 'src', 'components.generated.json'), 'utf8'),
-);
+  readFileSync(join(ROOT, 'apps', 'web', 'src', 'generated', 'catalog-reference.json'), 'utf8'),
+).components;
 
 const MIME = {
   '.html': 'text/html',
@@ -57,7 +58,7 @@ const MIME = {
   '.woff2': 'font/woff2',
 };
 
-/** Serves the built app so the gallery runs exactly as it ships. */
+/** Serves the built app so each page runs exactly as it ships. */
 function serve(port) {
   const server = createServer((request, response) => {
     const path = decodeURIComponent(new URL(request.url, 'http://x').pathname);
@@ -67,9 +68,9 @@ function serve(port) {
       response.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' });
       response.end(body);
     } catch {
-      // Single-page fallback, so /gallery routes to the shell like it does live.
+      // Single-page fallback, so /catalog/<Name> routes to the app like it does live.
       response.writeHead(200, { 'content-type': 'text/html' });
-      response.end(readFileSync(join(DIST, 'gallery.html')));
+      response.end(readFileSync(join(DIST, 'index.html')));
     }
   });
   return new Promise((ready) => server.listen(port, '127.0.0.1', () => ready(server)));
@@ -127,12 +128,13 @@ function markdown(captured) {
     'mockup. Each picture is a screenshot of the real component, beside the single line',
     'of A2UI Express that produced it.',
     '',
-    'This page is generated from `catalogs/a2ui-travel/catalog.json` and the gallery',
-    'build (`node tools/screenshots/catalog.mjs`), so it cannot describe a component',
-    'that no longer exists or miss a prop that was added.',
+    'This page is generated from `catalogs/a2ui-travel/catalog.json` and the web',
+    "app's `/catalog/<Name>` pages (`node tools/screenshots/catalog.mjs`), so it cannot",
+    'describe a component that no longer exists or miss a prop that was added.',
     '',
     '**Lifting one of these.** A component is three things: an entry in the catalog',
-    'schema, a React function in `renderers/react/src/components/`, and whatever the',
+    'schema, a React view in `renderers/react/src/components/travel.tsx` (bound by the',
+    "A2UI SDK's `createComponentImplementation`), and whatever the",
     'skill says about when to use it. Copy all three and it works in another A2UI',
     'project — nothing here is coupled to travel except the names.',
     '',
@@ -223,11 +225,9 @@ async function main() {
     await page.addInitScript((key) => {
       window.__A2UI_MAPS_KEY = key;
     }, process.env['GOOGLE_MAPS_API_KEY'] || '');
-    await page.goto('http://127.0.0.1:4183/gallery.html', { waitUntil: 'networkidle' });
-
     for (const preview of wanted) {
-      await page.getByRole('button', { name: preview.name, exact: true }).click();
-      const article = page.locator('.gallery__component .gallery__surface');
+      await page.goto(`http://127.0.0.1:4183/catalog/${preview.name}`, { waitUntil: 'networkidle' });
+      const article = page.locator('.specimen__surface');
       await article.waitFor({ state: 'attached' });
       // Attached rather than visible: a component that renders nothing has zero
       // height and never becomes "visible", and the right response to that is a
@@ -248,7 +248,7 @@ async function main() {
       // captioned with the places it was supposed to be showing. So wait for
       // the element to exist and for its canvas to have something in it,
       // then give the tiles a moment to finish arriving.
-      if (await article.locator('.a2-map__canvas').count()) {
+      if (await article.locator('.tv-map__canvas').count()) {
         await article
           .locator('gmp-map-3d')
           .waitFor({ state: 'attached', timeout: 20_000 })
@@ -256,7 +256,7 @@ async function main() {
         await page
           .waitForFunction(
             () => {
-              const map = document.querySelector('.a2-map__canvas gmp-map-3d');
+              const map = document.querySelector('.tv-map__canvas gmp-map-3d');
               return Boolean(map && map.shadowRoot?.querySelector('canvas'));
             },
             { timeout: 20_000 },

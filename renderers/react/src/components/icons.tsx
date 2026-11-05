@@ -34,7 +34,10 @@ export type IconName =
   | 'wallet'
   | 'calendar'
   | 'sparkle'
-  | 'users';
+  | 'users'
+  | 'arrow'
+  | 'plus'
+  | 'minus';
 
 const paths: Record<string, ReactElement> = {
   plane: <path d="M2.5 14.2 21.3 4.6a1 1 0 0 1 1.3 1.4l-4.4 7.6 1.6 6.6-2 .9-3.4-5.6-4.5 2.4-.3 3.3-1.7.8-1.2-4-3.6-2 .8-1.7 3.3-.3Z" />,
@@ -132,6 +135,9 @@ const paths: Record<string, ReactElement> = {
   check: <path d="m4 12 5 5L20 6" />,
   close: <path d="M6 6l12 12M18 6 6 18" />,
   chevron: <path d="m9 6 6 6-6 6" />,
+  arrow: <path d="M4 12h15M13 6l6 6-6 6" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  minus: <path d="M5 12h14" />,
   wallet: (
     <>
       <rect x="3" y="6" width="18" height="13" rx="2" />

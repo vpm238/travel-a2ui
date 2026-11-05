@@ -440,7 +440,7 @@ class TestTheVoiceAgentWritesItsOwnHeading:
         express = run("show_flight_options", self.ASKED).express
         head = [line for line in express.splitlines() if line.startswith("head = Text(")]
         assert head, express
-        assert head[0] != 'head = Text("", variant="h3")'
+        assert head[0] != 'head = Text("### ")'
         assert "Madrid" in head[0] or "MAD" in head[0]
 
     def test_and_an_empty_heading_is_the_same_as_none(self) -> None:

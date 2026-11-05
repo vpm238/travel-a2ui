@@ -23,7 +23,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ExpressCompiler, ExpressStreamParser } from '../../packages/express/dist/index.js';
+import { compileAll } from './compile.mjs';
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:8787/';
 const shotIndex = process.argv.indexOf('--screenshot');
@@ -38,7 +38,7 @@ const FIRST_TURN = [
 
 const EXPRESS = `surface("inline-1")
 $/trip/selectedOutbound = ""
-heading = Text("Outbound · JFK → MAD · Sun 12 Apr", variant="h3")
+heading = Text("### Outbound · JFK → MAD · Sun 12 Apr")
 f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412", Event("select_flight", {id: "IB6250", price: "$412"}), duration="7h 35m", stops="Nonstop", flightNumber="IB6250", badge="Cheapest", accessibility={label: "Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412"})
 f2 = FlightOption("Delta", "21:10", "10:50 +1", "JFK", "MAD", "$468", Event("select_flight", {id: "DL126", price: "$468"}), duration="7h 40m", stops="Nonstop", flightNumber="DL126")
 f3 = FlightOption("TAP", "17:25", "11:05 +1", "JFK", "MAD", "$367", Event("select_flight", {id: "TP208", price: "$367"}), duration="11h 40m", stops="1 stop · LIS", flightNumber="TP208", badge="Lowest fare")
@@ -54,7 +54,7 @@ root = Column([heading, f1, f2, f3, note])`;
  * that knows what a trip is.
  */
 const PANEL = `surface("sidebar")
-title = Text("The trip", variant="h3")
+title = Text("### The trip")
 flight = Text($/trip/selectedFlight)
 root = Column([title, flight], align="stretch")`;
 
@@ -86,12 +86,18 @@ const catalog = JSON.parse(
  * handles 0.9 — and not that it handles what production now sends: components
  * inline in `createSurface`, bindings as `@path`.
  */
-const VERSION = `v${catalog.protocolVersion ?? '0.9'}`;
+/**
+ * The canned surfaces, compiled by the A2UI SDK through the server's own
+ * pipeline (`compile.py`). The first block is also compiled cut off part-way,
+ * as a stream delivers it, so the browser has to survive a partial surface
+ * followed by a complete one.
+ */
+const [FIRST, PANEL_COMPILED] = compileAll([
+  { surfaceId: 'inline-1', source: EXPRESS, partialAt: 320 },
+  { surfaceId: 'sidebar', source: PANEL },
+]);
 
-const compiler = new ExpressCompiler(catalog, VERSION);
-
-const compileFor = (surfaceId, source) =>
-  compiler.compile(source, { surfaceId, catalogId: catalog.catalogId, version: VERSION });
+const compileFor = (surfaceId) => (surfaceId === 'sidebar' ? PANEL_COMPILED.messages : FIRST.messages);
 
 function toSse(events) {
   return events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('');
@@ -104,35 +110,13 @@ function toSse(events) {
  * has to tolerate a truncated tail and the browser has to survive a partial
  * surface followed by a complete one.
  */
-function turnEvents(surfaceId, prose, express, tail) {
-  const stream = new ExpressStreamParser(compiler, {
-    surfaceId,
-    catalogId: catalog.catalogId,
-    version: VERSION,
-  });
-  const chunks = [
-    prose,
-    `<a2ui>\n${express.slice(0, 320)}`,
-    `${express.slice(320)}\n</a2ui>\n`,
-    tail,
+function turnEvents(surfaceId, prose, _express, tail) {
+  return [
+    { type: 'text', delta: prose },
+    ...(FIRST.partial ? [{ type: 'ui', surfaceId, messages: FIRST.partial, done: false }] : []),
+    { type: 'ui', surfaceId, messages: FIRST.messages, done: true },
+    { type: 'text', delta: tail },
   ];
-
-  const events = [];
-  for (const chunk of chunks) {
-    for (const event of stream.push(chunk)) {
-      if (event.type === 'text') events.push({ type: 'text', delta: event.delta });
-      else if (event.type === 'ui') {
-        events.push({ type: 'ui', surfaceId, messages: event.messages, done: event.done });
-      }
-    }
-  }
-  for (const event of stream.end()) {
-    if (event.type === 'text') events.push({ type: 'text', delta: event.delta });
-    else if (event.type === 'ui') {
-      events.push({ type: 'ui', surfaceId, messages: event.messages, done: event.done });
-    }
-  }
-  return events;
 }
 
 const browser = await launchBrowser();
@@ -205,10 +189,10 @@ await page.waitForSelector('.chat__intro', { timeout: 15000 });
 await page.fill('.composer textarea', 'Six days in Madrid in April, two of us');
 await page.click('.composer__send');
 
-await page.waitForSelector('.tv-flight', { timeout: 15000 });
+await page.waitForSelector('.tv-fare', { timeout: 15000 });
 check('an inline surface renders under the reply', true);
 
-const flights = await page.locator('.tv-flight').count();
+const flights = await page.locator('.tv-fare').count();
 check(`all three flight options render (${flights})`, flights === 3);
 
 const badge = await page.locator('.tv-badge').first().textContent();
@@ -222,14 +206,14 @@ check(`badges render (${badge?.trim()})`, Boolean(badge?.trim()));
 // 18:40 JFK 08:15 +1 MAD 7h 35m Nonstop $412" — every fact, no sentence. A
 // live model may or may not label its cards; whether the renderer honours a
 // label it was given should not depend on that.
-const named = await page.locator('.tv-flight').first().getAttribute('aria-label');
+const named = await page.locator('.tv-fare').first().getAttribute('aria-label');
 check(
   `the agent's label reaches the card (${named ?? 'nothing'})`,
   named === 'Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412',
 );
 check(
   'and a card the agent did not name keeps its own text',
-  (await page.locator('.tv-flight').nth(1).getAttribute('aria-label')) === null,
+  (await page.locator('.tv-fare').nth(1).getAttribute('aria-label')) === null,
 );
 
 const prose = (await page.locator('.bubble--agent').first().textContent()) ?? '';
@@ -240,7 +224,7 @@ const tools = await page.locator('.turn__tools li').count();
 check(`tool activity is shown (${tools})`, tools === 1);
 
 // --- turn two: click a flight, and the click becomes the next turn --------
-await page.locator('.tv-flight').first().click();
+await page.locator('.tv-fare').first().click();
 await page.waitForFunction(() => document.querySelectorAll('.bubble--event').length > 0, {
   timeout: 15000,
 });
@@ -283,15 +267,20 @@ await page.waitForSelector('.protocol__tabs button', { timeout: 15000 });
 // do with the wire view.
 await page.locator('.protocol__tabs button', { hasText: 'inline-1' }).click();
 
-// The catalog is fetched to decompile, so the pane starts as a placeholder.
-await page.waitForSelector('.protocol__pane .code', { timeout: 15000 });
+// The server decompiles with the A2UI SDK, so the pane starts as a placeholder.
+await page
+  .waitForFunction(
+    () => (document.querySelector('.protocol__pane')?.textContent ?? '').includes('FlightOption('),
+    { timeout: 15000 },
+  )
+  .catch(() => {});
 const express = (await page.locator('.protocol__pane').first().textContent()) ?? '';
 check('the wire view recovers the Express', express.includes('FlightOption('));
 check('and reports the size difference', /% smaller/.test(express));
 
 if (SHOT) {
   await page.click('button:has-text("Chat")');
-  await page.waitForSelector('.tv-flight', { timeout: 15000 });
+  await page.waitForSelector('.tv-fare', { timeout: 15000 });
   mkdirSync(dirname(SHOT), { recursive: true });
   await page.screenshot({ path: SHOT });
   console.log(`\nScreenshot: ${SHOT}`);

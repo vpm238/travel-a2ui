@@ -112,9 +112,9 @@ CATALOG = load_catalog()
 INFERENCE_CATALOG = with_macros(CATALOG)
 
 VALIDATOR = whole_payload_validator(CATALOG)
-COMPONENT_NAMES = frozenset(INFERENCE_CATALOG.catalog_schema["components"])
+COMPONENT_NAMES = frozenset(INFERENCE_CATALOG.components)
 #: What each component cannot be drawn without, for explaining a validator no.
-REQUIRED_PROPERTIES = required_properties(CATALOG.catalog_schema)
+REQUIRED_PROPERTIES = required_properties(CATALOG.to_json())
 
 
 def parser_for(surface_id: str, *also: Any) -> ExpressParser:

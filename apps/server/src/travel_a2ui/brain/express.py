@@ -36,6 +36,13 @@ from a2ui.inference_formats.express.parser import (  # noqa: E402
     A2UI_INFERENCE_OPEN_TAG,
     ExpressParser,
 )
+from a2ui.parser import to_message_dicts  # noqa: E402
+from a2ui.inference_formats.express.response_stream import (  # noqa: E402
+    CLOSE_TAG_RE,
+    OPEN_TAG_RE,
+    possible_open_tag_start,
+    scan_express_block,
+)
 
 from .macros import expand as expand_macros  # noqa: E402
 from .wire import components_of  # noqa: E402
@@ -136,27 +143,13 @@ def nearest_components(invented: Iterable[str], known: Iterable[str]) -> str:
 def as_wire(messages: Any) -> list[A2uiMessage]:
     """Compiled messages as the plain dictionaries the rest of this app passes around.
 
-    The SDK changed what `compile` hands back: through agent-sdk 0.7 it was
-    already-plain dicts, and from 0.9 it is a list of typed pydantic models.
-    Everything downstream of here — the surface passes, the SSE encoder, the
-    goldens, the tests — reads messages with `.get("createSurface")`, and a
-    model answers that with an AttributeError at the one moment a traveller is
-    waiting for a surface.
-
-    `by_alias` matters and is easy to miss: 1.0 renamed the data-binding key to
-    `@path`, which is not a legal Python attribute name, so the models carry it
-    under an alias. Dumping without it produces `path` — a 0.9 payload wearing
-    a 1.0 version number, which every renderer then ignores.
+    The compiler hands back typed message models; everything downstream (the
+    surface passes, the SSE encoder, the goldens) reads wire dictionaries. The
+    SDK's `to_message_dicts` converts by wire alias, so 1.0's `@path` and `@call`
+    survive the trip, and keeps an explicitly set `null`, such as an
+    `updateDataModel` that clears a value.
     """
-    out: list[A2uiMessage] = []
-    for message in messages:
-        if isinstance(message, dict):
-            out.append(message)
-        elif hasattr(message, "model_dump"):
-            out.append(message.model_dump(exclude_none=True, by_alias=True))
-        else:  # pragma: no cover - no SDK has returned anything else
-            raise TypeError(f"not an A2UI message: {type(message).__name__}")
-    return out
+    return to_message_dicts(list(messages))
 
 
 def required_properties(catalog_schema: dict[str, Any]) -> dict[str, tuple[str, ...]]:
@@ -252,53 +245,15 @@ def unknown_components(source: str, component_names: Iterable[str]) -> list[str]
     return seen
 
 
-#: The opening sentinel, as written rather than as specified.
-#:
-#: The contract says `<a2ui>` and the model writes `<a2ui surface="inline-1">`
-#: often enough to matter. Matched literally, that tag is not found at all — so
-#: the block is not a block, and every line of Express inside it goes to the
-#: traveller as prose. Measured on the reported turn: fourteen and a half
-#: seconds, no surface, and a wall of `departure = DateInput label: …` on screen.
+#: The sentinel tags are the SDK's: `OPEN_TAG_RE` accepts `<a2ui>` in any case
+#: and with attributes — the model writes `<a2ui surface="inline-1">` often
+#: enough to matter, and matched literally that block would go to the traveller
+#: as prose. `scan_express_block` finds `</a2ui>` outside string literals and
+#: comments, and holds back a close tag still arriving.
 #:
 #: The attributes are ignored rather than honoured. `surface("inline-1")` inside
 #: the block is the mechanism, and a tag attribute saying something different
 #: would be a second way to say it that nothing else reads.
-_OPEN = re.compile(r"<a2ui\b[^>]*>", re.IGNORECASE)
-_CLOSE = re.compile(r"</\s*a2ui\s*>", re.IGNORECASE)
-
-
-def _first_tag(text: str, pattern: re.Pattern[str], stem: str) -> tuple[int, int] | None:
-    """Where the next tag starts and ends, or None if it has not arrived yet.
-
-    Returns None both when there is no tag and when one has *started* and not
-    finished — `<a2ui surf` with the rest still in flight. The caller holds the
-    tail either way, which is what `_dangling_prefix` did for a fixed token and
-    cannot do for one whose length is not known in advance.
-    """
-    match = pattern.search(text)
-    if match:
-        return match.start(), match.end()
-    # An unterminated tag: the stem is present with no `>` after it.
-    at = text.lower().rfind(stem)
-    if at != -1 and ">" not in text[at:]:
-        return None
-    return None
-
-
-def _held_for_tag(text: str, pattern: re.Pattern[str], stem: str) -> int:
-    """Length of the tail to hold because it could still become a tag.
-
-    Case-insensitive throughout, and `_dangling_prefix` is not — which is not a
-    detail: fed one character at a time, `<A` is not a prefix of `<a2ui` by that
-    comparison, so it was emitted as prose and the tag could never be recognised
-    afterwards. The stream is the one place where being nearly right has to
-    still work.
-    """
-    lowered = text.lower()
-    at = lowered.rfind(stem)
-    if at != -1 and ">" not in text[at:]:
-        return len(text) - at
-    return _dangling_prefix(lowered, stem)
 
 
 @dataclass(frozen=True)
@@ -347,20 +302,6 @@ class Failed:
 
 
 StreamEvent = Text | Ui | Failed
-
-
-def _dangling_prefix(text: str, token: str) -> int:
-    """Length of the tail of `text` that could still become `token`.
-
-    The sentinel tags arrive split across chunks — `<a2` then `ui>` — and a
-    naive `find` emits the first half as prose and then never recognises the
-    tag. Holding back any tail that is a proper prefix of the token costs at
-    most a few characters of latency and removes the whole class of bug.
-    """
-    for length in range(min(len(text), len(token) - 1), 0, -1):
-        if text.endswith(token[:length]):
-            return length
-    return 0
 
 
 @dataclass
@@ -415,26 +356,29 @@ class ExpressStream:
     _events: list[StreamEvent] = field(default_factory=list)
 
     def push(self, chunk: str) -> list[StreamEvent]:
-        """Feeds a chunk and returns the events it produced."""
+        """Feeds a chunk and returns the events it produced.
+
+        Where a block opens and closes is decided by the SDK's own tag
+        scanning; this class keeps the block's text so the checks below can
+        read a whole surface, and so a failure can quote what failed.
+        """
         self._buffer += chunk
         events: list[StreamEvent] = []
 
         while True:
             if not self._inside:
-                found = _first_tag(self._buffer, _OPEN, "<a2ui")
-                if found is None:
-                    hold = _held_for_tag(self._buffer, _OPEN, "<a2ui")
-                    emit = self._buffer[: len(self._buffer) - hold]
-                    if emit:
-                        events.append(Text(delta=emit))
-                    self._buffer = self._buffer[len(self._buffer) - hold :]
+                opened = OPEN_TAG_RE.search(self._buffer)
+                if opened is None:
+                    # Hold any tail that could still become `<a2ui>`.
+                    held = possible_open_tag_start(self._buffer)
+                    if held:
+                        events.append(Text(delta=self._buffer[:held]))
+                    self._buffer = self._buffer[held:]
                     return events
 
-                open_at, open_end = found
-                prose = self._buffer[:open_at]
-                if prose:
-                    events.append(Text(delta=prose))
-                self._buffer = self._buffer[open_end:]
+                if opened.start():
+                    events.append(Text(delta=self._buffer[: opened.start()]))
+                self._buffer = self._buffer[opened.end() :]
                 self._inside = True
                 self._block_index += 1
                 self._block_source = ""
@@ -442,19 +386,20 @@ class ExpressStream:
                 self._open_a_compiler()
                 continue
 
-            closing = _first_tag(self._buffer, _CLOSE, "</a2ui")
-            if closing is None:
-                hold = _held_for_tag(self._buffer, _CLOSE, "</a2ui")
-                self._block_source += self._buffer[: len(self._buffer) - hold]
-                self._buffer = self._buffer[len(self._buffer) - hold :]
+            # The block so far, scanned whole, so a `</a2ui>` inside a string
+            # the model is still writing is never taken for the end.
+            block = self._block_source + self._buffer
+            close_at, readable = scan_express_block(block)
+            if close_at is None:
+                self._block_source, self._buffer = block[:readable], block[readable:]
                 event = self._compile(done=False)
                 if event:
                     events.append(event)
                 return events
 
-            close_at, close_end = closing
-            self._block_source += self._buffer[:close_at]
-            self._buffer = self._buffer[close_end:]
+            closed = CLOSE_TAG_RE.match(block, close_at)
+            assert closed is not None  # scan_express_block found it there
+            self._block_source, self._buffer = block[:close_at], block[closed.end() :]
             self._inside = False
             event = self._compile(done=True)
             if event:
@@ -495,11 +440,10 @@ class ExpressStream:
         except Exception:  # noqa: BLE001 - an SDK without streaming is not a dead turn
             self._sdk = None
         if self._sdk is not None:
-            # The SDK's stream scans for the sentinel tags itself, and this
-            # class has already stripped them — along with the markdown fences
-            # a model sometimes wraps them in, which the SDK knows nothing
-            # about. So it is handed a synthetic opening tag and the block's
-            # text after it.
+            # This class has found the tags already, with the SDK's own
+            # scanner, so the stream is handed a canonical opening tag and the
+            # block's text after it; it strips any fence inside the block
+            # itself.
             self._swallow(self._sdk.feed(A2UI_INFERENCE_OPEN_TAG))
 
     def _swallow(self, parts: Any) -> None:

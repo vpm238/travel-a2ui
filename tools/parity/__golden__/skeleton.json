@@ -11,8 +11,8 @@
             {
               "component": "Text",
               "id": "rows__text_1",
-              "text": "Finding flights",
-              "variant": "h3"
+              "text": "### Finding flights",
+              "variant": "body"
             },
             {
               "component": "FlightOption",
@@ -48,6 +48,9 @@
                     "airline": {
                       "@path": "airline"
                     },
+                    "flightNumber": {
+                      "@path": "flightNumber"
+                    },
                     "departTime": {
                       "@path": "departTime"
                     },
@@ -73,7 +76,15 @@
                 "@path": "badge"
               },
               "selected": {
-                "@path": "/trip/selectedFlight"
+                "@call": "equals",
+                "args": {
+                  "a": {
+                    "@path": "id"
+                  },
+                  "b": {
+                    "@path": "/trip/selectedFlight"
+                  }
+                }
               },
               "accessibility": {
                 "label": {
@@ -174,7 +185,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       }
     ],
@@ -216,8 +228,8 @@
             {
               "component": "Text",
               "id": "rows__text_1",
-              "text": "Finding places to stay",
-              "variant": "h3"
+              "text": "### Finding places to stay",
+              "variant": "body"
             },
             {
               "component": "HotelCard",
@@ -257,7 +269,15 @@
                 "@path": "badge"
               },
               "selected": {
-                "@path": "/trip/selectedHotel"
+                "@call": "equals",
+                "args": {
+                  "a": {
+                    "@path": "id"
+                  },
+                  "b": {
+                    "@path": "/trip/selectedHotel"
+                  }
+                }
               },
               "accessibility": {
                 "label": {
@@ -358,7 +378,8 @@
               "multiStop": false
             },
             "money": {}
-          }
+          },
+          "sendDataModel": true
         }
       }
     ],

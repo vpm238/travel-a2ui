@@ -1,224 +1,77 @@
-// The catalog, fetched from the server rather than compiled into the client.
+// The travel catalog, assembled from the A2UI SDK and fourteen travel views.
 //
-// This is the part of the project's claim that is easiest to state and hardest
-// to keep honest: a client should know how to *draw* components and nothing
-// about what a trip is. So the schemas are not written here. They arrive from
-// `/api/catalog` — the same JSON the agent is taught from and the compiler
-// validates against — and the only thing this file supplies is a widget per
-// component name.
+// The document arrives from `/api/catalog`: the same JSON the agent is taught
+// from and the server validates against. `Catalog.fromJson` from `a2ui_core`
+// reads it, keeping every schema as the document wrote it, and the binder
+// resolves its `common_types.json` references itself.
 //
-// Adding a component to the catalog therefore does not break this client. It
-// renders as a labelled placeholder until somebody writes its widget, which is
-// the right failure: a surface that is nine tenths drawable should draw nine
-// tenths, with the gap visible.
+// Then each entry gets an implementation:
 //
-// ## The `$ref` problem, which is the whole of the work here
+// - a basic component (Text, Row, Button, Slider, ...) is `a2ui_flutter`'s own
+//   widget, from `basicCatalog()`;
+// - a basic function (formatString, pluralize, the checks, ...) is
+//   `a2ui_core`'s own;
+// - a travel component or function is ours, from `components.dart` and
+//   `functions.dart`.
 //
-// The catalog says a bindable string is
-// `{"$ref": "…common_types.json#/$defs/DynamicString"}`. The core's binder does
-// *not* resolve `$ref`: it walks the schema structurally, looking for a
-// `properties.path` to decide "this is a binding" and a `properties.event` to
-// decide "this is an action". A reference it cannot see through looks like an
-// ordinary object, so every binding on every component would resolve to
-// nothing and every surface would render blank — with no error, because a
-// schema with unresolvable references is still a valid schema.
-//
-// So each reference is mapped to the core's *own* definition of that type.
-// Inlining our copy of `common_types.json` would work too, and would be wrong
-// in a way that only shows up later: the binder is the thing reading these, so
-// the binder's own idea of what a DynamicString is has to be what it gets.
+// Anything the document offers that none of those can draw or evaluate is an
+// error here, at startup, rather than a hole in a surface later: the agent may
+// use every component it is offered.
 
 import 'package:a2ui_core/a2ui_core.dart';
-import 'package:flutter/widgets.dart';
-import 'package:json_schema_builder/json_schema_builder.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
+import 'package:a2ui_flutter/basic_catalog.dart';
 
 import 'components.dart';
 import 'functions.dart';
 
-/// A component this client can draw: the protocol's API, plus a builder.
-class FlutterComponent extends ComponentApi {
-  // `name` and `schema` were overridable getters in `a2ui_core` 0.1 and are
-  // constructor arguments on `ComponentApi` in 0.4, so they go up rather than
-  // being declared again here.
-  FlutterComponent(String name, Schema schema, this.build)
-      : super(name: name, schema: schema);
+/// The renderer catalog for a travel catalog document.
+CatalogImplementation travelCatalog(Map<String, Object?> document) {
+  final CatalogApi api = Catalog.fromJson(document);
+  final CatalogImplementation basic = basicCatalog();
 
-  /// Draws one component from its resolved properties.
-  final ComponentBuilder build;
-}
+  final missing = <String>[];
 
-/// Every reference the travel catalog uses, and the core schema it means.
-///
-/// **`CommonSchemasV1` for anything a binding can appear in.** A2UI 1.0 renamed
-/// the binding key from `path` to `@path`, and the core carries both sets: the
-/// 0.9 shapes on `CommonSchemas`, the 1.0 shapes on `CommonSchemasV1`. Built
-/// from the 0.9 set — which is what this did — every bound property on every
-/// component failed validation against a server that emits 1.0:
-///
-///     Component 'rows__flightoption_1' does not match the 'FlightOption'
-///     schema: anyOfNotMet at #root["airline"]; anyOfNotMet at
-///     #root["departTime"]; …
-///
-/// which is every field of every card, so nothing drew.
-///
-/// `componentId`, `childList`, `action` and `checkable` have no V1 variant and
-/// take the 0.9 ones: a component id is a string, and a child-list template
-/// still spells its own key `path` in 1.0 — `{"path": "/flights",
-/// "componentId": "…"}` is what the server sends — so those shapes did not
-/// move.
-final Map<String, Schema> _knownRefs = {
-  'DynamicString': CommonSchemasV1.dynamicString,
-  'DynamicNumber': CommonSchemasV1.dynamicNumber,
-  'DynamicBoolean': CommonSchemasV1.dynamicBoolean,
-  'ComponentId': CommonSchemas.componentId,
-  'ChildList': CommonSchemas.childList,
-  'Action': CommonSchemas.action,
-  'Checkable': CommonSchemas.checkable,
-  'DataBinding': CommonSchemasV1.dataBinding,
-};
+  final components = <ComponentImplementation>[];
+  for (final ComponentApi component in api.components.values) {
+    final ComponentImplementation? sdk = basic.components[component.name];
+    final TravelView? view = travelViews[component.name];
+    if (sdk != null) {
+      components.add(sdk);
+    } else if (view != null) {
+      components.add(travelComponent(component, view));
+    } else {
+      missing.add('component ${component.name}');
+    }
+  }
 
-/// References that carry no binding behaviour and can be dropped.
-///
-/// `ComponentCommon` and `CatalogComponentCommon` contribute `id` and
-/// `component`, which the processor reads directly off the message and the
-/// binder has no opinion about. Keeping them would mean resolving a second
-/// document to learn nothing.
-const _ignoredRefs = {'ComponentCommon', 'CatalogComponentCommon'};
+  final functions = <FunctionImplementation>[];
+  for (final FunctionApi function in api.functions.values) {
+    final FunctionImplementation? sdk = basic.functions[function.name];
+    final build = travelFunctions[function.name];
+    if (sdk != null) {
+      functions.add(sdk);
+    } else if (build != null) {
+      functions.add(build(function));
+    } else {
+      missing.add('function ${function.name}');
+    }
+  }
 
-/// Builds the catalog from the server's own `catalog.json`.
-Catalog<FlutterComponent, FunctionImplementation> buildCatalog(Map<String, dynamic> catalogJson) {
-  final definitions = (catalogJson['components'] as Map<String, dynamic>?) ?? {};
+  if (missing.isNotEmpty) {
+    throw A2uiCatalogError(
+      "Catalog '${api.id}' offers ${missing.join(', ')}, which this client "
+      'cannot render.',
+      catalogId: api.id,
+    );
+  }
 
-  final components = <FlutterComponent>[
-    for (final entry in definitions.entries)
-      FlutterComponent(
-        entry.key,
-        schemaFor(entry.value as Map<String, dynamic>),
-        builderFor(entry.key),
-      ),
-  ];
-
-  return Catalog<FlutterComponent, FunctionImplementation>(
-    // Read from the catalog rather than hardcoded, so this client can point at
-    // a deployment that renamed its catalog without being rebuilt. It has to
-    // match what the server puts on `createSurface`, or the processor refuses
-    // the surface outright.
-    id: (catalogJson[r'$id'] ?? catalogJson['catalogId']) as String,
+  return CatalogImplementation(
+    id: api.id,
     components: components,
-    functions: catalogFunctions(),
-    // Read off the document, because `a2ui_core` 0.4 refuses a v1.0 surface
-    // drawn against a catalog that does not declare its version:
-    //
-    //     Catalog '…/a2ui-travel/catalog.json' declares no protocolVersion, so
-    //     it is pre-v1.0, which is incompatible with the 'v1.0' message
-    //     creating surface 'inline-1'.
-    //
-    // The server's catalog has said `"protocolVersion": "1.0"` all along; this
-    // was simply dropping it on the way in, so every surface was refused.
-    //
-    // `tryParseSemVer`, not `tryParse`: a catalog document spells it `1.0`
-    // while the wire spells it `v1.0`, and the core is explicit that the
-    // document's is the lenient reading.
-    protocolVersion: switch (catalogJson['protocolVersion']) {
-      final String declared => A2uiProtocolVersion.tryParseSemVer(declared),
-      _ => null,
-    },
+    functions: functions,
+    protocolVersion: api.protocolVersion,
+    themeSchema: api.themeSchema,
+    definitions: api.definitions,
   );
-}
-
-/// One component definition, with its references resolved.
-@visibleForTesting
-Schema schemaFor(Map<String, dynamic> definition) {
-  final properties = <String, Schema>{};
-  final required = <String>[];
-
-  void absorb(Map<String, dynamic> node) {
-    final props = node['properties'];
-    if (props is Map) {
-      props.forEach((key, value) {
-        if (key == 'component' || key == 'id') return;
-        if (value is Map<String, dynamic>) {
-          properties[key as String] = _resolve(value);
-        }
-      });
-    }
-    final req = node['required'];
-    if (req is List) {
-      required.addAll(req.whereType<String>());
-    }
-    // `allOf` is how the catalog composes a component out of the common parts
-    // and its own. Flattened here, because the binder reads properties and not
-    // composition keywords.
-    final allOf = node['allOf'];
-    if (allOf is List) {
-      for (final sub in allOf) {
-        if (sub is Map<String, dynamic>) {
-          final ref = _refName(sub);
-          if (ref != null && _ignoredRefs.contains(ref)) continue;
-          absorb(sub);
-        }
-      }
-    }
-  }
-
-  absorb(definition);
-  return Schema.object(
-    properties: properties,
-    required: required.where(properties.containsKey).toList(),
-  );
-}
-
-String? _refName(Map<String, dynamic> node) {
-  final ref = node[r'$ref'];
-  if (ref is! String) return null;
-  final hash = ref.lastIndexOf('/');
-  return hash == -1 ? ref : ref.substring(hash + 1);
-}
-
-/// One property schema, with a reference swapped for what it refers to.
-Schema _resolve(Map<String, dynamic> node) {
-  final ref = _refName(node);
-  if (ref != null) {
-    final known = _knownRefs[ref];
-    if (known != null) return known;
-    // An unknown reference becomes a permissive schema rather than an error.
-    // The alternative is refusing to draw a component over a property the
-    // renderer may not even use.
-    return Schema.combined(anyOf: [Schema.string(), CommonSchemasV1.dataBinding]);
-  }
-
-  // A nested composition — `anyOf` of a literal and a reference, say — is
-  // resolved element-wise so the reference inside it is not missed.
-  for (final keyword in ['anyOf', 'oneOf', 'allOf']) {
-    final branches = node[keyword];
-    if (branches is List) {
-      final resolved = [
-        for (final branch in branches)
-          if (branch is Map<String, dynamic>) _resolve(branch),
-      ];
-      if (resolved.isNotEmpty) return Schema.combined(anyOf: resolved);
-    }
-  }
-
-  if (node['type'] == 'array') {
-    final items = node['items'];
-    return Schema.list(
-      items: items is Map<String, dynamic> ? _resolve(items) : null,
-    );
-  }
-
-  if (node['type'] == 'object') {
-    final props = node['properties'];
-    return Schema.object(
-      properties: props is Map
-          ? {
-              for (final entry in props.entries)
-                if (entry.value is Map<String, dynamic>)
-                  entry.key as String: _resolve(entry.value as Map<String, dynamic>),
-            }
-          : const {},
-    );
-  }
-
-  return Schema.fromMap(node.cast<String, Object?>());
 }

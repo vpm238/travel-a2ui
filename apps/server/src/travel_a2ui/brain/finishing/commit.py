@@ -1,81 +1,56 @@
-"""One surface, one button, everything on it sent together.
+"""One surface, one button, and every value on it sent with the press.
 
 The distinction the whole interaction model rests on: dragging a slider or
 typing a name is somebody still answering, and only a button means they are
-done. Which means the button has to carry every value on its surface — if it
-carries only what the model remembered to bind to it, the traveller sets three
-things, presses once, and two of them are lost.
+done. So the press has to carry every value on its surface — if it carries only
+what the model remembered to bind to it, the traveller sets three things,
+presses once, and two of them are lost.
 
-So the host gathers every editable path on the surface and puts them on the
-commit button itself. Per surface, which is what makes two composed blocks
-still answer with one press.
+That used to be done here by hand: a pass walked every editor on a surface,
+gathered the paths it was bound to, and wrote them all into the commit button's
+action context. It worked, and it was an application protocol layered over
+A2UI — paths inside templates and macro output could slip past it, and a second
+renderer had no idea the context it posted had been assembled for it.
+
+A2UI has the mechanism already. `createSurface.sendDataModel: true` asks the
+renderer to send the surface's whole data model with every action it reports,
+so the trip arrives exact, every field, with nothing to gather. The server reads
+it (`from_surface` in `doors/interactions/turn.py`). What is left here is the
+part the protocol cannot do for us: a surface of editors with no button at all
+is a form nobody can submit, so it gets one.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from ..bindings import bind, is_binding, path_of
-from .shared import (
-    VALUE_EDITORS,
-    A2uiMessage,
-    _bound_paths,
-    _components_in,
-    _event_of,
-    _root_of,
-)
-
-def _key_for(path: str, taken: set[str]) -> str:
-    """`/trip/startDate` → `startDate`, kept unique against what is already there."""
-    segments = [part for part in path.split("/") if part]
-    base = segments[-1] if segments else "value"
-    if base not in taken:
-        return base
-    # `/trip/origin` colliding with `/leg/origin` becomes `tripOrigin`.
-    for depth in range(2, len(segments) + 1):
-        parts = segments[-depth:]
-        candidate = parts[0] + "".join(part[0].upper() + part[1:] for part in parts[1:])
-        if candidate not in taken:
-            return candidate
-    number = 2
-    while f"{base}{number}" in taken:
-        number += 1
-    return f"{base}{number}"
+from .shared import VALUE_EDITORS, A2uiMessage, _components_in, _event_of, _root_of
 
 
-def bind_commit_context(
+def declare_send_data_model(messages: list[A2uiMessage]) -> list[A2uiMessage]:
+    """Every surface created asks for its data model back with each action."""
+    for message in messages:
+        body = message.get("createSurface")
+        if isinstance(body, dict):
+            body["sendDataModel"] = True
+    return messages
+
+
+def ensure_commit_button(
     messages: list[A2uiMessage], carried: dict[str, dict[str, None]] | None = None
 ) -> list[A2uiMessage]:
-    """Adds every editable path on a surface to that surface's commit buttons.
+    """Gives a surface of editors with nothing to press a button to press.
 
-    A2UI already has the canonical mechanism for submitting a form: a button
-    whose action declares a *context* of bound paths, which every renderer
-    resolves against the data model and posts back. The catch is that it depends
-    on the model remembering to bind every field it asked about. Forget one and
-    the traveller's answer is silently dropped — the hardest class of bug to
-    see, because the surface looks right and the trip is merely wrong.
+    The skill says to draw the button, and mostly it does; this is the case where
+    it did not. Here rather than in the browser so the guarantee is portable —
+    the old fix was a bar the React app drew for itself, and the Flutter client
+    shipped the dead end.
 
-    So this closes it server-side. Paths the model already bound are left
-    exactly as they are, under whatever key it chose: it names things better
-    than an algorithm splitting on slashes, and a context that changes shape
-    between turns is worse than an ugly key.
+    `carried` remembers, across the blocks of one turn, which surfaces have
+    editors, so a button in a later block answers for editors in an earlier one.
     """
-    # Components arrive across several messages for one surface, and a button
-    # can be created before the field it must carry. So: collect per surface.
-    #
-    # A dict rather than a set, and the reason is not style. These paths become
-    # the keys of the button's context in iteration order, and `_key_for`
-    # resolves a collision by qualifying whichever path it reaches *second* —
-    # so an unordered set produces `origin`/`legOrigin` one run and
-    # `legOrigin`/`origin` the next. The payload a client receives would then
-    # change shape between deploys for no reason anybody could see.
-    # `carried` makes this span a whole turn rather than one block. A turn that
-    # writes two blocks composes them onto one surface, and its single button
-    # has to carry what *both* asked — otherwise pressing it sends the second
-    # block's answers and silently drops the first's, which is the same
-    # forgotten-field bug this function exists to close, one level up.
     editable: dict[str, dict[str, None]] = carried if carried is not None else {}
-    buttons: dict[str, list[dict[str, Any]]] = {}
+    buttons: dict[str, bool] = {}
 
     for message in messages:
         found = _components_in(message)
@@ -84,84 +59,41 @@ def bind_commit_context(
         surface_id, components = found
         for node in components:
             if node.get("component") in VALUE_EDITORS:
-                paths = editable.setdefault(surface_id, {})
-                for path in _bound_paths(node):
-                    paths.setdefault(path, None)
+                editable.setdefault(surface_id, {})[node.get("id", "")] = None
             if _event_of(node):
-                buttons.setdefault(surface_id, []).append(node)
+                buttons[surface_id] = True
 
-    # A surface of editors with nothing to press is a dead end: the traveller
-    # has composed an answer and there is no way to send it. The skill says to
-    # draw the button, and mostly it does; this is the case where it did not.
-    #
-    # Adding one here rather than in the browser is what keeps the guarantee
-    # portable. The old fix was a bar the React app drew for itself, which meant
-    # the Flutter client shipped the dead end.
-    for surface_id, paths in editable.items():
-        if not paths or buttons.get(surface_id):
+    for surface_id, editors in editable.items():
+        if not editors or buttons.get(surface_id):
             continue
 
-        # The components are wherever they actually are: `createSurface` carries
-        # them in v1.0 and often nothing in v0.9.1, where they arrive in a
-        # following `updateComponents`. Taking the first message for the surface
-        # would find an empty one and give up.
+        # The components are wherever they actually are: the last message for
+        # this surface that has a root with children.
         components = None
         root = None
         for message in messages:
             found = _components_in(message)
             if not found or found[0] != surface_id or not found[1]:
                 continue
-            candidate = found[1]
-            maybe_root = _root_of(candidate)
+            maybe_root = _root_of(found[1])
             if maybe_root is not None and isinstance(maybe_root.get("children"), list):
-                components = candidate
+                components = found[1]
                 root = maybe_root
         if components is None or root is None:
             continue
 
-        # A face, then the button that points at it.
-        #
-        # This was `"label": "Send"`, and a `Button` has no `label` — its face
-        # is a component, named by the required `child`. So the injected button
-        # failed the SDK's own `validate_payload` ("'child' is a required
-        # property"), and a renderer that drew it anyway drew an empty, unnamed
-        # `<button>`. The pass runs *after* the compiler has validated the tree,
-        # which is why nothing caught it: a shape the compiler would never have
-        # emitted went out unchecked.
-        face = {"id": "__commit_label", "component": "Text", "text": "Send"}
-        commit = {
+        # A face, then the button that points at it: a `Button` has no `label`,
+        # its face is the component its required `child` names.
+        face: dict[str, Any] = {"id": "__commit_label", "component": "Text", "text": "Send"}
+        commit: dict[str, Any] = {
             "id": "__commit",
             "component": "Button",
             "child": face["id"],
+            "variant": "primary",
             "action": {"event": {"name": "commit_surface", "context": {}}},
         }
         components.extend([face, commit])
         root["children"].append(commit["id"])
-        buttons[surface_id] = [commit]
-
-    for surface_id, paths in editable.items():
-        if not paths:
-            continue
-        for node in buttons.get(surface_id, []):
-            event = _event_of(node)
-            if event is None:
-                continue
-
-            context = event.get("context")
-            existing = dict(context) if isinstance(context, dict) else {}
-
-            already_bound = {
-                path_of(value) for value in existing.values() if is_binding(value)
-            }
-
-            keys = set(existing)
-            for path in paths:
-                if path in already_bound:
-                    continue
-                key = _key_for(path, keys)
-                keys.add(key)
-                existing[key] = bind(path)
-
-            event["context"] = existing
+        buttons[surface_id] = True
 
     return messages

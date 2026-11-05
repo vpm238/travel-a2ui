@@ -2,12 +2,12 @@
 /**
  * Every component, at the widths it is actually drawn at.
  *
- * The gallery captures each component in a wide frame, which is the one width
+ * The reference captures each component in one frame, which is the one width
  * nobody sees it at: an inline card lives in a chat column, and the panel is a
  * sidebar. A card that looks composed at 1,600px and breaks at 320px is a card
  * that is broken, and the reference would never have shown it.
  *
- * So this drives the same gallery at the real widths and *measures* rather than
+ * So this drives the same `/catalog/<Name>` pages at the real widths and *measures* rather than
  * squints: a node whose content is wider than its box is reported with the
  * overflow in pixels. Optionally screenshots them too.
  *
@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { launchBrowser } from '../browser.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const DIST = join(ROOT, 'apps', 'gallery', 'dist');
+const DIST = join(ROOT, 'apps', 'web', 'dist');
 const OUT = join(ROOT, 'docs', 'catalog', 'narrow');
 const SHOTS = process.argv.includes('--shots');
 
@@ -45,11 +45,9 @@ const TYPES = {
 function serve(port) {
   const server = createServer((request, response) => {
     const path = (request.url ?? '/').split('?')[0];
-    const file = join(DIST, path === '/' ? 'gallery.html' : path.slice(1));
-    if (!existsSync(file)) {
-      response.writeHead(404).end('not found');
-      return;
-    }
+    // Single-page fallback: /catalog/<Name> is a route the app knows.
+    const asked = join(DIST, path.slice(1));
+    const file = path !== '/' && existsSync(asked) ? asked : join(DIST, 'index.html');
     response.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' });
     response.end(readFileSync(file));
   });
@@ -67,30 +65,27 @@ const browser = await launchBrowser();
 // The same list the reference uses: every component the catalog declares and
 // the pruner allows, so this cannot quietly stop covering one.
 const previews = JSON.parse(
-  readFileSync(join(ROOT, 'apps', 'gallery', 'src', 'components.generated.json'), 'utf8'),
-);
+  readFileSync(join(ROOT, 'apps', 'web', 'src', 'generated', 'catalog-reference.json'), 'utf8'),
+).components;
 
 let bad = 0;
 
 for (const { name, width } of WIDTHS) {
   const page = await browser.newPage({ viewport: { width: width + 80, height: 1200 } });
-  await page.goto('http://127.0.0.1:4184/gallery.html', { waitUntil: 'networkidle' });
-  // Narrow the stage to the width under test. The components inside have to
-  // cope with it, which is the whole question.
-  await page.addStyleTag({
-    content: `.gallery__component, .gallery__component .gallery__surface {
-      width: ${width}px !important; max-width: ${width}px !important; }`,
-  });
-
   const overflows = [];
   for (const preview of previews) {
-    await page.getByRole('button', { name: preview.name, exact: true }).click();
-    const stage = page.locator('.gallery__component .gallery__surface');
+    await page.goto(`http://127.0.0.1:4184/catalog/${preview.name}`, { waitUntil: 'networkidle' });
+    // Narrow the stage to the width under test. The components inside have to
+    // cope with it, which is the whole question.
+    await page.addStyleTag({
+      content: `.specimen__surface { width: ${width}px !important; max-width: ${width}px !important; }`,
+    });
+    const stage = page.locator('.specimen__surface');
     await stage.waitFor({ state: 'attached' });
     await page.waitForTimeout(60);
 
     const found = await page.evaluate(() => {
-      const stage = document.querySelector('.gallery__component .gallery__surface');
+      const stage = document.querySelector('.specimen__surface');
       if (!stage) return null;
       const worst = { node: '', over: 0 };
       for (const node of [stage, ...stage.querySelectorAll('*')]) {

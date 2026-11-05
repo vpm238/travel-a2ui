@@ -43,7 +43,7 @@ CATALOG = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
 OPEN = A2UI_INFERENCE_OPEN_TAG
 CLOSE = A2UI_INFERENCE_CLOSE_TAG
 
-SURFACE = 'surface("inline-1")\nhead = Text("Madrid", variant="h2")\nroot = Column([head])'
+SURFACE = 'surface("inline-1")\nhead = Text("## Madrid")\nroot = Column([head])'
 
 
 @pytest.fixture(scope="module")
@@ -58,7 +58,7 @@ def parser(catalog) -> ExpressParser:
 
 @pytest.fixture(scope="module")
 def components(catalog) -> frozenset[str]:
-    return frozenset(catalog.catalog_schema["components"])
+    return frozenset(catalog.components)
 
 
 def stream(parser: ExpressParser, components: frozenset[str] = frozenset()) -> ExpressStream:
@@ -118,7 +118,7 @@ class TestPartialBlocks:
     def test_compiles_a_block_before_it_is_closed(self, parser):
         """The whole reason this exists: paint while the model is typing."""
         chunk = stream(parser)
-        chunk.push(OPEN + 'surface("inline-1")\nhead = Text("Madrid", variant="h2")\n')
+        chunk.push(OPEN + 'surface("inline-1")\nhead = Text("## Madrid")\n')
         produced = chunk.push("root = Column([head])")
 
         drawn = surfaces(produced)
@@ -271,7 +271,7 @@ class TestTheGapTheSdkLeaves:
             components=components,
             validator=_VALIDATOR,
         )
-        source = 'head = Text("Madrid", variant="h3")\nroot = Column([head])'
+        source = 'head = Text("### Madrid")\nroot = Column([head])'
         events = stream.feed([OPEN + source + CLOSE])
         assert not [event for event in events if isinstance(event, Failed)]
         assert [event for event in events if isinstance(event, Ui)]
@@ -741,7 +741,7 @@ class TestTheBlockIsCompiledIncrementally:
         chunk = stream(parser)
         chunk.push(OPEN + "root = Column([head])\n")
         seen: list[list[str]] = []
-        for fragment in ('head = Te', 'xt("Madr', 'id in Ap', 'ril", var', 'iant="h3")\n'):
+        for fragment in ('head = Te', 'xt("Madr', 'id in Ap', 'ril", var', 'iant="caption")\n'):
             seen.append(self.headlines(chunk.push(fragment)))
 
         assert seen[0] == [], "half a constructor is not a surface"
@@ -754,7 +754,7 @@ class TestTheBlockIsCompiledIncrementally:
         chunk = stream(parser)
         chunk.push(
             OPEN
-            + 'head = Text("Madrid", variant="h3")\n'
+            + 'head = Text("### Madrid")\n'
             + 'sub = Text("Two travellers", variant="body")\n'
         )
         produced = chunk.push("root = Column([head, sub])\n" + CLOSE)

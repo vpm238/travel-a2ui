@@ -231,3 +231,20 @@
   font-size: 0.78rem;
   color: var(--tv-ink-muted);
 }
+
+/* One component on its own, at /catalog/<Name>. */
+.specimen {
+  min-height: 100vh;
+  display: grid;
+  place-items: start center;
+  padding: 24px;
+  background: var(--tv-paper);
+}
+
+.specimen__surface {
+  width: min(560px, 100%);
+}
+
+.specimen__missing {
+  color: var(--tv-ink-muted);
+}

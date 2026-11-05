@@ -21,8 +21,8 @@ import pytest
 from travel_a2ui.brain.catalog import PROTOCOL_VERSION
 from travel_a2ui.brain.finishing import (
     STANDING_SURFACES,
-    bind_commit_context,
-    bind_derived_labels,
+    ensure_commit_button,
+    finish,
     plan_rows,
     seed_surface_trip,
     strip_panel_actions,
@@ -262,11 +262,7 @@ def test_trip_updates_match(name: str) -> None:
 
 @pytest.mark.parametrize("name", list(GOLDEN["surfaces"]))
 def test_the_whole_pipeline_matches(name: str) -> None:
-    messages = SURFACES[name]()
-    actual = strip_panel_actions(
-        bind_derived_labels(bind_commit_context(seed_surface_trip(messages, TRIPS["ready"]))),
-        STANDING_SURFACES,
-    )
+    actual = finish(SURFACES[name](), TRIPS["ready"], STANDING_SURFACES)
     assert canonical(actual) == canonical(GOLDEN["surfaces"][name])
 
 
@@ -282,36 +278,39 @@ class TestWhatThePassesAreFor:
         result = GOLDEN["surfaces"]["editors and no button at all, which is a dead end"]
         components = result[1]["updateComponents"]["components"]
         commit = next(node for node in components if node["id"] == "__commit")
-        # And it carries the answer, or it is a button that sends nothing.
-        context = commit["action"]["event"]["context"]
-        assert {binding["@path"] for binding in context.values()} == {
-            "/trip/origin",
-            "/trip/travelers",
-        }
+        assert commit["action"]["event"]["name"] == "commit_surface"
         root = next(node for node in components if node["id"] == "root")
         assert "__commit" in root["children"]
+        # And the answer goes with it: the surface asks for its data model back.
+        assert result[0]["createSurface"]["sendDataModel"] is True
 
-    def test_a_key_the_model_chose_is_not_renamed(self) -> None:
-        result = GOLDEN["surfaces"]["a button that already bound one thing itself"]
-        components = result[1]["updateComponents"]["components"]
-        context = next(n for n in components if n["id"] == "go")["action"]["event"]["context"]
-        # `departingFrom` survives: the model names things better than an
-        # algorithm splitting on slashes, and a context that changes shape
-        # between turns is worse than an ugly key.
-        assert context["departingFrom"] == {"@path": "/trip/origin"}
-        assert not any(
-            key != "departingFrom" and value == {"@path": "/trip/origin"}
-            for key, value in context.items()
-        ), "the same path must not be bound twice under two names"
+    def test_a_button_the_agent_wrote_is_left_as_it_wrote_it(self) -> None:
+        """Nothing is added to an action's context: the data model carries the values.
 
-    def test_a_template_path_is_not_mistaken_for_an_answer(self) -> None:
-        """`/hotels` is a collection to repeat over, not a value someone edited."""
-        result = GOLDEN["surfaces"]["a template row, whose path is a collection and not an answer"]
-        components = result[1]["updateComponents"]["components"]
-        context = next(n for n in components if n["id"] == "go")["action"]["event"]["context"]
-        paths = {binding["@path"] for binding in context.values()}
-        assert "/hotels" not in paths
-        assert "/trip/neighborhood" in paths
+        The host used to write every editable path into the button's context,
+        and had to be taught not to mistake a template's collection (`/hotels`)
+        for an answer, and not to rename a key the model chose. Neither question
+        exists now.
+        """
+        for name in (
+            "a button that already bound one thing itself",
+            "a template row, whose path is a collection and not an answer",
+        ):
+            before = next(
+                n
+                for m in SURFACES[name]()
+                if "updateComponents" in m
+                for n in m["updateComponents"]["components"]
+                if n["id"] == "go"
+            )
+            after = next(
+                n
+                for m in GOLDEN["surfaces"][name]
+                if "updateComponents" in m
+                for n in m["updateComponents"]["components"]
+                if n["id"] == "go"
+            )
+            assert after["action"] == before["action"], name
 
     def test_a_literal_night_count_becomes_a_live_one(self) -> None:
         result = GOLDEN["surfaces"]["a night count written as literal text"]
@@ -409,31 +408,29 @@ class TestPlanRowsReadCorrectly:
         assert plan_rows(TRIPS["ready"])["multiStop"] is False
 
 
-def test_the_passes_do_not_share_state_between_surfaces() -> None:
-    """Each pass mutates the messages it is given; two surfaces must not mix.
-
-    The commit binder collects editable paths per surface into one dict. Keying
-    that wrong — or letting a default leak across — would give an inline card's
-    button the panel's paths, which is a payload nobody asked for and nothing
-    would report.
-    """
-    inline = SURFACES["editors with a button that binds nothing"]()
+def test_a_button_is_added_only_where_a_form_has_none() -> None:
+    """Per surface: a panel with its own button must not stop an inline form getting one."""
+    inline = _surface(
+        "inline-1",
+        [
+            {"id": "who", "component": "TravelerCounter", "label": "Travellers", "value": {"@path": "/trip/travelers"}},
+            {"id": "root", "component": "Column", "children": ["who"]},
+        ],
+    )
     panel = _surface(
         "sidebar",
         [
-            {"id": "note", "component": "TextField", "label": "Note", "text": {"@path": "/panel/note"}},
-            {"id": "go", "component": "Button", "label": "Go", "action": {"event": {"name": "go", "context": {}}}},
+            {"id": "note", "component": "TextField", "label": "Note", "value": {"@path": "/panel/note"}},
+            {"id": "go-face", "component": "Text", "text": "Go"},
+            {"id": "go", "component": "Button", "child": "go-face", "action": {"event": {"name": "go", "context": {}}}},
             {"id": "root", "component": "Column", "children": ["note", "go"]},
         ],
     )
-    both = bind_commit_context(copy.deepcopy(inline) + copy.deepcopy(panel))
-
-    inline_button = next(
-        node
+    both = ensure_commit_button(copy.deepcopy(inline) + copy.deepcopy(panel))
+    ids = {
+        message["updateComponents"]["surfaceId"]: {n["id"] for n in message["updateComponents"]["components"]}
         for message in both
-        if message.get("updateComponents", {}).get("surfaceId") == "inline-1"
-        for node in message["updateComponents"]["components"]
-        if node["id"] == "go"
-    )
-    paths = {b["@path"] for b in inline_button["action"]["event"]["context"].values()}
-    assert "/panel/note" not in paths
+        if "updateComponents" in message
+    }
+    assert "__commit" in ids["inline-1"]
+    assert "__commit" not in ids["sidebar"]

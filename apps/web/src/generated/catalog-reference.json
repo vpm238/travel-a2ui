@@ -1,0 +1,2788 @@
+{
+ "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+ "version": "1.0",
+ "components": [
+  {
+   "name": "ActivityItem",
+   "travel": true,
+   "args": "title, time?, category?, location?, duration?, note?, action?, done?, onRemove?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "title",
+     "required": true,
+     "static": false,
+     "description": "What it is, e.g. 'Prado Museum'."
+    },
+    {
+     "name": "time",
+     "required": false,
+     "static": false,
+     "description": "Start time as a display string, e.g. '10:00'."
+    },
+    {
+     "name": "category",
+     "required": false,
+     "static": true,
+     "enum": [
+      "food",
+      "sight",
+      "transit",
+      "stay",
+      "outdoors",
+      "shopping",
+      "event",
+      "free"
+     ],
+     "description": "Drives the icon and colour the host uses."
+    },
+    {
+     "name": "location",
+     "required": false,
+     "static": false,
+     "description": "Where it happens, e.g. 'Paseo del Prado 23'."
+    },
+    {
+     "name": "duration",
+     "required": false,
+     "static": false,
+     "description": "How long to budget, e.g. '2h'."
+    },
+    {
+     "name": "note",
+     "required": false,
+     "static": false,
+     "description": "One short practical note, e.g. 'Book the timed entry'."
+    },
+    {
+     "name": "action",
+     "required": false,
+     "static": true,
+     "description": "Fired when the traveler taps the activity."
+    },
+    {
+     "name": "done",
+     "required": false,
+     "static": false,
+     "description": "Whether the traveler has ticked this off."
+    },
+    {
+     "name": "onRemove",
+     "required": false,
+     "static": true,
+     "description": "Fired when the traveler drops this activity. Give every activity one: a day plan is theirs to edit."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "root = ActivityItem(\"Prado Museum\", \"10:00\", category=\"sight\", location=\"Paseo del Prado 23\", duration=\"2h\", note=\"Book the timed entry\")",
+   "description": "A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_ActivityItem",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "ActivityItem",
+        "title": "Prado Museum",
+        "time": "10:00",
+        "category": "sight",
+        "location": "Paseo del Prado 23",
+        "duration": "2h",
+        "note": "Book the timed entry"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "AudioPlayer",
+   "travel": false,
+   "args": "url, description?, weight?",
+   "props": [
+    {
+     "name": "url",
+     "required": true,
+     "static": false,
+     "description": "The URL of the audio to be played."
+    },
+    {
+     "name": "description",
+     "required": false,
+     "static": false,
+     "description": "A description of the audio, such as a title or summary."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "root = AudioPlayer(\"https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=640\")",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_AudioPlayer",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "AudioPlayer",
+        "url": "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=640"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Button",
+   "travel": false,
+   "args": "child, variant?, action, weight?, checks?",
+   "props": [
+    {
+     "name": "child",
+     "required": true,
+     "static": true,
+     "description": "The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button."
+    },
+    {
+     "name": "variant",
+     "required": false,
+     "static": true,
+     "enum": [
+      "default",
+      "primary",
+      "borderless"
+     ],
+     "description": "A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link."
+    },
+    {
+     "name": "action",
+     "required": true,
+     "static": true
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "checks",
+     "required": false,
+     "static": true
+    }
+   ],
+   "express": "face = Text(\"Search flights\")\nroot = Button(face, action=Event(\"search_flights\"), variant=\"primary\")",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Button",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "face",
+        "component": "Text",
+        "text": "Search flights"
+       },
+       {
+        "id": "root",
+        "component": "Button",
+        "child": "face",
+        "action": {
+         "event": {
+          "name": "search_flights"
+         }
+        },
+        "variant": "primary"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Card",
+   "travel": false,
+   "args": "child, weight?",
+   "props": [
+    {
+     "name": "child",
+     "required": true,
+     "static": true,
+     "description": "The ID of the single child component to be rendered inside the card. To display multiple elements, you MUST wrap them in a layout component (like Column or Row) and pass that container's ID here. Do NOT pass multiple IDs or a non-existent ID."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "inner = Text(\"Anything can go in a card.\")\nroot = Card(inner)",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Card",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "inner",
+        "component": "Text",
+        "text": "Anything can go in a card."
+       },
+       {
+        "id": "root",
+        "component": "Card",
+        "child": "inner"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "CheckBox",
+   "travel": false,
+   "args": "label, value, weight?, checks?",
+   "props": [
+    {
+     "name": "label",
+     "required": true,
+     "static": false,
+     "description": "The text to display next to the checkbox."
+    },
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "The current state of the checkbox (true for checked, false for unchecked)."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "checks",
+     "required": false,
+     "static": true
+    }
+   ],
+   "express": "root = CheckBox(\"I need somewhere to stay in Chicago\", $/stops/1/needsStay)",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_CheckBox",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "CheckBox",
+        "label": "I need somewhere to stay in Chicago",
+        "value": {
+         "@path": "/stops/1/needsStay"
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "ChoicePicker",
+   "travel": false,
+   "args": "label?, variant?, options, value, displayStyle?, filterable?, weight?, checks?",
+   "props": [
+    {
+     "name": "label",
+     "required": false,
+     "static": false,
+     "description": "The label for the group of options."
+    },
+    {
+     "name": "variant",
+     "required": false,
+     "static": true,
+     "enum": [
+      "multipleSelection",
+      "mutuallyExclusive"
+     ],
+     "description": "A hint for how the choice picker should be displayed and behave."
+    },
+    {
+     "name": "options",
+     "required": true,
+     "static": false,
+     "description": "The list of available options to choose from."
+    },
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "The list of currently selected values. This should be bound to a string array in the data model."
+    },
+    {
+     "name": "displayStyle",
+     "required": false,
+     "static": true,
+     "enum": [
+      "checkbox",
+      "chips"
+     ],
+     "description": "The display style of the component."
+    },
+    {
+     "name": "filterable",
+     "required": false,
+     "static": true,
+     "description": "If true, displays a search input to filter the options."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "checks",
+     "required": false,
+     "static": true
+    }
+   ],
+   "express": "root = ChoicePicker(\"Cabin\", \"mutuallyExclusive\", [{label: \"Economy\", value: \"economy\"}, {label: \"Premium\", value: \"premium\"}], $/cabin)",
+   "description": "A component that allows selecting one or more options from a list.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_ChoicePicker",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "ChoicePicker",
+        "label": "Cabin",
+        "variant": "mutuallyExclusive",
+        "options": [
+         {
+          "label": "Economy",
+          "value": "economy"
+         },
+         {
+          "label": "Premium",
+          "value": "premium"
+         }
+        ],
+        "value": {
+         "@path": "/cabin"
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Column",
+   "travel": false,
+   "args": "children, justify?, align?, weight?",
+   "props": [
+    {
+     "name": "children",
+     "required": true,
+     "static": false,
+     "description": "Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID."
+    },
+    {
+     "name": "justify",
+     "required": false,
+     "static": true,
+     "enum": [
+      "center",
+      "end",
+      "spaceAround",
+      "spaceBetween",
+      "spaceEvenly",
+      "start",
+      "stretch"
+     ],
+     "description": "Defines the arrangement of children along the main axis (vertically). Use 'spaceBetween' to push items to the edges (e.g. header at top, footer at bottom), or 'start'/'end'/'center' to pack them together."
+    },
+    {
+     "name": "align",
+     "required": false,
+     "static": true,
+     "enum": [
+      "start",
+      "center",
+      "end",
+      "stretch"
+     ],
+     "description": "Defines the alignment of children along the cross axis (horizontally). This is similar to the CSS 'align-items' property."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "a = Text(\"#### Outbound\")\nb = Text(\"JFK → MAD · Sun 12 Apr\")\nroot = Column([a, b], align=\"stretch\")",
+   "description": "A layout component that arranges its children vertically. To create a grid layout, nest Rows within this Column.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Column",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "a",
+        "component": "Text",
+        "text": "#### Outbound"
+       },
+       {
+        "id": "b",
+        "component": "Text",
+        "text": "JFK → MAD · Sun 12 Apr"
+       },
+       {
+        "id": "root",
+        "component": "Column",
+        "children": [
+         "a",
+         "b"
+        ],
+        "align": "stretch"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "DateRangePicker",
+   "travel": true,
+   "args": "label, start, end, action?, nightsLabel?, weight?, accessibility?, checks?",
+   "props": [
+    {
+     "name": "label",
+     "required": true,
+     "static": false,
+     "description": "What the range is for, e.g. 'When are you going?'."
+    },
+    {
+     "name": "start",
+     "required": true,
+     "static": false,
+     "description": "Bound path for the start date (yyyy-MM-dd)."
+    },
+    {
+     "name": "end",
+     "required": true,
+     "static": false,
+     "description": "Bound path for the end date (yyyy-MM-dd)."
+    },
+    {
+     "name": "action",
+     "required": false,
+     "static": true,
+     "description": "Fired when the traveler commits a new range."
+    },
+    {
+     "name": "nightsLabel",
+     "required": false,
+     "static": false,
+     "description": "Derived caption, e.g. '6 nights'."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    },
+    {
+     "name": "checks",
+     "required": false,
+     "static": true
+    }
+   ],
+   "express": "$/trip/startDate = \"2027-04-12\"\n$/trip/endDate = \"2027-04-19\"\nroot = DateRangePicker(\"Trip dates\", $/trip/startDate, $/trip/endDate, nightsLabel=formatString(\"${calcNights(start: ${/trip/startDate}, end: ${/trip/endDate})} nights\"))",
+   "description": "Picks the trip's start and end dates. Both bound values are ISO 8601 calendar dates with no time or offset, e.g. '2026-04-12'.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_DateRangePicker",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "DateRangePicker",
+        "label": "Trip dates",
+        "start": {
+         "@path": "/trip/startDate"
+        },
+        "end": {
+         "@path": "/trip/endDate"
+        },
+        "nightsLabel": {
+         "@call": "formatString",
+         "args": {
+          "value": "${calcNights(start: ${/trip/startDate}, end: ${/trip/endDate})} nights"
+         }
+        }
+       }
+      ],
+      "dataModel": {
+       "trip": {
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "DateTimeInput",
+   "travel": false,
+   "args": "label, value, enableDate?, enableTime?, min?, max?, weight?, checks?",
+   "props": [
+    {
+     "name": "label",
+     "required": true,
+     "static": false,
+     "description": "The text label for the input field."
+    },
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string."
+    },
+    {
+     "name": "enableDate",
+     "required": false,
+     "static": true,
+     "description": "If true, allows the user to select a date."
+    },
+    {
+     "name": "enableTime",
+     "required": false,
+     "static": true,
+     "description": "If true, allows the user to select a time."
+    },
+    {
+     "name": "min",
+     "required": false,
+     "static": false,
+     "description": "The minimum allowed date/time in ISO 8601 format."
+    },
+    {
+     "name": "max",
+     "required": false,
+     "static": false,
+     "description": "The maximum allowed date/time in ISO 8601 format."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "checks",
+     "required": false,
+     "static": true
+    }
+   ],
+   "express": "$/trip/startDate = \"2027-04-12\"\nroot = DateTimeInput(\"Departure\", $/trip/startDate, enableDate=true)",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_DateTimeInput",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "DateTimeInput",
+        "label": "Departure",
+        "value": {
+         "@path": "/trip/startDate"
+        },
+        "enableDate": true
+       }
+      ],
+      "dataModel": {
+       "trip": {
+        "startDate": "2027-04-12"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "Divider",
+   "travel": false,
+   "args": "axis?, weight?",
+   "props": [
+    {
+     "name": "axis",
+     "required": false,
+     "static": true,
+     "enum": [
+      "vertical",
+      "horizontal"
+     ],
+     "description": "The orientation of the divider."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "root = Divider(axis=\"vertical\")",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Divider",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "Divider",
+        "axis": "vertical"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "ExpenseSplit",
+   "travel": true,
+   "args": "title, total, participants, action?, actionLabel?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "title",
+     "required": true,
+     "static": false,
+     "description": "What was paid for, e.g. 'Dinner at Sobrino'."
+    },
+    {
+     "name": "total",
+     "required": true,
+     "static": false,
+     "description": "Preformatted total, e.g. '€96'."
+    },
+    {
+     "name": "participants",
+     "required": true,
+     "static": true,
+     "description": "Who is splitting it. Static values only."
+    },
+    {
+     "name": "action",
+     "required": false,
+     "static": true,
+     "description": "Fired when the traveler settles or edits the split."
+    },
+    {
+     "name": "actionLabel",
+     "required": false,
+     "static": false,
+     "description": "Label for that action, e.g. 'Settle up'."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "root = ExpenseSplit(\"Dinner at Sobrino\", \"€96\", [{name: \"You\"}, {name: \"Sam\"}])",
+   "description": "Splits a shared trip cost between travelers and shows who owes what.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_ExpenseSplit",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "ExpenseSplit",
+        "title": "Dinner at Sobrino",
+        "total": "€96",
+        "participants": [
+         {
+          "name": "You"
+         },
+         {
+          "name": "Sam"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "FlightOption",
+   "travel": true,
+   "args": "airline, departTime, arriveTime, origin, destination, price, action, duration?, stops?, flightNumber?, cabin?, selected?, badge?, total?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "airline",
+     "required": true,
+     "static": false,
+     "description": "Operating carrier, e.g. 'Iberia' or 'Delta'."
+    },
+    {
+     "name": "departTime",
+     "required": true,
+     "static": false,
+     "description": "Local departure time as a display string, e.g. '07:15'."
+    },
+    {
+     "name": "arriveTime",
+     "required": true,
+     "static": false,
+     "description": "Local arrival time as a display string. Append '+1' when the flight lands on the next day, e.g. '19:40 +1'."
+    },
+    {
+     "name": "origin",
+     "required": true,
+     "static": false,
+     "description": "Origin airport code, e.g. 'JFK'."
+    },
+    {
+     "name": "destination",
+     "required": true,
+     "static": false,
+     "description": "Destination airport code, e.g. 'MAD'."
+    },
+    {
+     "name": "price",
+     "required": true,
+     "static": false,
+     "description": "Preformatted price including currency, e.g. '$412'."
+    },
+    {
+     "name": "action",
+     "required": true,
+     "static": true,
+     "description": "Fired when the traveler selects this flight. Required — an unselectable option is not an interface."
+    },
+    {
+     "name": "duration",
+     "required": false,
+     "static": false,
+     "description": "Total travel time as a display string, e.g. '7h 25m'."
+    },
+    {
+     "name": "stops",
+     "required": false,
+     "static": false,
+     "description": "Stop summary, e.g. 'Nonstop' or '1 stop · LIS'."
+    },
+    {
+     "name": "flightNumber",
+     "required": false,
+     "static": false,
+     "description": "Marketing flight number, e.g. 'IB6250'."
+    },
+    {
+     "name": "cabin",
+     "required": false,
+     "static": true,
+     "enum": [
+      "economy",
+      "premium",
+      "business",
+      "first"
+     ],
+     "description": "Cabin the price refers to."
+    },
+    {
+     "name": "selected",
+     "required": false,
+     "static": false,
+     "description": "Whether this option is currently chosen. Bind it to the data model so the selection survives a re-render."
+    },
+    {
+     "name": "badge",
+     "required": false,
+     "static": false,
+     "description": "Short editorial tag, e.g. 'Cheapest' or 'Fastest'."
+    },
+    {
+     "name": "total",
+     "required": false,
+     "static": false,
+     "description": "What this flight costs for everyone on this leg, when that is more than one person — preformatted, e.g. '$522 for 2'. Give it whenever the leg carries a party, and `price` is then read as the per-traveler fare."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "root = FlightOption(\"Iberia\", \"18:40\", \"08:15 +1\", \"JFK\", \"MAD\", \"$412\", Event(\"select_flight\", {id: \"IB6252\"}), duration=\"7h 35m\", stops=\"Nonstop\", flightNumber=\"IB6252\", cabin=\"economy\", badge=\"Cheapest\")",
+   "description": "A single selectable flight itinerary leg. Use one per option when presenting a choice of flights; do not build flight rows by hand out of Row and Text.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_FlightOption",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "FlightOption",
+        "airline": "Iberia",
+        "departTime": "18:40",
+        "arriveTime": "08:15 +1",
+        "origin": "JFK",
+        "destination": "MAD",
+        "price": "$412",
+        "action": {
+         "event": {
+          "name": "select_flight",
+          "context": {
+           "id": "IB6252"
+          }
+         }
+        },
+        "duration": "7h 35m",
+        "stops": "Nonstop",
+        "flightNumber": "IB6252",
+        "cabin": "economy",
+        "badge": "Cheapest"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "GoogleMap",
+   "travel": true,
+   "args": "center, zoom, tilt?, heading?, mode?, anchorMarker?, markers?, origin?, destination?, travelMode?, routes?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "center",
+     "required": true,
+     "static": false,
+     "description": "Where the map is centred."
+    },
+    {
+     "name": "zoom",
+     "required": true,
+     "static": false,
+     "description": "How close in. 4 spans a continent, 11 a city, 14 a neighbourhood, 16 a street. Above 16 is clamped."
+    },
+    {
+     "name": "tilt",
+     "required": false,
+     "static": false,
+     "description": "Degrees of tilt. Only has an effect in satellite mode."
+    },
+    {
+     "name": "heading",
+     "required": false,
+     "static": false,
+     "description": "Compass heading, in degrees."
+    },
+    {
+     "name": "mode",
+     "required": false,
+     "static": true,
+     "enum": [
+      "roadmap",
+      "satellite"
+     ],
+     "description": "Map style. Leave it alone unless somebody asks to see the terrain: a road map is what people read a decision off, and satellite imagery is beautiful and hard to compare two places on."
+    },
+    {
+     "name": "anchorMarker",
+     "required": false,
+     "static": false,
+     "description": "The one place this map is about, marked apart from the rest."
+    },
+    {
+     "name": "markers",
+     "required": false,
+     "static": false,
+     "description": "Pins to drop. Static list — write them out."
+    },
+    {
+     "name": "origin",
+     "required": false,
+     "static": false,
+     "description": "Start of a single route."
+    },
+    {
+     "name": "destination",
+     "required": false,
+     "static": false,
+     "description": "End of a single route."
+    },
+    {
+     "name": "travelMode",
+     "required": false,
+     "static": true,
+     "enum": [
+      "driving",
+      "walking",
+      "bicycling",
+      "transit"
+     ],
+     "description": "How the route is travelled."
+    },
+    {
+     "name": "routes",
+     "required": false,
+     "static": false,
+     "description": "Several legs at once, drawn end to end."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "root = GoogleMap(center={lat: 40.4168, lng: -3.7038}, zoom=12, markers=[{lat: 40.4260, lng: -3.7040, label: \"Malasaña\"}, {lat: 40.4110, lng: -3.7100, label: \"La Latina\"}, {lat: 40.4153, lng: -3.6844, label: \"Retiro Park\"}])",
+   "description": "A real Google map, for decisions that are about distance: which stay to pick given what is near it, whether a multi-city order makes sense, how far a day's walking really is. It draws nothing and asks nothing, so pair it with the controls for the decision it illustrates — and do not use it to confirm a destination, which is a question nobody asked.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_GoogleMap",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "GoogleMap",
+        "center": {
+         "lat": 40.4168,
+         "lng": -3.7038
+        },
+        "zoom": 12,
+        "markers": [
+         {
+          "lat": 40.426,
+          "lng": -3.704,
+          "label": "Malasaña"
+         },
+         {
+          "lat": 40.411,
+          "lng": -3.71,
+          "label": "La Latina"
+         },
+         {
+          "lat": 40.4153,
+          "lng": -3.6844,
+          "label": "Retiro Park"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "HotelCard",
+   "travel": true,
+   "args": "name, price, action, imageUrl?, neighborhood?, rating?, amenities?, selected?, badge?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "name",
+     "required": true,
+     "static": false,
+     "description": "Property name."
+    },
+    {
+     "name": "price",
+     "required": true,
+     "static": false,
+     "description": "Preformatted nightly or total price, e.g. '$186 / night'."
+    },
+    {
+     "name": "action",
+     "required": true,
+     "static": true,
+     "description": "Fired when the traveler picks or opens this property."
+    },
+    {
+     "name": "imageUrl",
+     "required": false,
+     "static": false,
+     "description": "Hero image URL. Omit for a generated placeholder."
+    },
+    {
+     "name": "neighborhood",
+     "required": false,
+     "static": false,
+     "description": "Where it is, in words a traveler uses, e.g. 'Malasaña'."
+    },
+    {
+     "name": "rating",
+     "required": false,
+     "static": false,
+     "description": "Rating as a display string, e.g. '4.6 (1,204)'."
+    },
+    {
+     "name": "amenities",
+     "required": false,
+     "static": false,
+     "description": "Short amenity labels, at most five."
+    },
+    {
+     "name": "selected",
+     "required": false,
+     "static": false,
+     "description": "Whether this property is currently chosen."
+    },
+    {
+     "name": "badge",
+     "required": false,
+     "static": false,
+     "description": "Short editorial tag, e.g. 'Walkable' or 'Best value'."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "root = HotelCard(\"Hotel Único Madrid\", \"$291 / night\", Event(\"select_hotel\", {id: \"unico\"}), neighborhood=\"Salamanca\", rating=\"9.1 · Superb\", amenities=[\"Breakfast\", \"Rooftop\", \"Free cancellation\"], badge=\"Best located\")",
+   "description": "A place to stay, presented as a rich card with imagery, rating and nightly price.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_HotelCard",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "HotelCard",
+        "name": "Hotel Único Madrid",
+        "price": "$291 / night",
+        "action": {
+         "event": {
+          "name": "select_hotel",
+          "context": {
+           "id": "unico"
+          }
+         }
+        },
+        "neighborhood": "Salamanca",
+        "rating": "9.1 · Superb",
+        "amenities": [
+         "Breakfast",
+         "Rooftop",
+         "Free cancellation"
+        ],
+        "badge": "Best located"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Icon",
+   "travel": false,
+   "args": "name, weight?",
+   "props": [
+    {
+     "name": "name",
+     "required": true,
+     "static": false,
+     "enum": [
+      "accountCircle",
+      "add",
+      "arrowBack",
+      "arrowForward",
+      "attachFile",
+      "calendarToday",
+      "call",
+      "camera",
+      "check",
+      "close",
+      "delete",
+      "download",
+      "edit",
+      "event",
+      "error",
+      "fastForward",
+      "favorite",
+      "favoriteOff",
+      "folder",
+      "help",
+      "home",
+      "info",
+      "locationOn",
+      "lock",
+      "lockOpen",
+      "mail",
+      "menu",
+      "moreVert",
+      "moreHoriz",
+      "notificationsOff",
+      "notifications",
+      "pause",
+      "payment",
+      "person",
+      "phone",
+      "photo",
+      "play",
+      "print",
+      "refresh",
+      "rewind",
+      "search",
+      "send",
+      "settings",
+      "share",
+      "shoppingCart",
+      "skipNext",
+      "skipPrevious",
+      "star",
+      "starHalf",
+      "starOff",
+      "stop",
+      "upload",
+      "visibility",
+      "visibilityOff",
+      "volumeDown",
+      "volumeMute",
+      "volumeOff",
+      "volumeUp",
+      "warning"
+     ],
+     "description": "The name of the icon to display."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "root = Icon(\"accountCircle\")",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Icon",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "Icon",
+        "name": "accountCircle"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Image",
+   "travel": false,
+   "args": "url, description?, fit?, variant?, weight?",
+   "props": [
+    {
+     "name": "url",
+     "required": true,
+     "static": false,
+     "description": "The URL of the image to display."
+    },
+    {
+     "name": "description",
+     "required": false,
+     "static": false,
+     "description": "Accessibility text for the image."
+    },
+    {
+     "name": "fit",
+     "required": false,
+     "static": true,
+     "enum": [
+      "contain",
+      "cover",
+      "fill",
+      "none",
+      "scaleDown"
+     ],
+     "description": "Specifies how the image should be resized to fit its container. This corresponds to the CSS 'object-fit' property."
+    },
+    {
+     "name": "variant",
+     "required": false,
+     "static": true,
+     "enum": [
+      "icon",
+      "avatar",
+      "smallFeature",
+      "mediumFeature",
+      "largeFeature",
+      "header"
+     ],
+     "description": "A hint for the image size and style."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "root = Image(\"https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=640\", fit=\"contain\", variant=\"icon\")",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Image",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "Image",
+        "url": "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=640",
+        "fit": "contain",
+        "variant": "icon"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "ItineraryDay",
+   "travel": true,
+   "args": "title, children, date?, summary?, action?, onAdd?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "title",
+     "required": true,
+     "static": false,
+     "description": "Day heading, e.g. 'Day 3 — Toledo'."
+    },
+    {
+     "name": "children",
+     "required": true,
+     "static": false,
+     "description": "The day's activities, earliest first."
+    },
+    {
+     "name": "date",
+     "required": false,
+     "static": false,
+     "description": "Date as a display string, e.g. 'Tue 14 Apr'."
+    },
+    {
+     "name": "summary",
+     "required": false,
+     "static": false,
+     "description": "One-line character of the day, e.g. 'Old town, slow pace'."
+    },
+    {
+     "name": "action",
+     "required": false,
+     "static": true,
+     "description": "Fired when the traveler opens or edits the whole day."
+    },
+    {
+     "name": "onAdd",
+     "required": false,
+     "static": true,
+     "description": "Fired when the traveler wants something else in this day."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "a1 = ActivityItem(\"Prado Museum\", \"10:00\", category=\"sight\", duration=\"2h\")\na2 = ActivityItem(\"Lunch at Sobrino\", \"13:30\", category=\"food\", duration=\"1h 30m\")\nroot = ItineraryDay(\"Day 2 — Old Madrid\", [a1, a2], date=\"Mon 13 Apr\", summary=\"Art, then a long lunch\")",
+   "description": "One day of a trip. Its children are the day's ActivityItem components, in chronological order.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_ItineraryDay",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "a1",
+        "component": "ActivityItem",
+        "title": "Prado Museum",
+        "time": "10:00",
+        "category": "sight",
+        "duration": "2h"
+       },
+       {
+        "id": "a2",
+        "component": "ActivityItem",
+        "title": "Lunch at Sobrino",
+        "time": "13:30",
+        "category": "food",
+        "duration": "1h 30m"
+       },
+       {
+        "id": "root",
+        "component": "ItineraryDay",
+        "title": "Day 2 — Old Madrid",
+        "children": [
+         "a1",
+         "a2"
+        ],
+        "date": "Mon 13 Apr",
+        "summary": "Art, then a long lunch"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "List",
+   "travel": false,
+   "args": "children, direction?, align?, weight?",
+   "props": [
+    {
+     "name": "children",
+     "required": true,
+     "static": false,
+     "description": "Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list."
+    },
+    {
+     "name": "direction",
+     "required": false,
+     "static": true,
+     "enum": [
+      "vertical",
+      "horizontal"
+     ],
+     "description": "The direction in which the list items are laid out."
+    },
+    {
+     "name": "align",
+     "required": false,
+     "static": true,
+     "enum": [
+      "start",
+      "center",
+      "end",
+      "stretch"
+     ],
+     "description": "Defines the alignment of children along the cross axis."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "$/items/0/label = \"Passport\"\n$/items/1/label = \"Adapter\"\nrow = Text($label)\nroot = List(_template($/items, row))",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_List",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "row",
+        "component": "Text",
+        "text": {
+         "@path": "label"
+        }
+       },
+       {
+        "id": "root",
+        "component": "List",
+        "children": {
+         "path": "/items",
+         "componentId": "row"
+        }
+       }
+      ],
+      "dataModel": {
+       "items": [
+        {
+         "label": "Passport"
+        },
+        {
+         "label": "Adapter"
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "MapPreview",
+   "travel": true,
+   "args": "markers, caption?, action?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "markers",
+     "required": true,
+     "static": true,
+     "description": "Places to pin. Static values only — the host lays them out relative to each other."
+    },
+    {
+     "name": "caption",
+     "required": false,
+     "static": false,
+     "description": "One line describing what the map shows."
+    },
+    {
+     "name": "action",
+     "required": false,
+     "static": true,
+     "description": "Fired when the traveler taps the map."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "root = MapPreview([{label: \"Madrid\"}, {label: \"Toledo\"}], caption=\"Day trip, 70km south\")",
+   "description": "A lightweight schematic map of the places in play. Not a live map — it orients the traveler and is safe to render offline.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_MapPreview",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "MapPreview",
+        "markers": [
+         {
+          "label": "Madrid"
+         },
+         {
+          "label": "Toledo"
+         }
+        ],
+        "caption": "Day trip, 70km south"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Modal",
+   "travel": false,
+   "args": "trigger, content, weight?",
+   "props": [
+    {
+     "name": "trigger",
+     "required": true,
+     "static": true,
+     "description": "The ID of the component that opens the modal when interacted with (e.g., a button)."
+    },
+    {
+     "name": "content",
+     "required": true,
+     "static": true,
+     "description": "The ID of the component to be displayed inside the modal."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "modalChild = Text(\"Inside Modal\")\nmodalChild = Text(\"Inside Modal\")\nroot = Modal(modalChild, modalChild)",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Modal",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "modalChild",
+        "component": "Text",
+        "text": "Inside Modal"
+       },
+       {
+        "id": "root",
+        "component": "Modal",
+        "trigger": "modalChild",
+        "content": "modalChild"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "PriceSummary",
+   "travel": true,
+   "args": "lines, total, totalLabel?, action?, actionLabel?, caption?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "lines",
+     "required": true,
+     "static": true,
+     "description": "Itemized cost lines in display order. Static values only."
+    },
+    {
+     "name": "total",
+     "required": true,
+     "static": false,
+     "description": "Preformatted grand total, e.g. '$2,140'."
+    },
+    {
+     "name": "totalLabel",
+     "required": false,
+     "static": false,
+     "description": "What the total is called, e.g. 'Trip total'."
+    },
+    {
+     "name": "action",
+     "required": false,
+     "static": true,
+     "description": "Primary money action, e.g. hold or book."
+    },
+    {
+     "name": "actionLabel",
+     "required": false,
+     "static": false,
+     "description": "Label for that action, e.g. 'Hold for 24h'."
+    },
+    {
+     "name": "caption",
+     "required": false,
+     "static": false,
+     "description": "Fine print, e.g. 'Estimated, taxes included'."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "root = PriceSummary([{label: \"Flights\", amount: \"$824\"}, {label: \"Hotel · 6 nights\", amount: \"$1,746\"}, {label: \"Estimated meals\", amount: \"$540\"}], total=\"$3,110\", caption=\"2 travellers\")",
+   "description": "The money view: an itemized breakdown and a total. Use this instead of a hand-built table whenever you show what a trip costs.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_PriceSummary",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "PriceSummary",
+        "lines": [
+         {
+          "label": "Flights",
+          "amount": "$824"
+         },
+         {
+          "label": "Hotel · 6 nights",
+          "amount": "$1,746"
+         },
+         {
+          "label": "Estimated meals",
+          "amount": "$540"
+         }
+        ],
+        "total": "$3,110",
+        "caption": "2 travellers"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "ProgressMeter",
+   "travel": true,
+   "args": "label, value, max, caption?, tone?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "label",
+     "required": true,
+     "static": false,
+     "description": "What is progressing."
+    },
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "Current amount."
+    },
+    {
+     "name": "max",
+     "required": true,
+     "static": false,
+     "description": "Amount that counts as complete."
+    },
+    {
+     "name": "caption",
+     "required": false,
+     "static": false,
+     "description": "Reading in words, e.g. '$1,320 of $2,000'."
+    },
+    {
+     "name": "tone",
+     "required": false,
+     "static": true,
+     "enum": [
+      "neutral",
+      "positive",
+      "caution",
+      "critical",
+      "accent"
+     ],
+     "description": "Colour role for the bar."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "root = ProgressMeter(\"Spent of budget\", 1840, 3000, caption=\"$1,160 left\")",
+   "description": "How far along something is — budget spent, packing done, bookings confirmed. `value` and `max` are numbers, not display strings.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_ProgressMeter",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "ProgressMeter",
+        "label": "Spent of budget",
+        "value": 1840,
+        "max": 3000,
+        "caption": "$1,160 left"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Row",
+   "travel": false,
+   "args": "children, justify?, align?, weight?",
+   "props": [
+    {
+     "name": "children",
+     "required": true,
+     "static": false,
+     "description": "Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID."
+    },
+    {
+     "name": "justify",
+     "required": false,
+     "static": true,
+     "enum": [
+      "center",
+      "end",
+      "spaceAround",
+      "spaceBetween",
+      "spaceEvenly",
+      "start",
+      "stretch"
+     ],
+     "description": "Defines the arrangement of children along the main axis (horizontally). Use 'spaceBetween' to push items to the edges, or 'start'/'end'/'center' to pack them together."
+    },
+    {
+     "name": "align",
+     "required": false,
+     "static": true,
+     "enum": [
+      "start",
+      "center",
+      "end",
+      "stretch"
+     ],
+     "description": "Defines the alignment of children along the cross axis (vertically). This is similar to the CSS 'align-items' property, but uses camelCase values (e.g., 'start')."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "a = Text(\"Total\")\nb = Text(\"$1,236\")\nroot = Row([a, b], justify=\"spaceBetween\")",
+   "description": "A layout component that arranges its children horizontally. To create a grid layout, nest Columns within this Row.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Row",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "a",
+        "component": "Text",
+        "text": "Total"
+       },
+       {
+        "id": "b",
+        "component": "Text",
+        "text": "$1,236"
+       },
+       {
+        "id": "root",
+        "component": "Row",
+        "children": [
+         "a",
+         "b"
+        ],
+        "justify": "spaceBetween"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Slider",
+   "travel": false,
+   "args": "label?, min?, max, value, steps?, weight?, checks?",
+   "props": [
+    {
+     "name": "label",
+     "required": false,
+     "static": false,
+     "description": "The label for the slider."
+    },
+    {
+     "name": "min",
+     "required": false,
+     "static": true,
+     "description": "The minimum value of the slider."
+    },
+    {
+     "name": "max",
+     "required": true,
+     "static": true,
+     "description": "The maximum value of the slider."
+    },
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "The current value of the slider."
+    },
+    {
+     "name": "steps",
+     "required": false,
+     "static": true,
+     "description": "The number of discrete divisions in the slider range. If specified, the slider will snap to discrete values."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "checks",
+     "required": false,
+     "static": true
+    }
+   ],
+   "express": "$/trip/budget = 2400\nroot = Slider(\"Budget, all in\", 500, 6000, $/trip/budget)",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Slider",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "Slider",
+        "label": "Budget, all in",
+        "min": 500,
+        "max": 6000,
+        "value": {
+         "@path": "/trip/budget"
+        }
+       }
+      ],
+      "dataModel": {
+       "trip": {
+        "budget": 2400
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "StatTile",
+   "travel": true,
+   "args": "label, value, caption?, tone?, action?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "label",
+     "required": true,
+     "static": false,
+     "description": "What the number measures."
+    },
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "The number as a display string, e.g. '17'."
+    },
+    {
+     "name": "caption",
+     "required": false,
+     "static": false,
+     "description": "Context under the number, e.g. 'until Madrid'."
+    },
+    {
+     "name": "tone",
+     "required": false,
+     "static": true,
+     "enum": [
+      "neutral",
+      "positive",
+      "caution",
+      "critical",
+      "accent"
+     ],
+     "description": "Colour role for the tile."
+    },
+    {
+     "name": "action",
+     "required": false,
+     "static": true,
+     "description": "Fired when the traveler taps the tile."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "root = StatTile(\"Nights in Madrid\", \"7\", caption=\"12–19 April\", tone=\"accent\")",
+   "description": "One number that matters, sized for a dashboard grid. Home-surface staple: days until departure, budget left, bookings confirmed.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_StatTile",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "StatTile",
+        "label": "Nights in Madrid",
+        "value": "7",
+        "caption": "12–19 April",
+        "tone": "accent"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Tabs",
+   "travel": false,
+   "args": "tabs, weight?",
+   "props": [
+    {
+     "name": "tabs",
+     "required": true,
+     "static": false,
+     "description": "An array of objects, where each object defines a tab with a title and a child component."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "one = Text(\"Prado at opening, then lunch at Sobrino.\")\ntwo = Text(\"Retiro in the morning, Malasaña after dark.\")\nroot = Tabs([{title: \"Day 1\", child: one}, {title: \"Day 2\", child: two}])",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Tabs",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "one",
+        "component": "Text",
+        "text": "Prado at opening, then lunch at Sobrino."
+       },
+       {
+        "id": "two",
+        "component": "Text",
+        "text": "Retiro in the morning, Malasaña after dark."
+       },
+       {
+        "id": "root",
+        "component": "Tabs",
+        "tabs": [
+         {
+          "title": "Day 1",
+          "child": "one"
+         },
+         {
+          "title": "Day 2",
+          "child": "two"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Text",
+   "travel": false,
+   "args": "text, variant?, weight?",
+   "props": [
+    {
+     "name": "text",
+     "required": true,
+     "static": false,
+     "description": "The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation."
+    },
+    {
+     "name": "variant",
+     "required": false,
+     "static": true,
+     "enum": [
+      "caption",
+      "body"
+     ],
+     "description": "A hint for the base text style."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "root = Text(\"### Madrid · 2 travellers · 12–19 April\")",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Text",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "Text",
+        "text": "### Madrid · 2 travellers · 12–19 April"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "TextField",
+   "travel": false,
+   "args": "label, value?, placeholder?, variant?, weight?, checks?",
+   "props": [
+    {
+     "name": "label",
+     "required": true,
+     "static": false,
+     "description": "The text label for the input field."
+    },
+    {
+     "name": "value",
+     "required": false,
+     "static": false,
+     "description": "The value of the text field."
+    },
+    {
+     "name": "placeholder",
+     "required": false,
+     "static": false,
+     "description": "The placeholder text for the input field."
+    },
+    {
+     "name": "variant",
+     "required": false,
+     "static": true,
+     "enum": [
+      "longText",
+      "number",
+      "shortText",
+      "obscured"
+     ],
+     "description": "The type of input field to display."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "checks",
+     "required": false,
+     "static": true
+    }
+   ],
+   "express": "root = TextField(\"Flying from\", $/trip/origin, placeholder=\"City or airport\")",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_TextField",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "TextField",
+        "label": "Flying from",
+        "value": {
+         "@path": "/trip/origin"
+        },
+        "placeholder": "City or airport"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "TravelerCounter",
+   "travel": true,
+   "args": "label, value, min?, max?, caption?, weight?, accessibility?, checks?",
+   "props": [
+    {
+     "name": "label",
+     "required": true,
+     "static": false,
+     "description": "What is being counted, e.g. 'Adults'."
+    },
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "Bound path holding the current count."
+    },
+    {
+     "name": "min",
+     "required": false,
+     "static": true,
+     "description": "Lowest allowed count."
+    },
+    {
+     "name": "max",
+     "required": false,
+     "static": true,
+     "description": "Highest allowed count."
+    },
+    {
+     "name": "caption",
+     "required": false,
+     "static": false,
+     "description": "Qualifier, e.g. 'Age 12+'."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    },
+    {
+     "name": "checks",
+     "required": false,
+     "static": true
+    }
+   ],
+   "express": "$/trip/travelers = 2\nroot = TravelerCounter(\"Travelers\", $/trip/travelers, min=1, max=9, caption=\"Adults on this leg\")",
+   "description": "A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_TravelerCounter",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "TravelerCounter",
+        "label": "Travelers",
+        "value": {
+         "@path": "/trip/travelers"
+        },
+        "min": 1,
+        "max": 9,
+        "caption": "Adults on this leg"
+       }
+      ],
+      "dataModel": {
+       "trip": {
+        "travelers": 2
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "TripCalendar",
+   "travel": true,
+   "args": "start, end?, marks?, title?, caption?, action?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "start",
+     "required": true,
+     "static": false,
+     "description": "First travel day as yyyy-MM-dd, e.g. '2027-04-12'. Bind it to the trip — `$/trip/startDate` — so the band moves when the dates do."
+    },
+    {
+     "name": "end",
+     "required": false,
+     "static": false,
+     "description": "Last travel day as yyyy-MM-dd. Omit for a single day; the band runs from `start` to here inclusive."
+    },
+    {
+     "name": "marks",
+     "required": false,
+     "static": true,
+     "description": "Days worth a glyph, in date order. Static values only — a departure, a check-in, the one thing booked that day."
+    },
+    {
+     "name": "title",
+     "required": false,
+     "static": false,
+     "description": "Heading, e.g. 'Madrid' or 'Six nights in April'."
+    },
+    {
+     "name": "caption",
+     "required": false,
+     "static": false,
+     "description": "One line under the grid, e.g. '6 nights · flights booked'."
+    },
+    {
+     "name": "action",
+     "required": false,
+     "static": true,
+     "description": "Fired when the traveler taps the calendar, e.g. to change the dates."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "root = TripCalendar(\"2027-04-12\", \"2027-04-18\", marks=[{date: \"2027-04-12\", icon: \"plane\", label: \"Fly out\"}, {date: \"2027-04-14\", icon: \"🎨\", label: \"Prado\"}, {date: \"2027-04-18\", icon: \"plane\", label: \"Fly home\"}], title=\"Madrid\", caption=\"6 nights\")",
+   "description": "The trip's dates on a month grid: the travel days drawn as one highlighted band, with a glyph on any day worth marking. Read-only — use it wherever a traveler should *see* when they are going (the panel, the home surface, beside a chosen flight), and DateRangePicker when they are still choosing.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_TripCalendar",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "TripCalendar",
+        "start": "2027-04-12",
+        "end": "2027-04-18",
+        "marks": [
+         {
+          "date": "2027-04-12",
+          "icon": "plane",
+          "label": "Fly out"
+         },
+         {
+          "date": "2027-04-14",
+          "icon": "🎨",
+          "label": "Prado"
+         },
+         {
+          "date": "2027-04-18",
+          "icon": "plane",
+          "label": "Fly home"
+         }
+        ],
+        "title": "Madrid",
+        "caption": "6 nights"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "Video",
+   "travel": false,
+   "args": "url, posterUrl?, weight?",
+   "props": [
+    {
+     "name": "url",
+     "required": true,
+     "static": false,
+     "description": "The URL of the video to display."
+    },
+    {
+     "name": "posterUrl",
+     "required": false,
+     "static": false,
+     "description": "The URL of the poster image to display before the video plays."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    }
+   ],
+   "express": "root = Video(\"https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=640\")",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_Video",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "Video",
+        "url": "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=640"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "WeatherStrip",
+   "travel": true,
+   "args": "days, place?, caption?, weight?, accessibility?",
+   "props": [
+    {
+     "name": "days",
+     "required": true,
+     "static": true,
+     "description": "Forecast entries in date order, at most seven. Static values only."
+    },
+    {
+     "name": "place",
+     "required": false,
+     "static": false,
+     "description": "Where the forecast is for."
+    },
+    {
+     "name": "caption",
+     "required": false,
+     "static": false,
+     "description": "One line of interpretation, e.g. 'Pack a light jacket'."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    }
+   ],
+   "express": "root = WeatherStrip([{day: \"Mon\", high: \"21°\", low: \"11°\", condition: \"sun\"}, {day: \"Tue\", high: \"19°\", low: \"10°\", condition: \"cloud\"}, {day: \"Wed\", high: \"17°\", low: \"9°\", condition: \"rain\"}], place=\"Madrid\", caption=\"Pack a light jacket for Wednesday\")",
+   "description": "A short forecast row for the destination. Purely informational.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_WeatherStrip",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "WeatherStrip",
+        "days": [
+         {
+          "day": "Mon",
+          "high": "21°",
+          "low": "11°",
+          "condition": "sun"
+         },
+         {
+          "day": "Tue",
+          "high": "19°",
+          "low": "10°",
+          "condition": "cloud"
+         },
+         {
+          "day": "Wed",
+          "high": "17°",
+          "low": "9°",
+          "condition": "rain"
+         }
+        ],
+        "place": "Madrid",
+        "caption": "Pack a light jacket for Wednesday"
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ],
+ "functions": [
+  {
+   "name": "and",
+   "args": "values",
+   "props": [
+    {
+     "name": "values",
+     "required": true,
+     "static": false,
+     "description": "The list of boolean values to evaluate."
+    }
+   ],
+   "description": "Performs a logical AND operation on a list of boolean values."
+  },
+  {
+   "name": "calcNights",
+   "args": "start, end",
+   "props": [
+    {
+     "name": "start",
+     "required": true,
+     "static": false,
+     "description": "The check-in date, as yyyy-MM-dd."
+    },
+    {
+     "name": "end",
+     "required": true,
+     "static": false,
+     "description": "The check-out date, as yyyy-MM-dd."
+    }
+   ],
+   "description": "Returns the number of nights between two ISO-8601 dates (yyyy-MM-dd), counting the nights slept rather than the days spanned: a 12th-to-15th stay is 3. Returns 0 when either date is missing or the range is inverted, so a half-filled form shows a zero rather than nonsense."
+  },
+  {
+   "name": "email",
+   "args": "value",
+   "props": [
+    {
+     "name": "value",
+     "required": true,
+     "static": false
+    }
+   ],
+   "description": "Checks that the value is a valid email address."
+  },
+  {
+   "name": "equals",
+   "args": "a, b",
+   "props": [
+    {
+     "name": "a",
+     "required": true,
+     "static": false,
+     "description": "The first value, usually the row's own id."
+    },
+    {
+     "name": "b",
+     "required": true,
+     "static": false,
+     "description": "The second value, usually what the trip recorded."
+    }
+   ],
+   "description": "Returns true when the two values are equal, compared as text. For marking a list row chosen: selected=equals(a: ${id}, b: ${/trip/selectedFlight})."
+  },
+  {
+   "name": "formatCurrency",
+   "args": "value, currency, decimals?, grouping?",
+   "props": [
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "The monetary amount."
+    },
+    {
+     "name": "currency",
+     "required": true,
+     "static": false,
+     "description": "The ISO 4217 currency code (e.g., 'USD', 'EUR')."
+    },
+    {
+     "name": "decimals",
+     "required": false,
+     "static": false,
+     "description": "Optional. The number of decimal places to show. Defaults to 0 or 2 depending on locale."
+    },
+    {
+     "name": "grouping",
+     "required": false,
+     "static": false,
+     "description": "Optional. If true, uses locale-specific grouping separators (e.g. '1,000'). If false, returns raw digits (e.g. '1000'). Defaults to true."
+    }
+   ],
+   "description": "Formats a number as a currency string."
+  },
+  {
+   "name": "formatDate",
+   "args": "value, format",
+   "props": [
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "The date to format."
+    },
+    {
+     "name": "format",
+     "required": true,
+     "static": false,
+     "description": "A Unicode TR35 date pattern string.\n\nToken Reference:\n- Year: 'yy' (26), 'yyyy' (2026)\n- Month: 'M' (1), 'MM' (01), 'MMM' (Jan), 'MMMM' (January)\n- Day: 'd' (1), 'dd' (01), 'E' (Tue), 'EEEE' (Tuesday)\n- Hour (12h): 'h' (1-12), 'hh' (01-12) - requires 'a' for AM/PM\n- Hour (24h): 'H' (0-23), 'HH' (00-23) - Military Time\n- Minute: 'mm' (00-59)\n- Second: 'ss' (00-59)\n- Period: 'a' (AM/PM)\n\nExamples:\n- 'MMM dd, yyyy' -> 'Jan 16, 2026'\n- 'HH:mm' -> '14:30' (Military)\n- 'h:mm a' -> '2:30 PM'\n- 'EEEE, d MMMM' -> 'Friday, 16 January'"
+    }
+   ],
+   "description": "Formats a timestamp into a string using a pattern."
+  },
+  {
+   "name": "formatNumber",
+   "args": "value, decimals?, grouping?",
+   "props": [
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "The number to format."
+    },
+    {
+     "name": "decimals",
+     "required": false,
+     "static": false,
+     "description": "Optional. The number of decimal places to show. Defaults to 0 or 2 depending on locale."
+    },
+    {
+     "name": "grouping",
+     "required": false,
+     "static": false,
+     "description": "Optional. If true, uses locale-specific grouping separators (e.g. '1,000'). If false, returns raw digits (e.g. '1000'). Defaults to true."
+    }
+   ],
+   "description": "Formats a number with the specified grouping and decimal precision."
+  },
+  {
+   "name": "formatString",
+   "args": "value",
+   "props": [
+    {
+     "name": "value",
+     "required": true,
+     "static": false
+    }
+   ],
+   "description": "Performs string interpolation of data model values and other functions in the catalog functions list and returns the resulting string. The value string can contain interpolated expressions in the `${expression}` format. Supported expression types include: JSON Pointer paths to the data model (e.g., `${/absolute/path}` or `${relative/path}`), and renderer-side function calls (e.g., `${now()}`). Function arguments must be named (e.g., `${formatDate(value:${/currentDate}, format:'MM-dd')}`). To include a literal `${` sequence, escape it as `\\${`."
+  },
+  {
+   "name": "length",
+   "args": "value, min?, max?",
+   "props": [
+    {
+     "name": "value",
+     "required": true,
+     "static": false
+    },
+    {
+     "name": "min",
+     "required": false,
+     "static": true,
+     "description": "The minimum allowed length."
+    },
+    {
+     "name": "max",
+     "required": false,
+     "static": true,
+     "description": "The maximum allowed length."
+    }
+   ],
+   "description": "Checks string length constraints."
+  },
+  {
+   "name": "not",
+   "args": "value",
+   "props": [
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "The boolean value to negate."
+    }
+   ],
+   "description": "Performs a logical NOT operation on a boolean value."
+  },
+  {
+   "name": "numeric",
+   "args": "value, min?, max?",
+   "props": [
+    {
+     "name": "value",
+     "required": true,
+     "static": false
+    },
+    {
+     "name": "min",
+     "required": false,
+     "static": true,
+     "description": "The minimum allowed value."
+    },
+    {
+     "name": "max",
+     "required": false,
+     "static": true,
+     "description": "The maximum allowed value."
+    }
+   ],
+   "description": "Checks numeric range constraints."
+  },
+  {
+   "name": "openUrl",
+   "args": "url",
+   "props": [
+    {
+     "name": "url",
+     "required": true,
+     "static": false,
+     "description": "The URL to open."
+    }
+   ],
+   "description": "Opens the specified URL in a browser or handler (requires user activation). This function has no return value."
+  },
+  {
+   "name": "or",
+   "args": "values",
+   "props": [
+    {
+     "name": "values",
+     "required": true,
+     "static": false,
+     "description": "The list of boolean values to evaluate."
+    }
+   ],
+   "description": "Performs a logical OR operation on a list of boolean values."
+  },
+  {
+   "name": "pluralize",
+   "args": "value, zero?, one?, two?, few?, many?, other",
+   "props": [
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "The numeric value used to determine the plural category."
+    },
+    {
+     "name": "zero",
+     "required": false,
+     "static": false,
+     "description": "String for the 'zero' category (e.g., 0 items)."
+    },
+    {
+     "name": "one",
+     "required": false,
+     "static": false,
+     "description": "String for the 'one' category (e.g., 1 item)."
+    },
+    {
+     "name": "two",
+     "required": false,
+     "static": false,
+     "description": "String for the 'two' category (used in Arabic, Welsh, etc.)."
+    },
+    {
+     "name": "few",
+     "required": false,
+     "static": false,
+     "description": "String for the 'few' category (e.g., small groups in Slavic languages)."
+    },
+    {
+     "name": "many",
+     "required": false,
+     "static": false,
+     "description": "String for the 'many' category (e.g., large groups in various languages)."
+    },
+    {
+     "name": "other",
+     "required": true,
+     "static": false,
+     "description": "The default/fallback string (used for general plural cases)."
+    }
+   ],
+   "description": "Returns a localized string based on the Common Locale Data Repository (CLDR) plural category of the count (zero, one, two, few, many, other). Requires an 'other' fallback. For English, just use 'one' and 'other'."
+  },
+  {
+   "name": "regex",
+   "args": "value, pattern",
+   "props": [
+    {
+     "name": "value",
+     "required": true,
+     "static": false
+    },
+    {
+     "name": "pattern",
+     "required": true,
+     "static": true,
+     "description": "The regex pattern to match against."
+    }
+   ],
+   "description": "Checks that the value matches a regular expression string."
+  },
+  {
+   "name": "required",
+   "args": "value",
+   "props": [
+    {
+     "name": "value",
+     "required": true,
+     "static": true,
+     "description": "The value to check."
+    }
+   ],
+   "description": "Checks that the value is not null, undefined, or empty."
+  }
+ ]
+}

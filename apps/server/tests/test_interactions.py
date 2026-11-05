@@ -125,7 +125,7 @@ class FakeModel:
 SURFACE = (
     f"{A2UI_OPEN}\n"
     'surface("inline-1")\n'
-    'head = Text("Madrid in April", variant="h3")\n'
+    'head = Text("### Madrid in April")\n'
     "root = Column([head])\n"
     f"{A2UI_CLOSE}"
 )
@@ -1306,7 +1306,7 @@ def test_a_dashboard_drawn_on_a_blocked_turn_is_the_agents_call() -> None:
     dashboard = (
         f"{A2UI_OPEN}\n"
         'surface("inline-1")\n'
-        'head = Text("Your trip", variant="h3")\n'
+        'head = Text("### Your trip")\n'
         't1 = StatTile("Booked", "0 of 5")\n'
         "root = Column([head, t1])\n"
         f"{A2UI_CLOSE}"
@@ -1776,7 +1776,7 @@ class TestTheAgentMayRedrawThePanel:
 
     PANEL = (
         '<a2ui>\nsurface("sidebar")\n'
-        'title = Text("Your trip", variant="h3")\n'
+        'title = Text("### Your trip")\n'
         "root = Column([title])\n</a2ui>\n"
     )
 
@@ -2399,7 +2399,7 @@ class TestTwoCardsInOneTurn:
                 (
                     [
                         "<a2ui>\n"
-                        'head = Text("Outbound", variant="h3")\n'
+                        'head = Text("### Outbound")\n'
                         "fares = Flights()\n"
                         "root = Column([head, fares])\n"
                         "</a2ui>"

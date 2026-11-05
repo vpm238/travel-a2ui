@@ -122,6 +122,10 @@ class Session:
     #: declaration, and when there is nothing to replay it asks the agent for one
     #: rather than inventing it.
     panels: dict[str, str] = field(default_factory=dict)
+    #: The surfaces this conversation has created on its client, so each is
+    #: created once. A request that says what its client holds overrides it;
+    #: see `brain/finishing/lifecycle.py`.
+    surfaces: set[str] = field(default_factory=set)
     turns: int = 0
     #: How many inline surfaces this conversation has handed out.
     #:

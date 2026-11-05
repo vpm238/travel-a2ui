@@ -1,318 +1,84 @@
-// The catalog's functions, implemented for Flutter.
+// The travel catalog's two functions of its own.
 //
-// These run *in the renderer*, against the live data model, which is the whole
-// reason they exist. A label bound to `calcNights` recomputes the instant a date
-// picker moves — no turn, no wait, no tokens. The alternative is the model
-// writing "3 nights" as literal text, which is correct in the screenshot and a
-// lie the moment the traveller drags something, and which nothing downstream
-// ever notices because a string is a string.
+// Every other function a surface can call (formatString, formatCurrency,
+// pluralize, the checks) is the A2UI basic catalog's, and `a2ui_core`
+// implements those. These two are the travel catalog's additions, implemented
+// here and in `renderers/react/src/functions.ts` to the same contract, which
+// the catalog declares and the tests on both sides pin.
 //
-// Each one is driven from `catalog.json` on the React side by a test that walks
-// the declared functions and fails when one is declared but not implemented.
-// The same test is here, in `test/functions_test.dart`, and for the same
-// reason: `formatString` once shipped without implementing its own spec, and
-// the tests agreed with it because they had been written from the code.
+// They run in the renderer, against the live data model. A label bound to
+// `calcNights` recomputes the instant a date picker moves, with no turn and no
+// tokens, where a label the model wrote as "3 nights" would be wrong the moment
+// the traveller dragged something.
 
 import 'package:a2ui_core/a2ui_core.dart';
-import 'package:intl/intl.dart';
-import 'package:json_schema_builder/json_schema_builder.dart';
 
-/// Resolves an argument that may be a literal or a signal.
 Object? _value(Object? raw) => raw is ReadonlySignal ? raw.value : raw;
 
-String _string(Map<String, dynamic> args, String key, [String fallback = '']) {
+String _text(Map<String, dynamic> args, String key) {
   final value = _value(args[key]);
-  return value == null ? fallback : value.toString();
+  return value == null ? '' : '$value';
 }
 
-num? _number(Map<String, dynamic> args, String key) {
-  final value = _value(args[key]);
-  if (value is num) return value;
-  if (value is String) return num.tryParse(value.replaceAll(RegExp(r'[^0-9.\-]'), ''));
-  return null;
+/// The calendar date at the start of an ISO string, ignoring any time or offset.
+DateTime? _calendarDate(String value) {
+  final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(value);
+  if (match == null) return null;
+  return DateTime.utc(
+    int.parse(match.group(1)!),
+    int.parse(match.group(2)!),
+    int.parse(match.group(3)!),
+  );
 }
 
-/// A catalog function, named once by its subclass.
+/// A function the travel catalog declares, with the signature it declares.
+abstract class _Declared extends FunctionImplementation {
+  _Declared(FunctionApi api)
+      : super(
+          name: api.name,
+          argumentSchema: api.argumentSchema,
+          returnType: api.returnType,
+          description: api.description,
+          allowedCallers: api.declaredAllowedCallers,
+          requiresUserActivation: api.declaredRequiresUserActivation,
+          definition: api.definition,
+        );
+}
+
+/// Nights slept between two calendar dates: 12 Apr to 15 Apr is three.
 ///
-/// `FunctionImplementation` took overridable `name` and `argumentSchema`
-/// getters in `a2ui_core` 0.1; in 0.4 they are constructor arguments on
-/// `FunctionApi`. So each function passes its own name up, and the schema —
-/// which none of these constrain — is declared once here.
-abstract class _Fn extends FunctionImplementation {
-  _Fn(String name)
-      : super(name: name, argumentSchema: Schema.object(properties: const {}));
-}
-
-/// Nights slept, not days spanned: 12th to 15th is three.
-///
-/// Zero when either end is missing or the range runs backwards, so a half-
-/// filled form shows a zero rather than nonsense — and so a picker mid-drag
-/// never briefly reads "-4 nights".
-class CalcNights extends _Fn {
-  CalcNights() : super('calcNights');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.number;
+/// Counted on calendar dates in UTC, so a daylight-saving change inside the
+/// range cannot make a night 23 hours long and round it away. A half-filled or
+/// inverted range is zero nights.
+class CalcNights extends _Declared {
+  CalcNights(super.api);
 
   @override
   Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final start = DateTime.tryParse(_string(args, 'start'));
-    final end = DateTime.tryParse(_string(args, 'end'));
+    final start = _calendarDate(_text(args, 'start'));
+    final end = _calendarDate(_text(args, 'end'));
     if (start == null || end == null) return 0;
     final nights = end.difference(start).inDays;
     return nights > 0 ? nights : 0;
   }
 }
 
-/// `${…}` placeholders, filled from the resolved arguments.
-///
-/// The spec this once failed to implement: a template may reference any other
-/// argument by name, and may contain a nested call whose result has already
-/// been resolved by the time it arrives here.
-class FormatString extends _Fn {
-  FormatString() : super('formatString');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.string;
+/// Whether two values are the same, compared as text, for marking the row a
+/// trip chose. Nothing chosen yet is never a match.
+class Equals extends _Declared {
+  Equals(super.api);
 
   @override
   Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final template = _string(args, 'value');
-    return template.replaceAllMapped(RegExp(r'\$\{([^}]*)\}'), (match) {
-      final key = match.group(1)!.trim();
-      final replacement = _value(args[key]);
-      return replacement?.toString() ?? '';
-    });
+    final a = _value(args['a']);
+    final b = _value(args['b']);
+    if (a == null || b == null || '$a'.isEmpty) return false;
+    return '$a' == '$b';
   }
 }
 
-class FormatNumber extends _Fn {
-  FormatNumber() : super('formatNumber');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.string;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final value = _number(args, 'value');
-    if (value == null) return '';
-    final decimals = _number(args, 'decimals')?.toInt();
-    return decimals == null
-        ? NumberFormat.decimalPattern('en_US').format(value)
-        : value.toStringAsFixed(decimals);
-  }
-}
-
-class FormatCurrency extends _Fn {
-  FormatCurrency() : super('formatCurrency');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.string;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final value = _number(args, 'value');
-    if (value == null) return '';
-    final currency = _string(args, 'currency', 'USD');
-    // Whole units: a fare is $352, not $352.00. The fixtures round before they
-    // ever reach a surface, so showing cents here would show two zeroes.
-    return NumberFormat.simpleCurrency(locale: 'en_US', name: currency, decimalDigits: 0)
-        .format(value);
-  }
-}
-
-class FormatDate extends _Fn {
-  FormatDate() : super('formatDate');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.string;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final parsed = DateTime.tryParse(_string(args, 'value'));
-    if (parsed == null) return '';
-    final pattern = _string(args, 'format', 'd MMM');
-    return DateFormat(pattern, 'en_US').format(parsed);
-  }
-}
-
-class Pluralize extends _Fn {
-  Pluralize() : super('pluralize');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.string;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final count = _number(args, 'value')?.toInt() ?? 0;
-    return count == 1 ? _string(args, 'one') : _string(args, 'other');
-  }
-}
-
-class And extends _Fn {
-  And() : super('and');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.boolean;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final values = _value(args['values']);
-    if (values is! List) return false;
-    return values.every((item) => _value(item) == true);
-  }
-}
-
-class Or extends _Fn {
-  Or() : super('or');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.boolean;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final values = _value(args['values']);
-    if (values is! List) return false;
-    return values.any((item) => _value(item) == true);
-  }
-}
-
-class Not extends _Fn {
-  Not() : super('not');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.boolean;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) =>
-      _value(args['value']) != true;
-}
-
-/// The validators. They answer "is this acceptable", and a missing value is
-/// only unacceptable to `required` — everything else passes on empty, so a form
-/// does not shout at somebody who has not typed yet.
-class Required extends _Fn {
-  Required() : super('required');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.boolean;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final value = _value(args['value']);
-    if (value == null) return false;
-    if (value is String) return value.trim().isNotEmpty;
-    if (value is Iterable) return value.isNotEmpty;
-    return true;
-  }
-}
-
-class RegexCheck extends _Fn {
-  RegexCheck() : super('regex');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.boolean;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final value = _string(args, 'value');
-    if (value.isEmpty) return true;
-    final pattern = _string(args, 'pattern');
-    if (pattern.isEmpty) return true;
-    try {
-      return RegExp(pattern).hasMatch(value);
-    } on FormatException {
-      // A pattern the model wrote wrong should not make the field unfillable.
-      return true;
-    }
-  }
-}
-
-class LengthCheck extends _Fn {
-  LengthCheck() : super('length');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.boolean;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final value = _string(args, 'value');
-    if (value.isEmpty) return true;
-    final min = _number(args, 'min')?.toInt();
-    final max = _number(args, 'max')?.toInt();
-    if (min != null && value.length < min) return false;
-    if (max != null && value.length > max) return false;
-    return true;
-  }
-}
-
-class NumericCheck extends _Fn {
-  NumericCheck() : super('numeric');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.boolean;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final raw = _value(args['value']);
-    if (raw == null || (raw is String && raw.isEmpty)) return true;
-    final value = raw is num ? raw : num.tryParse(raw.toString());
-    if (value == null) return false;
-    final min = _number(args, 'min');
-    final max = _number(args, 'max');
-    if (min != null && value < min) return false;
-    if (max != null && value > max) return false;
-    return true;
-  }
-}
-
-class EmailCheck extends _Fn {
-  EmailCheck() : super('email');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.boolean;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) {
-    final value = _string(args, 'value');
-    if (value.isEmpty) return true;
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
-  }
-}
-
-/// Declared by the catalog and deliberately inert on the web client.
-///
-/// A surface that asks the host to open a URL is asking for a navigation the
-/// traveller did not initiate, and in a browser tab that is a popup. It is
-/// implemented so the function is not *missing* — a missing function is a
-/// binding that resolves to nothing, which renders as a blank — and does
-/// nothing, which is the honest behaviour rather than a silent hole.
-class OpenUrl extends _Fn {
-  OpenUrl() : super('openUrl');
-
-  @override
-  A2uiReturnType get returnType => A2uiReturnType.void_;
-
-  @override
-  Object? execute(Map<String, dynamic> args, DataContext context, [CancellationSignal? signal]) =>
-      null;
-}
-
-/// Every function the catalog declares.
-List<FunctionImplementation> catalogFunctions() => [
-      CalcNights(),
-      FormatString(),
-      FormatNumber(),
-      FormatCurrency(),
-      FormatDate(),
-      Pluralize(),
-      And(),
-      Or(),
-      Not(),
-      Required(),
-      RegexCheck(),
-      LengthCheck(),
-      NumericCheck(),
-      EmailCheck(),
-      OpenUrl(),
-    ];
+/// The travel catalog's own functions, built against its declarations.
+final Map<String, FunctionImplementation Function(FunctionApi)> travelFunctions = {
+  'calcNights': CalcNights.new,
+  'equals': Equals.new,
+};

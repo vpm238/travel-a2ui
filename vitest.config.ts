@@ -29,7 +29,6 @@ export default defineConfig({
   resolve: {
     alias: {
       // Test the source, not the last build of it.
-      '@travel-a2ui/express': resolve(root, 'packages/express/src/index.ts'),
       '@travel-a2ui/renderer': resolve(root, 'renderers/react/src/index.ts'),
     },
   },
@@ -39,7 +38,6 @@ export default defineConfig({
     // silently not collected, and the suite goes green having run nothing —
     // which is how this pattern was found.
     include: [
-      'packages/*/test/**/*.test.ts?(x)',
       'renderers/*/test/**/*.test.ts?(x)',
       'apps/*/test/**/*.test.ts?(x)',
     ],

@@ -28,7 +28,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ExpressCompiler, bindCommitContext } from '../../packages/express/dist/index.js';
+import { compileAll } from './compile.mjs';
 
 const BASE = (process.env.BASE_URL ?? 'http://127.0.0.1:8787').replace(/\/$/, '');
 const failures = [];
@@ -41,20 +41,16 @@ const here = dirname(fileURLToPath(import.meta.url));
 const catalog = JSON.parse(
   readFileSync(join(here, '..', '..', 'catalogs', 'a2ui-travel', 'catalog.json'), 'utf8'),
 );
-const compiler = new ExpressCompiler(catalog, 'v0.9.1');
-
 /**
- * Compile the way the Worker does.
+ * Compile the way the server does.
  *
  * This harness stands in for the server, so it has to run the server's passes
- * too — otherwise it tests a surface no client would ever actually receive.
- * `bindCommitContext` is the one that matters here: it binds every edited path
- * into the commit button, and adds a button to a surface that has none.
+ * too — otherwise it tests a surface no client would ever actually receive. It
+ * does, literally: `compile.py` is the SDK's parser, the macros and the
+ * finishing passes, including the one that matters here — every edited path
+ * bound into the commit button, and a button added to a surface that has none.
  */
-const compile = (surfaceId, source) =>
-  bindCommitContext(
-    compiler.compile(source, { surfaceId, catalogId: catalog.catalogId, version: 'v0.9.1' }),
-  );
+const compile = (surfaceId, source) => compileAll([{ surfaceId, source }])[0].messages;
 
 /**
  * Turn one: everything the trip still needs, in one surface, with one button.
@@ -67,7 +63,7 @@ const SETUP = `surface("inline-1")
 $/trip/origin = "JFK"
 $/trip/startDate = ""
 $/trip/travelers = 2
-head = Text("Before I can price anything", variant="h3")
+head = Text("### Before I can price anything")
 where = TextField("Flying from", $/trip/origin)
 when = DateRangePicker("Travel dates", $/trip/startDate, $/trip/endDate)
 who = TravelerCounter("Travellers", $/trip/travelers, min=1, max=8)
@@ -77,7 +73,7 @@ root = Column([head, where, when, who, go], align="stretch")`;
 /** Turn two: a card with no button at all — the server has to add one. */
 const NO_BUTTON = `surface("inline-2")
 $/trip/budget = 2000
-head = Text("How much are you spending?", variant="h3")
+head = Text("### How much are you spending?")
 budget = Slider("Total budget", 500, 6000, $/trip/budget)
 root = Column([head, budget], align="stretch")`;
 
@@ -90,7 +86,7 @@ root = Column([head, budget], align="stretch")`;
  */
 const PANEL = `surface("sidebar")
 $/trip/maxFare = 700
-title = Text("The trip", variant="h3")
+title = Text("### The trip")
 flight = Text("Iberia IB614 · $257", variant="body")
 changeFlight = Button(Text("Change"), "borderless", Event("change", {field: "selectedFlight"}))
 stray = Slider("Max fare", 150, 2000, $/trip/maxFare)
@@ -162,8 +158,8 @@ await page.click('.composer__send');
 await page.waitForSelector('.tv-dates', { timeout: 15000 });
 
 const afterFirst = chatTurns();
-await page.fill('.chat__feed .a2-surface:not(.a2-surface--spent) input[type="text"]', 'LHR');
-await page.fill('.tv-dates input[aria-label="Start date"]', '2026-04-12');
+await page.fill('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface input[type="text"]', 'LHR');
+await page.fill('.tv-dates input[type="date"] >> nth=0', '2026-04-12');
 await page.click('.tv-counter button[aria-label="One more"]');
 await page.waitForTimeout(400);
 
@@ -171,7 +167,7 @@ check('three edits sent nothing', chatTurns() === afterFirst, `${chatTurns() - a
 
 // --- committing sends once, with everything -------------------------------
 console.log('\ncommitting');
-await page.locator('.chat__feed .a2-surface:not(.a2-surface--spent) .a2-button').first().click();
+await page.locator('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface .a2ui-button').first().click();
 await page.waitForTimeout(900);
 
 const commit = sent.filter((entry) => entry.surface === 'inline').at(-1);
@@ -225,7 +221,7 @@ check('visibly, not just functionally', /grayscale/.test(greyed), greyed);
 // --- shared facts survive into the next surface ---------------------------
 const seeded = await page.evaluate(() => {
   const inputs = [
-    ...document.querySelectorAll('.chat__feed .a2-surface:not(.a2-surface--spent) input'),
+    ...document.querySelectorAll('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface input'),
   ];
   return inputs.map((input) => input.value);
 });
@@ -238,7 +234,7 @@ check(
 // --- a card with no commit button is not a dead end ------------------------
 console.log('\nno button on the card');
 const before = chatTurns();
-await page.locator('.chat__feed .a2-surface:not(.a2-surface--spent) input[type="range"]').first().fill('3400');
+await page.locator('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface input[type="range"]').first().fill('3400');
 await page.waitForTimeout(400);
 check('moving the slider sent nothing', chatTurns() === before);
 
@@ -247,16 +243,18 @@ check('moving the slider sent nothing', chatTurns() === before);
 // bar the React app drew for itself, which meant an iOS client shipped the dead
 // end this is testing for.
 const commitButton = page
-  .locator('.chat__feed .a2-surface:not(.a2-surface--spent) .a2-button')
+  .locator('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface .a2ui-button')
   .last();
 check('the surface came with a way to send anyway', (await commitButton.count()) > 0);
 await commitButton.click();
 await page.waitForTimeout(900);
 check('and pressing it sends the values', chatTurns() === before + 1, `${chatTurns() - before}`);
 check(
-  'with the edited value bound into the action',
-  sent.at(-1)?.action?.context?.budget === 3400,
-  JSON.stringify(sent.at(-1)?.action?.context ?? {}),
+  // In the surface's data model, which the server asked for with
+  // `sendDataModel`; nothing gathers paths into the button's context any more.
+  'with the edited value in the data model it sends',
+  sent.at(-1)?.action?.dataModel?.trip?.budget === 3400,
+  JSON.stringify(sent.at(-1)?.action?.dataModel?.trip ?? {}),
 );
 
 // --- the panel is a record, not a form ------------------------------------
@@ -287,7 +285,7 @@ if ((await page.locator('.sidebar .a2-surface').count()) > 0) {
 
   // Change is the panel's only interaction, and it reopens the decision in the
   // conversation rather than editing it here.
-  await page.locator('.sidebar .a2-button').first().click();
+  await page.locator('.sidebar .a2ui-button').first().click();
   await page.waitForTimeout(900);
   check('Change sends exactly one message', chatTurns() === beforePanel + 1);
 

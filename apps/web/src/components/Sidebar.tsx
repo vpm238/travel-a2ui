@@ -23,7 +23,9 @@
  * asked to rebuild when the panel should be a different *shape*.
  */
 
-import { A2uiSurface, useSurface } from '@travel-a2ui/renderer';
+import { useState } from 'react';
+
+import { SurfaceView, useSurfaces } from './SurfaceView.js';
 
 import type { Agent } from '../useAgent.js';
 import { Spinner } from './bits.js';
@@ -37,7 +39,8 @@ export function Sidebar({ agent }: { agent: Agent }) {
   // sending the standing panels a data-model update, and applying one creates
   // the surface if it is absent — so an empty `sidebar` record exists from the
   // first turn onward, whether or not a panel was ever built.
-  const hasSurface = Boolean(useSurface(agent.store, 'sidebar')?.components.has('root'));
+  useSurfaces(agent.store);
+  const hasSurface = agent.store.has('sidebar');
 
   /*
    * When this panel is *stale* is not the browser's business, and used to be:
@@ -49,14 +52,26 @@ export function Sidebar({ agent }: { agent: Agent }) {
    */
   const build = () => agent.drawSurface('sidebar');
 
+  // On a phone the panel is a bar above the conversation, opened on demand: a
+  // panel that takes the screen leaves the conversation a sliver to live in.
+  const [open, setOpen] = useState(false);
+
   return (
-    <aside className="sidebar" aria-label="Trip controls">
+    <aside className={`sidebar${open ? ' is-open' : ''}`} aria-label="Trip controls">
       <header className="sidebar__head">
         <h2>
           The trip
           {agent.sample ? <span className="sidebar__sample"> · sample</span> : null}
         </h2>
         {agent.liveSurface === 'sidebar' ? <Spinner /> : null}
+        <button
+          type="button"
+          className="sidebar__toggle"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? 'Hide' : 'Show'}
+        </button>
       </header>
 
       {hasSurface ? (
@@ -64,7 +79,7 @@ export function Sidebar({ agent }: { agent: Agent }) {
           {/* The whole panel, and nothing but the panel. What is settled, and
               one way to ask to change each of it — which re-opens the decision
               in the conversation rather than editing it here. */}
-          <A2uiSurface store={agent.store} surfaceId="sidebar" onEvent={agent.handleSurfaceEvent} />
+          <SurfaceView surfaces={agent.store} surfaceId="sidebar" />
         </div>
       ) : (
         <div className="sidebar__placeholder">

@@ -135,7 +135,7 @@ class _BootState extends State<_Boot> {
     return ChatScreen(
       api: _api,
       meta: meta,
-      catalog: buildCatalog(catalogJson),
+      catalog: travelCatalog(catalogJson),
     );
   }
 }

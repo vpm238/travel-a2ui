@@ -1,10 +1,13 @@
 /**
  * The mechanism, shown.
  *
- * Every live surface, in both forms: the A2UI JSON the host actually holds, and
- * the Express that produces it — recovered by running the decompiler over the
- * store. The Express is usually about a third the size, which is the argument
- * for the notation in one number rather than one paragraph.
+ * Every live surface, in both forms: the A2UI JSON the renderer holds, and the
+ * Express that produces it. The Express is recovered by the A2UI SDK's own
+ * decompiler, on the server (`POST /api/express`) — this view used to carry a
+ * TypeScript port of it, and of the compiler and the schema crawler it leaned
+ * on, so that a page which only *shows* the protocol shipped one. It is usually
+ * about a third the size of the JSON, which is the argument for the notation in
+ * one number rather than one paragraph.
  *
  * This is a debugging view that earns its place in the product: "what did the
  * model actually emit" is the first question anyone asks about generative UI,
@@ -12,61 +15,50 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { ExpressDecompiler, type CatalogSchema } from '@travel-a2ui/express';
-import { useSurface } from '@travel-a2ui/renderer';
 
-import { catalogUrl } from '../api.js';
-import type { ProtocolVersion } from '@travel-a2ui/express';
+import { decompile } from '../api.js';
 import type { Agent } from '../useAgent.js';
 import { Code, Empty } from './bits.js';
+import { useSurfaces } from './SurfaceView.js';
 
 export function Protocol({ agent }: { agent: Agent }) {
-  const [catalog, setCatalog] = useState<CatalogSchema | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch(catalogUrl())
-      .then((response) => response.json() as Promise<CatalogSchema>)
-      .then(setCatalog)
-      .catch(() => setCatalog(null));
-  }, []);
-
-  // Subscribing keeps the list fresh as surfaces arrive mid-stream.
-  useSurface(agent.store, selected ?? '');
+  const version = useSurfaces(agent.store);
   const ids = agent.store.ids();
   const active = selected && ids.includes(selected) ? selected : (ids[ids.length - 1] ?? null);
-  const surface = active ? agent.store.get(active) : undefined;
 
-  const { json, express } = useMemo(() => {
-    if (!surface) return { json: '', express: '' };
-
-    const envelope = {
-      // The server's own version, not a literal: the wire view exists to
-      // show what really went over the wire.
-      version: (agent.meta?.protocolVersion as ProtocolVersion) ?? '1.0',
-      createSurface: {
-        surfaceId: surface.id,
-        catalogId: surface.catalogId || catalog?.catalogId || '',
-        components: [...surface.components.values()],
-        ...(Object.keys(surface.dataModel).length > 0 ? { dataModel: surface.dataModel } : {}),
-      },
+  const { json, envelope, dataModel } = useMemo(() => {
+    const snapshot = active ? agent.store.snapshot(active) : undefined;
+    if (!snapshot) return { json: '', envelope: null, dataModel: {} as Record<string, unknown> };
+    // The server's own version, not a literal: this view exists to show what
+    // really went over the wire.
+    const message = { version: agent.meta?.protocolVersion ?? '1.0', createSurface: snapshot };
+    return {
+      json: JSON.stringify(message, null, 2),
+      envelope: message,
+      dataModel: (snapshot['dataModel'] ?? {}) as Record<string, unknown>,
     };
+    // `version` changes when any message lands, which is when this is stale.
+  }, [active, version, agent.store, agent.meta?.protocolVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const rendered = JSON.stringify(envelope, null, 2);
-    if (!catalog) return { json: rendered, express: '' };
-
-    try {
-      return {
-        json: rendered,
-        express: new ExpressDecompiler(catalog).decompile(envelope as never),
-      };
-    } catch {
-      return { json: rendered, express: '' };
-    }
-  }, [catalog, surface]);
+  const [express, setExpress] = useState<{ for: string; text: string; failed: boolean } | null>(null);
+  useEffect(() => {
+    if (!envelope) return;
+    let live = true;
+    const handle = setTimeout(() => {
+      decompile([envelope])
+        .then((text) => live && setExpress({ for: json, text, failed: false }))
+        .catch(() => live && setExpress({ for: json, text: '', failed: true }));
+    }, 150);
+    return () => {
+      live = false;
+      clearTimeout(handle);
+    };
+  }, [json]); // eslint-disable-line react-hooks/exhaustive-deps
+  const current = express && express.for === json ? express : null;
 
   const ratio =
-    json && express ? Math.round((1 - express.length / json.length) * 100) : null;
+    json && current?.text ? Math.round((1 - current.text.length / json.length) * 100) : null;
 
   return (
     <section className="protocol" aria-label="Protocol inspector">
@@ -105,11 +97,11 @@ export function Protocol({ agent }: { agent: Agent }) {
                 A2UI Express
                 {ratio !== null ? <span className="protocol__stat">{ratio}% smaller</span> : null}
               </h3>
-              {express ? (
-                <Code>{express}</Code>
+              {current?.text ? (
+                <Code>{current.text}</Code>
               ) : (
                 <p className="protocol__hint">
-                  {catalog ? 'This surface did not decompile.' : 'Loading the catalog…'}
+                  {current?.failed ? 'This surface did not decompile.' : 'Decompiling…'}
                 </p>
               )}
             </div>
@@ -123,13 +115,13 @@ export function Protocol({ agent }: { agent: Agent }) {
             </div>
           </div>
 
-          {surface && Object.keys(surface.dataModel).length > 0 ? (
+          {Object.keys(dataModel).length > 0 ? (
             <div className="protocol__pane">
               <h3>Data model</h3>
               <p className="protocol__hint">
                 What the user has changed on screen. The next agent turn reads exactly this.
               </p>
-              <Code>{JSON.stringify(surface.dataModel, null, 2)}</Code>
+              <Code>{JSON.stringify(dataModel, null, 2)}</Code>
             </div>
           ) : null}
         </>

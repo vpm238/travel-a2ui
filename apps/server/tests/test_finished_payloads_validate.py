@@ -190,12 +190,13 @@ def _headings_said_twice(messages: list) -> list[str]:
     said: dict[str, list[str]] = {}
     for message in messages:
         body = message.get("createSurface") or message.get("updateComponents") or {}
+        # A2UI 1.0 writes a heading as Markdown in the text.
         texts = [
-            node["text"]
+            node["text"].lstrip("#").strip()
             for node in body.get("components", [])
             if node.get("component") == "Text"
             and isinstance(node.get("text"), str)
-            and node.get("variant") in ("h1", "h2", "h3", "h4", "h5")
+            and node["text"].startswith("#")
         ]
         said.setdefault(str(body.get("surfaceId")), []).extend(texts)
     return sorted({text for texts in said.values() for text in texts if texts.count(text) > 1})

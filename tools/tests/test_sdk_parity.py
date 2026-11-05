@@ -1,20 +1,15 @@
-"""Our pruning against `A2uiCatalog.with_pruning` from the official SDK.
+"""The catalog the model is shown, as the A2UI SDK prunes it.
 
-Pruning decides what the model is allowed to draw. Ours and the reference
-disagreeing would mean the prompt documents one vocabulary while the upstream
-tooling assumes another — so the two are diffed on the same catalog, and this is
-what keeps the component half a rename the day upstream is enough on its own.
+`scripts/build_skills.py` narrows the travel catalog with the SDK's
+`ComponentPruningTransformer` and `FunctionPruningTransformer` before the
+`SkillGenerator` writes a prompt from it. These pin what that leaves: exactly
+the allow-list in `agent-components.json`, with the unions narrowed to match,
+the definitions that make a catalog a catalog intact, and the macros added on
+top — so a change to the allow-list, or to the SDK's pruning, shows up here
+rather than as a prompt that quietly documents something else.
 
-Skips when the SDK is not installed, so the light CI job stays light.
-
-**Against the transformer, since agent-sdk 0.9.** `A2uiCatalog.with_pruning`
-is gone: pruning is a catalog *transformer* now, and messages are pruned by
-the format rather than the catalog. The question this file asks did not change
-with it — do we and upstream agree about which components survive — so it asks
-the new owner. It was written against the old one, and when that disappeared
-the module skipped itself whole and pytest exited 5 for collecting nothing,
-which CI read as a failure and which is the right answer for the wrong reason:
-a parity test that cannot find its reference is not passing.
+Run in its own CI job against the newest SDK, so an upstream change to pruning
+is caught the day it ships.
 """
 
 from __future__ import annotations
@@ -22,71 +17,73 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
+import warnings
 
 import pytest
 
+warnings.filterwarnings("ignore")
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
-
-from prune import with_pruning  # noqa: E402
-
-CATALOG = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
+sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
 
 pytest.importorskip(
     "a2ui.catalog_transformers",
     reason="the reference A2UI SDK is not installed (pip install a2ui-agent-sdk)",
 )
 
-ALLOWED = ["Text", "Row", "Column", "Button", "FlightOption", "HotelCard"]
+import build_skills  # noqa: E402
+
+ALLOW = json.loads(build_skills.PRUNING.read_text(encoding="utf-8"))
 
 
 @pytest.fixture(scope="module")
-def schema() -> dict:
-    return json.loads(CATALOG.read_text(encoding="utf-8"))
+def source() -> dict:
+    return json.loads(build_skills.CATALOG.read_text(encoding="utf-8"))
 
 
-def reference(schema: dict, allowed: list[str]) -> dict:
-    """What upstream's own pruning leaves of this catalog."""
-    from a2ui.catalog_transformers import ComponentPruningTransformer
-    from a2ui.core.catalog import CatalogApi
-
-    catalog = CatalogApi.from_json(schema)
-    return ComponentPruningTransformer(allowed).transform(catalog).catalog_schema
+@pytest.fixture(scope="module")
+def shown(source, tmp_path_factory):
+    return build_skills.pruned_catalog(source, tmp_path_factory.mktemp("catalog"))
 
 
-def test_same_components_survive(schema):
-    assert sorted(with_pruning(schema, allowed_components=ALLOWED)["components"]) == sorted(
-        reference(schema, ALLOWED)["components"]
-    )
+def _union(document: dict, name: str) -> set[str]:
+    return {
+        entry["$ref"].rsplit("/", 1)[-1]
+        for entry in document["$defs"][name]["oneOf"]
+        if isinstance(entry, dict) and "$ref" in entry
+    }
 
 
-def test_same_union_survives(schema):
-    def union(document: dict) -> list[str]:
-        return sorted(
-            entry["$ref"]
-            for entry in document["$defs"]["anyComponent"]["oneOf"]
-            if isinstance(entry, dict) and "$ref" in entry
-        )
-
-    assert union(with_pruning(schema, allowed_components=ALLOWED)) == union(
-        reference(schema, ALLOWED)
-    )
+def test_only_the_allowed_components_and_the_macros(shown):
+    macros = {"Ask", "Flights", "Highlights", "Itinerary", "Stays", "Trip"}
+    assert set(shown.components) == set(ALLOW["allowedComponents"]) | macros
 
 
-def test_neither_drops_a_structural_definition(schema):
-    """Of what the catalog *declares*, both keep the same definitions.
+def test_only_the_allowed_functions(shown, source):
+    assert set(shown.functions) == set(ALLOW["allowedFunctions"]) & set(source["functions"])
 
-    Not an equality any more, and the difference is the reference adding
-    rather than us dropping: loading a catalog resolves it against the spec's
-    own common types, so upstream's `$defs` gains `DataBinding`,
-    `AccessibilityAttributes` and — new at 1.0 — `FunctionCommon` and
-    `IndexSystemFunction`, none of which were ever in this file. Comparing the
-    two sets whole asked whether upstream had bundled the spec, which is not a
-    question about pruning.
 
-    What pruning is answerable for is everything the catalog brought with it.
+def test_the_unions_list_what_is_kept(shown):
+    document = shown.to_json()
+    assert _union(document, "anyComponent") == set(shown.components)
+    assert _union(document, "anyFunction") == set(shown.functions)
+
+
+def test_an_excluded_component_is_never_shown(shown):
+    for name in ALLOW["excluded"]:
+        assert name not in shown.components, f"{name} is excluded but offered"
+
+
+def test_the_source_catalog_is_untouched(shown, source):
+    assert "Video" in source["components"]
+    assert "regex" in source["functions"]
+
+
+def test_the_catalog_definitions_survive(shown):
+    """`anyComponent` and `anyFunction` are pointed at from outside the catalog.
+
+    A pruning pass that treated "unreferenced inside" as "unused" would delete
+    exactly the definitions that make a catalog a catalog.
     """
-    declared = set(schema["$defs"])
-    ours = set(with_pruning(schema, allowed_components=ALLOWED)["$defs"])
-    theirs = set(reference(schema, ALLOWED)["$defs"])
-    assert theirs & declared <= ours, "upstream kept a definition we dropped"
+    assert {"anyComponent", "anyFunction"} <= set(shown.to_json()["$defs"])

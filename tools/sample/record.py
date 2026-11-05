@@ -48,7 +48,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "validate"))
 sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
 
-from journey import components, kind_of, pressable  # noqa: E402
+from journey import components, kind_of  # noqa: E402
 
 OUT = ROOT / "apps" / "web" / "public" / "sample-trip.json"
 
@@ -99,22 +99,58 @@ def _events(response: httpx.Response) -> list[dict[str, Any]]:
     return events
 
 
+def _resolve(binding: Any, row: dict[str, Any], data: dict[str, Any]) -> Any:
+    """A context value as a renderer resolves it for the first row of a list."""
+    if not isinstance(binding, dict):
+        return binding
+    path = binding.get("@path", binding.get("path"))
+    if not isinstance(path, str):
+        return binding
+    if not path.startswith("/"):
+        return row.get(path)
+    head, _, rest = path[1:].partition("/")
+    cursor: Any = data.get(f"/{head}")
+    for part in [p for p in rest.split("/") if p]:
+        if isinstance(cursor, list) and part.isdigit():
+            cursor = cursor[int(part)] if int(part) < len(cursor) else None
+        else:
+            cursor = cursor.get(part) if isinstance(cursor, dict) else None
+    return cursor
+
+
 def _press(
     drawn: list[tuple[str, dict[str, Any]]], wanted: str, trip: dict[str, Any], data: dict[str, Any]
 ) -> dict[str, Any] | None:
-    """The press a traveller would make on the newest card of this kind."""
-    for surface_id, node in reversed([(sid, n) for sid, message in drawn for n in components([message])]):
+    """The press a traveller would make on the first card of the newest list of this kind.
+
+    Resolved the way a renderer resolves it: a card in a list is a template, and
+    its relative bindings read the row the `List` it belongs to is bound to —
+    found from the list itself, not guessed from whichever rows arrived last.
+    """
+    del trip  # the data model already carries /trip
+    nodes = [(sid, node) for sid, message in drawn for node in components([message])]
+    lists = {
+        node["children"]["componentId"]: node["children"].get("path")
+        for _, node in nodes
+        if isinstance(node.get("children"), dict) and "componentId" in node["children"]
+    }
+    for surface_id, node in reversed(nodes):
         if kind_of(node) != wanted:
             continue
-        found = pressable([node], wanted, trip, data)
-        if found:
-            name, context = found
-            return {
-                "name": name,
-                "surfaceId": surface_id,
-                "sourceComponentId": str(node.get("id")),
-                "context": context,
-            }
+        event = (node.get("action") or {}).get("event") or {}
+        if not event.get("name"):
+            continue
+        rows = data.get(lists.get(node.get("id"), ""), [])
+        row = rows[0] if isinstance(rows, list) and rows and isinstance(rows[0], dict) else {}
+        context = {key: _resolve(value, row, data) for key, value in (event.get("context") or {}).items()}
+        if not any(value not in (None, "") for value in context.values()):
+            continue  # a placeholder card, before its rows arrived
+        return {
+            "name": event["name"],
+            "surfaceId": surface_id,
+            "sourceComponentId": str(node.get("id")),
+            "context": context,
+        }
     return None
 
 

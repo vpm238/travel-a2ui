@@ -641,7 +641,7 @@ class TestPressesTheHostAnswersItself:
         ],
     }
 
-    def _drop(self, client: TestClient, monkeypatch, day: int, index: int):
+    def _drop(self, client: TestClient, monkeypatch, day: int, index: int, held=None):
         called: dict[str, Any] = {"model": False}
 
         async def fake_turn(request):  # noqa: ANN001, ANN202
@@ -659,6 +659,7 @@ class TestPressesTheHostAnswersItself:
                     "surfaceId": "inline-3",
                     "context": {"day": day, "index": index},
                 },
+                **({"client": {"surfaces": held}} if held is not None else {}),
             },
             headers={"x-goog-api-key": "k"},
         )
@@ -688,10 +689,19 @@ class TestPressesTheHostAnswersItself:
         self, client: TestClient, monkeypatch
     ) -> None:
         """`updateDataModel`, which every client already applies."""
-        _, events = self._drop(client, monkeypatch, 0, 0)
+        _, events = self._drop(client, monkeypatch, 0, 0, held=["inline-3", "sidebar"])
         surfaces = {event["surfaceId"] for event in events if event["type"] == "ui"}
         assert "inline-3" in surfaces, "the surface they pressed on"
         assert "sidebar" in surfaces, "and the panel beside it"
+
+    def test_and_a_panel_nobody_drew_is_sent_nothing(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        """A2UI updates only surfaces that exist; see `finishing/lifecycle.py`."""
+        _, events = self._drop(client, monkeypatch, 0, 0, held=["inline-3"])
+        surfaces = {event["surfaceId"] for event in events if event["type"] == "ui"}
+        assert "inline-3" in surfaces
+        assert "sidebar" not in surfaces and "home" not in surfaces
 
     def test_an_emptied_day_stays(self, client: TestClient, monkeypatch) -> None:
         """An empty day is a rest day. Deleting the card would lose the date."""
@@ -798,3 +808,24 @@ class TestTheConversationStartsBeforeAnybodyTypes:
             **common,
         )
         assert empty == busy
+
+
+class TestTheWireViewDecompilesWithTheSdk:
+    def test_a_surface_comes_back_as_express(self, client: TestClient) -> None:
+        from travel_a2ui.brain.catalog import CATALOG_ID
+
+        message = {
+            "version": "1.0",
+            "createSurface": {
+                "surfaceId": "inline-1",
+                "catalogId": CATALOG_ID,
+                "components": [{"id": "root", "component": "Text", "text": "### Madrid"}],
+            },
+        }
+        response = client.post("/api/express", json={"messages": [message]})
+        assert response.status_code == 200, response.text
+        express = response.json()["express"]
+        assert 'surface("inline-1")' in express and "### Madrid" in express
+
+    def test_nothing_to_decompile_is_a_bad_request(self, client: TestClient) -> None:
+        assert client.post("/api/express", json={"messages": []}).status_code == 400

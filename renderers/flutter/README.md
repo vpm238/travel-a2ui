@@ -22,17 +22,24 @@ It is served at **`/flutter`** on the same deployment as everything else —
 
 ## What is *not* in here is the point
 
-Roughly 2,800 lines, and none of them are about travel:
+The SDK does the rendering. `a2ui_core`'s `MessageProcessor` holds the surfaces
+and their data models, its binder resolves every `@path` and `@call`, and
+`a2ui_flutter` draws them: `A2uiSurface` for a surface, and `basicCatalog()` for
+every basic component (Text, Row, Column, List, Card, Button, TextField, Slider,
+the rest) and every basic function. What is left here is short, and none of it
+is about what a trip is:
 
 | File | What it is |
 | --- | --- |
 | `main.dart` | the app shell and the theme |
 | `api.dart` | the turn: post a message, read the A2UI messages back |
-| `surface.dart` | surfaces by id, and the data model behind them |
-| `components.dart` | the widgets — the one file that knows a flight card has a price on it, and even here it only knows how to *draw* one |
-| `functions.dart` | the catalog's functions, implemented against the schema |
-| `catalog.dart` | loading the catalog the server names |
+| `catalog.dart` | the catalog document from `/api/catalog`, read by `Catalog.fromJson`, with an implementation for each entry |
+| `components.dart` | the fourteen travel views as `a2ui_flutter` `ComponentImplementation`s: the one file that knows a flight card has a price on it, and even here only how to *draw* one |
+| `functions.dart` | the two travel functions, `calcNights` and `equals` |
 | `chat.dart` | the conversation, and where each surface is placed |
+
+A catalog that offers a component or function none of these can draw is refused
+at startup, by name, rather than rendering a hole later.
 
 There is no list of trip fields. No code deciding when the panel needs
 redrawing. No sentence composed here to describe what somebody pressed. All of
@@ -50,7 +57,7 @@ layout the moment a search starts and fill in when the rows land.
 ```bash
 flutter run -d chrome                       # against a server on :8080
 flutter build web --release --base-href=/flutter/
-flutter test                                # render_test.dart
+flutter test                                # render_test.dart: every component's reference example, through the SDK
 ```
 
 The `--base-href` is not optional for a release build: the client is served

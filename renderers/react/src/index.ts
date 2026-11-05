@@ -1,20 +1,13 @@
-export { SurfaceStore, readPointer, writePointer, type Surface } from './store.js';
-export {
-  absolutePointer,
-  bindingPointer,
-  isAction,
-  isBinding,
-  isCallExpression,
-  isTemplate,
-  resolve,
-  resolveBoolean,
-  resolveNumber,
-  resolveText,
-  type ResolveScope,
-} from './binding.js';
-export { ariaOf, type AriaProps } from './accessibility.js';
-export { callFunction, isSafeUrl } from './functions.js';
-export { evaluateChecks, type CheckResult } from './checks.js';
-export { runAction, type A2uiEvent, type ComponentProps, type RenderContext } from './context.js';
-export { A2uiSurface, supportedComponents, useSurface, type A2uiSurfaceProps } from './Surface.js';
-export { Icon, type IconName, type IconProps } from './components/icons.js';
+/**
+ * The travel catalog for the A2UI SDK renderers.
+ *
+ * Render with `@a2ui/web_core`'s `MessageProcessor` and `@a2ui/react`'s
+ * `A2uiSurface`; this package supplies only what is travel: the catalog
+ * (`createTravelCatalog`), its client-side functions, Markdown for `Text`, and
+ * the stylesheet that themes the SDK's basic components and draws ours.
+ */
+
+export { createTravelCatalog, travelComponentNames, type CatalogDocument } from './catalog.js';
+export { calcNights, equals } from './functions.js';
+export { renderMarkdown } from './markdown.js';
+export { Icon, hasIcon, type IconName, type IconProps } from './components/icons.js';

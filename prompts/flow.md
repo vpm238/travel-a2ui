@@ -63,7 +63,7 @@ Nearly every *other* first message needs the same surface, and `Ask()` is it:
 
 <!-- draws:express -->
     <a2ui>
-    heading = Text("Madrid in April — two travellers, $2,500", variant="h3")
+    heading = Text("### Madrid in April — two travellers, $2,500")
     form = Ask("What is still missing?")
     root = Column([heading, form])
     </a2ui>

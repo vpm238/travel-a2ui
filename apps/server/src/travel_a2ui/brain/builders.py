@@ -362,7 +362,7 @@ async def _flights(args: dict[str, Any], provider: TravelProvider) -> Surface:
 
     lines = [
         f"surface({_q(surface_id)})",
-        f"head = Text({_q(heading)}, variant={_q('h4' if flow == 'home' else 'h3')})",
+        f"head = Text({_q(('#### ' if flow == 'home' else '### ') + heading)})",
     ]
     # Who is on *this* hop, which is not always who is on the trip.
     #
@@ -452,7 +452,7 @@ async def _hotels(args: dict[str, Any], provider: TravelProvider) -> Surface:
     heading = _str(args.get("heading")) or f"Stays in {place}"
     lines = [
         f"surface({_q(surface_id)})",
-        f"head = Text({_q(heading)}, variant={_q('h4' if flow == 'home' else 'h3')})",
+        f"head = Text({_q(('#### ' if flow == 'home' else '### ') + heading)})",
     ]
     # See the note on the fares: the rows, then the macro that draws them.
     rows = [
@@ -528,9 +528,6 @@ async def _controls(
         end = _dt.date.fromisoformat(end_date)
         nights = max(0, (end - start).days)
 
-    def rfc(date: str) -> str:
-        return f"{date}T00:00:00Z" if date else ""
-
     # Who is on each hop, which on a journey of more than one is not one number.
     #
     # This panel is composed here rather than by the model — it is what an MCP
@@ -569,12 +566,14 @@ async def _controls(
     surface_id = _surface_id_for(_flow_of(args), "mcp-sidebar", args)
     lines = [
         f"surface({_q(surface_id)})",
-        f"$/filters/start = {_q(rfc(start_date))}",
-        f"$/filters/end = {_q(rfc(end_date))}",
+        # Calendar dates, as the DateRangePicker's contract says: a trip day is
+        # a day, not a UTC instant.
+        f"$/filters/start = {_q(start_date or '')}",
+        f"$/filters/end = {_q(end_date or '')}",
         f"$/filters/travelers = {travelers}",
         f"$/filters/maxPrice = {max_price}",
         f"$/filters/stops = {_q('nonstop' if args.get('nonstopOnly') is True else 'any')}",
-        f"title = Text({_q(f'Refine {place}' if place else 'Refine the trip')}, variant=\"h3\")",
+        f"title = Text({_q(f'### Refine {place}' if place else '### Refine the trip')})",
         'dates = DateRangePicker("Travel dates", $/filters/start, $/filters/end, '
         f'action=Event("dates_changed"){nights_label})',
         *party_lines,
@@ -649,7 +648,7 @@ async def _itinerary(
 
     lines = [
         f"surface({_q(surface_id)})",
-        f"head = Text({_q(destination['city'])}, variant={_q('h4' if flow == 'home' else 'h2')})",
+        f"head = Text({_q(('#### ' if flow == 'home' else '## ') + destination['city'])})",
     ]
     day_vars: list[str] = []
 
@@ -724,8 +723,7 @@ async def _dashboard(
 
     lines = [
         'surface("mcp-home")',
-        f"head = Text({_q(f'{days_out} days to {place}' if days_out is not None else place)}, "
-        'variant="h1")',
+        f"head = Text({_q(f'# {days_out} days to {place}' if days_out is not None else f'# {place}')})",
         f't1 = StatTile("Travellers", {_q(str(travelers))}, caption={_q(f"{nights} nights")}, '
         'tone="neutral")',
         f't2 = StatTile("Estimated", {_q(estimate["total"])}, caption="all in", tone="accent")',
@@ -797,8 +795,7 @@ async def _price(args: dict[str, Any], provider: TravelProvider) -> Surface:
         express="\n".join(
             [
                 f"surface({_q(surface_id)})",
-                f"head = Text({_q(f'What {place} costs')}, "
-                f"variant={_q('h4' if flow == 'home' else 'h3')})",
+                f"head = Text({_q(('#### ' if flow == 'home' else '### ') + f'What {place} costs')})",
                 f"p = PriceSummary([{rows}], {_q(estimate['total'])}, "
                 'totalLabel="Trip total", caption="Estimated, taxes included")',
                 "root = Column([head, p])",

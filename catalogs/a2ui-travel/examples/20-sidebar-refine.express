@@ -3,7 +3,7 @@
 surface("sidebar")
 $/filters/maxPrice = 600
 $/filters/adults = 2
-title = Text("Refine", variant="h3")
+title = Text("### Refine")
 dates = DateRangePicker("Travel dates", $/filters/start, $/filters/end, action=Event("dates_changed"), nightsLabel="6 nights")
 who = TravelerCounter("Adults", $/filters/adults, min=1, max=8)
 budget = Slider("Max fare", 150, 1500, $/filters/maxPrice)

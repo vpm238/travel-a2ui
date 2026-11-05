@@ -528,7 +528,7 @@ class TestThePanel:
         """
         surface = (
             "<a2ui>\nsurface(\"sidebar\")\n"
-            'head = Text("Madrid", variant="h3")\nroot = Column([head])\n</a2ui>'
+            'head = Text("### Madrid")\nroot = Column([head])\n</a2ui>'
         )
         seen, client, _ = run_call(
             # Selecting a flight is a decision, so the shape moves.

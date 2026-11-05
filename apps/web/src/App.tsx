@@ -94,7 +94,10 @@ function useTheme() {
 export default function App() {
   const agent = useAgent();
   const { theme, setTheme } = useTheme();
-  const [view, setView] = useState<View>('chat');
+  // `/catalog` opens on the catalog: the reference has an address of its own.
+  const [view, setView] = useState<View>(() =>
+    window.location.pathname.replace(/\/$/, '') === '/catalog' ? 'catalog' : 'chat',
+  );
   const [showGate, setShowGate] = useState(false);
 
   const activeSkill = agent.meta?.skills.find((skill) => skill.variant === agent.prefs.skill);
@@ -104,7 +107,13 @@ export default function App() {
       <header className="topbar">
         <div className="topbar__brand">
           <span className="topbar__mark" aria-hidden>
-            🧭
+            {/* A route between two stops: what every surface here is about. */}
+            <svg viewBox="0 0 32 32" width="32" height="32">
+              <rect width="32" height="32" rx="9" />
+              <path d="M8.5 22.5c3-10 12-13 15-13" />
+              <circle cx="8.5" cy="22.5" r="2.6" />
+              <circle cx="23.5" cy="9.5" r="2.6" />
+            </svg>
           </span>
           <div>
             <strong>{agent.meta?.name ?? 'Travel A2UI'}</strong>

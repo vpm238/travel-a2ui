@@ -18,7 +18,7 @@
  */
 
 import { useState } from 'react';
-import { A2uiSurface, useSurface } from '@travel-a2ui/renderer';
+import { SurfaceView, useSurfaces } from './SurfaceView.js';
 
 import type { Agent } from '../useAgent.js';
 import { Spinner } from './bits.js';
@@ -39,8 +39,8 @@ export function Home({ agent }: { agent: Agent }) {
   // What makes it drawable is a `root` to render from, so that is what is
   // asked. Now a turn that draws nothing leaves the placeholder up, saying so
   // and offering the button again.
-  const surface = useSurface(agent.store, 'home');
-  const hasSurface = Boolean(surface?.components.has('root'));
+  useSurfaces(agent.store);
+  const hasSurface = agent.store.has('home');
   const canRun = Boolean(agent.apiKey) || Boolean(agent.meta?.keyProvided);
 
   /*
@@ -74,7 +74,7 @@ export function Home({ agent }: { agent: Agent }) {
 
       {hasSurface ? (
         <div className="home__surface">
-          <A2uiSurface store={agent.store} surfaceId="home" onEvent={agent.handleSurfaceEvent} />
+          <SurfaceView surfaces={agent.store} surfaceId="home" />
         </div>
       ) : (
         <div className="home__placeholder">

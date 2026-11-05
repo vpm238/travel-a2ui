@@ -10,7 +10,7 @@
  * purpose — see `Trip`.
  */
 
-import type { A2uiEvent } from '@travel-a2ui/renderer';
+import type { SurfacePress } from './surfaces.js';
 
 import type { SkillVariant, SurfaceAction } from './api.js';
 
@@ -202,6 +202,9 @@ export type ComponentLookup = (surfaceId: string, id: string) => Record<string, 
  * pointer is plumbing and is dropped, a key is split into words.
  */
 export function describeForTranscript(action: SurfaceAction, lookup?: ComponentLookup): string {
+  // The action's own sentence, when the surface wrote one: A2UI's `userMessage`
+  // is exactly "a user-facing message explaining the action".
+  if (action.userMessage?.trim()) return action.userMessage.trim();
   const label = lookup ? pressedLabel(action, lookup) : undefined;
   const said = Object.entries(action.context)
     .map(([key, value]) => [key, readable(value)] as const)
@@ -324,14 +327,16 @@ function sentenceCase(text: string): string {
   return text ? text[0]!.toUpperCase() + text.slice(1) : text;
 }
 
-export function actionFrom(event: A2uiEvent): SurfaceAction {
+/** A press from the SDK, as the action this app sends. */
+export function actionFrom(press: SurfacePress): SurfaceAction {
   return {
-    name: event.name,
-    surfaceId: event.surfaceId,
-    ...(event.source?.id ? { sourceComponentId: event.source.id } : {}),
-    timestamp: new Date().toISOString(),
-    context: event.context ?? {},
-    dataModel: event.dataModel ?? {},
+    name: press.name,
+    surfaceId: press.surfaceId,
+    ...(press.sourceComponentId ? { sourceComponentId: press.sourceComponentId } : {}),
+    ...(press.userMessage ? { userMessage: press.userMessage } : {}),
+    timestamp: press.timestamp || new Date().toISOString(),
+    context: press.context ?? {},
+    dataModel: press.dataModel ?? {},
   };
 }
 

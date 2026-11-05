@@ -8,6 +8,7 @@
     "composite": true,
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*"],
-  "references": [{ "path": "../../packages/express" }]
+  "include": [
+    "src/**/*"
+  ]
 }

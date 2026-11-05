@@ -1,176 +1,85 @@
-// The widgets. This is the only file in the client that knows what a trip
-// looks like — and even here, it knows only how to *draw* one.
+// The fourteen travel components, drawn in Flutter.
 //
-// Each builder receives properties that are already resolved: the core's binder
-// has walked the schema, followed every binding into the data model, run every
-// function call, and handed over plain values. So nothing here reads a path or
-// evaluates an expression, which is what keeps a component a component.
+// Everything else a surface can hold — Text, Row, Column, List, Card, Button,
+// the editors — is the A2UI SDK's own: `a2ui_flutter`'s basic catalog draws it,
+// and `catalog.dart` puts the two together. What is left here is only what the
+// basic catalog cannot know: what a flight, a hotel or a trip calendar looks
+// like.
 //
-// The one idea worth carrying from the React renderer is the pending state. A
-// binding whose path does not resolve is *pending*; a path resolving to an
-// empty string is *empty*. That distinction is not a convention invented here —
-// it falls out of the data model — and it is what lets a surface paint its
-// layout the moment a search starts and fill in when the rows land.
+// Each builder receives properties the SDK has already resolved. Its binder has
+// walked the schema, followed every binding into the data model, run every
+// function call and wrapped each action, so nothing here reads a path or
+// evaluates an expression.
+//
+// The one idea carried over from the React views is the pending state. A
+// binding whose path does not resolve yet is *pending*; a path resolving to an
+// empty string is *empty*. That is what lets a surface paint its layout the
+// moment a search starts and fill in when the rows land.
+
+import 'dart:async';
 
 import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/material.dart';
 
-/// What a builder is given: resolved properties, and a way to send an action.
-class ComponentBuild {
-  ComponentBuild({
-    required Map<String, dynamic> props,
-    required this.context,
-    required this.child,
-    required this.children,
-  })  : raw = props,
-        props = _unwrapped(props) as Map<String, dynamic>;
+/// The SDK's resolved properties, read the way the travel views read them.
+///
+/// A view over `ComponentProps`, not a second binder: every value here is one
+/// the SDK resolved, and every write and action goes back through the SDK's own
+/// `WritableBinding` and `NodeAction`.
+class TravelProps {
+  const TravelProps(this.props, this.buildChild);
 
-  /// Every resolved property, with the binder's wrappers taken off.
-  ///
-  /// `a2ui_core` 0.4 hands back a `ResolvedBinding` rather than the value
-  /// itself — `ResolvedBinding('Iberia')`, not `'Iberia'` — so that a writable
-  /// property can carry its own setter beside its current value. Every reader
-  /// in this file wants the value, and about a dozen of them index `props`
-  /// directly, so the wrapper comes off once here instead of at each of them.
-  ///
-  /// It was worth a day: `build.string('text')` called `toString()` on the
-  /// wrapper, so a Text drew the literal characters
-  /// `ResolvedBinding(Search flights)`; `number()` and `flag()` type-checked
-  /// against `num` and `true`, missed, and returned null and false. Nothing
-  /// threw. Buttons rendered captionless and disabled, prices blank, switches
-  /// off — a surface that was structurally perfect and said nothing.
-  final Map<String, dynamic> props;
+  final ComponentProps props;
+  final ChildWidgetBuilder buildChild;
 
-  /// The same properties as the binder gave them, wrappers intact.
-  ///
-  /// Only [write] needs this, to reach the setter a `WritableBinding` carries.
-  final Map<String, dynamic> raw;
-  final ComponentContext context;
+  /// A property as plain JSON, with any binding inside it resolved.
+  Object? operator [](String key) => _plain(props[key]);
 
-  /// Draws one child by id.
-  final Widget Function(String id) child;
-
-  /// Draws a property that holds a child list or a template.
-  final List<Widget> Function(String property) children;
-
-  /// One value, with any `ResolvedBinding` wrappers taken off, at any depth.
-  ///
-  /// Depth matters: a `ChoicePicker`'s `options` and a `DayPlan`'s `lines`
-  /// arrive as a list whose *elements* are wrapped, and a `MapView`'s markers
-  /// as a list of maps whose values are. Unwrapping only the top level leaves
-  /// those readers type-checking against `String` and finding a wrapper, so
-  /// the control draws an empty list rather than refusing to draw.
-  ///
-  /// A `ChildNode` passes through untouched — it is not a binding, and the
-  /// child-list walk in `surface.dart` matches on its exact type.
-  static Object? _unwrapped(Object? value) {
-    if (value is ResolvedBinding) return _unwrapped(value.value);
-    if (value is List) return [for (final item in value) _unwrapped(item)];
-    if (value is Map) {
-      return <String, dynamic>{
-        for (final entry in value.entries) '${entry.key}': _unwrapped(entry.value),
+  static Object? _plain(Object? value) {
+    final unwrapped = ComponentProps.unwrap(value);
+    if (unwrapped is List) return [for (final item in unwrapped) _plain(item)];
+    if (unwrapped is Map) {
+      return <String, Object?>{
+        for (final entry in unwrapped.entries) '${entry.key}': _plain(entry.value),
       };
     }
-    return value;
+    return unwrapped;
   }
 
-  String? string(String key) {
-    final value = props[key];
-    if (value == null) return null;
-    final text = value.toString();
-    return text.isEmpty ? '' : text;
-  }
+  String? string(String key) => props.string(key);
 
   num? number(String key) {
-    final value = props[key];
+    final value = props.value(key);
     if (value is num) return value;
     if (value is String) return num.tryParse(value);
     return null;
   }
 
-  bool flag(String key) => props[key] == true;
+  bool flag(String key) => props.value(key) == true;
 
-  /// True when a property is *waiting* rather than empty.
-  ///
-  /// The whole of the skeleton state rests on this. A price that has not
-  /// arrived is `null` because its path does not resolve; a price that is
-  /// genuinely blank is `''`. Treating them alike paints four flights with no
-  /// airline and no fare, which looks like an answer and is worse than a
-  /// spinner.
-  bool pending(String key) => !props.containsKey(key) || props[key] == null;
+  /// Bound to a path that has nothing at it yet.
+  bool pending(String key) => props.value(key) == null;
 
-  void send(String name, [Map<String, dynamic> payload = const {}]) {
-    context.dispatchAction({
-      'event': {'name': name, 'context': payload},
-    });
-  }
+  bool get hasAction => has('action');
 
-  /// Whether this component declares an action.
-  ///
-  /// The binder resolves an action property into a *closure* that dispatches
-  /// it, rather than into the map the message carried — so this asks whether
-  /// there is something to call. Reading it as a map instead finds nothing,
-  /// every button renders disabled, and the surface looks finished rather than
-  /// broken.
-  bool get hasAction => props['action'] is Function;
+  bool has(String key) => props.action(key) != null;
 
-  /// Whether some *other* action property is declared — `onRemove`, `onAdd`.
-  ///
-  /// A day plan is the one surface here that is a draft rather than a decision,
-  /// so its rows carry a second action beside the one that opens them. Sharing
-  /// a single gesture between "tell me more" and "get rid of it" is how a plan
-  /// loses a museum nobody meant to lose.
-  bool has(String key) => props[key] is Function;
+  void fire([String key = 'action']) => unawaited(props.action(key)?.call());
 
-  /// Fires the declared action: an event back to the agent, or a catalog
-  /// function run here in the renderer.
-  void fire([String key = 'action']) {
-    final declared = props[key];
-    if (declared is Function) declared();
-  }
+  /// Writes an edit back to the data model, through the SDK's binding.
+  void write(String key, Object? value) => props.writable(key)?.set(value);
 
-  /// Writes a value back into the data model at a bound path.
-  ///
-  /// Editors change the data model and send nothing. That is the interaction
-  /// model, not an optimisation: dragging a slider is somebody still answering,
-  /// and only a button means they are done.
-  void write(String key, Object? value) {
-    final binding = context.componentModel.properties[key];
-    // `@path` and `path`, because A2UI 1.0 renamed the binding key.
-    //
-    // 0.9 wrote `path`; 1.0 writes `@path`, and this read only the old
-    // spelling. The server emits 1.0 — so every editor on this client looked up
-    // `path`, found nothing, and wrote the traveller's answer nowhere at all.
-    // Silent in the worst way: the slider moves, the date picker closes, the
-    // counter counts, and the button then sends a data model that never heard
-    // about any of it.
-    //
-    // The same rename caught `tools/validate/journey.py`, which reported "0
-    // hop(s) ticketed" on trips the React client walks cleanly. Both spellings
-    // are accepted here for the same reason they are there: a renderer that
-    // reads one version of the wire and nothing else is a renderer that breaks
-    // on the next one.
-    // The setter the binder resolved, when it gave one.
-    //
-    // Preferred over looking the path up ourselves, and not only to avoid
-    // spelling it: inside a `_template` row the authored path is *relative*
-    // (`$price`, not `$/flights/2/price`), and only the binding knows which
-    // row it was resolved for. Writing the authored path straight to the data
-    // model put every row's answer in the same wrong place.
-    final resolved = raw[key];
-    if (resolved is WritableBinding) {
-      resolved.set(value);
-      return;
-    }
-
-    final path = binding is Map ? (binding['@path'] ?? binding['path']) : null;
-    if (path is String) {
-      context.surface.dataModel.set(path, value);
-    }
-  }
+  List<Widget> children(String key) => [for (final node in props.children(key)) buildChild(node)];
 }
 
-typedef ComponentBuilder = Widget Function(BuildContext, ComponentBuild);
+/// A travel view, as `a2ui_flutter` calls it.
+typedef TravelView = Widget Function(BuildContext context, TravelProps build);
+
+/// `yyyy-MM-dd`: the calendar date the DateRangePicker contract binds.
+String _calendarDate(DateTime day) =>
+    '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+
 
 /// A card the traveller can press.
 ///
@@ -214,7 +123,7 @@ class _Pending extends StatelessWidget {
 }
 
 /// Text, or a pending bar when what it is bound to has not arrived.
-Widget _bound(ComponentBuild build, String key, TextStyle? style, {double width = 64}) {
+Widget _bound(TravelProps build, String key, TextStyle? style, {double width = 64}) {
   if (build.pending(key)) return _Pending(width: width);
   return Text(build.string(key) ?? '', style: style);
 }
@@ -223,190 +132,7 @@ Widget _bound(ComponentBuild build, String key, TextStyle? style, {double width 
 // Layout and basics
 // ---------------------------------------------------------------------------
 
-Widget _text(BuildContext context, ComponentBuild build) {
-  final theme = Theme.of(context).textTheme;
-  final style = switch (build.string('variant')) {
-    'h1' => theme.headlineLarge,
-    'h2' => theme.headlineMedium,
-    'h3' => theme.titleLarge,
-    'h4' => theme.titleMedium,
-    'h5' => theme.titleSmall,
-    'caption' => theme.bodySmall?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
-    _ => theme.bodyMedium,
-  };
-  if (build.pending('text')) return const _Pending(width: 120);
-  return Text(build.string('text') ?? '', style: style);
-}
-
-Widget _column(BuildContext context, ComponentBuild build) {
-  return Column(
-    crossAxisAlignment: switch (build.string('align')) {
-      'center' => CrossAxisAlignment.center,
-      'end' => CrossAxisAlignment.end,
-      'stretch' => CrossAxisAlignment.stretch,
-      _ => CrossAxisAlignment.start,
-    },
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      for (final child in build.children('children'))
-        Padding(padding: const EdgeInsets.only(bottom: 8), child: child),
-    ],
-  );
-}
-
-Widget _row(BuildContext context, ComponentBuild build) {
-  return Row(
-    mainAxisAlignment: switch (build.string('justify')) {
-      'center' => MainAxisAlignment.center,
-      'end' => MainAxisAlignment.end,
-      'spaceBetween' => MainAxisAlignment.spaceBetween,
-      'spaceAround' => MainAxisAlignment.spaceAround,
-      'spaceEvenly' => MainAxisAlignment.spaceEvenly,
-      _ => MainAxisAlignment.start,
-    },
-    crossAxisAlignment: switch (build.string('align')) {
-      'center' => CrossAxisAlignment.center,
-      'end' => CrossAxisAlignment.end,
-      'stretch' => CrossAxisAlignment.stretch,
-      _ => CrossAxisAlignment.start,
-    },
-    children: [
-      for (final child in build.children('children'))
-        Flexible(child: Padding(padding: const EdgeInsets.only(right: 8), child: child)),
-    ],
-  );
-}
-
-Widget _list(BuildContext context, ComponentBuild build) => Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final child in build.children('children'))
-          Padding(padding: const EdgeInsets.only(bottom: 8), child: child),
-      ],
-    );
-
-Widget _card(BuildContext context, ComponentBuild build) => Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: build.children('children'),
-        ),
-      ),
-    );
-
-Widget _divider(BuildContext context, ComponentBuild build) => const Divider();
-
-Widget _button(BuildContext context, ComponentBuild build) {
-  // A Button's face is a *component*, not a string — the catalog says
-  // `Button(Text("Apply"), …)` — so the label is drawn by whatever that child
-  // turns out to be. `label` is accepted as well because a model writes it
-  // often enough, and refusing it would render an unlabelled button.
-  final children = build.children('child');
-  final Widget face = children.isNotEmpty
-      ? children.first
-      : Text(build.string('label') ?? build.string('text') ?? 'Continue');
-
-  final onPressed = build.hasAction ? build.fire : null;
-
-  return switch (build.string('variant') ?? build.string('style')) {
-    'borderless' => TextButton(onPressed: onPressed, child: face),
-    'secondary' => OutlinedButton(onPressed: onPressed, child: face),
-    _ => FilledButton(onPressed: onPressed, child: face),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Travel
-// ---------------------------------------------------------------------------
-
-/// The catalog's icon names, mapped to Material's.
-///
-/// The catalog names 59 icons in its own lower-camel spelling, which is the
-/// protocol's vocabulary and deliberately not any one toolkit's. Flutter did
-/// not draw `Icon` at all, so every one of them came out as a placeholder box —
-/// while the model was being told it could use them, because pruning removes
-/// `Divider` (which Flutter *can* draw) and keeps `Icon` (which it could not).
-///
-/// An unknown name falls through to a neutral dot rather than to nothing: a
-/// missing icon should leave the row the right shape.
-const Map<String, IconData> _iconNames = {
-  'accountCircle': Icons.account_circle,
-  'add': Icons.add,
-  'arrowBack': Icons.arrow_back,
-  'arrowForward': Icons.arrow_forward,
-  'attachFile': Icons.attach_file,
-  'calendarToday': Icons.calendar_today,
-  'call': Icons.call,
-  'camera': Icons.camera_alt,
-  'check': Icons.check,
-  'close': Icons.close,
-  'delete': Icons.delete,
-  'download': Icons.download,
-  'edit': Icons.edit,
-  'event': Icons.event,
-  'error': Icons.error,
-  'fastForward': Icons.fast_forward,
-  'favorite': Icons.favorite,
-  'favoriteOff': Icons.favorite_border,
-  'folder': Icons.folder,
-  'help': Icons.help,
-  'home': Icons.home,
-  'info': Icons.info,
-  'locationOn': Icons.location_on,
-  'lock': Icons.lock,
-  'lockOpen': Icons.lock_open,
-  'mail': Icons.mail,
-  'menu': Icons.menu,
-  'moreVert': Icons.more_vert,
-  'moreHoriz': Icons.more_horiz,
-  'notificationsOff': Icons.notifications_off,
-  'notifications': Icons.notifications,
-  'pause': Icons.pause,
-  'payment': Icons.payment,
-  'person': Icons.person,
-  'phone': Icons.phone,
-  'photo': Icons.photo,
-  'play': Icons.play_arrow,
-  'print': Icons.print,
-  'refresh': Icons.refresh,
-  'rewind': Icons.fast_rewind,
-  'search': Icons.search,
-  'send': Icons.send,
-  'settings': Icons.settings,
-  'share': Icons.share,
-  'shoppingCart': Icons.shopping_cart,
-  'skipNext': Icons.skip_next,
-  'skipPrevious': Icons.skip_previous,
-  'star': Icons.star,
-  'starHalf': Icons.star_half,
-  'starOff': Icons.star_border,
-  'stop': Icons.stop,
-  'upload': Icons.upload,
-  'visibility': Icons.visibility,
-  'visibilityOff': Icons.visibility_off,
-  'volumeDown': Icons.volume_down,
-  'volumeMute': Icons.volume_mute,
-  'volumeOff': Icons.volume_off,
-  'volumeUp': Icons.volume_up,
-  'warning': Icons.warning,
-};
-
-Widget _icon(BuildContext context, ComponentBuild build) {
-  final name = build.string('name') ?? '';
-  return Icon(
-    _iconNames[name] ?? Icons.circle,
-    size: 18,
-    color: Theme.of(context).colorScheme.onSurfaceVariant,
-  );
-}
-
-Widget _flightOption(BuildContext context, ComponentBuild build) {
+Widget _flightOption(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
   final badge = build.string('badge');
@@ -498,10 +224,10 @@ Widget _flightOption(BuildContext context, ComponentBuild build) {
   );
 }
 
-Widget _hotelCard(BuildContext context, ComponentBuild build) {
+Widget _hotelCard(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
-  final amenities = build.props['amenities'];
+  final amenities = build['amenities'];
 
   return _tappable(
     onTap: build.hasAction ? build.fire : null,
@@ -552,7 +278,7 @@ Widget _hotelCard(BuildContext context, ComponentBuild build) {
   );
 }
 
-Widget _statTile(BuildContext context, ComponentBuild build) {
+Widget _statTile(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
   final tone = build.string('tone');
@@ -583,7 +309,7 @@ Widget _statTile(BuildContext context, ComponentBuild build) {
   );
 }
 
-Widget _progressMeter(BuildContext context, ComponentBuild build) {
+Widget _progressMeter(BuildContext context, TravelProps build) {
   final text = Theme.of(context).textTheme;
   final value = build.number('value')?.toDouble() ?? 0;
   final total = build.number('total')?.toDouble() ?? 1;
@@ -610,9 +336,9 @@ Widget _progressMeter(BuildContext context, ComponentBuild build) {
   );
 }
 
-Widget _priceSummary(BuildContext context, ComponentBuild build) {
+Widget _priceSummary(BuildContext context, TravelProps build) {
   final text = Theme.of(context).textTheme;
-  final lines = build.props['lines'];
+  final lines = build['lines'];
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     mainAxisSize: MainAxisSize.min,
@@ -650,7 +376,7 @@ Widget _priceSummary(BuildContext context, ComponentBuild build) {
   );
 }
 
-Widget _itineraryDay(BuildContext context, ComponentBuild build) {
+Widget _itineraryDay(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
   return Container(
@@ -690,7 +416,7 @@ Widget _itineraryDay(BuildContext context, ComponentBuild build) {
   );
 }
 
-Widget _activityItem(BuildContext context, ComponentBuild build) {
+Widget _activityItem(BuildContext context, TravelProps build) {
   final text = Theme.of(context).textTheme;
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
@@ -727,9 +453,9 @@ Widget _activityItem(BuildContext context, ComponentBuild build) {
   );
 }
 
-Widget _weatherStrip(BuildContext context, ComponentBuild build) {
+Widget _weatherStrip(BuildContext context, TravelProps build) {
   final text = Theme.of(context).textTheme;
-  final days = build.props['days'];
+  final days = build['days'];
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisSize: MainAxisSize.min,
@@ -778,13 +504,13 @@ Widget _weatherStrip(BuildContext context, ComponentBuild build) {
 /// `TestNothingIsPromisedThatCannotBeDrawn`. A real map here means a web view
 /// factory over the same element, which needs the Flutter SDK to build and
 /// verify, so it is not something to write blind.
-Widget _googleMap(BuildContext context, ComponentBuild build) {
+Widget _googleMap(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
 
-  final markers = build.props['markers'];
-  final anchor = build.props['anchorMarker'];
-  final routes = build.props['routes'];
+  final markers = build['markers'];
+  final anchor = build['anchorMarker'];
+  final routes = build['routes'];
 
   String labelOf(Object? pin) {
     if (pin is Map) {
@@ -859,14 +585,14 @@ Widget _googleMap(BuildContext context, ComponentBuild build) {
   );
 }
 
-Widget _mapPreview(BuildContext context, ComponentBuild build) {
+Widget _mapPreview(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
   // `markers`, which is what the catalog calls them. This read `places` and
   // so found nothing, every time: the chips below have never drawn. Nothing
   // failed, because a missing prop is an empty map and an empty map is an
   // empty row of chips.
-  final places = build.props['markers'];
+  final places = build['markers'];
   return Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
@@ -901,124 +627,7 @@ Widget _mapPreview(BuildContext context, ComponentBuild build) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Editors — they change the data model and send nothing
-// ---------------------------------------------------------------------------
-
-Widget _textField(BuildContext context, ComponentBuild build) {
-  return _LiveTextField(build: build);
-}
-
-class _LiveTextField extends StatefulWidget {
-  const _LiveTextField({required this.build});
-
-  final ComponentBuild build;
-
-  @override
-  State<_LiveTextField> createState() => _LiveTextFieldState();
-}
-
-class _LiveTextFieldState extends State<_LiveTextField> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.build.string('text') ?? '');
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  void didUpdateWidget(_LiveTextField old) {
-    super.didUpdateWidget(old);
-    // The server seeds `/trip` into a surface as it is created, so a control
-    // opens showing what is already decided. Only adopt the incoming value when
-    // it differs, or every keystroke would fight the rebuild.
-    final incoming = widget.build.string('text') ?? '';
-    if (incoming != _controller.text && !_controller.selection.isValid) {
-      _controller.text = incoming;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      decoration: InputDecoration(
-        labelText: widget.build.string('label'),
-        border: const OutlineInputBorder(),
-        isDense: true,
-      ),
-      onChanged: (value) => widget.build.write('text', value),
-    );
-  }
-}
-
-Widget _checkBox(BuildContext context, ComponentBuild build) => CheckboxListTile(
-      contentPadding: EdgeInsets.zero,
-      controlAffinity: ListTileControlAffinity.leading,
-      dense: true,
-      value: build.flag('value'),
-      title: Text(build.string('label') ?? ''),
-      onChanged: (value) => build.write('value', value ?? false),
-    );
-
-Widget _slider(BuildContext context, ComponentBuild build) {
-  final min = build.number('min')?.toDouble() ?? 0;
-  final max = build.number('max')?.toDouble() ?? 100;
-  final value = (build.number('value')?.toDouble() ?? min).clamp(min, max).toDouble();
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Row(
-        children: [
-          Expanded(child: Text(build.string('label') ?? '')),
-          Text(value.round().toString()),
-        ],
-      ),
-      Slider(
-        min: min,
-        max: max,
-        value: value,
-        onChanged: (next) => build.write('value', next.round()),
-      ),
-    ],
-  );
-}
-
-Widget _choicePicker(BuildContext context, ComponentBuild build) {
-  final options = build.props['options'];
-  final selected = build.props['value'];
-  final multiple = build.string('selection') == 'multiple';
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      if (!build.pending('label')) Text(build.string('label') ?? ''),
-      const SizedBox(height: 4),
-      Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        children: [
-          if (options is List)
-            for (final option in options)
-              if (option is Map)
-                ChoiceChip(
-                  label: Text(option['label']?.toString() ?? ''),
-                  selected: multiple
-                      ? (selected is List && selected.contains(option['value']))
-                      : selected == option['value'],
-                  onSelected: (_) => build.write('value', option['value']),
-                ),
-        ],
-      ),
-    ],
-  );
-}
-
-Widget _travelerCounter(BuildContext context, ComponentBuild build) {
+Widget _travelerCounter(BuildContext context, TravelProps build) {
   final value = build.number('value')?.toInt() ?? 1;
   final min = build.number('min')?.toInt() ?? 1;
   final max = build.number('max')?.toInt() ?? 9;
@@ -1038,7 +647,7 @@ Widget _travelerCounter(BuildContext context, ComponentBuild build) {
   );
 }
 
-Widget _dateRangePicker(BuildContext context, ComponentBuild build) {
+Widget _dateRangePicker(BuildContext context, TravelProps build) {
   final text = Theme.of(context).textTheme;
   final start = build.string('start');
   final end = build.string('end');
@@ -1057,8 +666,8 @@ Widget _dateRangePicker(BuildContext context, ComponentBuild build) {
           : null,
     );
     if (range == null) return;
-    build.write('start', range.start.toIso8601String());
-    build.write('end', range.end.toIso8601String());
+    build.write('start', _calendarDate(range.start));
+    build.write('end', _calendarDate(range.end));
   }
 
   return _tappable(
@@ -1096,33 +705,9 @@ String _day(String? iso) {
   return '${parsed.day}/${parsed.month}';
 }
 
-Widget _dateTimeInput(BuildContext context, ComponentBuild build) {
-  final value = build.string('value');
-  return _tappable(
-    onTap: () async {
-      final now = DateTime.now();
-      final picked = await showDatePicker(
-        context: context,
-        firstDate: now,
-        lastDate: DateTime(now.year + 2),
-        initialDate: DateTime.tryParse(value ?? '') ?? now,
-      );
-      if (picked != null) build.write('value', picked.toIso8601String());
-    },
-    child: InputDecorator(
-      decoration: InputDecoration(
-        labelText: build.string('label'),
-        border: const OutlineInputBorder(),
-        isDense: true,
-      ),
-      child: Text((value == null || value.isEmpty) ? 'Choose a date' : _day(value)),
-    ),
-  );
-}
-
-Widget _expenseSplit(BuildContext context, ComponentBuild build) {
+Widget _expenseSplit(BuildContext context, TravelProps build) {
   final text = Theme.of(context).textTheme;
-  final people = build.props['people'];
+  final people = build['people'];
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     mainAxisSize: MainAxisSize.min,
@@ -1195,20 +780,20 @@ Widget _calendarGlyph(String name, Color colour, double size) {
   return Text(name, style: TextStyle(fontSize: size * 0.85, height: 1));
 }
 
-Widget _tripCalendar(BuildContext context, ComponentBuild build) {
+Widget _tripCalendar(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
   final locale = MaterialLocalizations.of(context);
 
-  final start = _civilDate(build.props['start']);
-  var end = _civilDate(build.props['end']);
+  final start = _civilDate(build['start']);
+  var end = _civilDate(build['end']);
   // No end, or one before the start, is a single day: a range being edited
   // passes through inverted, and vanishing at that moment is worse than
   // drawing the one day that is certainly true.
   if (start != null && (end == null || end.isBefore(start))) end = start;
 
   final marks = <String, (String, String)>{};
-  final rawMarks = build.props['marks'];
+  final rawMarks = build['marks'];
   if (rawMarks is List) {
     for (final mark in rawMarks) {
       if (mark is! Map) continue;
@@ -1414,66 +999,30 @@ Widget _calendarMonth(
   );
 }
 
-// ---------------------------------------------------------------------------
-// Components the catalog has and this client does not draw specially
-// ---------------------------------------------------------------------------
 
-Widget _placeholder(String name) => Builder(
-      builder: (context) {
-        final scheme = Theme.of(context).colorScheme;
-        return Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            border: Border.all(color: scheme.outlineVariant, style: BorderStyle.solid),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          // Named rather than blank. A component this client has not learned yet
-          // should be visibly missing, not invisibly missing — the second is how
-          // a gap in a surface gets mistaken for a gap in the answer.
-          child: Text(
-            '$name is not drawn by this client yet',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        );
-      },
-    );
-
-/// The builder for a component name.
-ComponentBuilder builderFor(String name) {
-  final builder = _builders[name];
-  if (builder != null) return builder;
-  return (context, build) => _placeholder(name);
-}
-
-/// Names this client draws with a real widget.
-Set<String> get drawnComponents => _builders.keys.toSet();
-
-final Map<String, ComponentBuilder> _builders = {
-  'Text': _text,
-  'Column': _column,
-  'Row': _row,
-  'List': _list,
-  'Card': _card,
-  'Divider': _divider,
-  'Icon': _icon,
-  'Button': _button,
-  'TextField': _textField,
-  'CheckBox': _checkBox,
-  'Slider': _slider,
-  'ChoicePicker': _choicePicker,
-  'DateTimeInput': _dateTimeInput,
+/// The travel views by component name.
+const Map<String, TravelView> travelViews = {
+  'ActivityItem': _activityItem,
   'DateRangePicker': _dateRangePicker,
-  'TravelerCounter': _travelerCounter,
+  'ExpenseSplit': _expenseSplit,
   'FlightOption': _flightOption,
+  'GoogleMap': _googleMap,
   'HotelCard': _hotelCard,
   'ItineraryDay': _itineraryDay,
-  'ActivityItem': _activityItem,
-  'GoogleMap': _googleMap,
   'MapPreview': _mapPreview,
   'PriceSummary': _priceSummary,
-  'StatTile': _statTile,
   'ProgressMeter': _progressMeter,
-  'WeatherStrip': _weatherStrip,
-  'ExpenseSplit': _expenseSplit,
+  'StatTile': _statTile,
+  'TravelerCounter': _travelerCounter,
   'TripCalendar': _tripCalendar,
+  'WeatherStrip': _weatherStrip,
 };
+
+/// A travel view as an `a2ui_flutter` component, against the catalog's schema.
+ComponentImplementation travelComponent(ComponentApi api, TravelView view) => ComponentImplementation(
+      name: api.name,
+      schema: api.schema,
+      allowedParents: api.allowedParents,
+      allowedChildren: api.allowedChildren,
+      builder: (context, node, props, buildChild) => view(context, TravelProps(props, buildChild)),
+    );

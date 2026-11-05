@@ -113,9 +113,9 @@ def test_the_stable_half_comes_first() -> None:
 class TestThePromptOnlyNamesComponentsTheModelHas:
     """A prompt may not recommend a component that pruning removed.
 
-    The catalog carries 30 components; the model is shown 24, because
-    `with_pruning` drops the ones a travel agent never needs (AudioPlayer,
-    Video, Modal, Tabs, Divider, Image). That is a large, cheap saving and it
+    The catalog carries 30 components; the model is shown 24, because the
+    SDK's pruning transformers drop the ones a travel agent never needs
+    (AudioPlayer, Video, Modal, Tabs, Divider, Image). That is a large, cheap saving and it
     has one sharp edge: the surface briefs are prose, written by hand, and
     nothing stopped one of them naming a component that is no longer there.
 

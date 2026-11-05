@@ -99,6 +99,7 @@ class TravelApi {
     String surfaceId = 'inline-1',
     String? model,
     String? skill,
+    List<String> surfaces = const [],
   }) async* {
     final request = http.Request('POST', _url('/api/chat'))
       ..headers['content-type'] = 'application/json'
@@ -118,7 +119,9 @@ class TravelApi {
       if (skill != null) 'skill': skill,
       // What day it is here. The server runs in UTC and would otherwise plan
       // "tomorrow" against its own calendar rather than the traveller's.
-      'client': {'today': _localToday()},
+      // The surfaces this client holds, so the server sends an update to one
+      // it already has instead of creating it a second time.
+      'client': {'today': _localToday(), 'surfaces': surfaces},
     });
 
     final response = await http.Client().send(request);

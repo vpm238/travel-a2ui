@@ -8,8 +8,7 @@
         {
           "id": "title",
           "component": "Text",
-          "text": "Who is travelling?",
-          "variant": "h3"
+          "text": "### Who is travelling?"
         },
         {
           "id": "name",
@@ -26,7 +25,7 @@
           "value": {
             "@path": "/traveler/email"
           },
-          "variant": "shortText"
+          "placeholder": "shortText"
         },
         {
           "id": "seat",

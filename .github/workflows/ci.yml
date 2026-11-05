@@ -97,6 +97,12 @@ jobs:
       - name: Skills are current
         run: npm run check:skills
 
+      # What the Catalog view shows: every component's signature and a working
+      # example, compiled by the SDK at build time instead of by a compiler
+      # shipped to the browser.
+      - name: The catalog reference is current
+        run: npm run check:reference
+
       # The prompt is assembled from markdown people edit on purpose, so its
       # golden is the one that is *meant* to move — and the one most likely to
       # be edited without being re-recorded. That is a failed build here rather
@@ -169,9 +175,10 @@ jobs:
           # Let Playwright use the browser it just installed.
           CHROMIUM_PATH: ''
 
-      # The component reference is generated from the catalog and the gallery
-      # build, so it goes stale the moment either changes — and a reference page
-      # that is quietly wrong is worse than no reference page. Here rather than
+      # The component reference is generated from the catalog and the web
+      # app's /catalog/<Name> pages, so it goes stale the moment either
+      # changes — and a reference page that is quietly wrong is worse than no
+      # reference page. Here rather than
       # beside the other `check:` steps because it needs the browser installed
       # above. It compares the generated markdown and that every screenshot
       # exists, not image bytes, so it does not flake on a font.
@@ -184,9 +191,10 @@ jobs:
     name: Parity with google/a2ui
     runs-on: ubuntu-latest
     # The reference SDK pulls in the whole ADK dependency tree, so it runs in
-    # its own job rather than slowing every build. It is the check that keeps
-    # the TypeScript compiler and the Python signature generator honest — a
-    # port nobody diffs is a fork.
+    # its own job rather than slowing every build. It keeps the Python
+    # signature generator honest against the latest reference. (There is no
+    # TypeScript compiler left to diff: the browser renders with @a2ui/web_core
+    # and every compile, at build time and at runtime, is the SDK's.)
     continue-on-error: true
     steps:
       - uses: actions/checkout@v5
@@ -204,15 +212,8 @@ jobs:
       - run: npm ci
 
       # The server package, then the SDK floated to whatever upstream has
-      # published. Both, because `scripts/gen_parity.py` now compiles through
-      # the server's own `parser_for` rather than assembling a second compiler
-      # of its own — it had drifted out of step with the SDK and stopped
-      # running at all, which froze every golden at a version nobody speaks.
-      #
-      # Installing the server pins the SDK to `apps/server/pyproject.toml`, so
-      # the upgrade after it is what keeps this job's whole point: the goldens
-      # are compared against the *latest* reference compiler, not the pinned
-      # one the blocking suite already uses.
+      # published: installing the server pins the SDK, so the upgrade after it
+      # is what compares the signature generator with the *latest* reference.
       - name: Install the reference A2UI SDK
         run: |
           python3 -m pip install --quiet pytest -e ./apps/server
@@ -221,22 +222,6 @@ jobs:
       - name: Signature generation matches the reference
         run: python3 -m pytest tools/tests/test_sdk_parity.py -q
 
-      # Compare the goldens against the *installed* reference compiler. This is
-      # what notices when upstream changes, which no offline test can.
-      #
-      # Reported rather than enforced, on purpose, and deliberately *unpinned*:
-      # this is the one step that is supposed to move when upstream does, which
-      # is the whole reason it exists.
-      #
-      # It was written when the published wheel was 0.5.0 and rejected keyword
-      # arguments outright, so the goldens could not match it and the job would
-      # have been red forever. 0.9.0 parses them — the host's own surface
-      # builders are written in them — so a mismatch here is now worth reading
-      # rather than worth ignoring. The enforcement still lives in
-      # packages/express/test/parity.test.ts, which is green and blocking.
-      - name: Compare the goldens with the installed reference compiler
-        run: |
-          python3 scripts/gen_parity.py --check | tee "$GITHUB_STEP_SUMMARY" || true
 
   flutter:
     name: The Flutter client
