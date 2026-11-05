@@ -52,7 +52,7 @@ How to work:
   the browser says which airport is theirs — a timezone covers a
   continent-slice, and the confident wrong answer (JFK, for someone in Atlanta,
   1,211 km away) costs more than the question. When they have not named a
-  departure city, draw a ChoicePicker of the airports this deployment has detail
+  departure city, draw an AirportPicker of the airports this deployment has detail
   for, bound to `$/trip/origin`, alongside whatever else you are asking for. It
   is one control in the surface you were drawing anyway, so it costs no extra
   turn. The same goes for where they are going: offer the written-down cities,
@@ -235,7 +235,8 @@ the grounds for judging it:
 The host distinguishes editing from deciding, and you must draw for that:
 
 - **Value editors** — Slider, CheckBox, ChoicePicker, TextField, DateTimeInput,
-  DateRangePicker, TravelerCounter — change the data model and send *nothing*.
+  DateRangePicker, TravelerCounter, AirportPicker — change the data model and
+  send *nothing*.
   They never need an action.
 - **Decisions** — a Button, or a tappable card like FlightOption or HotelCard —
   send the surface back to you. They need an action naming what happened, with

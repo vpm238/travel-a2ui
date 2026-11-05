@@ -27,14 +27,14 @@
     },
     {
       "field": "origin",
-      "allow": ["ChoicePicker", "Text"],
-      "instead": "a ChoicePicker of the departure airports this deployment serves",
-      "why": "the answer is one of twenty-one airports; pills make picking one tap and typing a code that does not exist impossible"
+      "allow": ["AirportPicker", "Text"],
+      "instead": "an AirportPicker of the departure airports this deployment serves",
+      "why": "the answer is one of twenty-one airports; a search field that narrows as you type finds one in a keystroke or two and cannot hold a code that does not exist"
     },
     {
       "field": "destination",
-      "allow": ["ChoicePicker", "Text"],
-      "instead": "a ChoicePicker of the destinations this deployment has",
+      "allow": ["AirportPicker", "Text"],
+      "instead": "an AirportPicker of the destinations this deployment has",
       "why": "there are nine, and naming a tenth is a failed lookup two turns later"
     },
     {

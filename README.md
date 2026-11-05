@@ -485,8 +485,10 @@ that is to replace them. In rough order of effort:
 
 **Swap the catalog.** `catalogs/a2ui-travel/catalog.json` is the vocabulary: one
 JSON Schema entry per component. Add `InvoiceLine` beside `FlightOption`, write
-the React function in `renderers/react/src/components/`, register it, and the
-model can draw invoices. [`docs/catalog.md`](docs/catalog.md) is generated from
+its view in `renderers/react/src/components/travel.tsx` (and
+`renderers/flutter/lib/components.dart`), add it to `TRAVEL_VIEWS`, and the
+model can draw invoices. A client that cannot draw a component the catalog
+offers refuses the catalog at startup, by name. [`docs/catalog.md`](docs/catalog.md) is generated from
 that file — every component pictured as the renderer actually draws it, with the
 one line of Express that produced it — so it is also the shape to copy.
 
@@ -711,12 +713,13 @@ both and serves the clients. When a door starts wanting to know what a trip is,
 that knowledge
 belongs in the brain and the door should be asking for it.
 
-The **renderers** draw A2UI, send actions back, and wait for the next A2UI.
-Neither holds travel logic, catalog knowledge, or any opinion about what a trip
-is — which is the whole test of whether this is really A2UI. The React renderer
-core (`binding`, `store`, `checks`, `functions`) mentions a trip only in its
-comments, and the Flutter client is a second implementation of the same
-protocol rather than a port of the first.
+The **renderers** draw A2UI, send actions back, and wait for the next A2UI, and
+they are the official SDKs: `@a2ui/react` over `@a2ui/web_core` in the browser,
+`a2ui_flutter` over `a2ui_core` in Flutter. Each SDK holds the surfaces, resolves
+every binding and function call, and draws the basic components. What this
+repository adds is a catalog: fourteen travel views and two functions
+(`calcNights`, `equals`), the same on both clients. Neither holds travel logic or
+any opinion about what a trip is.
 
 That constraint is the one to defend when changing anything here: **maximise
 server-side agency, minimise client-side logic, so one agent drives thin,
@@ -735,7 +738,7 @@ shipping quietly:
 
 | Generated | From | Regenerate |
 |---|---|---|
-| `catalogs/a2ui-travel/catalog.json` | the vendored upstream basic catalog + travel components | `python3 scripts/build_catalog.py` |
+| `catalogs/a2ui-travel/catalog.json` | the SDK's v1.0 basic catalog, `derive`d with the travel components | `python3 scripts/build_catalog.py` |
 | `catalogs/a2ui-travel/examples/compiled/*.json` | the `.express` examples | `python3 scripts/build_examples.py` |
 | `skills/**/SKILL.md` | the catalog, via the SDK's `SkillGenerator` | `python3 scripts/build_skills.py` |
 
@@ -828,22 +831,11 @@ Three properties make it worth a compiler:
 - **Variables are ids.** The model does not have to invent an id for every
   nested component and then remember it.
 
-[`packages/express`](packages/express) is a TypeScript port of the reference
-implementation in [google/a2ui](https://github.com/google/a2ui) — lexer, parser,
-compiler, decompiler and a streaming front end, with no ANTLR runtime, so it runs
-in a browser tab.
-
-**It is diffed against the original.** Twenty cases in `tools/parity/cases` are
-compiled by both this and Google's Python compiler and asserted equal. When they
-disagree, the golden is right and the port is wrong. Same story on the Python
-side: `skillgen`'s signature output is asserted byte-identical to the reference
-prompt generator's.
-
-```bash
-pip install a2ui-agent-sdk
-python3 scripts/gen_parity.py          # regenerate the goldens
-npx vitest run packages/express        # 64 tests, including all 20 parity cases
-```
+The server compiles it with the official A2UI Python SDK (`a2ui-agent-sdk`):
+`ExpressParser` and its streaming `open_stream()`, which heals a half-written
+string and holds a component until its value arrives. The Wire view's Express
+is the SDK's `ExpressDecompiler`, served at `POST /api/express`. Nothing here
+reimplements the compiler.
 
 ## Layout
 
@@ -852,23 +844,20 @@ travel-a2ui/
 ├── data/                       the facts: destinations, airlines, lodging, tool contracts
 ├── prompts/                    what the agent is told: its role, and each surface's brief
 ├── catalogs/
-│   ├── basic/                  vendored A2UI v0.9.1 basic catalog
-│   └── a2ui-travel/            generated: basic + 14 travel components, and the examples
+│   └── a2ui-travel/            generated: the SDK's v1.0 basic catalog derived, + 14 travel components
 ├── apps/
 │   ├── server/                 ★ the whole backend: brain/ and doors/
-│   ├── web/                    React client: the three flows, the catalog and the wire inspector
-│   └── gallery/                every component drawn on its own, with the Express that made it
+│   └── web/                    React client: the flows, /catalog, and the wire inspector
 ├── renderers/
-│   ├── react/                  React host for both catalogs, and the design system
-│   └── flutter/                a second implementation of the same protocol, not a port
-├── packages/
-│   └── express/                the TypeScript Express port: lexer, parser, compiler, decompiler
+│   ├── react/                  the travel catalog for @a2ui/react: 14 views, 2 functions, the design
+│   └── flutter/                the same catalog for a2ui_flutter
 ├── tools/
 │   ├── parity/                 the goldens, and the scripts that write them
+│   ├── sample/                 records the sample trip a first visit opens on
 │   ├── e2e/                    a whole browser turn against a scripted model
 │   ├── eval/                   the flows graded against a real model, mechanically
 │   └── screenshots/            the README's pictures and docs/catalog.md, reproducibly
-├── scripts/                    setup, generation, parity, and repo extraction
+├── scripts/                    setup, generation, and repo extraction
 ├── docs/
 │   ├── catalog.md              every component, pictured — generated, never written
 │   ├── user-flows.md           the flows, and which rules are code rather than prompt
@@ -911,18 +900,12 @@ and the trip model used to live here too; it is gone, and the goldens in
 `tools/parity/` are what made retiring it a non-event — they still pin the
 behaviour, now over one implementation rather than two.
 
-`packages/express` is what is left of the TypeScript, and it is no longer in the
-agent's path: the server compiles Express with the official Python SDK. The two
-pages that still use it — the protocol view and the component page — compile in
-the browser to *show* the round trip, which is the one place a second
-implementation earns its keep.
-
 ---
 
 ## Tests
 
 ```bash
-npm test                              # TypeScript: the compiler and the renderer
+npm test                              # TypeScript: the travel catalog and the SDK adapter
 npm run check                         # every generated artifact and every golden
 python3 -m pytest apps/server/tests   # the Python server
 python3 -m pytest tools/tests         # the build tooling
@@ -953,7 +936,7 @@ and CI fails if you forget.
 | `tools.json` | the tools' *manners* — how a refusal is worded, which stop of a route a call is about |
 | `builders.json` | the six server-composed layouts, as Express, including the refusals |
 | `prompt.json` | the whole system prompt, byte for byte, across seven trips and three surfaces |
-| `skeleton.json` | the compiled skeleton — which also proves the two Express compilers agree |
+| `skeleton.json` | the compiled skeleton the host pre-draws, which the Flutter tests render |
 | `finishing.json` | the four passes the server makes over a surface before it goes out |
 
 One of them earned its keep the day this paragraph was written, in a way worth
@@ -972,18 +955,19 @@ a faithful port was the thing that surfaced them.
 
 ### What the rest cover
 
-- **Parity** — 20 Express programs compiled by both implementations, plus a
-  compile → decompile → compile round trip for each.
 - **Streaming** — sentinels split across chunks, partial trees rendering, syntax
-  errors reported only once a block is finished. Twice: once in TypeScript, once
-  in Python.
+  errors reported only once a block is finished.
+- **The SDK assembly** — that each client can draw every component the catalog
+  offers, that the basic ones are the SDK's own, and, in Flutter, that every
+  component's SDK-compiled reference example renders.
 - **The agent loop** — against a scripted model, because everything that goes
   wrong in a turn is about *order* and none of it throws: that a surface paints
   before the turn ends, that the skeleton goes out before the tool runs and the
   fill after it, that a value the traveller set reaches the trip without the
   model being asked, and that parallel tool results come back in one message.
-- **The host** — data binding, list templates, client-side checks, and that a
-  re-sent component replaces rather than duplicates.
+- **The surface lifecycle** — each surface created once, updates only to
+  surfaces that exist, and a whole recorded conversation accepted by
+  `@a2ui/web_core` with nothing refused.
 - **The skills** — that the model-facing fields leak no implementation detail,
   that the modular pair covers the monolith, and that no skill ships a script.
 - **Every catalog function** — driven from `catalog.json` rather than from the
@@ -994,7 +978,7 @@ a faithful port was the thing that surfaced them.
   tool hands the model a summary rather than the flight list.
 - **End to end** — a real browser: type a message, watch a surface appear
   mid-stream, click a flight, and assert the click reaches the model as the next
-  turn with the surface's data model attached.
+  turn with the surface's data model attached (`sendDataModel`).
 
 ---
 
@@ -1047,8 +1031,8 @@ alternative to knowing:
 
 Apache-2.0. See [NOTICE](NOTICE).
 
-Built on [A2UI](https://a2ui.org) by Google. The Express compiler and the
-signature generator are ports of the reference implementations in
-[google/a2ui](https://github.com/google/a2ui) (Apache-2.0), kept honest by the
-parity suites described above. The basic component catalog is vendored from that
-repository's `specification/v0_9_1`.
+Built on [A2UI](https://a2ui.org) by Google and its official SDKs from
+[google/a2ui](https://github.com/google/a2ui) (Apache-2.0): `a2ui-agent-sdk` on
+the server, `@a2ui/react` and `@a2ui/web_core` in the browser, and
+`a2ui_flutter` and `a2ui_core` in Flutter. The basic component catalog is the
+SDK's v1.0 catalog.

@@ -59,13 +59,14 @@ _TRIP: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar("trip", d
 
 #: The airports this deployment can offer, for the pickers `Ask()` draws.
 #:
-#: Here rather than passed as a macro argument because `ChoicePicker.options`
+#: Here rather than passed as a macro argument because `AirportPicker.options`
 #: is a static array in the schema — not a `DynamicStringList` — so the choices
 #: have to exist when the macro expands, not when the surface renders. And the
 #: agent cannot supply them: it would have to call a tool to find out what this
 #: provider flies, on the one turn where it already has the least to go on.
 #:
-#: Shape: `{"from": [{"value": "CPH", "label": "Copenhagen · CPH"}, …], "to": […]}`
+#: Shape: `{"from": [{"value": "CPH", "label": "Copenhagen", "code": "CPH",
+#: "detail": "Europe"}, …], "to": […]}`
 _AIRPORTS: contextvars.ContextVar[dict[str, list[dict[str, str]]]] = contextvars.ContextVar(
     "airports", default={}
 )
@@ -673,22 +674,30 @@ def currency_for(destinations: Sequence[dict[str, Any]], trip: dict[str, Any]) -
 def airport_choices(
     origins: Sequence[dict[str, Any]], destinations: Sequence[dict[str, Any]]
 ) -> dict[str, list[dict[str, str]]]:
-    """The provider's two lists, as `ChoicePicker` options for `Ask()`.
+    """The provider's two lists, as `AirportPicker` options for `Ask()`.
 
     Pure, and takes the lists rather than the provider, so the awaiting happens
     once in the door and this stays testable without one.
 
-    Labelled "Copenhagen · CPH" both ways, because a traveller knows the city
-    and may not know the code. What each one *stores* differs, and follows the
-    field rather than the control: `origin` is "three-letter code", so the
+    Each option names the city, the code and a second line (the country for a
+    destination, the region for an origin), because a traveller searches by
+    city and may not know the code. What each one *stores* differs, and follows
+    the field rather than the control: `origin` is "three-letter code", so the
     option stores CPH; `destination` is "city or airport", and the city is what
     the panel heading, the prose and every later lookup read better — a trip
     stored as "→ MAD" says MAD everywhere a person expects Madrid.
     """
 
-    def label(code: Any, city: Any) -> str:
-        code, city = str(code or "").strip(), str(city or "").strip()
-        return f"{city} · {code}" if city and code else city or code
+    def option(value: str, city: str, code: str, detail: Any) -> dict[str, str]:
+        made = {"value": value, "label": city or code}
+        if code:
+            made["code"] = code
+        said = str(detail or "").strip()
+        if said.islower():  # a slug, "north-america", rather than a name
+            said = " ".join(word.capitalize() for word in said.split("-") if word)
+        if said:
+            made["detail"] = said
+        return made
 
     out: dict[str, list[dict[str, str]]] = {"from": [], "to": []}
     for entry in origins or ():
@@ -696,14 +705,15 @@ def airport_choices(
             continue
         code = str(entry.get("code") or "").strip()
         if code:
-            out["from"].append({"value": code, "label": label(code, entry.get("city"))})
+            city = str(entry.get("city") or "").strip()
+            out["from"].append(option(code, city, code, entry.get("region")))
     for entry in destinations or ():
         if not isinstance(entry, dict):
             continue
         city = str(entry.get("city") or "").strip()
         code = str(entry.get("airport") or "").strip()
         if city or code:
-            out["to"].append({"value": city or code, "label": label(code, city)})
+            out["to"].append(option(city or code, city, code, entry.get("country")))
     return out
 
 
@@ -1396,15 +1406,15 @@ class OneDate(ComponentBuilderNode):
     value: Any = None
 
 
-class Choices(ComponentBuilderNode):
-    """One of a known set — an airport this deployment actually flies."""
+class Place(ComponentBuilderNode):
+    """Where from or where to: a place this deployment actually flies."""
 
-    component: str = "ChoicePicker"
+    component: str = "AirportPicker"
     label: Any = None
-    variant: Any = None
-    options: Any = None
     value: Any = None
-    filterable: Any = None
+    options: Any = None
+    kind: Any = None
+    placeholder: Any = None
 
 
 @macro
@@ -1467,30 +1477,32 @@ def ask(heading: str = "", label: str = "Find flights") -> Column:
     # disappeared. They could say Berlin out loud and had nowhere to say
     # Copenhagen.
     #
-    # A picker rather than a text field because an airport typed wrong is a
-    # lookup that finds nothing, and this deployment knows exactly which ones
-    # it flies. `mutuallyExclusive`, so the renderer writes the code itself
-    # rather than a list of one.
+    # A search field with a type-ahead list rather than a text box, because an
+    # airport typed wrong is a lookup that finds nothing and this deployment
+    # knows exactly which ones it flies; and rather than a `ChoicePicker`,
+    # because that is a column of radio buttons, twenty-one deep for "Where
+    # from?".
     airports = _AIRPORTS.get() or {}
     # `asks`, not `label`: this loop used to bind its own `label` and so
     # shadowed the *button's* label, which is a parameter of this function. The
     # loop left it holding "Flying from" — the last entry below — and the submit
     # button at the bottom of the form rendered that instead of "Find flights".
     # Only when a picker was drawn at all, which is most opening turns.
-    for key, choices, asks in (
-        ("destination", airports.get("to") or [], "Where to"),
-        ("origin", airports.get("from") or [], "Flying from"),
+    # From before to, the order every flight search asks them in.
+    for key, choices, asks, kind in (
+        ("origin", airports.get("from") or [], "Where from?", "origin"),
+        ("destination", airports.get("to") or [], "Where to?", "destination"),
     ):
         if settled(key) or not choices:
             continue
         path = model.binding_for(key)
         rows.append(
-            Choices(
+            Place(
                 label=asks,
-                variant="mutuallyExclusive",
-                options=choices,
                 value=bind(path),
-                filterable=len(choices) > 8,
+                options=choices,
+                kind=kind,
+                placeholder="City or airport",
             )
         )
 

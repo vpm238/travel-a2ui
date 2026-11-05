@@ -458,6 +458,43 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
         },
         required=["lines", "total"],
     ),
+    #: Where from, where to — as a flight search asks it.
+    #:
+    #: It was a `ChoicePicker` of airports, which the basic catalog draws as a
+    #: column of radio buttons: twenty-one of them for "Flying from", read top
+    #: to bottom to find your city. A search field that narrows as you type is
+    #: the control every flight site uses for exactly this question, and it
+    #: still cannot hold an airport this deployment does not fly.
+    "AirportPicker": component(
+        "AirportPicker",
+        "A search field for one place — where the trip leaves from or goes to —"
+        " with a type-ahead list of the places this deployment serves. Use it"
+        " for an origin or a destination; never a ChoicePicker of airports.",
+        {
+            "label": dyn_str("The question, e.g. 'Where from?'."),
+            "value": dyn_str(
+                "Bound path the chosen option's `value` is written to, e.g."
+                " `$/trip/origin`."
+            ),
+            "options": static_list_of(
+                "Every place that may be chosen. Static values only.",
+                {
+                    "value": "What is stored when chosen, e.g. 'JFK' or 'Madrid'.",
+                    "label": "The place as a person names it, e.g. 'New York'.",
+                    "code": "Its airport code, e.g. 'JFK'.",
+                    "detail": "A second line, e.g. 'Spain' or 'North America'.",
+                },
+            ),
+            "kind": enum(
+                "Which end of the trip this is; sets the icon.",
+                ["origin", "destination"],
+                "origin",
+            ),
+            "placeholder": dyn_str("Hint in the empty field, e.g. 'City or airport'."),
+        },
+        required=["label", "value", "options"],
+        checkable=True,
+    ),
     "DateRangePicker": component(
         "DateRangePicker",
         "Picks the trip's start and end dates. Both bound values are ISO 8601"

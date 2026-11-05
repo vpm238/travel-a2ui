@@ -303,8 +303,14 @@ class TestThePanelDrawsOnlyWhatIsSettled:
 
 
 AIRPORTS = {
-    "from": [{"value": "CPH", "label": "Copenhagen · CPH"}, {"value": "JFK", "label": "New York · JFK"}],
-    "to": [{"value": "Berlin", "label": "Berlin · BER"}, {"value": "Madrid", "label": "Madrid · MAD"}],
+    "from": [
+        {"value": "CPH", "label": "Copenhagen", "code": "CPH", "detail": "Europe"},
+        {"value": "JFK", "label": "New York", "code": "JFK", "detail": "North America"},
+    ],
+    "to": [
+        {"value": "Berlin", "label": "Berlin", "code": "BER", "detail": "Germany"},
+        {"value": "Madrid", "label": "Madrid", "code": "MAD", "detail": "Spain"},
+    ],
 }
 
 
@@ -332,26 +338,28 @@ class TestAskHasSomewhereToSayWhereFrom:
     def pickers(self, record: dict[str, Any], **kw: Any) -> dict[str, dict[str, Any]]:
         found = {}
         for node in asked(record, **kw):
-            if node.get("component") == "ChoicePicker":
+            if node.get("component") == "AirportPicker":
                 found[str(node.get("label"))] = node
         return found
 
     def test_an_empty_trip_is_asked_both(self) -> None:
-        assert set(self.pickers({})) == {"Where to", "Flying from"}
+        assert set(self.pickers({})) == {"Where to?", "Where from?"}
 
     def test_each_writes_to_its_own_field(self) -> None:
         pickers = self.pickers({})
-        assert pickers["Where to"]["value"] == {"@path": "/trip/destination"}
-        assert pickers["Flying from"]["value"] == {"@path": "/trip/origin"}
+        assert pickers["Where to?"]["value"] == {"@path": "/trip/destination"}
+        assert pickers["Where from?"]["value"] == {"@path": "/trip/origin"}
 
-    def test_one_at_a_time_rather_than_a_set(self) -> None:
-        """`mutuallyExclusive`, so the renderer writes the value, not `[value]`."""
-        for picker in self.pickers({}).values():
-            assert picker["variant"] == "mutuallyExclusive"
+    def test_a_search_field_not_a_list_of_radio_buttons(self) -> None:
+        """An `AirportPicker`, whose `kind` sets the end of the trip it asks for."""
+        pickers = self.pickers({})
+        assert pickers["Where from?"]["kind"] == "origin"
+        assert pickers["Where to?"]["kind"] == "destination"
+        assert all(picker["options"] for picker in pickers.values())
 
     def test_what_is_known_is_not_asked_again(self) -> None:
-        assert set(self.pickers({"destination": "Berlin"})) == {"Flying from"}
-        assert set(self.pickers({"origin": "CPH"})) == {"Where to"}
+        assert set(self.pickers({"destination": "Berlin"})) == {"Where from?"}
+        assert set(self.pickers({"origin": "CPH"})) == {"Where to?"}
         assert self.pickers({"destination": "Berlin", "origin": "CPH"}) == {}
 
     def test_one_button_sends_both_answers(self) -> None:
@@ -377,33 +385,29 @@ class TestAskHasSomewhereToSayWhereFrom:
         assert self.pickers({}, airports={}) == {}
         assert self.pickers({}, airports=None) == {}
 
-    def test_a_long_list_is_searchable_and_a_short_one_is_not(self) -> None:
-        many = {"from": [{"value": f"A{n}", "label": f"A{n}"} for n in range(12)], "to": []}
-        assert self.pickers({"destination": "Berlin"}, airports=many)["Flying from"]["filterable"] is True
-        few = {"from": AIRPORTS["from"], "to": []}
-        assert self.pickers({"destination": "Berlin"}, airports=few)["Flying from"]["filterable"] is False
-
-
 class TestWhatTheOptionsStore:
     def test_an_origin_stores_its_code_because_the_field_is_a_code(self) -> None:
         from travel_a2ui.brain.macros import airport_choices
 
         made = airport_choices([{"code": "CPH", "city": "Copenhagen"}], [])
-        assert made["from"] == [{"value": "CPH", "label": "Copenhagen · CPH"}]
+        assert made["from"] == [{"value": "CPH", "label": "Copenhagen", "code": "CPH"}]
 
     def test_a_destination_stores_its_city_because_the_panel_reads_it(self) -> None:
         """A trip stored as "→ MAD" says MAD everywhere a person expects Madrid."""
         from travel_a2ui.brain.macros import airport_choices
 
         made = airport_choices([], [{"city": "Madrid", "airport": "MAD"}])
-        assert made["to"] == [{"value": "Madrid", "label": "Madrid · MAD"}]
+        assert made["to"] == [{"value": "Madrid", "label": "Madrid", "code": "MAD"}]
 
-    def test_both_labels_name_the_city_and_the_code(self) -> None:
+    def test_each_names_the_city_the_code_and_where_it_is(self) -> None:
         from travel_a2ui.brain.macros import airport_choices
 
-        made = airport_choices([{"code": "CPH", "city": "Copenhagen"}], [{"city": "Berlin", "airport": "BER"}])
-        assert made["from"][0]["label"] == "Copenhagen · CPH"
-        assert made["to"][0]["label"] == "Berlin · BER"
+        made = airport_choices(
+            [{"code": "CPH", "city": "Copenhagen", "region": "europe"}],
+            [{"city": "Berlin", "airport": "BER", "country": "Germany"}],
+        )
+        assert made["from"][0] == {"value": "CPH", "label": "Copenhagen", "code": "CPH", "detail": "Europe"}
+        assert made["to"][0] == {"value": "Berlin", "label": "Berlin", "code": "BER", "detail": "Germany"}
 
     def test_a_row_with_nothing_usable_is_dropped(self) -> None:
         from travel_a2ui.brain.macros import airport_choices

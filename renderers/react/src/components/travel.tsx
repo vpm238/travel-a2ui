@@ -13,7 +13,7 @@
  * and a day look like.
  */
 
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { monthLabel, monthsFor, parseCivil, toIso, weekStartFor, weekdayLetters } from '../calendar.js';
 import { Icon, hasIcon } from './icons.js';
@@ -506,6 +506,165 @@ export function DateRangePicker({ props }: ViewProps) {
   );
 }
 
+interface Place {
+  value: string;
+  label: string;
+  code: string;
+  detail: string;
+}
+
+/** Best first: a code typed exactly, then names that start with what was typed. */
+function placesMatching(places: Place[], query: string): Place[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return places;
+  const score = (place: Place) => {
+    const code = place.code.toLowerCase();
+    const label = place.label.toLowerCase();
+    if (code === needle) return 0;
+    if (label.startsWith(needle)) return 1;
+    if (code.startsWith(needle)) return 2;
+    if (label.split(/[\s·,-]+/).some((word) => word.startsWith(needle))) return 3;
+    if (`${label} ${code} ${place.detail} ${place.value}`.toLowerCase().includes(needle)) return 4;
+    return -1;
+  };
+  return places
+    .map((place, index) => ({ place, index, rank: score(place) }))
+    .filter((entry) => entry.rank >= 0)
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((entry) => entry.place);
+}
+
+/**
+ * Where from, where to: a search field with a type-ahead list, the way a
+ * flight search asks it. An ARIA combobox — type to narrow, arrows to move,
+ * Enter to choose, Escape to close — that writes the chosen place's `value`
+ * through the SDK's binding and sends nothing, like every other editor.
+ */
+export function AirportPicker({ props }: ViewProps) {
+  const places: Place[] = rows(props['options']).map((option) => ({
+    value: text(option['value']),
+    label: text(option['label']) || text(option['value']),
+    code: text(option['code']),
+    detail: text(option['detail']),
+  }));
+  const value = text(props['value']);
+  const set = typeof props['setValue'] === 'function' ? props['setValue'] : null;
+  const chosen = places.find((place) => place.value === value);
+  const errors: string[] = Array.isArray(props['validationErrors']) ? props['validationErrors'] : [];
+  const destination = props['kind'] === 'destination';
+
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [active, setActive] = useState(0);
+  const listId = useId();
+  const list = useRef<HTMLUListElement>(null);
+  const matches = placesMatching(places, query).slice(0, 50);
+
+  useEffect(() => {
+    list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [active, open]);
+
+  const choose = (place: Place) => {
+    set?.(place.value);
+    setQuery('');
+    setOpen(false);
+  };
+
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!open) setOpen(true);
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      setActive((index) => (matches.length ? (index + step + matches.length) % matches.length : 0));
+    } else if (event.key === 'Enter' && open && matches[active]) {
+      event.preventDefault();
+      choose(matches[active]);
+    } else if (event.key === 'Escape') {
+      setOpen(false);
+      setQuery('');
+    }
+  };
+
+  const shown = open ? query : chosen ? chosen.label : value;
+
+  return (
+    <div className={cx('tv-field', 'tv-place', errors.length > 0 && 'is-invalid')} {...aria(props, 'group')}>
+      <span className="tv-field__label">{text(props['label'])}</span>
+      <div className={cx('tv-place__box', open && 'is-open')}>
+        {/* Material Icons, the font the SDK's own basic Icon draws with. */}
+        <span className="tv-place__icon material-icons" aria-hidden>
+          {destination ? 'flight_land' : 'flight_takeoff'}
+        </span>
+        <input
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-label={text(props['label'])}
+          aria-activedescendant={open && matches[active] ? `${listId}-${active}` : undefined}
+          placeholder={text(props['placeholder']) || 'City or airport'}
+          value={shown}
+          disabled={!set}
+          onFocus={() => {
+            setOpen(true);
+            setActive(Math.max(0, matches.findIndex((place) => place.value === value)));
+          }}
+          onBlur={() => {
+            setOpen(false);
+            setQuery('');
+          }}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setActive(0);
+            setOpen(true);
+          }}
+          onKeyDown={onKeyDown}
+        />
+        {chosen?.code && !open ? <span className="tv-place__code">{chosen.code}</span> : null}
+      </div>
+      {open ? (
+        <ul className="tv-place__list" id={listId} role="listbox" ref={list}>
+          {matches.length === 0 ? (
+            <li className="tv-place__none" role="presentation">
+              Nowhere called “{query.trim()}” here
+            </li>
+          ) : (
+            matches.map((place, index) => (
+              <li
+                key={place.value}
+                id={`${listId}-${index}`}
+                role="option"
+                aria-selected={index === active}
+                className={cx('tv-place__option', place.value === value && 'is-chosen')}
+                // Before the input's blur, which would close the list first.
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  choose(place);
+                }}
+                onMouseEnter={() => setActive(index)}
+              >
+                <span className="tv-place__pin" aria-hidden>
+                  <Icon name="pin" />
+                </span>
+                <span className="tv-place__name">
+                  <strong>{place.label}</strong>
+                  {place.detail ? <span>{place.detail}</span> : null}
+                </span>
+                {place.code ? <span className="tv-place__code">{place.code}</span> : null}
+              </li>
+            ))
+          )}
+        </ul>
+      ) : null}
+      {errors.map((error, index) => (
+        <span key={index} className="tv-field__error">
+          {error}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function TravelerCounter({ props }: ViewProps) {
   const value = Number(props['value'] ?? 0) || 0;
   const min = typeof props['min'] === 'number' ? props['min'] : 0;
@@ -823,6 +982,7 @@ export function GoogleMap({ props }: ViewProps) {
 /** Every travel component, by the name the catalog gives it. */
 export const TRAVEL_VIEWS: Record<string, (view: ViewProps) => ReactNode> = {
   ActivityItem,
+  AirportPicker,
   DateRangePicker,
   ExpenseSplit,
   FlightOption,

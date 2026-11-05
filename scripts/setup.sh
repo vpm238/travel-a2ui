@@ -97,13 +97,15 @@ form entirely:
 
   http://127.0.0.1:8080/#key=...
 
-The Catalog tab needs no key at all — it draws every component with the real
-renderer and no model in the path, so it is the fastest way to see A2UI render.
+The Catalog tab needs no key at all — it draws every component with the A2UI
+SDK and no model in the path, so it is the fastest way to see A2UI render.
 
 Other things you can do:
 
   npm run dev:web           Vite with hot reload, proxying to :8080
   npm run e2e               drive a whole turn in a browser, with a scripted model
   npm run screenshots       regenerate docs/screenshots
-  npm run deploy            ship it to Cloudflare
+  npm run check             every generated file and golden is current
+
+Deploying is a push to main; see docs/deploying.md for Cloud Run.
 DONE

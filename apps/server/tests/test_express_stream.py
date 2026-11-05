@@ -320,7 +320,7 @@ class TestTheQuestionIsAskable:
             if isinstance(event, Failed)
         ]
         assert failures
-        assert "ChoicePicker" in failures[0].message
+        assert "AirportPicker" in failures[0].message
 
     def test_the_right_controls_pass(self, components):
         from travel_a2ui.doors.interactions import _CATALOG, _VALIDATOR, _parser
@@ -329,8 +329,8 @@ class TestTheQuestionIsAskable:
             parser=_parser("inline-1"), components=components, validator=_VALIDATOR
         )
         source = (
-            'from = ChoicePicker("From", "mutuallyExclusive", '
-            '[{label: "New York (JFK)", value: "JFK"}], $/trip/origin)\n'
+            'from = AirportPicker("Where from?", $/trip/origin, '
+            '[{value: "JFK", label: "New York", code: "JFK"}])\n'
             'when = DateRangePicker("Dates", $/trip/startDate, $/trip/endDate)\n'
             'who = TravelerCounter("Travelers", $/trip/travelers)\n'
             "root = Column([from, when, who])"

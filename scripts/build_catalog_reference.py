@@ -37,6 +37,12 @@ sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
 #: list needs rows, a map needs real coordinates, and `CheckBox("Madrid", 3)`
 #: compiles, draws and teaches nothing.
 SPECIAL: dict[str, str] = {
+    "AirportPicker": '$/trip/origin = "JFK"\n'
+    'root = AirportPicker("Where from?", $/trip/origin, ['
+    '{value: "JFK", label: "New York", code: "JFK", detail: "North America"}, '
+    '{value: "CPH", label: "Copenhagen", code: "CPH", detail: "Europe"}, '
+    '{value: "SFO", label: "San Francisco", code: "SFO", detail: "North America"}], '
+    'kind="origin", placeholder="City or airport")',
     "List": '$/items/0/label = "Passport"\n$/items/1/label = "Adapter"\nrow = Text($label)\n'
     "root = List(_template($/items, row))",
     "Column": 'a = Text("#### Outbound")\nb = Text("JFK → MAD · Sun 12 Apr")\n'

@@ -59,6 +59,7 @@ VALUE_EDITORS = frozenset(
         "DateTimeInput",
         "DateRangePicker",
         "TravelerCounter",
+        "AirportPicker",
     }
 )
 

@@ -64,7 +64,7 @@ _AIRLINES = [
     }
     for r in _rows("airlines.csv")
 ]
-_ORIGINS = [{"code": r["code"], "city": r["city"]} for r in _rows("origins.csv")]
+_ORIGINS = [{"code": r["code"], "city": r["city"], "region": r["region"]} for r in _rows("origins.csv")]
 
 #: Stays somebody wrote down, by airport code. See `data/hotels.json`.
 _HOTELS: dict[str, list[dict[str, Any]]] = json.loads(

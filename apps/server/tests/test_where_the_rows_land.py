@@ -623,12 +623,12 @@ class TestAGuessIsNotAnAnswer:
             "endDate": "2027-04-18",
             "assumed": ["origin"],
         }
-        assert "ChoicePicker" in self._controls(guessed, airports), (
+        assert "AirportPicker" in self._controls(guessed, airports), (
             "the agent picked an airport out of three and did not offer the other two"
         )
         settled = {**guessed}
         settled.pop("assumed")
-        assert "ChoicePicker" not in self._controls(settled, airports)
+        assert "AirportPicker" not in self._controls(settled, airports)
 
 
 class TestAHostDrawnCardIsFinishedLikeAnyOther:

@@ -337,7 +337,7 @@ class ExpressStream:
     required: dict[str, tuple[str, ...]] = field(default_factory=dict)
     #: The trip this turn's macros expand against. See `brain/macros.py`.
     trip: dict[str, Any] = field(default_factory=dict)
-    #: The airports `Ask()` offers, because `ChoicePicker.options` is static in
+    #: The airports `Ask()` offers, because `AirportPicker.options` is static in
     #: the schema and so has to be known when the macro expands.
     airports: dict[str, list[dict[str, str]]] = field(default_factory=dict)
     #: The ISO code this trip's money is quoted in, for the panel's

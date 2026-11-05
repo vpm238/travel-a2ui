@@ -109,6 +109,112 @@
    ]
   },
   {
+   "name": "AirportPicker",
+   "travel": true,
+   "args": "label, value, options, kind?, placeholder?, weight?, accessibility?, checks?",
+   "props": [
+    {
+     "name": "label",
+     "required": true,
+     "static": false,
+     "description": "The question, e.g. 'Where from?'."
+    },
+    {
+     "name": "value",
+     "required": true,
+     "static": false,
+     "description": "Bound path the chosen option's `value` is written to, e.g. `$/trip/origin`."
+    },
+    {
+     "name": "options",
+     "required": true,
+     "static": true,
+     "description": "Every place that may be chosen. Static values only."
+    },
+    {
+     "name": "kind",
+     "required": false,
+     "static": true,
+     "enum": [
+      "origin",
+      "destination"
+     ],
+     "description": "Which end of the trip this is; sets the icon."
+    },
+    {
+     "name": "placeholder",
+     "required": false,
+     "static": false,
+     "description": "Hint in the empty field, e.g. 'City or airport'."
+    },
+    {
+     "name": "weight",
+     "required": false,
+     "static": true,
+     "description": "The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column."
+    },
+    {
+     "name": "accessibility",
+     "required": false,
+     "static": true,
+     "description": "Assistive technology: {label, description, live, hidden}."
+    },
+    {
+     "name": "checks",
+     "required": false,
+     "static": true
+    }
+   ],
+   "express": "$/trip/origin = \"JFK\"\nroot = AirportPicker(\"Where from?\", $/trip/origin, [{value: \"JFK\", label: \"New York\", code: \"JFK\", detail: \"North America\"}, {value: \"CPH\", label: \"Copenhagen\", code: \"CPH\", detail: \"Europe\"}, {value: \"SFO\", label: \"San Francisco\", code: \"SFO\", detail: \"North America\"}], kind=\"origin\", placeholder=\"City or airport\")",
+   "description": "A search field for one place — where the trip leaves from or goes to — with a type-ahead list of the places this deployment serves. Use it for an origin or a destination; never a ChoicePicker of airports.",
+   "messages": [
+    {
+     "version": "1.0",
+     "createSurface": {
+      "surfaceId": "preview_AirportPicker",
+      "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+      "components": [
+       {
+        "id": "root",
+        "component": "AirportPicker",
+        "label": "Where from?",
+        "value": {
+         "@path": "/trip/origin"
+        },
+        "options": [
+         {
+          "value": "JFK",
+          "label": "New York",
+          "code": "JFK",
+          "detail": "North America"
+         },
+         {
+          "value": "CPH",
+          "label": "Copenhagen",
+          "code": "CPH",
+          "detail": "Europe"
+         },
+         {
+          "value": "SFO",
+          "label": "San Francisco",
+          "code": "SFO",
+          "detail": "North America"
+         }
+        ],
+        "kind": "origin",
+        "placeholder": "City or airport"
+       }
+      ],
+      "dataModel": {
+       "trip": {
+        "origin": "JFK"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
    "name": "AudioPlayer",
    "travel": false,
    "args": "url, description?, weight?",

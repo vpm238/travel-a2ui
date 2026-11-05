@@ -1447,6 +1447,86 @@
       ],
       "unevaluatedProperties": false
     },
+    "AirportPicker": {
+      "type": "object",
+      "allOf": [
+        {
+          "type": "object",
+          "description": "A search field for one place — where the trip leaves from or goes to — with a type-ahead list of the places this deployment serves. Use it for an origin or a destination; never a ChoicePicker of airports.",
+          "properties": {
+            "component": {
+              "const": "AirportPicker"
+            },
+            "label": {
+              "$ref": "https://a2ui.org/specification/v1_0/common_types.json#/$defs/DynamicString",
+              "description": "The question, e.g. 'Where from?'."
+            },
+            "value": {
+              "$ref": "https://a2ui.org/specification/v1_0/common_types.json#/$defs/DynamicString",
+              "description": "Bound path the chosen option's `value` is written to, e.g. `$/trip/origin`."
+            },
+            "options": {
+              "type": "array",
+              "description": "Every place that may be chosen. Static values only.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "description": "What is stored when chosen, e.g. 'JFK' or 'Madrid'."
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "The place as a person names it, e.g. 'New York'."
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "Its airport code, e.g. 'JFK'."
+                  },
+                  "detail": {
+                    "type": "string",
+                    "description": "A second line, e.g. 'Spain' or 'North America'."
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "kind": {
+              "type": "string",
+              "description": "Which end of the trip this is; sets the icon.",
+              "enum": [
+                "origin",
+                "destination"
+              ],
+              "default": "origin"
+            },
+            "placeholder": {
+              "$ref": "https://a2ui.org/specification/v1_0/common_types.json#/$defs/DynamicString",
+              "description": "Hint in the empty field, e.g. 'City or airport'."
+            }
+          },
+          "required": [
+            "component",
+            "label",
+            "value",
+            "options"
+          ]
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v1_0/common_types.json#/$defs/ComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "$ref": "https://a2ui.org/specification/v1_0/common_types.json#/$defs/Checkable"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
     "DateRangePicker": {
       "type": "object",
       "allOf": [
@@ -2517,6 +2597,9 @@
         },
         {
           "$ref": "#/components/PriceSummary"
+        },
+        {
+          "$ref": "#/components/AirportPicker"
         },
         {
           "$ref": "#/components/DateRangePicker"

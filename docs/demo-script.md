@@ -177,19 +177,12 @@ move to the next step rather than asking about flights again.
 who has no key, and the fastest way to prove the renderer is real.
 
 **Click the Catalog tab.** Every component the agent can draw, with the exact
-positional signature the model is given. Anything with a schema but no React
-renderer is flagged in red — the gap is visible rather than discovered later.
+positional signature the model is given. A component with a schema and no
+view cannot ship: the client refuses the catalog at startup, by name.
 
-Or open the standalone gallery, which needs no server at all:
-
-```bash
-npm run build -w @travel-a2ui/gallery
-open apps/gallery/dist/gallery.html
-```
-
-Every surface there was compiled at build time from the catalog's own examples
-by the real compiler, and every interaction is logged as the agent would receive
-it.
+Or open `/catalog/FlightOption` (any component name works): one component on
+its own, drawn by `@a2ui/react` from the messages the A2UI Python SDK compiled
+and validated at build time.
 
 ## The automated versions
 

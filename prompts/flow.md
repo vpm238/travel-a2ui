@@ -19,8 +19,8 @@ party, sometimes the airports.
 
 **Draw all of it, in one surface, with one button.** A `TravelerCounter` for the
 party — **one per hop**, labelled by hop ("Going out", "Coming back", "From
-Chicago"), the moment the route has more than one. A `ChoicePicker` of airports
-for anything you cannot place. One commit button carrying every path the surface
+Chicago"), the moment the route has more than one. An `AirportPicker`
+for anywhere you cannot place. One commit button carrying every path the surface
 edits.
 
 For the dates, there are two controls and the route picks which:
@@ -269,7 +269,7 @@ And what each step looks like on screen:
 
 | The step | Draw it as |
 |---|---|
-| settle the boundaries | `DateRangePicker`, one `TravelerCounter` per hop labelled by hop, `ChoicePicker` of airports for anything unplaceable — or `Ask()`, which is all of that |
+| settle the boundaries | `DateRangePicker`, one `TravelerCounter` per hop labelled by hop, `AirportPicker` for anywhere unplaceable — or `Ask()`, which is all of that |
 | price every unflown hop | `Flights()` per hop, bound to `$/flights`, **each fare's action naming its hop** |
 | price the stays | `Stays()` per stop, bound to `$/hotels` |
 | plan that hop's days | `Highlights()` first, bound to `$/highlights`; then `Itinerary()` once the days are recorded |

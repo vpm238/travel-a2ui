@@ -26,6 +26,20 @@ Use these exact positional signatures to instantiate components. Do not output p
   - onRemove: Fired when the traveler drops this activity. Give every activity one: a day plan is theirs to edit.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
+• AirportPicker(label, value, options (static), kind? (static), placeholder?, weight? (static), accessibility? (static), checks? (static))
+  - Description: A search field for one place — where the trip leaves from or goes to — with a type-ahead list of the places this deployment serves. Use it for an origin or a destination; never a ChoicePicker of airports.
+  - label: The question, e.g. 'Where from?'.
+  - value: Bound path the chosen option's `value` is written to, e.g. `$/trip/origin`.
+  - options: Every place that may be chosen. Static values only.
+    List of maps keys:
+    * value - What is stored when chosen, e.g. 'JFK' or 'Madrid'.
+    * label - The place as a person names it, e.g. 'New York'.
+    * code - Its airport code, e.g. 'JFK'.
+    * detail - A second line, e.g. 'Spain' or 'North America'.
+  - kind: Which end of the trip this is; sets the icon. Must be one of: 'origin', 'destination'
+  - placeholder: Hint in the empty field, e.g. 'City or airport'.
+  - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+  - accessibility: Assistive technology: {label, description, live, hidden}.
 • Ask(heading? (static), label? (static))
   - Description: Everything the trip still needs, as one surface with one button.
     

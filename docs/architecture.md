@@ -86,9 +86,9 @@ around them.
            │                         │                         │
  ┌─────────▼──────────┐   ┌──────────▼─────────┐   ┌───────────▼────────┐
  │  Express ⇄ A2UI    │   │  renderers/        │   │  skills/*/SKILL.md │
- │  the SDK's parser  │   │  react/            │   │  what the model    │
- │  (Python) and our  │   │  flutter/          │   │  is told           │
- │  port (TypeScript) │   │                    │   │                    │
+ │  the SDK's parser  │   │  react/  flutter/  │   │  what the model    │
+ │  and decompiler    │   │  travel views for  │   │  is told           │
+ │  (a2ui-agent-sdk)  │   │  the official SDKs │   │                    │
  └─────────┬──────────┘   └──────────┬─────────┘   └───────────┬────────┘
            │                         │                         │
  ══════════╪═════════════════════════╪═════════════════════════╪════════
@@ -98,9 +98,9 @@ around them.
  │ skills, tools, the trip │ the React client   │ the second client,    │
  │ record, surface passes  │ (3 flows)          │ the same messages     │
  ├─────────────────────────┼────────────────────┼───────────────────────┤
- │ apps/server/…/doors     │ apps/gallery       │                       │
- │ interactions · live ·   │ static showcase    │                       │
- │ http                    │                    │                       │
+ │ apps/server/…/doors     │ /catalog           │                       │
+ │ interactions · live ·   │ every component,   │                       │
+ │ http                    │ drawn by the SDK   │                       │
  └─────────────────────────┴────────────────────┴───────────────────────┘
 ```
 
@@ -118,10 +118,9 @@ is, that knowledge belongs in the brain and the door should be asking for it.
 **Python, because the SDK is Python.** The A2UI agent SDK — the Express parser,
 the catalog loader, the skill generator — exists in exactly one language, and it
 is the reference implementation. Using it directly means the compiler in the
-path is the one the protocol authors wrote, not our reading of it. The
-TypeScript port remains, checked against the same goldens; compiled against a
-non-trivial surface — bindings, a `_template` row, an `Event` carrying bound
-context — the two agree on every field.
+path is the one the protocol authors wrote, not our reading of it. The Wire
+view's Express comes from the same SDK's decompiler, over `POST /api/express`,
+so there is no second compiler anywhere.
 
 **The catalog is the single source of truth.** `scripts/build_catalog.py` is the
 only file you edit to add a component; `npm run generate` regenerates the

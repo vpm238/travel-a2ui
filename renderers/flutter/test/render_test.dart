@@ -261,6 +261,47 @@ void main() {
       expect(run.actions, isEmpty);
     });
 
+    testWidgets('an airport is searched for and picked, not read off a list', (tester) async {
+      final run = _Run();
+      run.apply([
+        _surface(
+          's',
+          [
+            {
+              'id': 'root',
+              'component': 'AirportPicker',
+              'label': 'Where from?',
+              'value': {'@path': '/trip/origin'},
+              'kind': 'origin',
+              'options': [
+                {'value': 'JFK', 'label': 'New York', 'code': 'JFK', 'detail': 'North america'},
+                {'value': 'CPH', 'label': 'Copenhagen', 'code': 'CPH', 'detail': 'Europe'},
+                {'value': 'SFO', 'label': 'San Francisco', 'code': 'SFO', 'detail': 'North america'},
+              ],
+            },
+          ],
+          data: {'trip': <String, Object?>{}},
+        ),
+      ]);
+      final surface = run.surface('s');
+      await _pump(tester, surface);
+
+      expect(find.byType(Radio<Object?>), findsNothing);
+      await tester.tap(find.byIcon(Icons.flight_takeoff));
+      await tester.pumpAndSettle();
+      expect(find.text('San Francisco'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'cop');
+      await tester.pumpAndSettle();
+      expect(find.text('San Francisco'), findsNothing);
+      await tester.tap(find.text('Copenhagen'));
+      await tester.pumpAndSettle();
+
+      expect(surface.dataModel.get('/trip/origin'), 'CPH');
+      expect(find.text('Copenhagen'), findsOneWidget);
+      expect(run.actions, isEmpty);
+    });
+
     testWidgets('a button sends its action, and the surface its values', (tester) async {
       final run = _Run();
       run.apply([

@@ -627,6 +627,201 @@ Widget _mapPreview(BuildContext context, TravelProps build) {
   );
 }
 
+/// A place this deployment flies, as an `AirportPicker` option.
+class _Place {
+  const _Place(this.value, this.label, this.code, this.detail);
+  final String value;
+  final String label;
+  final String code;
+  final String detail;
+}
+
+List<_Place> _placesOf(Object? options) => [
+      if (options is List)
+        for (final option in options.whereType<Map>())
+          _Place(
+            '${option['value'] ?? ''}',
+            '${option['label'] ?? option['value'] ?? ''}',
+            '${option['code'] ?? ''}',
+            '${option['detail'] ?? ''}',
+          ),
+    ];
+
+/// Best first: a code typed exactly, then names that start with what was typed.
+List<_Place> _matching(List<_Place> places, String query) {
+  final needle = query.trim().toLowerCase();
+  if (needle.isEmpty) return places;
+  int rank(_Place place) {
+    final code = place.code.toLowerCase();
+    final label = place.label.toLowerCase();
+    if (code == needle) return 0;
+    if (label.startsWith(needle)) return 1;
+    if (code.startsWith(needle)) return 2;
+    if (label.split(RegExp(r'[\s·,-]+')).any((word) => word.startsWith(needle))) return 3;
+    if ('$label $code ${place.detail} ${place.value}'.toLowerCase().contains(needle)) return 4;
+    return -1;
+  }
+
+  final ranked = [
+    for (var index = 0; index < places.length; index++) (place: places[index], index: index, rank: rank(places[index])),
+  ].where((entry) => entry.rank >= 0).toList()
+    ..sort((a, b) => a.rank != b.rank ? a.rank - b.rank : a.index - b.index);
+  return [for (final entry in ranked) entry.place];
+}
+
+/// Where from, where to: a field that opens a search sheet, the way a flight
+/// app asks it on a phone. Writes the chosen place's `value` through the SDK's
+/// binding and sends nothing, like every other editor.
+Widget _airportPicker(BuildContext context, TravelProps build) {
+  final scheme = Theme.of(context).colorScheme;
+  final text = Theme.of(context).textTheme;
+  final places = _placesOf(build['options']);
+  final value = build.string('value') ?? '';
+  final chosen = places.where((place) => place.value == value).firstOrNull;
+  final landing = build.string('kind') == 'destination';
+  final label = build.string('label') ?? '';
+
+  Future<void> search() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => _PlaceSearch(places: places, chosen: value, title: label),
+    );
+    if (picked != null) build.write('value', picked);
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(label, style: text.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      _tappable(
+        onTap: search,
+        child: InputDecorator(
+          isEmpty: chosen == null && value.isEmpty,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            prefixIcon: Icon(landing ? Icons.flight_land : Icons.flight_takeoff, color: scheme.primary),
+            hintText: build.string('placeholder') ?? 'City or airport',
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  chosen?.label ?? value,
+                  style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (chosen != null && chosen.code.isNotEmpty) _CodeChip(chosen.code),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _CodeChip extends StatelessWidget {
+  const _CodeChip(this.code);
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        code,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+              color: scheme.onSurfaceVariant,
+            ),
+      ),
+    );
+  }
+}
+
+class _PlaceSearch extends StatefulWidget {
+  const _PlaceSearch({required this.places, required this.chosen, required this.title});
+  final List<_Place> places;
+  final String chosen;
+  final String title;
+
+  @override
+  State<_PlaceSearch> createState() => _PlaceSearchState();
+}
+
+class _PlaceSearchState extends State<_PlaceSearch> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final matches = _matching(widget.places, _query);
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.7,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: TextField(
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: widget.title.isEmpty ? 'City or airport' : widget.title,
+                  prefixIcon: const Icon(Icons.search),
+                  border: const OutlineInputBorder(),
+                ),
+                onChanged: (query) => setState(() => _query = query),
+                onSubmitted: (_) {
+                  if (matches.isNotEmpty) Navigator.pop(context, matches.first.value);
+                },
+              ),
+            ),
+            Expanded(
+              child: matches.isEmpty
+                  ? Center(child: Text('Nowhere called “${_query.trim()}” here'))
+                  : ListView.builder(
+                      itemCount: matches.length,
+                      itemBuilder: (context, index) {
+                        final place = matches[index];
+                        final chosen = place.value == widget.chosen;
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: scheme.surfaceContainerHighest,
+                            child: Icon(Icons.place_outlined, color: scheme.onSurfaceVariant, size: 20),
+                          ),
+                          title: Text(
+                            place.label,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: chosen ? scheme.primary : null,
+                            ),
+                          ),
+                          subtitle: place.detail.isEmpty ? null : Text(place.detail),
+                          trailing: place.code.isEmpty ? null : _CodeChip(place.code),
+                          onTap: () => Navigator.pop(context, place.value),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 Widget _travelerCounter(BuildContext context, TravelProps build) {
   final value = build.number('value')?.toInt() ?? 1;
   final min = build.number('min')?.toInt() ?? 1;
@@ -1003,6 +1198,7 @@ Widget _calendarMonth(
 /// The travel views by component name.
 const Map<String, TravelView> travelViews = {
   'ActivityItem': _activityItem,
+  'AirportPicker': _airportPicker,
   'DateRangePicker': _dateRangePicker,
   'ExpenseSplit': _expenseSplit,
   'FlightOption': _flightOption,

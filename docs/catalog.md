@@ -1,6 +1,6 @@
 # The travel catalog
 
-23 components, every one drawn here by the renderer that ships — not a
+24 components, every one drawn here by the renderer that ships — not a
 mockup. Each picture is a screenshot of the real component, beside the single line
 of A2UI Express that produced it.
 
@@ -38,6 +38,26 @@ root = ActivityItem("Prado Museum", "10:00", category="sight", location="Paseo d
 | `action` | action |  | Fired when the traveler taps the activity. |
 | `done` | bindable boolean |  | Whether the traveler has ticked this off. |
 | `onRemove` | action |  | Fired when the traveler drops this activity. Give every activity one: a day plan is theirs to edit. |
+
+## AirportPicker
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="catalog/AirportPicker-dark.png">
+  <img src="catalog/AirportPicker-light.png" alt="AirportPicker as the renderer draws it" width="560">
+</picture>
+
+```
+$/trip/origin = "JFK"
+root = AirportPicker("Where from?", $/trip/origin, [{value: "JFK", label: "New York", code: "JFK", detail: "North America"}, {value: "CPH", label: "Copenhagen", code: "CPH", detail: "Europe"}, {value: "SFO", label: "San Francisco", code: "SFO", detail: "North America"}], kind="origin", placeholder="City or airport")
+```
+
+| prop | type | | what it is |
+| --- | --- | --- | --- |
+| `label` | bindable string | **required** | The question, e.g. 'Where from?'. |
+| `value` | bindable string | **required** | Bound path the chosen option's `value` is written to, e.g. `$/trip/origin`. |
+| `options` | array | **required** | Every place that may be chosen. Static values only. |
+| `kind` | `origin` \\| `destination` |  | Which end of the trip this is; sets the icon. |
+| `placeholder` | bindable string |  | Hint in the empty field, e.g. 'City or airport'. |
 
 ## Button
 
