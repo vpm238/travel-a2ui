@@ -71,6 +71,7 @@ from .press import (
     _party_paths,
     as_trip_fields,
     describe_action,
+    stop_of_fare,
 )
 
 
@@ -111,7 +112,13 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     # Without this the return landed on the trip and overwrote the outbound —
     # see `onto_leg`. Read off the raw context rather than the normalised trip,
     # because `leg` is not a trip field and normalising drops it.
-    leg_index = _leg_pressed(request.action.context if request.action else None)
+    #
+    # The fare's own route decides when it can: a card carries the airports it
+    # flies between, which is a fact, where `hop` is whatever the agent passed
+    # when it drew the list. See `stop_of_fare`.
+    pressed = request.action.context if request.action else None
+    stop = await stop_of_fare(pressed, {**request.trip, **from_surface}, provider)
+    leg_index = (stop - 1 if stop > 0 else None) if stop is not None else _leg_pressed(pressed)
 
     proposed = {**request.trip, **from_surface, **from_context}
     if leg_index is not None:
@@ -237,7 +244,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     # way.
     lines = [
         request.message
-        or (describe_action(request.action) if request.action else PANEL_REQUEST)
+        or (describe_action(request.action, leg_index) if request.action else PANEL_REQUEST)
     ]
     if refused:
         # Said in the turn rather than left for the model to discover, because

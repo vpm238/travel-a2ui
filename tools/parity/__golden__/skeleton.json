@@ -51,6 +51,12 @@
                     "price": {
                       "@path": "price"
                     },
+                    "from": {
+                      "@path": "origin"
+                    },
+                    "to": {
+                      "@path": "destination"
+                    },
                     "airline": {
                       "@path": "airline"
                     },

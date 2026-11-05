@@ -453,6 +453,11 @@ def flights(heading: str = "", selected: str = "", hop: Any = None) -> Column:
                     hop,
                     id=bind("id"),
                     price=bind("price"),
+                    # The airports it flies between, so the host can tell
+                    # which hop was pressed without trusting `hop`. Not
+                    # `origin` and `destination`: those are the trip's own
+                    # fields, and a return fare would overwrite the route.
+                    **{"from": bind("origin"), "to": bind("destination")},
                     airline=bind("airline"),
                     flightNumber=bind("flightNumber"),
                     departTime=bind("departTime"),

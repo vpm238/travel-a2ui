@@ -119,6 +119,59 @@ def _leg_pressed(context: dict[str, Any] | None) -> int | None:
     return None
 
 
+async def stop_of_fare(
+    context: dict[str, Any] | None, trip: dict[str, Any], provider: Any
+) -> int | None:
+    """Which stop of the route a pressed fare flies, read off the fare itself.
+
+    0 is the first hop, whose choices are the trip's own fields; stop N is
+    `legs[N - 1]`. None when the fare names no route, or when its route matches
+    no stop, or more than one.
+
+    A fare card carries `from` and `to` — the airports it flies between — so the
+    hop it belongs to does not depend on the agent having passed `hop` when it
+    drew the list. It did not always: the same return list came back with
+    `hop: 2`, `hop: 1` and no hop at all, and a press without one was recorded
+    on the first hop's fields. The panel then showed the flight home on the
+    outbound card until the agent saved things back, and the return card, saved
+    by the agent with an id and a price and nothing else, had no airline.
+    """
+    if not isinstance(context, dict):
+        return None
+    flies_from = str(context.get("from") or "").strip().casefold()
+    flies_to = str(context.get("to") or "").strip().casefold()
+    if not flies_from or not flies_to:
+        return None
+
+    names: dict[str, set[str]] = {}
+
+    async def known_as(place: Any) -> set[str]:
+        """A place as the trip spells it, plus its airport code and city."""
+        said = str(place or "").strip()
+        if said not in names:
+            out = {said.casefold()} if said else set()
+            if said and provider is not None:
+                try:
+                    found = await provider.resolve_destination(said)
+                except Exception:  # noqa: BLE001 - an unresolvable place is just unmatched
+                    found = None
+                if isinstance(found, dict):
+                    out |= {
+                        str(found.get(key) or "").strip().casefold()
+                        for key in ("airport", "city")
+                    } - {""}
+            names[said] = out
+        return names[said]
+
+    matched = [
+        index
+        for index, stop in enumerate(model.stops(trip))
+        if flies_from in await known_as(stop.get("origin"))
+        and flies_to in await known_as(stop.get("destination"))
+    ]
+    return matched[0] if len(matched) == 1 else None
+
+
 def _commit(saved: dict[str, Any], proposed: dict[str, Any], today: str) -> tuple[dict, list[str]]:
     """Applies what a surface sent, minus anything that would break the trip.
 
@@ -218,8 +271,14 @@ def as_trip_fields(action: SurfaceAction | None) -> dict[str, Any]:
     return renamed
 
 
-def describe_action(action: SurfaceAction) -> str:
+_FROM_CONTEXT: Any = object()
+
+
+def describe_action(action: SurfaceAction, leg: Any = _FROM_CONTEXT) -> str:
     """What the model is told when someone presses something.
+
+    `leg` is the hop the host worked out the press belongs to (see
+    `stop_of_fare`); left out, it is read from the press's own `hop`.
 
     The wire carries an action, not a sentence. The model still needs a
     sentence, and this is the one place that decides what it says — which is
@@ -255,7 +314,8 @@ def describe_action(action: SurfaceAction) -> str:
     # Saying it here costs a sentence and removes the inference — the traveller
     # chose a flight home, and it has to land on the hop that flies home rather
     # than on the trip's own field, which is the outbound's.
-    leg = _leg_pressed(action.context)
+    if leg is _FROM_CONTEXT:
+        leg = _leg_pressed(action.context)
     if leg is not None:
         # Named, not implied.
         #
