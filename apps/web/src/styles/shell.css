@@ -38,10 +38,14 @@ a {
 }
 
 .app {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   height: 100%;
   min-height: 0;
+}
+
+.app > .main {
+  flex: 1;
 }
 
 /* ------------------------------------------------------------------ topbar */
@@ -256,6 +260,47 @@ a {
   background: var(--tv-surface-2);
 }
 
+.iconButton .material-icons {
+  font-size: 18px;
+  color: var(--tv-ink-soft);
+}
+
+.iconButton:hover .material-icons {
+  color: var(--tv-ink);
+}
+
+.iconButton:focus-visible,
+.warmth--action:focus-visible {
+  outline: 2px solid var(--tv-accent);
+  outline-offset: 2px;
+}
+
+/* Cold or failed: the status pill is the button that fixes it. */
+.warmth--action {
+  appearance: none;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 5px 12px 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--tv-accent-line);
+  background: var(--tv-accent-soft);
+  color: var(--tv-accent);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.warmth--action:hover {
+  background: var(--tv-accent);
+  color: var(--tv-accent-ink);
+}
+
+.warmth--action.warmth--failed {
+  border-color: var(--tv-critical);
+  background: var(--tv-critical-soft);
+  color: var(--tv-critical);
+}
+
 .banner {
   padding: 9px 18px;
   font-size: 0.85rem;
@@ -354,5 +399,16 @@ a {
   }
   .topbar__views button {
     flex: 1;
+  }
+  /*
+   * The token counts and the runtime switch are for the curious, and a phone
+   * has no room for them; both stay a tap away on a wider screen.
+   */
+  .app > .statusbar,
+  .topbar .runtime {
+    display: none;
+  }
+  .topbar__controls {
+    gap: 6px;
   }
 }

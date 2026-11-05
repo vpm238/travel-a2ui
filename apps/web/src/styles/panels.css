@@ -165,3 +165,11 @@
   margin: 0;
   text-wrap: pretty;
 }
+
+/*
+ * A stay in the trip panel is a reminder of what was chosen, not a choice to
+ * weigh, so its picture is a strip rather than a hero.
+ */
+.sidebar .tv-stay__media {
+  min-height: 76px;
+}

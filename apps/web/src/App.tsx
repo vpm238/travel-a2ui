@@ -53,13 +53,13 @@ const VIEWS: Array<{ id: View; label: string; hint: string }> = [
  */
 const WARMTH: Record<Warmth, { label: string; hint: string }> = {
   cold: {
-    label: 'Set up',
+    label: 'Wake the agent',
     hint: 'Open a conversation now so your first message is answered quickly. Typing without it works too — the first reply just takes longer.',
   },
   warming: { label: 'Getting ready…', hint: 'Opening a conversation with the agent.' },
   ready: { label: 'Ready', hint: 'A conversation is open. Your first message will be answered at full speed.' },
   failed: {
-    label: 'Set up again',
+    label: 'Try again',
     hint: 'Could not open a conversation. You can still type — the first reply will just be slower.',
   },
 };
@@ -168,6 +168,19 @@ export default function App() {
               <span className="warmth__dot" aria-hidden />
               {WARMTH[agent.warmth].label}
             </span>
+          ) : (agent.apiKey || agent.meta?.keyProvided) ? (
+            // Cold or failed: the same pill, as the button that fixes it. A
+            // first reply without it takes about twenty seconds instead of three;
+            // typing still works either way.
+            <button
+              type="button"
+              className={`warmth warmth--${agent.warmth} warmth--action`}
+              title={WARMTH[agent.warmth].hint}
+              onClick={() => void agent.warm()}
+            >
+              <span className="warmth__dot" aria-hidden />
+              {WARMTH[agent.warmth].label}
+            </button>
           ) : null}
 
           {/*
@@ -194,20 +207,33 @@ export default function App() {
             aria-label="Change theme"
             onClick={() => setTheme(theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system')}
           >
-            {theme === 'dark' ? '◑' : theme === 'light' ? '◐' : '◒'}
+            <span className="material-icons" aria-hidden>
+              {theme === 'dark' ? 'dark_mode' : theme === 'light' ? 'light_mode' : 'contrast'}
+            </span>
           </button>
 
-          <button type="button" className="iconButton" title="API key" onClick={() => setShowGate(true)}>
-            {agent.apiKey ? '🔑' : '🔓'}
+          <button
+            type="button"
+            className="iconButton"
+            title={agent.apiKey ? 'API key: set in this browser' : 'API key'}
+            aria-label="API key"
+            onClick={() => setShowGate(true)}
+          >
+            <span className="material-icons" aria-hidden>
+              {agent.apiKey || agent.meta?.keyProvided ? 'key' : 'key_off'}
+            </span>
           </button>
 
           <button
             type="button"
             className="iconButton"
             title="Start over"
+            aria-label="Start over"
             onClick={() => void agent.reset()}
           >
-            ⟲
+            <span className="material-icons" aria-hidden>
+              restart_alt
+            </span>
           </button>
         </div>
       </header>
@@ -215,34 +241,6 @@ export default function App() {
       {agent.metaError ? (
         <div className="banner banner--error">
           Could not reach the backend: {agent.metaError}
-        </div>
-      ) : null}
-
-      {/*
-        Setup, when it has not happened.
-
-        Same place and same shape as the key warning, because it is the same
-        kind of thing: something worth doing before you start, said once, with
-        the button that does it. It appears only when there *is* a key to warm
-        with and the warming has not happened — on load it is already gone by
-        the time most people look, because the app does it unasked.
-
-        Still not a gate. The composer below works cold; this is the difference
-        between a first reply in three seconds and one in twenty.
-      */}
-      {(agent.apiKey || agent.meta?.keyProvided) &&
-      (agent.warmth === 'cold' || agent.warmth === 'failed') ? (
-        <div className={`banner banner--${agent.warmth === 'failed' ? 'error' : 'warn'}`}>
-          <span>
-            {agent.warmth === 'failed'
-              ? 'Could not open a conversation with the agent.'
-              : 'The agent has no conversation open yet.'}{' '}
-            Your first message will take about twenty seconds instead of three — setting
-            up now does that waiting for you. You can also just start typing.
-          </span>{' '}
-          <button type="button" className="banner__action" onClick={() => void agent.warm()}>
-            {WARMTH[agent.warmth].label}
-          </button>
         </div>
       ) : null}
 

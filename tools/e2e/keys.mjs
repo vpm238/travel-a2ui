@@ -12,7 +12,7 @@
  *             views that run no model, which the README sends people to first
  *             precisely because they need no key.
  *
- *   server    With a key on the server and none in the browser, "Set up" did
+ *   server    With a key on the server and none in the browser, waking the agent did
  *             nothing and the microphone said "Add your Gemini key first",
  *             because three paths checked for a *browser* key and ignored the
  *             server's — though every door falls back to it, and typed turns
@@ -144,9 +144,10 @@ try {
 
     ok('no key form for a server that has one', (await page.locator('.gate').count()) === 0);
 
-    // The app warms on its own when it can; if it is still cold, "Set up" must
-    // actually do something rather than return on an empty browser key.
-    const setUp = page.locator('.banner__action', { hasText: /set up/i });
+    // The app warms on its own when it can; if it is still cold, the status
+    // pill's "Wake the agent" must actually do something rather than return on
+    // an empty browser key.
+    const setUp = page.locator('.warmth--action');
     if ((await setUp.count()) > 0) await setUp.click();
     await page
       .waitForFunction(

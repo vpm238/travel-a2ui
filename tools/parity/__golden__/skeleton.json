@@ -38,6 +38,12 @@
               "action": {
                 "event": {
                   "name": "select_flight",
+                  "userMessage": {
+                    "@call": "formatString",
+                    "args": {
+                      "value": "Chose ${airline} ${flightNumber}, ${departTime} → ${arriveTime}, ${price}"
+                    }
+                  },
                   "context": {
                     "id": {
                       "@path": "id"
@@ -243,6 +249,12 @@
               "action": {
                 "event": {
                   "name": "select_hotel",
+                  "userMessage": {
+                    "@call": "formatString",
+                    "args": {
+                      "value": "Chose ${name}, ${price}"
+                    }
+                  },
                   "context": {
                     "id": {
                       "@path": "id"

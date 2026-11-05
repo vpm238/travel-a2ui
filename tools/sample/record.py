@@ -38,6 +38,7 @@ import argparse
 import datetime as dt
 import json
 import pathlib
+import re
 import sys
 import uuid
 from typing import Any
@@ -67,7 +68,9 @@ STEPS: list[dict[str, str]] = [
 ]
 
 #: What a browser keeps. Everything else is about the recording.
-KEPT = {"text", "ui", "tool", "tool_result", "trip", "resume", "served_by", "done"}
+#: Not `served_by`: which model stood in for a busy one is a fact about the
+#: recording session, and a sample has no model the visitor picked.
+KEPT = {"text", "ui", "tool", "tool_result", "trip", "resume", "done"}
 
 
 def _rename(surface_id: str) -> str:
@@ -118,6 +121,22 @@ def _resolve(binding: Any, row: dict[str, Any], data: dict[str, Any]) -> Any:
     return cursor
 
 
+def _said(message: Any, row: dict[str, Any], data: dict[str, Any]) -> str | None:
+    """An `event.userMessage` as a renderer resolves it: `formatString` over the row."""
+    if isinstance(message, str):
+        return message or None
+    if not (isinstance(message, dict) and message.get("@call") == "formatString"):
+        return None
+    template = str((message.get("args") or {}).get("value") or "")
+
+    def value(match: re.Match[str]) -> str:
+        found = _resolve({"@path": match.group(1)}, row, data)
+        return "" if found is None else str(found)
+
+    said = re.sub(r"\$\{([^}]+)\}", value, template)
+    return re.sub(r"\s+", " ", said).replace(" ,", ",").strip() or None
+
+
 def _press(
     drawn: list[tuple[str, dict[str, Any]]], wanted: str, trip: dict[str, Any], data: dict[str, Any]
 ) -> dict[str, Any] | None:
@@ -145,12 +164,16 @@ def _press(
         context = {key: _resolve(value, row, data) for key, value in (event.get("context") or {}).items()}
         if not any(value not in (None, "") for value in context.values()):
             continue  # a placeholder card, before its rows arrived
-        return {
+        pressed = {
             "name": event["name"],
             "surfaceId": surface_id,
             "sourceComponentId": str(node.get("id")),
             "context": context,
         }
+        said = _said(event.get("userMessage"), row, data)
+        if said:
+            pressed["userMessage"] = said
+        return pressed
     return None
 
 

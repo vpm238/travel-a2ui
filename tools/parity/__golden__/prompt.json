@@ -35,7 +35,7 @@
         "a2ui-travel"
       ],
       "inferenceFormat": "express",
-      "protocolVersion": "'1.0'",
+      "protocolVersion": "1.0",
       "characters": 39817
     }
   ]

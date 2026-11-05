@@ -34,7 +34,19 @@ describe('a whole recorded conversation', () => {
 
   it('draws every card and the panel', () => {
     expect(surfaces.ids()).toContain('sidebar');
-    expect(surfaces.ids().filter((id) => id.startsWith('sample-inline-')).length).toBe(sample.turns.length);
+    // Every inline card the recording creates; a turn may draw only into the
+    // panel, so this is counted from the messages, not from the turns.
+    const created = new Set<string>();
+    for (const turn of sample.turns) {
+      for (const event of turn.events) {
+        for (const message of (event.messages ?? []) as Array<{ createSurface?: { surfaceId?: string } }>) {
+          const id = message.createSurface?.surfaceId;
+          if (id?.startsWith('sample-inline-')) created.add(id);
+        }
+      }
+    }
+    expect(created.size).toBeGreaterThan(0);
+    expect(surfaces.ids().filter((id) => id.startsWith('sample-inline-')).sort()).toEqual([...created].sort());
     expect(surfaces.has('sidebar')).toBe(true);
   });
 

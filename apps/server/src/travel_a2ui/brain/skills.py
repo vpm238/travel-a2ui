@@ -150,8 +150,14 @@ def _frontmatter_field(skill: str, key: str) -> str | None:
         return None
     end = skill.find("\n---", 3)
     block = skill[3:] if end == -1 else skill[3:end]
-    match = re.search(rf'^\s*{re.escape(key)}:\s*"?([^"\n]+)"?\s*$', block, re.MULTILINE)
-    return match.group(1).strip() if match else None
+    match = re.search(rf"^\s*{re.escape(key)}:\s*(.+?)\s*$", block, re.MULTILINE)
+    if not match:
+        return None
+    # A YAML scalar may be quoted either way: the generator writes `'1.0'`.
+    value = match.group(1)
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+        value = value[1:-1]
+    return value.strip() or None
 
 
 def describe_skill(variant: str) -> dict[str, Any]:

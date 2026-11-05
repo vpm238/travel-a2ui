@@ -330,6 +330,15 @@ def _reads(*fields: str) -> dict[str, Any]:
     return {"label": {"@call": "formatString", "args": {"value": " ".join(fields)}}}
 
 
+def _said(*fields: str) -> dict[str, Any]:
+    """What a press says in the conversation, as A2UI's `event.userMessage`.
+
+    Resolved against the row pressed, so the transcript reads "Chose TAP Air
+    Portugal TP787, 11:00 → 21:44, €292" rather than the context's keys.
+    """
+    return {"@call": "formatString", "args": {"value": " ".join(fields)}}
+
+
 def _hop_in(path: Any) -> Optional[int]:
     """The hop a `selected` path is talking about, if it names a leg.
 
@@ -384,7 +393,9 @@ def _money(path: str) -> dict[str, Any]:
     """
     return {
         "@call": "formatCurrency",
-        "args": {"value": bind(path), "currency": _CURRENCY.get()},
+        # Whole units, as a fare is quoted: the SDK's default is two places,
+        # which drew `$292.00` beside a fare list saying `€292`.
+        "args": {"value": bind(path), "currency": _CURRENCY.get(), "decimals": 0},
     }
 
 
@@ -434,6 +445,9 @@ def flights(heading: str = "", selected: str = "", hop: Any = None) -> Column:
                 # is the whole of why the sidebar read as a card still loading:
                 # there was no airline to load.
                 "name": "select_flight",
+                "userMessage": _said(
+                    "Chose ${airline} ${flightNumber},", "${departTime} → ${arriveTime}, ${price}"
+                ),
                 "context": _context(
                     hop,
                     id=bind("id"),
@@ -493,6 +507,7 @@ def stays(heading: str = "", selected: str = "", hop: Any = None) -> Column:
                 # This one already carried the name; what it lacked was a place
                 # on the trip to put it. See `hotelName` in `trip-model.json`.
                 "name": "select_hotel",
+                "userMessage": _said("Chose ${name}, ${price}"),
                 "context": _context(
                     hop, id=bind("id"), name=bind("name"), price=bind("price")
                 ),
@@ -832,7 +847,13 @@ def replay(source: str, trip: dict[str, Any], surface_id: str, version: str) -> 
     from .express import as_wire
 
     try:
-        drawn = as_wire(expand(parser_for(surface_id).compile(source, is_final=True), trip))
+        drawn = as_wire(
+            expand(
+                parser_for(surface_id).compile(source, is_final=True),
+                trip,
+                currency=str(trip.get("currency") or "USD"),
+            )
+        )
     except Exception:  # noqa: BLE001 - a stale panel is never worth a failed turn
         return []
     for message in drawn:
@@ -1202,10 +1223,15 @@ def trip(heading: str = "", money: Any = False) -> Column:
         # for the same reason. A hop that knows when it goes and not yet who is
         # on it says when it goes.
         said: list[str] = []
+        # Dates through `formatDate`, so the line reads "12 Apr – 19 Apr"
+        # rather than the record's ISO strings.
+        def day(field: str) -> str:
+            return "${formatDate(value: ${/trip/" + prefix + field + "}, format: 'd MMM')}"
+
         if has("startDate"):
-            said.append("${/trip/" + prefix + "startDate}")
+            said.append(day("startDate"))
             if has("endDate"):
-                said.append("→ ${/trip/" + prefix + "endDate}")
+                said.append("– " + day("endDate"))
         if has("travelers"):
             said.append(("· " if said else "") + "${/trip/" + prefix + "travelers} travelling")
         if said:
