@@ -6,12 +6,6 @@
       "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
       "components": [
         {
-          "id": "heading",
-          "component": "Text",
-          "text": "Outbound · JFK → MAD · Sun 12 Apr",
-          "variant": "h3"
-        },
-        {
           "id": "fares",
           "component": "Flights",
           "heading": "Outbound · JFK → MAD · Sun 12 Apr",
@@ -26,7 +20,6 @@
           "id": "root",
           "component": "Column",
           "children": [
-            "heading",
             "fares",
             "note"
           ]

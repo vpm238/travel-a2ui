@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 from ..bindings import is_binding, path_of
-from .shared import A2uiMessage, _components_in
+from .shared import A2uiMessage, _components_in, call_key
 
 # --------------------------------------------------------------------------
 # Night counts the model wrote as text
@@ -71,7 +71,7 @@ def bind_derived_labels(messages: list[A2uiMessage]) -> list[A2uiMessage]:
             if not _is_count_of_nights(node.get("nightsLabel")):
                 continue
             node["nightsLabel"] = {
-                "call": "formatString",
+                call_key(message): "formatString",
                 "args": {
                     "value": (
                         "${calcNights(start:${" + (path_of(start) or "") + "}, "

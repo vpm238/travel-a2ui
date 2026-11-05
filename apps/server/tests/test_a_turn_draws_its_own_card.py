@@ -121,7 +121,7 @@ def test_two_blocks_still_compose_when_one_of_them_named_another_surface() -> No
         for node in message.get("updateComponents", {}).get("components", [])
         if node.get("id") == "root"
     ]
-    assert roots and roots[-1]["children"] == ["b0-root", "b1-root"]
+    assert roots and roots[-1]["children"] == ["b0_root", "b1_root"]
 
 
 class TestASecondBlockKeepsItsTemplateRows:
@@ -171,9 +171,9 @@ class TestASecondBlockKeepsItsTemplateRows:
 
     def test_the_template_points_at_the_renamed_row(self) -> None:
         by_id = {node["id"]: node for node in self.stacked()}
-        assert "b1-row" in by_id, "the row was prefixed"
-        template = by_id["b1-list"]["children"]
-        assert template["componentId"] == "b1-row", (
+        assert "b1_row" in by_id, "the row was prefixed"
+        template = by_id["b1_list"]["children"]
+        assert template["componentId"] == "b1_row", (
             f"the template still names the old id: {template}"
         )
         # The path is data, not an id, and must survive untouched.
@@ -182,6 +182,6 @@ class TestASecondBlockKeepsItsTemplateRows:
     def test_and_the_rows_are_still_reachable_from_root(self) -> None:
         by_id = {node["id"]: node for node in self.stacked()}
         root = by_id["root"]
-        assert "b1-root" in root["children"]
-        assert by_id["b1-root"]["children"] == ["b1-list"]
-        assert by_id["b1-list"]["children"]["componentId"] in by_id
+        assert "b1_root" in root["children"]
+        assert by_id["b1_root"]["children"] == ["b1_list"]
+        assert by_id["b1_list"]["children"]["componentId"] in by_id

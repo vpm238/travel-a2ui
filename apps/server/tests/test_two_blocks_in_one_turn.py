@@ -118,12 +118,12 @@ class TestBothBlocksSurvive:
 
     def test_root_holds_both_in_the_order_they_were_written(self) -> None:
         held = drawn(ROUTE, PARTY)
-        assert held["root"]["children"] == ["b0-root", "b1-root"]
+        assert held["root"]["children"] == ["b0_root", "b1_root"]
 
     def test_the_second_block_is_renamed_so_nothing_collides(self) -> None:
         held = drawn(ROUTE, PARTY)
-        assert "b1-who" in held and "b1-go" in held
-        assert held["b1-go"]["child"] == "b1-label", "references follow the rename"
+        assert "b1_who" in held and "b1_go" in held
+        assert held["b1_go"]["child"] == "b1_label", "references follow the rename"
 
 
 class TestOnePressSendsBoth:
@@ -200,3 +200,34 @@ class TestTheFormsButtonSaysWhatItDoes:
 
     def test_and_what_the_agent_asked_for_when_it_asked(self) -> None:
         assert self._button_text("Price it") == "Price it"
+
+
+class TestWhatGoesOutIsStillA2ui:
+    def test_a_renderer_holding_this_catalog_accepts_both_blocks(self) -> None:
+        """Fed through the SDK's own renderer mirror, in the order they go out.
+
+        The second block's ids were prefixed `b1-`, and A2UI 1.0 ids are UAX #31
+        identifiers: a hyphen is not one. Every surface that took a second block
+        — a pre-draw then the agent's card, a route then a party — went out with
+        ids the SDK rejects, and nothing here asked.
+        """
+        from a2ui.utils.renderer_state import RendererState
+
+        from travel_a2ui.brain.catalog import CATALOG
+
+        renderer = RendererState([CATALOG])
+        renderer.apply(
+            [
+                {
+                    "version": PROTOCOL_VERSION,
+                    "createSurface": {"surfaceId": SURFACE, "catalogId": CATALOG.catalog_id},
+                }
+            ]
+        )
+        state: dict[str, Any] = {}
+        carried: dict[str, dict[str, None]] = {}
+        for index, messages in enumerate((ROUTE, PARTY)):
+            out = finish(
+                stack_blocks(copy.deepcopy(messages), SURFACE, index, state), {}, carried=carried
+            )
+            renderer.apply(out)

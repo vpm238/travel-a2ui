@@ -100,7 +100,7 @@ def _rename_components(components: list[dict[str, Any]], prefix: str) -> list[di
         #
         # A `_template` is `{"path": "/flights", "componentId": "row"}` sitting
         # in a `children` property, and this walked strings and lists only — so
-        # `row` was renamed to `b1-row` while the template went on naming `row`.
+        # `row` was renamed to `b1_row` while the template went on naming `row`.
         # The template then matched no component, drew no rows, and a fare list
         # became a heading over nothing. Which is only reachable once a block
         # has a sibling to be prefixed behind: four fares on screen, and then
@@ -139,7 +139,7 @@ def stack_blocks(
     Two blocks in one turn is a reasonable thing to write — one card for the
     route, one for who is on it — so this composes them rather than forbidding
     them. When a second block starts, the first block's root is re-sent under
-    `b0-root`, the second block's ids are prefixed so nothing collides, and
+    `b0_root`, the second block's ids are prefixed so nothing collides, and
     `root` becomes a Column of every block's root in the order written.
 
     Both halves therefore live on **one surface**, which is what makes the rest
@@ -153,7 +153,11 @@ def stack_blocks(
     the first block's root node in case it has to be re-homed.
     """
     roots: list[str] = state.setdefault("roots", [])
-    prefix = f"b{block_index}-" if block_index > 0 else ""
+    # An underscore, not a hyphen. A2UI 1.0 ids are UAX #31 identifiers, and
+    # `b1-fares__text_1` is not one: every surface that took a second block went
+    # out with ids the SDK's own validator rejects, and a renderer that checks
+    # is entitled to drop the lot.
+    prefix = f"b{block_index}_" if block_index > 0 else ""
     out: list[A2uiMessage] = []
     rehomed = False
 
@@ -180,11 +184,11 @@ def stack_blocks(
                             "version": VERSION,
                             "updateComponents": {
                                 "surfaceId": surface_id,
-                                "components": [{**first, "id": "b0-root"}],
+                                "components": [{**first, "id": "b0_root"}],
                             },
                         }
                     )
-                    roots[0] = "b0-root"
+                    roots[0] = "b0_root"
                 rehomed = True
 
             message = copy.deepcopy(message)

@@ -18,6 +18,7 @@ client, and both have to read that the same sceptical way.
 from __future__ import annotations
 
 import datetime as _dt
+import os
 from typing import Any
 
 #: Tool loops need a ceiling: a model that keeps calling tools should stop, not bill.
@@ -78,7 +79,14 @@ PANEL_REQUEST = (
 #: Lives here rather than in `main.py` because the voice relay redraws the
 #: standing panel with its own model call, and a second opinion about the
 #: default is how two doors quietly end up on two models.
-DEFAULT_MODEL = "gemini-3.8-flash"
+#:
+#: **Read from the environment here, and only here.** It used to be a literal
+#: while `http.py` read `os.environ` itself in three places — so setting
+#: `DEFAULT_MODEL` moved the conversation and left everything that imported
+#: this constant behind. The panel rebuild and the voice relay's panel both read
+#: it, and both went on calling the hardcoded model: a deployment that switched
+#: off a model because it was hanging still hung, on every panel.
+DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL", "gemini-3.8-flash")
 
 #: How hard that model thinks when nobody says. See `supported_level`, which
 #: clamps this to what the chosen model accepts — Flash 3.8 rejects `minimal`
@@ -94,7 +102,7 @@ DEFAULT_EFFORT = "low"
 #: planning a trip can do anything about, and "the model is busy" is a worse
 #: answer than a smaller model's surface. So the turn degrades instead of dying,
 #: and the client is told which model actually answered.
-FALLBACK_MODEL = "gemini-3.5-flash-lite"
+FALLBACK_MODEL = os.environ.get("FALLBACK_MODEL", "gemini-3.5-flash-lite")
 
 
 #: Which model draws the panels, and how hard it thinks — for **every** door.
@@ -118,7 +126,10 @@ FALLBACK_MODEL = "gemini-3.5-flash-lite"
 #: passes against 8/9, and the panel is the record of what somebody decided, so
 #: the two and a half seconds buys the run that does not come back thin. Worth
 #: re-running when either model moves; the small one may well win it back.
-PANEL_MODEL = DEFAULT_MODEL
+#:
+#: `PANEL_MODEL` on its own, or `DEFAULT_MODEL` if only that is set — a panel
+#: should follow the conversation off a model unless somebody says otherwise.
+PANEL_MODEL = os.environ.get("PANEL_MODEL", DEFAULT_MODEL)
 PANEL_EFFORT = "low"
 
 

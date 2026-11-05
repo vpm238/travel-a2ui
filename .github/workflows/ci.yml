@@ -159,6 +159,12 @@ jobs:
           node tools/e2e/chat.mjs
           node tools/e2e/interaction.mjs
           node tools/e2e/frameworks.mjs
+          # Its own servers, because what it tests is what the server holds:
+          # nothing at all, and a key the browser was never given.
+          node tools/e2e/keys.mjs
+          # And the sample trip a first visit opens on, which every other suite
+          # turns off so that it starts from an empty conversation.
+          node tools/e2e/sample.mjs
         env:
           # Let Playwright use the browser it just installed.
           CHROMIUM_PATH: ''

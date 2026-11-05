@@ -125,8 +125,8 @@ root = DateRangePicker("Trip dates", $/trip/startDate, $/trip/endDate, nightsLab
 | prop | type | | what it is |
 | --- | --- | --- | --- |
 | `label` | bindable string | **required** | What the range is for, e.g. 'When are you going?'. |
-| `start` | bindable string | **required** | Bound path for the start date (RFC 3339). |
-| `end` | bindable string | **required** | Bound path for the end date (RFC 3339). |
+| `start` | bindable string | **required** | Bound path for the start date (yyyy-MM-dd). |
+| `end` | bindable string | **required** | Bound path for the end date (yyyy-MM-dd). |
 | `action` | action |  | Fired when the traveler commits a new range. |
 | `nightsLabel` | bindable string |  | Derived caption, e.g. '6 nights'. |
 

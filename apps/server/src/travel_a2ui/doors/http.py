@@ -141,7 +141,7 @@ async def warm_up(
             WarmRequest(
                 api_key=api_key,
                 skill=str(body.get("skill") or "express-modular"),
-                model=str(body.get("model") or os.environ.get("DEFAULT_MODEL", AGENT_DEFAULT_MODEL)),
+                model=str(body.get("model") or AGENT_DEFAULT_MODEL),
             )
         )
     )
@@ -156,7 +156,7 @@ async def meta() -> JSONResponse:
             "name": os.environ.get("PUBLIC_NAME", "Travel A2UI"),
             "catalogId": CATALOG_ID,
             "protocolVersion": PROTOCOL_VERSION,
-            "defaultModel": os.environ.get("DEFAULT_MODEL", AGENT_DEFAULT_MODEL),
+            "defaultModel": AGENT_DEFAULT_MODEL,
             "defaultSkill": os.environ.get("DEFAULT_SKILL", "express-modular"),
             "models": MODELS,
             "surfaces": SURFACES,
@@ -184,6 +184,17 @@ async def meta() -> JSONResponse:
             "contract": {"stamp": contract_stamp(), "maxAgeMs": INSTANTIATION_MAX_AGE_MS},
             # True when the deployment carries its own key and the UI need not ask.
             "keyProvided": bool(os.environ.get("GEMINI_API_KEY")),
+            # Where a first visit's sample trip is, or null for none. It is a
+            # recording of a real conversation with this agent
+            # (`tools/sample/record.py`), so what a visitor sees before they
+            # spend anything is what the agent actually draws — not a layout
+            # the host composed. Off with `SAMPLE_TRIP=0`, which the scripted
+            # test server sets so a test starts from an empty conversation.
+            "sampleTrip": (
+                "sample-trip.json"
+                if os.environ.get("SAMPLE_TRIP", "1") != "0" and (WEB_DIST / "sample-trip.json").exists()
+                else None
+            ),
             "runtime": "python",
             # The two agent frameworks, offered to the traveller as a choice.
             # They are genuinely different runtimes — a request/response loop
@@ -314,7 +325,7 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
 
     turn = TurnRequest(
         api_key=api_key,
-        model=str(body.get("model") or os.environ.get("DEFAULT_MODEL", AGENT_DEFAULT_MODEL)),
+        model=str(body.get("model") or AGENT_DEFAULT_MODEL),
         message=str(body.get("message") or ""),
         action=action,
         # What the client carried beats what this instance remembers, because

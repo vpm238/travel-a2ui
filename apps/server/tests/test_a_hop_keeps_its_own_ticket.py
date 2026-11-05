@@ -197,17 +197,21 @@ class TestTheHostRecordsTheWholeFareItself:
         return trip
 
     FARE = {
-        "id": "SK6955",
+        # An id that is not the flight number, as with any real provider: the
+        # fixture's ids are flight-shaped and hid that the panel showed the id.
+        "id": "off_2Xq81",
         "price": 71,
         "airline": "SAS",
+        "flightNumber": "SK6955",
         "departTime": "12:19",
         "arriveTime": "13:36",
         "hop": 2,
     }
 
-    def test_the_return_hop_gets_all_five_facts(self) -> None:
+    def test_the_return_hop_gets_all_six_facts(self) -> None:
         leg = self._pressed("select_flight", self.FARE, 0)["legs"][0]
-        assert leg["selectedFlight"] == "SK6955"
+        assert leg["selectedFlight"] == "off_2Xq81"
+        assert leg["flightNumber"] == "SK6955"
         assert leg["flightPrice"] == 71
         assert leg["airline"] == "SAS", "the panel's return row has no airline to draw"
         assert leg["departTime"] == "12:19"
@@ -216,13 +220,14 @@ class TestTheHostRecordsTheWholeFareItself:
     def test_and_leaves_the_outbound_alone(self) -> None:
         """The trip's own fields are hop one's. A return must not overwrite them."""
         trip = self._pressed("select_flight", self.FARE, 0)
-        for field in ("selectedFlight", "airline", "departTime", "arriveTime"):
+        for field in ("selectedFlight", "flightNumber", "airline", "departTime", "arriveTime"):
             assert field not in trip, f"the return's {field} landed on the outbound"
 
     def test_the_first_hop_gets_them_on_the_trip(self) -> None:
         outbound = {k: v for k, v in self.FARE.items() if k != "hop"}
         trip = self._pressed("select_flight", outbound, None)
-        assert trip["selectedFlight"] == "SK6955"
+        assert trip["selectedFlight"] == "off_2Xq81"
+        assert trip["flightNumber"] == "SK6955"
         assert trip["airline"] == "SAS"
         assert trip["departTime"] == "12:19"
 
@@ -255,11 +260,14 @@ class TestTheHostRecordsTheWholeFareItself:
             (row for row in rows if "legs/0" in str(row.get("airline"))), None
         )
         assert leg_row is not None, f"no row bound to the leg: {rows}"
-        for field in ("airline", "departTime", "arriveTime"):
+        for field in ("airline", "flightNumber", "departTime", "arriveTime"):
             bound = leg_row.get(field)
             assert bound and "legs/0" in str(bound), (
                 f"the panel's return row does not draw {field}: {bound!r}"
             )
+        # The number off the card, not the fare's id — which is a flight number
+        # only where a provider happens to use one as its id.
+        assert "legs/0/flightNumber" in str(leg_row["flightNumber"]), leg_row["flightNumber"]
 
 
 def test_every_binding_a_hop_draws_is_a_field_a_hop_owns() -> None:

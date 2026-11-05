@@ -416,6 +416,7 @@ def flights(heading: str = "", selected: str = "", hop: Any = None) -> Column:
                     id=bind("id"),
                     price=bind("price"),
                     airline=bind("airline"),
+                    flightNumber=bind("flightNumber"),
                     departTime=bind("departTime"),
                     arriveTime=bind("arriveTime"),
                 ),
@@ -1205,6 +1206,7 @@ def trip(heading: str = "", money: Any = False) -> Column:
         # record of anything, and a row that waits for ever is a lie about a
         # search nobody is running.
         if hop.get("selectedFlight"):
+            number = "flightNumber" if has("flightNumber") else "selectedFlight"
             # One level deeper than the row being conditional, and for the same
             # reason: the agent reliably writes the outbound's airline and
             # times and reliably does not write the return's, however the brief
@@ -1222,10 +1224,14 @@ def trip(heading: str = "", money: Any = False) -> Column:
                     # decision back in the conversation. `strip_panel_actions`
                     # keeps every other kind off a panel.
                     action={"event": {"name": "change", "context": {"what": "flight", "hop": index}}},
-                    flightNumber=bind(model.binding_for(f"{prefix}selectedFlight")),
+                    # The number off the card when the hop has it. It used to be
+                    # the fare's id, which is a flight number only where a
+                    # provider happens to use one as its id — the sample trip
+                    # showed TP2077 beside a card that said TP787.
+                    flightNumber=bind(model.binding_for(f"{prefix}{number}")),
                     selected=bind(model.binding_for(f"{prefix}selectedFlight")),
                     accessibility=_reads(
-                        "${/trip/" + prefix + "selectedFlight},",
+                        "${/trip/" + prefix + number + "},",
                         "${/trip/" + prefix + "flightPrice}",
                     ),
                 )

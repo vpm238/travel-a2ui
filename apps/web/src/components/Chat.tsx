@@ -193,10 +193,42 @@ export function Chat({ agent }: { agent: Agent }) {
           </div>
         ) : null}
 
+        {/*
+          The sample trip, said plainly. A first visit opens on a recorded
+          conversation with this agent rather than an empty page, so somebody
+          can see what it draws before deciding to give it a key — and must
+          never mistake it for their own. Every card in it is live: changing
+          something carries on from the sample (and asks for a key then, if
+          there is none). Putting it away is one press and does not come back.
+        */}
+        {agent.sample ? (
+          <div className="sample" role="note" aria-label="Sample trip">
+            <div className="sample__text">
+              <strong>Sample trip</strong>
+              <span>
+                A recorded conversation with this agent, so you can see what it draws. Change
+                anything below to carry on from it, or start your own.
+              </span>
+            </div>
+            <button type="button" className="sample__remove" onClick={() => void agent.removeSample()}>
+              Start my own trip
+            </button>
+          </div>
+        ) : null}
+
         {agent.turns.map((turn) =>
           turn.role === 'user' ? (
-            <div key={turn.id} className={`bubble bubble--user${turn.fromSurface ? ' bubble--event' : ''}`}>
-              {turn.fromSurface ? <span className="bubble__tag">from the interface</span> : null}
+            <div
+              key={turn.id}
+              className={`bubble bubble--user${turn.fromSurface ? ' bubble--event' : ''}${turn.sample ? ' bubble--sample' : ''}`}
+            >
+              {turn.sample || turn.fromSurface ? (
+                <span className="bubble__tag">
+                  {[turn.sample ? 'sample' : null, turn.fromSurface ? 'from the interface' : null]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+              ) : null}
               <p>{turn.text}</p>
             </div>
           ) : (

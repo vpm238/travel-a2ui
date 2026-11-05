@@ -97,8 +97,6 @@ export default function App() {
   const [view, setView] = useState<View>('chat');
   const [showGate, setShowGate] = useState(false);
 
-  const needsKey = !agent.apiKey && agent.meta !== null && !agent.meta.keyProvided;
-
   const activeSkill = agent.meta?.skills.find((skill) => skill.variant === agent.prefs.skill);
 
   return (
@@ -284,14 +282,25 @@ export default function App() {
         </span>
       </footer>
 
-      {needsKey || showGate ? (
+      {/*
+        Asked for, not imposed. The form used to mount whenever there was no key
+        anywhere — on page load, full screen, with no way to close it — which
+        covered the Catalog and Wire tabs, the two views that run no model and
+        need no key. Now it opens when somebody tries to run a model without
+        one (`agent.keyRequested`) or asks for it from the header, and it can
+        always be dismissed.
+      */}
+      {agent.keyRequested || showGate ? (
         <KeyGate
           existing={agent.apiKey}
           onSave={(key) => {
             agent.setApiKey(key);
             setShowGate(false);
           }}
-          {...(needsKey && !showGate ? {} : { onDismiss: () => setShowGate(false) })}
+          onDismiss={() => {
+            setShowGate(false);
+            agent.dismissKeyRequest();
+          }}
         />
       ) : null}
     </div>

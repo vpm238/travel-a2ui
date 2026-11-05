@@ -196,6 +196,19 @@ check(
   String(commit?.action?.sourceComponentId),
 );
 check('and it reads as a message in the conversation', (await page.locator('.bubble--event').count()) > 0);
+// Readable, not the wire: the line used to be `commit surface — paths:
+// ["/trip/origin", ...], startDate: "2026-04-12T00:00:00Z"`.
+const said = (await page.locator('.bubble--event').last().textContent()) ?? '';
+check(
+  'in words a traveller would use',
+  /12 Apr 2026/.test(said) && /LHR/.test(said) && !/\/trip\/|T00:00|paths|"/.test(said),
+  said,
+);
+check(
+  'and the date was stored as the calendar day it is',
+  String(commit?.action?.context?.startDate) === '2026-04-12',
+  String(commit?.action?.context?.startDate),
+);
 
 // --- the previous surface goes grey and stops responding ------------------
 console.log('\nafter sending');

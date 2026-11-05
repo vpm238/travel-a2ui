@@ -92,6 +92,62 @@
   padding: 8px 13px;
 }
 
+/* The sample trip's label: first in the feed, impossible to read as yours. */
+.sample {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 14px;
+  border: 1px dashed var(--tv-accent-line);
+  border-radius: var(--tv-radius);
+  background: var(--tv-accent-soft);
+  color: var(--tv-ink);
+}
+
+.sample__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 260px;
+  font-size: 0.86rem;
+  text-wrap: pretty;
+}
+
+.sample__text strong {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tv-accent);
+}
+
+.sample__text span {
+  color: var(--tv-ink-muted);
+}
+
+.sample__remove {
+  appearance: none;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--tv-accent);
+  background: var(--tv-surface);
+  border: 1px solid var(--tv-accent-line);
+  border-radius: var(--tv-radius-sm);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.sample__remove:hover {
+  border-color: var(--tv-accent);
+}
+
+.sample__remove:focus-visible {
+  outline: 2px solid var(--tv-accent);
+  outline-offset: 2px;
+}
+
 .bubble__tag {
   display: block;
   font-size: 0.64rem;
@@ -280,4 +336,9 @@
     animation: none;
     background: var(--tv-surface-2);
   }
+}
+
+.sidebar__sample {
+  font-weight: 500;
+  color: var(--tv-accent);
 }

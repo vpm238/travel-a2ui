@@ -5,7 +5,7 @@
     "title": "Flight options",
     "flow": "inline",
     "description": "Inline: answering \"find me a flight to Madrid\" inside the chat feed. One surface, one job — the options and a way to pick one.",
-    "express": "surface(\"inline-7\")\n# That id is the one this turn was given (\"Draw into surface ...\"), never an\n# earlier card's. A card already answered is the record of that answer, and a\n# root drawn onto it takes the place of what the traveler picked from.\nheading = Text(\"Outbound · JFK → MAD · Sun 12 Apr\", variant=\"h3\")\n# One call, drawn *before* search_flights is called. The lookup files its rows\n# at /flights and this reads them: bound, labelled, pressable, however many\n# come back. Writing a FlightOption per result instead is three hundred tokens\n# the traveler waits through, and the one part of the turn that can disagree\n# with what was actually found.\nfares = Flights(\"Outbound · JFK → MAD · Sun 12 Apr\", \"/trip/selectedOutbound\")\nnote = Text(\"Prices are per traveler, round trip.\")\nroot = Column([heading, fares, note])",
+    "express": "surface(\"inline-7\")\n# That id is the one this turn was given (\"Draw into surface ...\"), never an\n# earlier card's. A card already answered is the record of that answer, and a\n# root drawn onto it takes the place of what the traveler picked from.\n# One call, drawn *before* search_flights is called. The lookup files its rows\n# at /flights and this reads them: bound, labelled, pressable, however many\n# come back. Writing a FlightOption per result instead is three hundred tokens\n# the traveler waits through, and the one part of the turn that can disagree\n# with what was actually found.\n#\n# The heading goes in the call, and only there: Flights draws it. A Text with\n# the same words above it puts the line on screen twice, which is what every\n# card did while this example showed both.\nfares = Flights(\"Outbound · JFK → MAD · Sun 12 Apr\", \"/trip/selectedOutbound\")\nnote = Text(\"Prices are per traveler, round trip.\")\nroot = Column([fares, note])",
     "messages": [
       {
         "version": "1.0",
@@ -13,12 +13,6 @@
           "surfaceId": "inline-7",
           "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
-            {
-              "id": "heading",
-              "component": "Text",
-              "text": "Outbound · JFK → MAD · Sun 12 Apr",
-              "variant": "h3"
-            },
             {
               "id": "fares",
               "component": "Flights",
@@ -34,7 +28,6 @@
               "id": "root",
               "component": "Column",
               "children": [
-                "heading",
                 "fares",
                 "note"
               ]
@@ -43,7 +36,7 @@
         }
       }
     ],
-    "bytes": 512
+    "bytes": 408
   },
   {
     "id": "20-sidebar-refine",

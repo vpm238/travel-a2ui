@@ -40,12 +40,28 @@ CATALOG = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
 EXAMPLES = ROOT / "catalogs" / "a2ui-travel" / "examples"
 COMPILED = EXAMPLES / "compiled"
 
-SDK_MISSING = """\
-The A2UI agent SDK is not installed, and this script is the reference compiler's
-half of the build.
+def _missing(error: ImportError) -> str:
+    """What to install, named from what actually failed to import.
 
-  pip install a2ui-agent-sdk
-"""
+    This used to print one fixed message — "pip install a2ui-agent-sdk" — for
+    any `ImportError`, and the commonest one on a fresh clone is not the SDK at
+    all: it is `travel_a2ui`, the server package this script compiles with,
+    which `npm run setup` used to run *before* installing. So the advice was to
+    install a package that was already there, and the real fix went unsaid.
+    """
+    name = (error.name or "").split(".")[0]
+    if name == "travel_a2ui":
+        return (
+            "The server package is not installed, and these examples are compiled\n"
+            "with the server's own parser so they match what the agent is taught.\n\n"
+            "  pip install -e ./apps/server\n"
+        )
+    if name == "a2ui":
+        return (
+            "The A2UI agent SDK is not installed. It comes with the server package:\n\n"
+            "  pip install -e ./apps/server\n"
+        )
+    return f"Could not import {error.name or 'a dependency'}: {error}\n"
 
 
 def as_wire(messages):
@@ -75,7 +91,7 @@ def parser_for(surface_id: str):
         from travel_a2ui.brain.catalog import parser_for as server_parser
         from travel_a2ui.brain.express import as_wire  # noqa: F401
     except ImportError as error:  # pragma: no cover - environment, not logic
-        raise SystemExit(SDK_MISSING) from error
+        raise SystemExit(_missing(error)) from error
 
     return server_parser(surface_id)
 

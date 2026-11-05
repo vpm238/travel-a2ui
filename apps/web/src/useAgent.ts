@@ -37,6 +37,7 @@ import {
   warmUp,
   clientHints,
   fetchMeta,
+  fetchSampleTrip,
   getApiOrigin,
   probeBackend,
   resetSession,
@@ -46,6 +47,7 @@ import {
   type BackendId,
   type Meta,
   type Resume,
+  type SampleRecording,
   type SkillVariant,
   type SurfaceAction,
   type SurfaceKind,
@@ -64,6 +66,7 @@ import {
   STANDING,
   actionFrom,
   describeForTranscript,
+  type ComponentLookup,
   redrawsSurface,
   withSurface,
   withText,
@@ -74,6 +77,7 @@ import {
   BACKEND_KEY,
   LIVE_KEY,
   PREFS_KEY,
+  SAMPLE_KEY,
   newSessionId,
   readLiveRecord,
   readStored,
@@ -92,8 +96,22 @@ export type {
 } from './conversation.js';
 export type { LiveStatus } from './storage.js';
 
+/** How a message is sent — which surface it answers, and whether it shows. */
+interface SendOptions {
+  surface?: SurfaceKind;
+  surfaceId?: string;
+  fromSurface?: boolean;
+  /** Keep the transcript clean for background surfaces like the home screen. */
+  silent?: boolean;
+}
+
 export function useAgent() {
   const store = useMemo(() => new SurfaceStore(), []);
+  /** What the transcript asks to name a press: the component, on its surface. */
+  const lookup = useCallback<ComponentLookup>(
+    (surfaceId, id) => store.get(surfaceId)?.components.get(id) as Record<string, unknown> | undefined,
+    [store],
+  );
 
   const [meta, setMeta] = useState<Meta | null>(null);
 
@@ -205,6 +223,11 @@ export function useAgent() {
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [trip, setTrip] = useState<Trip>({});
+  /** True while the conversation opens on the recorded sample trip. */
+  const [sample, setSample] = useState(false);
+  /** How many turns there are, readable from an effect without depending on them. */
+  const turnCountRef = useRef(0);
+  turnCountRef.current = turns.length;
   const [usage, setUsage] = useState<Usage>(EMPTY_USAGE);
   const [busy, setBusy] = useState(false);
   const [liveSurface, setLiveSurface] = useState<SurfaceKind | null>(null);
@@ -215,6 +238,42 @@ export function useAgent() {
   prefsRef.current = prefs;
   const keyRef = useRef(apiKey);
   keyRef.current = apiKey;
+  /**
+   * Whether the server holds a key of its own, so a turn can run without one
+   * from the browser.
+   *
+   * Every door already falls back to it — `/api/chat`, `/api/warm` and
+   * `/api/voice` all read `GEMINI_API_KEY` when the request carries none — and
+   * typed turns worked that way. Three paths in here did not ask: warming,
+   * binding the Live agent, and starting a call each returned early on an
+   * empty browser key. So on a deployment with a server key and nothing typed
+   * into the browser, "Set up" did nothing and the microphone answered "Add
+   * your Gemini key first" to somebody who had no key to add.
+   */
+  const serverKeyRef = useRef(false);
+  serverKeyRef.current = Boolean(meta?.keyProvided);
+  /** A key from either side — the only question any of these gates means. */
+  const canRun = () => Boolean(keyRef.current) || serverKeyRef.current;
+
+  /**
+   * Somebody tried to run a model with no key anywhere, and should be asked.
+   *
+   * Asked *then*, not on arrival. The key form used to mount the moment the
+   * page loaded without one, as a full-screen overlay with no way to dismiss
+   * it — over the Catalog and Wire tabs, which run no model and need no key,
+   * and which the README sends people to first for exactly that reason. So
+   * the one view built to be tried keyless was the one a keyless visitor could
+   * not reach.
+   */
+  const [keyRequested, setKeyRequested] = useState(false);
+  /**
+   * What they were trying to send when they were asked, so it is sent once
+   * the key arrives. The composer has already cleared itself by then; without
+   * this, saving a key would answer "what was I saying?" with nothing.
+   */
+  const pendingRef = useRef<{ input: string | SurfaceAction; options: SendOptions } | null>(
+    null,
+  );
   const backendRef = useRef(backend.origin);
   backendRef.current = backend.origin;
 
@@ -323,6 +382,156 @@ export function useAgent() {
   }, []);
 
   /**
+   * What a turn's events do to the transcript, the store and the trip.
+   *
+   * One handler for a turn streaming in and for a recorded one being replayed
+   * (the sample trip), so a sample is drawn by exactly the code that draws a
+   * live answer and cannot drift from it. `replay` only skips what belongs to
+   * a request in flight: the busy flag, and counting tokens nobody spent here.
+   */
+  const handlerFor = useCallback(
+    (assistantId: string, { silent = false, replay = false }: { silent?: boolean; replay?: boolean }) =>
+      (event: AgentEvent) => {
+        switch (event.type) {
+          case 'start':
+            break;
+          case 'text':
+            if (!silent) {
+              patchTurn(assistantId, (turn) => ({
+                text: turn.text + event.delta,
+                parts: withText(turn.parts, event.delta, event.round ?? 0),
+              }));
+            }
+            break;
+          case 'ui':
+            // A block that compiles clears any retry note: it worked.
+            if (!silent) patchTurn(assistantId, { retrying: undefined });
+            // Everything the surface should show is already in these messages:
+            // the server seeds `/trip` into the surface it creates and sends
+            // `updateDataModel` for the panels. Applying them is the whole job.
+            store.apply(event.messages);
+            // A panel that is *redrawn* is the panel for the decisions as they
+            // stand. A panel that is merely refreshed is not.
+            //
+            // This read "any event for a standing surface", and the server
+            // sends one of those at the end of every turn: `panel_events`
+            // pushes the trip's values into the panels as `updateDataModel`,
+            // with no components in it and no model in the path. So the mark
+            // was set on every turn whether or not a panel had been drawn, the
+            // two shapes below could never disagree, and the catch-up this
+            // comment describes had been dead code since it was written. The
+            // panel went stale on the deployed app — "Stay in Berlin ·
+            // Awaiting selection", with the stay booked — and nothing noticed.
+            if (STANDING.has(event.surfaceId) && redrawsSurface(event.messages)) {
+              panelShapeRef.current = tripShapeRef.current;
+            }
+            if (!silent) {
+              patchTurn(assistantId, (turn) => ({
+                parts: withSurface(turn.parts, event.surfaceId),
+              }));
+            }
+            break;
+          case 'ui_error':
+            // Not surfaced as an error yet: the agent gets one attempt to
+            // rewrite the block, and a message that flashes red and then fixes
+            // itself is worse than no message.
+            break;
+          case 'retry':
+            if (!silent) patchTurn(assistantId, { retrying: event.reason });
+            break;
+          case 'restart':
+            // The model dropped the stream part-way through answering, and the
+            // turn is being run again on the standby model. What it managed to
+            // say belongs to the attempt that is being abandoned — usually a
+            // clause with no verb — so it goes, rather than sitting above the
+            // real answer as if it were the start of one.
+            if (!silent) {
+              patchTurn(assistantId, { text: '', parts: [], retrying: event.reason });
+            }
+            break;
+          case 'served_by':
+            if (!silent) patchTurn(assistantId, { servedBy: event.model });
+            break;
+          case 'tool':
+            if (!silent) {
+              patchTurn(assistantId, (turn) => ({
+                tools: [...turn.tools, { name: event.name, input: event.input }],
+              }));
+            }
+            break;
+          case 'tool_result':
+            if (!silent) {
+              patchTurn(assistantId, (turn) => {
+                const tools = [...turn.tools];
+                for (let index = tools.length - 1; index >= 0; index--) {
+                  if (tools[index]!.name === event.name && tools[index]!.result === undefined) {
+                    tools[index] = { ...tools[index]!, result: event.result, isError: event.isError };
+                    break;
+                  }
+                }
+                return { tools };
+              });
+            }
+            break;
+          case 'trip':
+            setTrip(event.trip);
+            // What the panel would have to be redrawn for, noted while the turn
+            // is still streaming. See `panelShapeRef`.
+            if (event.shape !== undefined) tripShapeRef.current = event.shape;
+            break;
+          case 'resume':
+            // A recorded receipt carries what was decided and no conversation.
+            // Merged, so a warm conversation opened meanwhile is kept.
+            if (replay) {
+              resumeRef.current = { ...resumeRef.current, trip: event.trip, shape: event.shape };
+              break;
+            }
+            // Kept, not read. See `resumeRef`.
+            resumeRef.current = {
+              interactionId: event.interactionId,
+              trip: event.trip,
+              shape: event.shape,
+              // Carried rather than dropped. Without it the server falls back
+              // to its own session, and the claim that the client holds the
+              // thread is only true while there is one server.
+              setup: event.setup,
+            };
+            break;
+          case 'timing':
+            if (!silent) patchTurn(assistantId, { timing: event.ms });
+            break;
+          case 'usage':
+            // A replayed turn cost nothing in this session.
+            if (replay) break;
+            setUsage((current) => ({
+              inputTokens: current.inputTokens + event.inputTokens,
+              outputTokens: current.outputTokens + event.outputTokens,
+              cacheReadTokens: current.cacheReadTokens + event.cacheReadTokens,
+              cacheWriteTokens: current.cacheWriteTokens + event.cacheWriteTokens,
+              thoughtTokens: current.thoughtTokens + event.thoughtTokens,
+              turns: current.turns + 1,
+            }));
+            break;
+          case 'error':
+            if (silent) break;
+            patchTurn(assistantId, { error: event.message });
+            break;
+          case 'done':
+            // The traveler's answer is finished, so the composer unlocks here
+            // rather than when the stream closes. What can still arrive after
+            // this is the standing panels, which the server rebuilds with a
+            // second model call — worth a few seconds of somebody *not*
+            // waiting, because nobody is looking at the sidebar while they
+            // read the card they just asked for.
+            if (!silent) patchTurn(assistantId, { streaming: false });
+            if (!replay) setBusy(false);
+            break;
+        }
+      },
+    [patchTurn, store],
+  );
+
+  /**
    * One turn, whether the traveler typed it or pressed it.
    *
    * A string is a typed message. A `SurfaceAction` is an interaction, sent as
@@ -330,24 +539,23 @@ export function useAgent() {
    * that sentence is written *here for display* and never goes on the wire.
    */
   const send = useCallback(
-    async (
-      input: string | SurfaceAction,
-      options: {
-        surface?: SurfaceKind;
-        surfaceId?: string;
-        fromSurface?: boolean;
-        /** Keep the transcript clean for background surfaces like the home screen. */
-        silent?: boolean;
-      } = {},
-    ) => {
+    async (input: string | SurfaceAction, options: SendOptions = {}) => {
       const action = typeof input === 'string' ? undefined : input;
       const message = typeof input === 'string' ? input.trim() : '';
-      const text = action ? describeForTranscript(action) : message;
+      const text = action ? describeForTranscript(action, lookup) : message;
       const surface = options.surface ?? 'inline';
       // An empty message on a standing surface is a request to draw it, and the
       // server writes the brief. Only the conversation needs something said.
       const drawing = !action && !message && surface !== 'inline';
       if ((!action && !message && !drawing) || busy) return;
+
+      // Only what the traveller said or pressed. A silent panel draw is the
+      // app's own bookkeeping and must never pop a form at somebody.
+      if (!drawing && !options.silent && !canRun()) {
+        pendingRef.current = { input, options };
+        setKeyRequested(true);
+        return;
+      }
 
       /*
        * In Live, the Live session is the conversation.
@@ -394,135 +602,7 @@ export function useAgent() {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const handle = (event: AgentEvent) => {
-        switch (event.type) {
-          case 'start':
-            break;
-          case 'text':
-            if (!options.silent) {
-              patchTurn(assistantId, (turn) => ({
-                text: turn.text + event.delta,
-                parts: withText(turn.parts, event.delta, event.round ?? 0),
-              }));
-            }
-            break;
-          case 'ui':
-            // A block that compiles clears any retry note: it worked.
-            if (!options.silent) patchTurn(assistantId, { retrying: undefined });
-            // Everything the surface should show is already in these messages:
-            // the server seeds `/trip` into the surface it creates and sends
-            // `updateDataModel` for the panels. Applying them is the whole job.
-            store.apply(event.messages);
-            // A panel that is *redrawn* is the panel for the decisions as they
-            // stand. A panel that is merely refreshed is not.
-            //
-            // This read "any event for a standing surface", and the server
-            // sends one of those at the end of every turn: `panel_events`
-            // pushes the trip's values into the panels as `updateDataModel`,
-            // with no components in it and no model in the path. So the mark
-            // was set on every turn whether or not a panel had been drawn, the
-            // two shapes below could never disagree, and the catch-up this
-            // comment describes had been dead code since it was written. The
-            // panel went stale on the deployed app — "Stay in Berlin ·
-            // Awaiting selection", with the stay booked — and nothing noticed.
-            if (STANDING.has(event.surfaceId) && redrawsSurface(event.messages)) {
-              panelShapeRef.current = tripShapeRef.current;
-            }
-            if (!options.silent) {
-              patchTurn(assistantId, (turn) => ({
-                parts: withSurface(turn.parts, event.surfaceId),
-              }));
-            }
-            break;
-          case 'ui_error':
-            // Not surfaced as an error yet: the agent gets one attempt to
-            // rewrite the block, and a message that flashes red and then fixes
-            // itself is worse than no message.
-            break;
-          case 'retry':
-            if (!options.silent) patchTurn(assistantId, { retrying: event.reason });
-            break;
-          case 'restart':
-            // The model dropped the stream part-way through answering, and the
-            // turn is being run again on the standby model. What it managed to
-            // say belongs to the attempt that is being abandoned — usually a
-            // clause with no verb — so it goes, rather than sitting above the
-            // real answer as if it were the start of one.
-            if (!options.silent) {
-              patchTurn(assistantId, { text: '', parts: [], retrying: event.reason });
-            }
-            break;
-          case 'served_by':
-            if (!options.silent) patchTurn(assistantId, { servedBy: event.model });
-            break;
-          case 'tool':
-            if (!options.silent) {
-              patchTurn(assistantId, (turn) => ({
-                tools: [...turn.tools, { name: event.name, input: event.input }],
-              }));
-            }
-            break;
-          case 'tool_result':
-            if (!options.silent) {
-              patchTurn(assistantId, (turn) => {
-                const tools = [...turn.tools];
-                for (let index = tools.length - 1; index >= 0; index--) {
-                  if (tools[index]!.name === event.name && tools[index]!.result === undefined) {
-                    tools[index] = { ...tools[index]!, result: event.result, isError: event.isError };
-                    break;
-                  }
-                }
-                return { tools };
-              });
-            }
-            break;
-          case 'trip':
-            setTrip(event.trip);
-            // What the panel would have to be redrawn for, noted while the turn
-            // is still streaming. See `panelShapeRef`.
-            if (event.shape !== undefined) tripShapeRef.current = event.shape;
-            break;
-          case 'resume':
-            // Kept, not read. See `resumeRef`.
-            resumeRef.current = {
-              interactionId: event.interactionId,
-              trip: event.trip,
-              shape: event.shape,
-              // Carried rather than dropped. Without it the server falls back
-              // to its own session, and the claim that the client holds the
-              // thread is only true while there is one server.
-              setup: event.setup,
-            };
-            break;
-          case 'timing':
-            if (!options.silent) patchTurn(assistantId, { timing: event.ms });
-            break;
-          case 'usage':
-            setUsage((current) => ({
-              inputTokens: current.inputTokens + event.inputTokens,
-              outputTokens: current.outputTokens + event.outputTokens,
-              cacheReadTokens: current.cacheReadTokens + event.cacheReadTokens,
-              cacheWriteTokens: current.cacheWriteTokens + event.cacheWriteTokens,
-              thoughtTokens: current.thoughtTokens + event.thoughtTokens,
-              turns: current.turns + 1,
-            }));
-            break;
-          case 'error':
-            if (options.silent) break;
-            patchTurn(assistantId, { error: event.message });
-            break;
-          case 'done':
-            // The traveler's answer is finished, so the composer unlocks here
-            // rather than when the stream closes. What can still arrive after
-            // this is the standing panels, which the server rebuilds with a
-            // second model call — worth a few seconds of somebody *not*
-            // waiting, because nobody is looking at the sidebar while they
-            // read the card they just asked for.
-            if (!options.silent) patchTurn(assistantId, { streaming: false });
-            setBusy(false);
-            break;
-        }
-      };
+      const handle = handlerFor(assistantId, { silent: options.silent });
 
       try {
         await streamTurn(
@@ -571,7 +651,7 @@ export function useAgent() {
         }
       }
     },
-    [busy, patchTurn, sessionId, store],
+    [busy, handlerFor, lookup, patchTurn, sessionId, store],
   );
 
   const stop = useCallback(() => {
@@ -602,6 +682,24 @@ export function useAgent() {
    *
    * So this says only which surface, and the server decides the rest.
    */
+  // Whatever they were trying to say when they were asked for a key, said now
+  // that there is one. On the key, not on a click, so a key pasted into the
+  // form and a key arriving any other way both carry the message through.
+  useEffect(() => {
+    if (!canRun() || !pendingRef.current) return;
+    const { input, options } = pendingRef.current;
+    pendingRef.current = null;
+    setKeyRequested(false);
+    void send(input, options);
+    // `canRun` reads refs; the key and the server's answer are what change it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiKey, meta?.keyProvided, send]);
+
+  const dismissKeyRequest = useCallback(() => {
+    pendingRef.current = null;
+    setKeyRequested(false);
+  }, []);
+
   const drawSurface = useCallback(
     (surface: 'sidebar' | 'home', note?: string) =>
       send(note ?? '', { surface, surfaceId: surface, silent: true }),
@@ -690,7 +788,7 @@ export function useAgent() {
   const [warmth, setWarmth] = useState<Warmth>('cold');
 
   const warm = useCallback(async () => {
-    if (warmedRef.current || !keyRef.current) return;
+    if (warmedRef.current || !canRun()) return;
     // Set before the request, not after: a keystroke and the page-load effect
     // landing in the same tick would otherwise start two conversations.
     warmedRef.current = true;
@@ -699,8 +797,14 @@ export function useAgent() {
     if (warmed.interactionId) {
       // Only if nothing has happened since. Somebody who typed fast enough to
       // finish a real turn already holds a better receipt than this one.
-      if (!resumeRef.current) {
+      //
+      // A receipt with no interaction id is the sample trip's: it carries what
+      // was decided but no conversation to continue. The warm conversation is
+      // added to it rather than replacing it, or the first live turn would
+      // forget the trip on screen.
+      if (!resumeRef.current?.interactionId) {
         resumeRef.current = {
+          ...resumeRef.current,
           interactionId: warmed.interactionId,
           setup: warmed.setup ?? undefined,
         };
@@ -742,7 +846,72 @@ export function useAgent() {
     setTrip({});
     setUsage(EMPTY_USAGE);
     store.clear();
+    // Starting over is starting over: the sample does not come back after it.
+    setSample(false);
+    writeStored(SAMPLE_KEY, '1');
   }, [sessionId, store]);
+
+  // ------------------------------------------------------------- sample trip
+
+  /**
+   * Plays a recorded conversation into an empty one.
+   *
+   * Each turn goes through `handlerFor`, the code that draws a live answer, so
+   * the sample is what this app draws and not an imitation of it. A press is
+   * written into the transcript the way a live press is — from the component
+   * it was made on, which the earlier turns have already put in the store.
+   *
+   * The last `resume` carries the trip and no interaction id, so the next live
+   * turn starts a new conversation that already knows what was decided:
+   * changing anything in the sample carries on from it.
+   */
+  const replaySample = useCallback(
+    (recording: SampleRecording) => {
+      recording.turns.forEach((recorded, index) => {
+        const assistantId = `sample_a${index}`;
+        const text = recorded.action
+          ? describeForTranscript(recorded.action, lookup)
+          : (recorded.message ?? '');
+        setTurns((current) => [
+          ...current,
+          {
+            id: `sample_u${index}`,
+            role: 'user',
+            text,
+            parts: [],
+            tools: [],
+            streaming: false,
+            sample: true,
+            ...(recorded.action ? { fromSurface: true } : {}),
+          },
+          { id: assistantId, role: 'assistant', text: '', parts: [], tools: [], streaming: true, sample: true },
+        ]);
+        const handle = handlerFor(assistantId, { replay: true });
+        for (const event of recorded.events) handle(event);
+        patchTurn(assistantId, { streaming: false });
+      });
+      setSample(true);
+    },
+    [handlerFor, lookup, patchTurn],
+  );
+
+  // Once the deployment says it has one, onto a conversation nobody has
+  // started, for somebody who has not put it away before.
+  const sampleTrip = meta?.sampleTrip;
+  useEffect(() => {
+    if (!sampleTrip || readStored(SAMPLE_KEY)) return;
+    let cancelled = false;
+    void fetchSampleTrip(sampleTrip).then((recording) => {
+      if (cancelled || !recording || turnCountRef.current > 0) return;
+      replaySample(recording);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sampleTrip, replaySample]);
+
+  /** Puts the sample away for good and opens an empty conversation. */
+  const removeSample = useCallback(() => reset(), [reset]);
 
   // ------------------------------------------------------------- voice
   //
@@ -834,8 +1003,8 @@ export function useAgent() {
   liveStatusRef.current = liveStatus;
 
   const runInstantiate = useCallback(async (): Promise<boolean> => {
-    if (!keyRef.current) {
-      setLiveError('Add your Gemini key first.');
+    if (!canRun()) {
+      setKeyRequested(true);
       return false;
     }
     setLiveBusy(true);
@@ -889,7 +1058,7 @@ export function useAgent() {
   relayPressRef.current = (action: SurfaceAction) => {
     const live = sessionRef.current;
     if (!live || !live.alive()) return false;
-    const sentence = describeForTranscript(action);
+    const sentence = describeForTranscript(action, lookup);
     // Shown as well as sent. A press that produces no line is the half of this
     // the traveller actually notices: they tap a fare, the transcript says
     // nothing, and the answer that follows is to a question not on screen.
@@ -952,8 +1121,8 @@ export function useAgent() {
       }
       return;
     }
-    if (!keyRef.current) {
-      setVoiceError('Add your Gemini key first.');
+    if (!canRun()) {
+      setKeyRequested(true);
       return;
     }
     setVoiceError(null);
@@ -1066,6 +1235,12 @@ export function useAgent() {
     /** Set when the key arrived in a query string, which the server logged. */
     keyWasExposed: Boolean(urlKey?.exposed),
     setApiKey,
+    /** A model action was attempted with no key anywhere; ask for one. */
+    keyRequested,
+    dismissKeyRequest,
+    /** True while the conversation opens on the recorded sample trip. */
+    sample,
+    removeSample,
     prefs,
     setPrefs,
     backend,

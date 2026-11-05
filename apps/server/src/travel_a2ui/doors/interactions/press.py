@@ -153,6 +153,7 @@ _SAVES_AS: dict[str, tuple[tuple[str, str], ...]] = {
         ("id", "selectedFlight"),
         ("price", "flightPrice"),
         ("airline", "airline"),
+        ("flightNumber", "flightNumber"),
         ("departTime", "departTime"),
         ("arriveTime", "arriveTime"),
     ),

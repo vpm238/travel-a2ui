@@ -52,7 +52,10 @@ export function Sidebar({ agent }: { agent: Agent }) {
   return (
     <aside className="sidebar" aria-label="Trip controls">
       <header className="sidebar__head">
-        <h2>The trip</h2>
+        <h2>
+          The trip
+          {agent.sample ? <span className="sidebar__sample"> · sample</span> : null}
+        </h2>
         {agent.liveSurface === 'sidebar' ? <Spinner /> : null}
       </header>
 

@@ -129,6 +129,7 @@ LEG_OWNED: tuple[str, ...] = (
     "selectedFlight",
     "flightPrice",
     "airline",
+    "flightNumber",
     "departTime",
     "arriveTime",
     "selectedHotel",

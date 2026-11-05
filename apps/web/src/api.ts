@@ -121,6 +121,12 @@ export interface Meta {
   skills: SkillInfo[];
   keyProvided: boolean;
   /**
+   * Where a first visit's sample trip is, relative to the page, or null for
+   * none. A recording of a real conversation with this agent, replayed through
+   * the same handler as a live turn — see `tools/sample/record.py`.
+   */
+  sampleTrip?: string | null;
+  /**
    * The deployment's Google Maps key, for loading the Maps JavaScript API.
    *
    * Public on purpose — a Maps key is restricted by HTTP referrer rather
@@ -449,3 +455,26 @@ export async function streamTurn(request: ChatRequest, options: StreamOptions): 
   }
 }
 
+/** A recorded conversation: what was said or pressed, and the events that answered it. */
+export interface SampleRecording {
+  recorded: string;
+  model?: string;
+  turns: Array<{ message?: string; action?: SurfaceAction; events: AgentEvent[] }>;
+}
+
+/**
+ * The sample trip, or null when there is none to show.
+ *
+ * Fetched from the page's own origin rather than the API's: it ships with the
+ * web build, next to `index.html`, whichever backend answers turns.
+ */
+export async function fetchSampleTrip(path: string): Promise<SampleRecording | null> {
+  try {
+    const response = await fetch(path, { cache: 'no-cache' });
+    if (!response.ok) return null;
+    const recording = (await response.json()) as SampleRecording;
+    return Array.isArray(recording?.turns) && recording.turns.length > 0 ? recording : null;
+  } catch {
+    return null;
+  }
+}

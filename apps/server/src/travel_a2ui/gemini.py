@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Callable, Sequence
 
@@ -440,6 +441,48 @@ async def stream_interaction(
     yield {"type": "result", "result": result}
 
 
+#: How long a stream may take to *start*, per attempt, in seconds.
+#:
+#: Covers both halves of starting: the `interactions.create` call itself, and
+#: the first chunk after it. Either can hang without raising — measured on the
+#: deployment, a model that was up but stalled held the request open with no
+#: error at all — and a hang that never raises never reaches `_BACKOFF` or the
+#: fallback model, so `/api/warm` and `/api/chat` simply waited for ever.
+#:
+#: Fifteen seconds is longer than any healthy first chunk this app has measured
+#: (a cold opening turn starts speaking in about five) and short enough that a
+#: traveller on a stalled model is moved to the fallback before giving up.
+#: Read from the environment so a deployment on a slower model can loosen it.
+_OPEN_DEADLINE = float(os.environ.get("GEMINI_OPEN_TIMEOUT", "15"))
+
+
+async def _started(stream: Any) -> AsyncIterator[Any]:
+    """The stream, once its first chunk has actually arrived.
+
+    `interactions.create(stream=True)` returns as soon as the request is
+    accepted; the model can then send nothing. So the first chunk is pulled
+    here, inside the deadline, and replayed in front of the rest — the caller
+    iterates exactly what it would have, and a stream that never starts is a
+    timeout rather than a hang.
+    """
+    iterator = stream.__aiter__()
+    try:
+        first = await iterator.__anext__()
+    except StopAsyncIteration:
+        first = None
+        empty = True
+    else:
+        empty = False
+
+    async def replay() -> AsyncIterator[Any]:
+        if not empty:
+            yield first
+        async for chunk in iterator:
+            yield chunk
+
+    return replay()
+
+
 #: How long to wait before trying a busy model again, in seconds.
 #:
 #: Two attempts, not ten. "Currently experiencing high demand" is a capacity
@@ -541,22 +584,47 @@ async def _open(
     attempts = len(_BACKOFF) + 1
     last: GeminiError | None = None
 
+    async def start(request: dict[str, Any]) -> Any:
+        """Open, and wait for the first chunk, within one deadline."""
+
+        async def opened() -> Any:
+            # Both awaits inside the timed coroutine. Written as
+            # `wait_for(_started(await create(...)), …)` the `create` is an
+            # *argument*, evaluated before `wait_for` starts its clock — so a
+            # model that hangs on open, the case this exists for, was never
+            # timed at all. Only the first-chunk half was.
+            return await _started(await genai.aio.interactions.create(**request))
+
+        return await asyncio.wait_for(opened(), _OPEN_DEADLINE)
+
     for attempt in range(attempts):
         try:
-            return await genai.aio.interactions.create(**body), None
+            return await start(body), None
+        except TimeoutError:
+            # A stall, not a refusal: retryable, and the reason the fallback
+            # exists. `asyncio.TimeoutError` is this same class from 3.11.
+            last = GeminiError(
+                f"{model} did not start answering within {_OPEN_DEADLINE:g} seconds.",
+                504,
+                True,
+            )
         except Exception as error:  # noqa: BLE001 - every failure gets a sentence
             described = _from_sdk_error(error)
             if not described.retryable:
                 raise described from error
             last = described
-            if attempt < len(_BACKOFF):
-                await asyncio.sleep(_BACKOFF[attempt])
+        if attempt < len(_BACKOFF):
+            await asyncio.sleep(_BACKOFF[attempt])
 
     if fallback_model and fallback_model != model:
         try:
-            return await genai.aio.interactions.create(
-                **{**body, "model": fallback_model}
-            ), fallback_model
+            return await start({**body, "model": fallback_model}), fallback_model
+        except TimeoutError as error:
+            raise GeminiError(
+                f"Neither {model} nor {fallback_model} started answering in time.",
+                504,
+                True,
+            ) from error
         except Exception as error:  # noqa: BLE001
             raise _from_sdk_error(error) from error
 

@@ -119,13 +119,23 @@ def bind_commit_context(
         if components is None or root is None:
             continue
 
+        # A face, then the button that points at it.
+        #
+        # This was `"label": "Send"`, and a `Button` has no `label` — its face
+        # is a component, named by the required `child`. So the injected button
+        # failed the SDK's own `validate_payload` ("'child' is a required
+        # property"), and a renderer that drew it anyway drew an empty, unnamed
+        # `<button>`. The pass runs *after* the compiler has validated the tree,
+        # which is why nothing caught it: a shape the compiler would never have
+        # emitted went out unchecked.
+        face = {"id": "__commit_label", "component": "Text", "text": "Send"}
         commit = {
             "id": "__commit",
             "component": "Button",
-            "label": "Send",
+            "child": face["id"],
             "action": {"event": {"name": "commit_surface", "context": {}}},
         }
-        components.append(commit)
+        components.extend([face, commit])
         root["children"].append(commit["id"])
         buttons[surface_id] = [commit]
 

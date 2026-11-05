@@ -6,7 +6,7 @@ same agent with a microphone bolted on: a voice call goes through the Live API,
 its surfaces are composed by server tools rather than written as Express, and
 **a press arrives as a sentence**. The Live API has no equivalent of an A2UI
 action to send, so the browser relays the press as the line the transcript
-already shows — `select flight — id: "AA3229", price: 281` — and the model has
+already shows — `Choose — id: AA3229, price: 281` — and the model has
 to turn that back into a `save_trip`. Nothing in the host records it on the way
 past, which is the one place this runtime costs something, and the one thing
 nobody had ever watched happen.
@@ -31,6 +31,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 import uuid
 from typing import Any
@@ -42,12 +43,50 @@ except ImportError:  # pragma: no cover - the SDK brings it, but say so clearly
     raise SystemExit(2)
 
 
-def press_sentence(name: str, context: dict[str, Any]) -> str:
+_POINTER = re.compile(r"^/\S+$")
+_CIVIL = re.compile(
+    r"^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$"
+)
+_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+
+
+def _readable(value: Any) -> str | None:
+    """`readable` in `apps/web/src/conversation.ts`: a value by shape, or nothing."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        if _POINTER.match(value):
+            return None
+        civil = _CIVIL.match(value)
+        if civil and 1 <= int(civil[2]) <= 12 and 1 <= int(civil[3]) <= 31:
+            date = f"{int(civil[3])} {_MONTHS[int(civil[2]) - 1]} {civil[1]}"
+            if civil[4] and not (civil[4] == "00" and civil[5] == "00"):
+                return f"{date}, {civil[4]}:{civil[5]}"
+            return date
+        return value
+    if isinstance(value, list):
+        parts = [part for part in map(_readable, value) if part is not None]
+        return ", ".join(parts) or None
+    return json.dumps(value)
+
+
+def _words(key: str) -> str:
+    key = re.sub(r"[_-]+", " ", key)
+    return re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", key).lower().strip()
+
+
+def press_sentence(name: str, context: dict[str, Any], label: str | None = None) -> str:
     """A press, as the browser relays it into a call.
 
     Mirrors `describeForTranscript` in `apps/web/src/conversation.ts`. If that
     changes, this has to, because the whole point is to send what a traveller
-    actually sends.
+    actually sends: the pressed control's own label when the surface gave it
+    one, then the values it carried, read by shape — dates as dates, JSON
+    pointers dropped as plumbing.
 
     This covers the *server* answering a relayed press. That it is relayed at
     all is the client's half, and was broken for as long as this file has
@@ -57,12 +96,13 @@ def press_sentence(name: str, context: dict[str, Any]) -> str:
     proved the sentence was understood, never that anything sent it.
     """
     said = ", ".join(
-        f"{key}: {json.dumps(value)}"
+        f"{_words(key)}: {shown}"
         for key, value in context.items()
-        if value not in (None, "")
+        if (shown := _readable(value)) is not None
+        and not (label and re.search(rf"(^|[^\w]){re.escape(shown)}($|[^\w])", label))
     )
-    spoken = name.replace("_", " ")
-    return f"{spoken} — {said}" if said else spoken
+    head = label or (lambda text: text[:1].upper() + text[1:])(_words(name))
+    return f"{head} — {said}" if said else head
 
 
 def components(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

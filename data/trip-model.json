@@ -96,6 +96,13 @@
       "note": "Read off the card they tapped, so the panel can say what the flight is. Without it the panel binds to a key the trip has not got, and the renderer shows a field waiting for data that is never coming."
     },
     {
+      "key": "flightNumber",
+      "kind": "text",
+      "label": "the flight number",
+      "stage": "flight",
+      "note": "The marketing number off the card they tapped, e.g. 'IB6250'. Not the id: a provider's id names an offer, and a panel showing it reads as a flight nobody can find on a departures board."
+    },
+    {
       "key": "departTime",
       "kind": "text",
       "label": "when it leaves",

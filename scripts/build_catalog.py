@@ -69,7 +69,8 @@ You are composing travel UI. A few house rules that matter more than anything el
       fares = Flights("Outbound · JFK → MAD", "/trip/selectedOutbound")
 
   Pass the heading, the path your choice is recorded at, and the hop when it is
-  not the first.
+  not the first. The macro draws that heading itself, so do not also write a
+  `Text` with the same words above it: the traveller reads the line twice.
 - **Draw it before you call the lookup.** The shape of the answer is known the
   moment you decide to look something up, and `Flights()` is nine characters —
   so put it on screen, then call the tool, and the traveller watches it fill in
@@ -96,7 +97,8 @@ You are composing travel UI. A few house rules that matter more than anything el
 - Money is always a preformatted display string ("$412", "€1,180 total"). Do not
   emit bare numbers and hope the host formats them.
 - Times are display strings in the traveler's local time ("07:15", "Tue 14 Apr").
-  The one exception is DateRangePicker, whose bound values are RFC 3339.
+  The one exception is DateRangePicker, whose bound values are calendar dates
+  ("2026-04-12"): a trip day is a day, not an instant in some time zone.
 - When you present a set of options, bind the user's current choice into the data
   model so a later turn can read it back — e.g. `$/trip/selectedOutbound`.
 - Keep a surface to one job. An inline card answers the message it is attached
@@ -455,12 +457,12 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
     ),
     "DateRangePicker": component(
         "DateRangePicker",
-        "Picks the trip's start and end dates. Both bound values are RFC 3339"
-        " timestamps with an offset, e.g. '2026-04-12T00:00:00Z'.",
+        "Picks the trip's start and end dates. Both bound values are ISO 8601"
+        " calendar dates with no time or offset, e.g. '2026-04-12'.",
         {
             "label": dyn_str("What the range is for, e.g. 'When are you going?'."),
-            "start": dyn_str("Bound path for the start date (RFC 3339)."),
-            "end": dyn_str("Bound path for the end date (RFC 3339)."),
+            "start": dyn_str("Bound path for the start date (yyyy-MM-dd)."),
+            "end": dyn_str("Bound path for the end date (yyyy-MM-dd)."),
             "action": action("Fired when the traveler commits a new range."),
             "nightsLabel": dyn_str("Derived caption, e.g. '6 nights'."),
         },

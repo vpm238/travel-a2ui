@@ -320,7 +320,11 @@ class TestWhatThePassesAreFor:
             for n in result[1]["updateComponents"]["components"]
             if n["id"] == "when"
         )
-        assert node["nightsLabel"]["call"] == "formatString"
+        # `@call`, the 1.0 key. This asserted `call` — the bug itself, written
+        # down as the expected answer — so the test that existed to describe
+        # the pass also guaranteed it stayed invalid.
+        assert node["nightsLabel"]["@call"] == "formatString"
+        assert "call" not in node["nightsLabel"]
         assert "calcNights" in node["nightsLabel"]["args"]["value"]
 
     def test_wording_the_model_chose_is_left_alone(self) -> None:

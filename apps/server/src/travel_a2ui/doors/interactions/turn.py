@@ -474,7 +474,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     #: Sharing one counter between the two was wrong, and measurably: a turn
     #: where the agent asks for a pre-draw *and* writes its own block for the
     #: same thing then drew the flight list twice, once as `rows__*` and again
-    #: as `b1-fares__*`. The pre-draw is provisional — it exists so the card is
+    #: as `b1_fares__*`. The pre-draw is provisional — it exists so the card is
     #: up while the lookup runs — and the agent's block is the real one, so it
     #: is *meant* to take the same slot and replace it.
     #:
@@ -500,7 +500,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         Sharing one counter between the two was wrong, and measurably — a turn
         that asked for a pre-draw and then wrote its own block for the same
         fares drew the list twice, once as `rows__*` and again as
-        `b1-fares__*`.
+        `b1_fares__*`.
         """
         return took(0)
 

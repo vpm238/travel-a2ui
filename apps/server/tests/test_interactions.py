@@ -1071,6 +1071,106 @@ class TestABusyModelDegradesRatherThanDies:
         assert client.asked == ["gemini-3.8-flash"], "asked once, not four times"
 
 
+class TestAStalledModelFallsBackInsteadOfHanging:
+    """A model that hangs without raising must not hang the request.
+
+    The busy model above raises, so `_open` sees it and retries. A stalled one
+    does not: `interactions.create` either never returns, or returns a stream
+    whose first chunk never comes. With no deadline neither reaches `_BACKOFF`
+    or the fallback, and `/api/warm` and `/api/chat` wait for ever — reported
+    against `gemini-3.8-flash` and `gemini-3.7-flash` on stream open.
+
+    The deadline and backoff are shrunk here so a test about waiting does not
+    itself wait. What is under test is the control flow, not the number.
+    """
+
+    class Stalled(FakeModel):
+        """Hangs `stalls` times — on open or on the first chunk — then answers."""
+
+        def __init__(self, stalls: int, where: str, turns) -> None:  # noqa: ANN001
+            super().__init__(turns)
+            self.stalls = stalls
+            self.where = where
+            self.asked: list[str] = []
+
+        async def create(self, **body: Any):  # noqa: ANN201
+            import asyncio
+
+            self.asked.append(str(body.get("model")))
+            if self.stalls > 0:
+                self.stalls -= 1
+                if self.where == "open":
+                    await asyncio.Event().wait()  # never set: a hang, not an error
+
+                class Silent:
+                    """Accepted, and then nothing at all."""
+
+                    def __aiter__(self):  # noqa: ANN204
+                        return self
+
+                    async def __anext__(self):  # noqa: ANN204
+                        await asyncio.Event().wait()
+
+                return Silent()
+            return await super().create(**body)
+
+    def _run(self, client, monkeypatch) -> list[dict[str, Any]]:  # noqa: ANN001
+        import asyncio
+
+        from travel_a2ui import gemini
+
+        monkeypatch.setattr(gemini, "_OPEN_DEADLINE", 0.05)
+        monkeypatch.setattr(gemini, "_BACKOFF", (0.0, 0.0))
+        return asyncio.run(
+            asyncio.wait_for(
+                collect(
+                    TurnRequest(
+                        api_key="k",
+                        model="gemini-3.8-flash",
+                        message="hello",
+                        provider=FixtureProvider(),
+                        client=client,
+                    )
+                ),
+                # The test's own guard. If the fix regresses this fails in five
+                # seconds rather than hanging the suite, which is the bug.
+                5,
+            )
+        )
+
+    def test_a_hang_on_open_falls_back(self, monkeypatch) -> None:  # noqa: ANN001
+        client = self.Stalled(3, "open", [(["Hi."], [])])
+        events = self._run(client, monkeypatch)
+
+        assert not [event for event in events if event["type"] == "error"], events
+        assert client.asked[-1] == FALLBACK_MODEL, client.asked
+        said = [event for event in events if event["type"] == "served_by"]
+        assert said and said[0]["model"] == FALLBACK_MODEL
+
+    def test_a_stream_that_never_starts_falls_back(self, monkeypatch) -> None:  # noqa: ANN001
+        """Accepted and silent is the same failure, and the harder one to see."""
+        client = self.Stalled(3, "first-chunk", [(["Hi."], [])])
+        events = self._run(client, monkeypatch)
+
+        assert not [event for event in events if event["type"] == "error"], events
+        assert client.asked[-1] == FALLBACK_MODEL, client.asked
+
+    def test_a_single_stall_is_retried_on_the_same_model(self, monkeypatch) -> None:  # noqa: ANN001
+        client = self.Stalled(1, "open", [(["Hi."], [])])
+        events = self._run(client, monkeypatch)
+
+        assert not [event for event in events if event["type"] == "error"]
+        assert client.asked == ["gemini-3.8-flash", "gemini-3.8-flash"], client.asked
+
+    def test_and_the_first_chunk_is_not_lost_to_the_wait(self, monkeypatch) -> None:  # noqa: ANN001
+        """Pulling the first chunk to time it must replay it, not swallow it."""
+        client = self.Stalled(0, "open", [(["Hello ", "there."], [])])
+        events = self._run(client, monkeypatch)
+
+        said = "".join(event.get("delta", "") for event in events if event["type"] == "text")
+        assert said == "Hello there.", said
+
+
 def test_a_surface_written_as_json_never_reaches_the_traveller() -> None:
     """The model reached for a notation that does not exist, and it was printed.
 
@@ -2263,8 +2363,8 @@ class TestTwoCardsInOneTurn:
         ids = self._ids(events)
         root = self._root(events)
 
-        assert "b0-root" in root and any(
-            child.startswith("b1-") for child in root
+        assert "b0_root" in root and any(
+            child.startswith("b1_") for child in root
         ), f"both cards have to be under root: {root}"
         assert all(child in ids for child in root), f"root names a missing child: {root} {ids}"
         assert any(kind == "ItineraryDay" for kind in ids.values()), ids
@@ -2275,7 +2375,7 @@ class TestTwoCardsInOneTurn:
         The pre-draw exists so something is on screen while the lookup runs,
         and the agent writing its own list for the same fares means it wanted
         to draw them itself. Composing those produced the list *twice* — once
-        as `rows__*` and again as `b1-fares__*` — on a real run.
+        as `rows__*` and again as `b1_fares__*` — on a real run.
         """
         import asyncio
 
@@ -2328,7 +2428,7 @@ class TestTwoCardsInOneTurn:
         root = self._root(events)
 
         # `root` is the agent's own column, not a column *over* two blocks.
-        # A composed root names `b0-root` and `b1-root`; this one names the
+        # A composed root names `b0_root` and `b1_root`; this one names the
         # agent's own children, which is what "replaced" looks like.
         assert not [child for child in root if child.endswith("-root")], (
             f"the pre-draw should have been replaced, not composed with: {root}"

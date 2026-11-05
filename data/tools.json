@@ -433,6 +433,10 @@
                   "type": "string",
                   "description": "This hop's airline. Belongs here, beside this leg's `selectedFlight`, not on the trip."
                 },
+                "flightNumber": {
+                  "type": "string",
+                  "description": "This hop's flight number, e.g. 'IB6251'. Belongs here, beside this leg's `selectedFlight`, not on the trip."
+                },
                 "departTime": {
                   "type": "string",
                   "description": "This hop's departure, as the card showed it. Belongs here, not on the trip."
@@ -492,6 +496,10 @@
           "airline": {
             "type": "string",
             "description": "Who flies it, off the card they tapped — 'Norwegian'. Save it with the id: the panel says what the flight *is*, and it can only read what you recorded. Goes wherever this hop's `selectedFlight` goes, always the same object: the trip's for hop one, `legs[0]`'s for hop two. Putting a return's on the trip, while the trip's `selectedFlight` is still the outbound, puts one flight's number beside another's name on the panel."
+          },
+          "flightNumber": {
+            "type": "string",
+            "description": "The flight number off the card they tapped, e.g. 'IB6250' — the card's `flightNumber`, not its `id`. Goes wherever this hop's `selectedFlight` goes."
           },
           "departTime": {
             "type": "string",

@@ -148,10 +148,13 @@ the agent is describing an interface rather than emitting one.
 
 ```bash
 git clone https://github.com/vpm238/travel-a2ui && cd travel-a2ui
-npm run setup                      # installs, regenerates, builds, tests
-pip install -e ./apps/server
+npm run setup                      # installs everything, regenerates, builds, tests
+source .venv/bin/activate          # setup made it, unless a virtualenv was already active
 uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src
 ```
+
+`npm run setup` installs the server package itself, into a `.venv` it creates
+if none is active — the generators import it, so it has to come first.
 
 Open `http://127.0.0.1:8080`. One server serves the API and
 both clients from one origin.

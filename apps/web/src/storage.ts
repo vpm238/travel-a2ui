@@ -15,6 +15,8 @@ export const API_KEY = 'travel-a2ui:key';
 export const PREFS_KEY = 'travel-a2ui:prefs2';
 export const BACKEND_KEY = 'travel-a2ui:backend';
 export const LIVE_KEY = 'travel-a2ui:live';
+/** Set once somebody has put the sample trip away, so it does not come back. */
+export const SAMPLE_KEY = 'travel-a2ui:sample-dismissed';
 
 /**
  * What the app remembers about instantiating the Live agent.

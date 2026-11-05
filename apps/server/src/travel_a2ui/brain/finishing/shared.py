@@ -68,6 +68,21 @@ VALUE_EDITORS = frozenset(
 # --------------------------------------------------------------------------
 
 
+def call_key(message: A2uiMessage) -> str:
+    """The key a function call is written under, in this message's version.
+
+    `@call` from 1.0, `call` before it — the same rename as `@path`. A pass
+    that writes a call into a component has to ask, because it runs *after* the
+    compiler has validated the tree: a key the compiler would never have
+    emitted goes out unchecked. `labels.py` wrote `call` into a 1.0
+    `DateRangePicker` for as long as the server spoke 1.0, and the SDK's own
+    `validate_payload` rejects the result outright — "Unevaluated properties are
+    not allowed" — so every renderer that validates dropped the picker.
+    """
+    version = str(message.get("version") or VERSION)
+    return "@call" if version.lstrip("v").startswith("1") else "call"
+
+
 def _bound_paths(node: dict[str, Any]) -> list[str]:
     """Every `{path}` binding anywhere inside a component's properties."""
     found: list[str] = []

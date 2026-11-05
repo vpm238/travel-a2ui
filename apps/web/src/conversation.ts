@@ -60,6 +60,8 @@ export interface Turn {
   streaming: boolean;
   /** True when this user turn came from tapping the interface, not typing. */
   fromSurface?: boolean;
+  /** True for a turn of the recorded sample trip, which nobody in this session said. */
+  sample?: boolean;
   /**
    * Where this turn's time went, in milliseconds. Arrives once, at the end.
    *
@@ -171,19 +173,155 @@ export const EMPTY_USAGE: Usage = {
  * because the agent reads `context`.
  */
 /**
+ * Finds a component on a surface. The renderer's store answers it today; the
+ * function is the seam, so the transcript does not care which model holds the
+ * tree.
+ */
+export type ComponentLookup = (surfaceId: string, id: string) => Record<string, unknown> | undefined;
+
+/**
  * How an interaction reads in the transcript.
  *
- * Display only. The wire carries the action; this is so the conversation has a
- * line where the traveler's turn was, rather than a gap followed by an answer
- * to a question nobody can see being asked.
+ * Display only — and, during a call, what is said to the Live session, which
+ * has no equivalent of an A2UI action. The wire carries the action; this is so
+ * the conversation has a line where the traveler's turn was.
+ *
+ * It used to print the action's context verbatim:
+ *
+ *     commit surface — paths: ["/trip/origin","/trip/startDate"], startDate: "2027-04-12T00:00:00Z"
+ *
+ * which is the protocol talking, in the traveller's own speech bubble. Now it
+ * says what was pressed, in the words the surface already put on it, then the
+ * values it carried, written for a person:
+ *
+ *     Send — origin: JFK, start date: 12 Apr 2027
+ *
+ * Nothing here knows what a trip is. The label is the pressed component's own
+ * — its `accessibility.label`, or the text on its face — and the values are
+ * formatted by shape, not by name: a calendar date reads as a date, a JSON
+ * pointer is plumbing and is dropped, a key is split into words.
  */
-export function describeForTranscript(action: SurfaceAction): string {
+export function describeForTranscript(action: SurfaceAction, lookup?: ComponentLookup): string {
+  const label = lookup ? pressedLabel(action, lookup) : undefined;
   const said = Object.entries(action.context)
-    .filter(([, value]) => value !== null && value !== undefined && value !== '')
-    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+    .map(([key, value]) => [key, readable(value)] as const)
+    .filter((entry): entry is readonly [string, string] => entry[1] !== undefined)
+    // A value the label already says is not worth saying twice — a fare card
+    // named "Iberia IB6250, …" does not need "flight: IB6250" after it.
+    .filter(([, value]) => !label || !says(label, value))
+    .map(([key, value]) => `${words(key)}: ${value}`)
     .join(', ');
-  const name = action.name.replace(/_/g, ' ');
-  return said ? `${name} — ${said}` : name;
+  const head = label ?? sentenceCase(words(action.name));
+  return said ? `${head} — ${said}` : head;
+}
+
+/**
+ * The name the surface gave whatever was pressed.
+ *
+ * `accessibility.label` first, because it is the name an author wrote for
+ * exactly this — what the control is called when it cannot be seen. Then the
+ * text on its face: a Button's `child`, or the first Text under it.
+ */
+export function pressedLabel(action: SurfaceAction, lookup: ComponentLookup): string | undefined {
+  const id = action.sourceComponentId;
+  if (!id) return undefined;
+  const node = lookup(action.surfaceId, id);
+  if (!node) return undefined;
+
+  const accessibility = node['accessibility'];
+  if (accessibility && typeof accessibility === 'object') {
+    const named = textOf((accessibility as Record<string, unknown>)['label'], action.dataModel ?? {});
+    if (named) return named;
+  }
+  return faceOf(node, action, lookup, new Set([id]));
+}
+
+function faceOf(
+  node: Record<string, unknown>,
+  action: SurfaceAction,
+  lookup: ComponentLookup,
+  seen: Set<string>,
+): string | undefined {
+  if (node['component'] === 'Text') return textOf(node['text'], action.dataModel ?? {});
+  const children: unknown[] = [];
+  if (typeof node['child'] === 'string') children.push(node['child']);
+  if (Array.isArray(node['children'])) children.push(...node['children']);
+  for (const child of children) {
+    if (typeof child !== 'string' || seen.has(child) || seen.size > 12) continue;
+    seen.add(child);
+    const next = lookup(action.surfaceId, child);
+    const found = next ? faceOf(next, action, lookup, seen) : undefined;
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** A literal string, or an absolute binding read from the data model sent with the action. */
+function textOf(value: unknown, dataModel: Record<string, unknown>): string | undefined {
+  if (typeof value === 'string') return value.trim() || undefined;
+  if (!value || typeof value !== 'object') return undefined;
+  const path = (value as Record<string, unknown>)['@path'] ?? (value as Record<string, unknown>)['path'];
+  if (typeof path !== 'string' || !path.startsWith('/')) return undefined;
+  let at: unknown = dataModel;
+  for (const raw of path.split('/').slice(1)) {
+    const key = raw.replace(/~1/g, '/').replace(/~0/g, '~');
+    if (!at || typeof at !== 'object') return undefined;
+    at = (at as Record<string, unknown>)[key];
+  }
+  return typeof at === 'string' || typeof at === 'number' ? String(at).trim() || undefined : undefined;
+}
+
+const POINTER = /^\/[^\s]+$/;
+const CIVIL = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * A value as a person would say it, or `undefined` when there is nothing to say.
+ *
+ * By shape only. Dates are formatted from their digits rather than through
+ * `Date`, which would move a day by the viewer's offset.
+ */
+export function readable(value: unknown): string | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  if (typeof value === 'boolean') return value ? 'yes' : 'no';
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : undefined;
+  if (typeof value === 'string') {
+    if (POINTER.test(value)) return undefined;
+    const civil = CIVIL.exec(value);
+    if (civil) {
+      const [, year, month, day, hour, minute] = civil;
+      const monthName = MONTHS[Number(month) - 1];
+      if (monthName && Number(day) >= 1 && Number(day) <= 31) {
+        const date = `${Number(day)} ${monthName} ${year}`;
+        return hour && !(hour === '00' && minute === '00') ? `${date}, ${hour}:${minute}` : date;
+      }
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    const parts = value.map(readable).filter((part): part is string => part !== undefined);
+    return parts.length ? parts.join(', ') : undefined;
+  }
+  return JSON.stringify(value);
+}
+
+/** Whether `text` already says `value`, as a whole word — "$412" does not say "2". */
+function says(text: string, value: string): boolean {
+  const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, 'u').test(text);
+}
+
+/** `startDate` and `start_date` both say "start date". */
+function words(key: string): string {
+  return key
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .trim();
+}
+
+function sentenceCase(text: string): string {
+  return text ? text[0]!.toUpperCase() + text.slice(1) : text;
 }
 
 export function actionFrom(event: A2uiEvent): SurfaceAction {

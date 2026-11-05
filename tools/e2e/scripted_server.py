@@ -16,11 +16,15 @@ writing, and whether a lookup's rows are filed where the brief says they land.
 
 from __future__ import annotations
 
+import os
 import pathlib
 import sys
 from typing import Any, AsyncIterator
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "apps" / "server" / "src"))
+
+# A test starts from an empty conversation unless it asks for the sample trip.
+os.environ.setdefault("SAMPLE_TRIP", "0")
 
 from travel_a2ui.doors import interactions
 from travel_a2ui import gemini# noqa: E402

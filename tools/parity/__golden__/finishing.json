@@ -746,7 +746,7 @@
                 "@path": "/trip/endDate"
               },
               "nightsLabel": {
-                "call": "formatString",
+                "@call": "formatString",
                 "args": {
                   "value": "${calcNights(start:${/trip/startDate}, end:${/trip/endDate})} nights"
                 }
@@ -1023,9 +1023,14 @@
               ]
             },
             {
+              "id": "__commit_label",
+              "component": "Text",
+              "text": "Send"
+            },
+            {
               "id": "__commit",
               "component": "Button",
-              "label": "Send",
+              "child": "__commit_label",
               "action": {
                 "event": {
                   "name": "commit_surface",
@@ -1131,7 +1136,7 @@
                 "@path": "/trip/endDate"
               },
               "nightsLabel": {
-                "call": "formatString",
+                "@call": "formatString",
                 "args": {
                   "value": "${calcNights(start:${/trip/startDate}, end:${/trip/endDate})} nights"
                 }
@@ -1396,7 +1401,7 @@
                 "@path": "/trip/endDate"
               },
               "nightsLabel": {
-                "call": "formatString",
+                "@call": "formatString",
                 "args": {
                   "value": "${calcNights(start:${/trip/startDate}, end:${/trip/endDate})} nights"
                 }
@@ -1411,9 +1416,14 @@
               ]
             },
             {
+              "id": "__commit_label",
+              "component": "Text",
+              "text": "Send"
+            },
+            {
               "id": "__commit",
               "component": "Button",
-              "label": "Send",
+              "child": "__commit_label",
               "action": {
                 "event": {
                   "name": "commit_surface",
@@ -1534,9 +1544,14 @@
               ]
             },
             {
+              "id": "__commit_label",
+              "component": "Text",
+              "text": "Send"
+            },
+            {
               "id": "__commit",
               "component": "Button",
-              "label": "Send",
+              "child": "__commit_label",
               "action": {
                 "event": {
                   "name": "commit_surface",
@@ -2040,7 +2055,7 @@
                 "@path": "/trip/endDate"
               },
               "nightsLabel": {
-                "call": "formatString",
+                "@call": "formatString",
                 "args": {
                   "value": "${calcNights(start:${/trip/startDate}, end:${/trip/endDate})} nights"
                 }
@@ -2055,9 +2070,14 @@
               ]
             },
             {
+              "id": "__commit_label",
+              "component": "Text",
+              "text": "Send"
+            },
+            {
               "id": "__commit",
               "component": "Button",
-              "label": "Send",
+              "child": "__commit_label",
               "action": {
                 "event": {
                   "name": "commit_surface",

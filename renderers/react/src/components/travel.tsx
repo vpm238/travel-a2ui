@@ -560,10 +560,16 @@ export function DateRangePicker({ node, scope, ctx }: ComponentProps) {
    * one, each arriving with half an answer. An editor edits; sending is a
    * separate, deliberate act, the same way Slider and TravelerCounter already
    * behaved. The host commits the surface when the traveler says so.
+   *
+   * The value is the calendar date the input produced, as the catalog says it
+   * is. It used to be widened to `2027-04-12T00:00:00Z`, which turned a trip
+   * seeded with plain dates into a mix of both after one edit, put the suffix
+   * in front of the traveller in their own chat line, and named an instant in
+   * UTC for what is a day wherever the traveller happens to be.
    */
   const commit = (pointer: string | undefined, value: string) => {
     if (!pointer) return;
-    ctx.setValue(pointer, value ? `${value}T00:00:00Z` : '');
+    ctx.setValue(pointer, value);
   };
 
   return (
