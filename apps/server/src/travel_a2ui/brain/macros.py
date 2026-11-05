@@ -849,6 +849,22 @@ def panel_composition(said: str, standing: Sequence[str]) -> dict[str, str]:
     return found
 
 
+def composition_for(said: str, surface_id: str) -> str:
+    """The Express a panel model wrote for one standing surface, addressed to it.
+
+    `panel_composition`, for a draw that was asked for one surface and so knows
+    which: a block that did not name its surface is still that surface's, and
+    is kept addressed to it so a replay lands on the panel.
+    """
+    blocks = _BLOCK.findall(said or "")
+    if not blocks:
+        return ""
+    source = blocks[-1].strip()
+    if not _ADDRESSED.search(source):
+        source = f'surface("{surface_id}")\n{source}'
+    return source
+
+
 def replay(source: str, trip: dict[str, Any], surface_id: str, version: str) -> list[dict[str, Any]]:
     """One stored composition, re-rendered against the trip as it stands.
 

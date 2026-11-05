@@ -69,7 +69,7 @@ TYPED_NUDGE = (
     "space.\n\n"
     "Do it now, in this turn. If values are missing, draw the controls for them "
     "in one surface — a DateRangePicker for the dates, one TravelerCounter per "
-    "hop labelled by hop, a ChoicePicker for any airport you cannot place — with "
+    "hop labelled by hop, an AirportPicker for any airport you cannot place — with "
     "a single commit button binding every path it edits. If a lookup is what is "
     "needed, call it and draw the result.\n\n"
     "Only the <a2ui> block. Do not repeat the sentence, and do not write another "

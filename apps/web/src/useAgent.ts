@@ -1070,7 +1070,7 @@ export function useAgent() {
     // the traveller actually notices: they tap a fare, the transcript says
     // nothing, and the answer that follows is to a question not on screen.
     appendVoiceTurn({ kind: 'text', text: sentence, who: 'you' });
-    live.say(sentence);
+    live.press(action);
     return true;
   };
   const [agentSpeaking, setAgentSpeaking] = useState(false);
@@ -1158,6 +1158,12 @@ export function useAgent() {
           switch (event.type) {
             case 'ui':
               store.apply(event.messages as never);
+              // The panel lives beside the conversation, as on the typed side:
+              // a redraw marks it current, and it never joins the transcript.
+              if (STANDING.has(event.surfaceId)) {
+                if (redrawsSurface(event.messages as never)) panelShapeRef.current = tripShapeRef.current;
+                break;
+              }
               // Spoken surfaces join the transcript like any other, so the
               // record of a spoken turn reads the same as a typed one.
               appendVoiceTurn({ kind: 'surface', surfaceId: event.surfaceId });

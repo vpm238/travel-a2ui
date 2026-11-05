@@ -65,12 +65,25 @@ const context = await browser.newContext({
 const page = await context.newPage();
 
 const pageErrors = [];
+const chatRequests = [];
+page.on('request', (request) => {
+  if (!request.url().includes('/api/chat')) return;
+  try {
+    const body = JSON.parse(request.postData() ?? '{}');
+    chatRequests.push({ surface: body.surface, message: body.message, trip: body.resume?.trip ?? null });
+  } catch {
+    chatRequests.push({ unparseable: true });
+  }
+});
 page.on('pageerror', (error) => pageErrors.push(error.message));
 
 // Signed in, and on the Live framework before the first paint.
 await page.addInitScript(
   ([key]) => {
     localStorage.setItem('travel-a2ui:key', key);
+    // From an empty conversation, not the sample trip, whose answered cards
+    // would sit over the ones this presses.
+    localStorage.setItem('travel-a2ui:sample-dismissed', '1');
     localStorage.setItem(
       'travel-a2ui:backend',
       JSON.stringify({ id: 'live', origin: window.location.origin }),
@@ -233,6 +246,47 @@ if (drew) {
       'the Live session produced nothing after the press — it never heard it',
     );
   }
+}
+
+// What the call left behind, for the two things a person notices first: the
+// trip panel beside the call, and whether the agent said anything twice.
+console.log('\n--- after the call settles ---');
+await page.waitForTimeout(Number(process.env.SETTLE_AFTER_MS ?? 20000));
+const settled = await page.evaluate(() => ({
+  frames: window.__frames ?? [],
+  sidebar: document.querySelector('.sidebar')?.textContent ?? '',
+  agentLines: [...document.querySelectorAll('.turn--assistant, .bubble--agent, .turn__text')].map(
+    (node) => node.textContent ?? '',
+  ),
+}));
+const agentSaid = settled.frames
+  .filter((frame) => frame.type === 'transcript' && frame.who === 'agent')
+  .map((frame) => frame.text)
+  .join('');
+console.log(`  agent said: ${JSON.stringify(agentSaid).slice(0, 600)}`);
+console.log(`  sidebar: ${JSON.stringify(settled.sidebar).slice(0, 400)}`);
+const sidebarFrames = settled.frames.filter((frame) => frame.type === 'ui' && frame.surfaceId === 'sidebar');
+console.log(`  sidebar frames: ${sidebarFrames.length}`);
+console.log(`  typed requests during the call: ${JSON.stringify(chatRequests).slice(0, 700)}`);
+if (process.env.LIVE_DUMP) {
+  const { writeFileSync } = await import('node:fs');
+  writeFileSync(process.env.LIVE_DUMP, JSON.stringify(settled.frames));
+}
+if (process.env.LIVE_TRACE) {
+  let audio = 0;
+  for (const frame of settled.frames) {
+    if (frame.type === 'audio') { audio += 1; continue; }
+    if (audio) { console.log(`    [${audio} audio]`); audio = 0; }
+    console.log(`    ${JSON.stringify(frame).slice(0, 260)}`);
+  }
+}
+const sentences = agentSaid.split(/(?<=[.!?])\s*/).map((one) => one.trim()).filter((one) => one.length > 12);
+const repeated = sentences.filter((one, index) => sentences.indexOf(one) !== index);
+ok('the agent says each sentence once', repeated.length === 0, `repeated: ${JSON.stringify(repeated)}`);
+const trips = settled.frames.filter((frame) => frame.type === 'trip');
+const last = trips.at(-1)?.trip ?? {};
+if (last.airline) {
+  ok('the trip panel shows the chosen flight', settled.sidebar.includes(last.airline), `no "${last.airline}" in the panel`);
 }
 
 if (pageErrors.length) {

@@ -19,13 +19,14 @@ from .. import ROOT
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from ..brain import trip as model
 from ..brain.catalog import (
     CATALOG_ID,
     COMPONENT_NAMES,
+    PROTOCOL_VERSION,
     REQUIRED_PROPERTIES,
     VALIDATOR,
     parser_for,
@@ -37,11 +38,14 @@ from ..brain.macros import (
     closing_express,
     currency_for,
     expand as expand_macros,
+    composition_for,
+    replay,
     without_the_rows,
 )
+from ..brain.presses import describe_action, record_press
 from ..brain.promises import SPOKEN_NUDGE as _NUDGE, promised as _promised
 from ..brain.skills import _read, build_system_prompt
-from ..brain.finishing import REBUILT_IN_A_TURN, finish, panel_events
+from ..brain.finishing import REBUILT_IN_A_TURN, finish, on_its_own_surface, panel_events
 from ..brain.builders import build_surface, compile_surface
 from ..brain.tools import ToolContext, gemini_tools, run_tool
 from ..gemini import stream_interaction
@@ -312,6 +316,23 @@ _DRAWN_BY = {
 
 
 @dataclass
+class _Pressed:
+    """A press relayed over the call's socket, in A2UI's action shape."""
+
+    name: str
+    surface_id: str
+    context: dict[str, Any] = field(default_factory=dict)
+    data_model: dict[str, Any] | None = None
+
+
+#: How long a message for the model waits on a turn that never says it ended.
+#:
+#: A turn ends with `turn_complete`. If one never arrives, a queue that waited
+#: for it forever would swallow everything the traveller said after it.
+_WAIT_FOR_TURN_SECONDS = 20.0
+
+
+@dataclass
 class VoiceSession:
     """One call: the traveller's socket on one side, Gemini Live on the other.
 
@@ -353,6 +374,16 @@ class VoiceSession:
     shape: str | None = None
     #: Called when a panel is drawn, so the next turn and the next call know.
     on_shape: Any = None
+    #: The Express the agent composed each standing panel with, by surface.
+    #:
+    #: The same record the typed door keeps (`Session.panels`), for the same
+    #: reason: a panel's rows are conditional, so a fare chosen out loud needs
+    #: the panel *redrawn*, and re-rendering the agent's own composition against
+    #: the trip as it now stands costs no model call. Without it a call left the
+    #: panel saying "Nothing settled yet" beside a chosen flight.
+    panels: dict[str, str] = field(default_factory=dict)
+    #: Called with the compositions whenever one is learned.
+    on_panels: Any = None
     #: Injectable so a test can drive a whole call from a scripted session.
     client: Any = None
 
@@ -376,6 +407,7 @@ async def relay(
     today = _today(session.client_hints)
     trip = dict(session.trip)
     voice_model = session.model or VOICE_MODEL
+    loop = asyncio.get_running_loop()
 
     async def announce(message: dict[str, Any]) -> None:
         try:
@@ -430,6 +462,30 @@ async def relay(
     #: a model that answered "Let me look into that" with "Let me check on
     #: that" was nudged again — and the once-only guard was a comment.
     nudged = False
+    #: The agent's panel compositions, to replay when the decisions move.
+    panels: dict[str, str] = dict(session.panels)
+
+    def learned(composed: dict[str, str]) -> None:
+        """Keeps a composition the agent wrote for a standing panel."""
+        if not composed:
+            return
+        panels.update(composed)
+        if session.on_panels:
+            session.on_panels(dict(panels))
+
+    #: Messages for the model that arrived while it was mid-turn.
+    #:
+    #: A press or a typed line sent into a Live turn still in progress — still
+    #: calling tools, still speaking — was answered twice, sometimes three
+    #: times: once as the turn carried on, and again as the queued message's own
+    #: turn. Tapping a fare while the agent was finishing its sentence about the
+    #: fares was enough. So the model is handed one message per turn: anything
+    #: arriving mid-turn waits for `turn_complete`, then goes in order.
+    waiting: list[str] = []
+    #: When the turn in flight started, or None between turns.
+    in_flight: float | None = None
+    #: One panel refresh at a time; see `refresh_panels`.
+    panel_lock = asyncio.Lock()
 
     try:
         async with genai.aio.live.connect(
@@ -446,6 +502,118 @@ async def relay(
             await announce(
                 {"type": "ready", "model": voice_model, "contract": session.contract}
             )
+
+            async def tell_model(text: str) -> None:
+                """One user turn for the model, now or once its turn is over."""
+                nonlocal in_flight
+                if in_flight is not None and loop.time() - in_flight < _WAIT_FOR_TURN_SECONDS:
+                    waiting.append(text)
+                    return
+                in_flight = loop.time()
+                await live.send_client_content(
+                    turns={"role": "user", "parts": [{"text": text}]},
+                    turn_complete=True,
+                )
+
+            async def turn_over() -> None:
+                """The model finished a turn: hand it the next message, if any."""
+                nonlocal in_flight
+                in_flight = None
+                if waiting:
+                    await tell_model(waiting.pop(0))
+
+            async def refresh_panels(drew_panel: bool) -> None:
+                """The trip, its panels' data, and a redraw if the decisions moved.
+
+                The redraw is the agent's own composition re-rendered against the
+                trip as it now stands (`replay`) — the same as the typed door, and
+                no model call. Only a call with no composition yet asks the panel
+                model to draw one, which it then keeps.
+
+                One at a time. A press can land while a turn's panel draw is still
+                with the model, and two draws at once let the older one — drawn
+                from the trip before the press — arrive last and put "Nothing
+                settled yet" back beside a chosen flight.
+                """
+                async with panel_lock:
+                    await _refresh_panels(drew_panel)
+
+            def replayed() -> list[dict[str, Any]]:
+                """Every kept composition, drawn from the trip as it stands."""
+                out: list[dict[str, Any]] = []
+                for surface, source in panels.items():
+                    drawn = finish(replay(source, trip, surface, PROTOCOL_VERSION), trip)
+                    if drawn:
+                        out.append({"type": "ui", "surfaceId": surface, "messages": drawn, "done": True})
+                return out
+
+            async def _refresh_panels(drew_panel: bool) -> None:
+                nonlocal shape
+                # Saying "make it three of us" out loud changed the trip, and the
+                # record beside the call went on saying two.
+                await announce({"type": "trip", "trip": dict(trip)})
+                for event in panel_events(trip):
+                    await announce(event)
+                moved = model.decision_shape(trip)
+                if moved == shape or not trip.get("destination"):
+                    return
+                # The money on the panel is in the trip's currency, as on the
+                # typed side; the record learns it the first time it is needed.
+                if not trip.get("currency"):
+                    try:
+                        trip["currency"] = currency_for(await session.provider.destinations(), trip)
+                    except Exception:  # noqa: BLE001 - dollars beat no panel
+                        pass
+                drawn = [] if drew_panel else replayed()
+                redrawn = drew_panel or bool(drawn)
+                if not redrawn:
+                    composed, drawn = await _redraw_panels(session, trip, today, genai)
+                    learned(composed)
+                    redrawn = bool(drawn)
+                    # The trip moved while the model was drawing: what it drew is
+                    # already out of date. Its composition is still the agent's,
+                    # so draw that from the trip as it is now instead.
+                    if model.decision_shape(trip) != moved and composed:
+                        moved = model.decision_shape(trip)
+                        drawn = replayed()
+                for event in drawn:
+                    await announce(event)
+                # Reported only when a panel really was drawn for it, as the typed
+                # door does: a failed draw is retried on the next change rather
+                # than recorded as current.
+                if redrawn:
+                    shape = moved
+                    if session.on_shape:
+                        session.on_shape(shape)
+
+            async def handle_press(message: dict[str, Any]) -> None:
+                """A press during the call: recorded by the host, then told.
+
+                Recorded onto the trip first, onto the hop it belongs to, with the
+                same function the typed door uses — so the panel moves the moment
+                the traveller taps, whatever the model then says. It used to reach
+                the call only as a sentence, and the panel waited on the model
+                calling `save_trip`, which it sometimes announced and did not do.
+                """
+                body = message.get("action") if isinstance(message.get("action"), dict) else {}
+                action = _Pressed(
+                    name=str(body.get("name") or ""),
+                    surface_id=str(body.get("surfaceId") or ""),
+                    context=body.get("context") if isinstance(body.get("context"), dict) else {},
+                    data_model=body.get("dataModel") if isinstance(body.get("dataModel"), dict) else None,
+                )
+                if not action.name:
+                    return
+                recorded = await record_press(action, trip, session.provider, today)
+                trip.clear()
+                trip.update(recorded.trip)
+                if session.on_trip:
+                    session.on_trip(dict(trip))
+                await refresh_panels(False)
+                said = describe_action(action, recorded.leg)
+                if recorded.refused:
+                    said += " [interface] Refused, and not saved: " + " ".join(recorded.refused)
+                await tell_model(said)
 
             async def pump_client() -> None:
                 """Microphone bytes and typed text, upstream."""
@@ -475,10 +643,9 @@ async def relay(
                         # end of one thing said.
                         await live.send_realtime_input(audio_stream_end=True)
                     elif kind == "text" and message.get("text"):
-                        await live.send_client_content(
-                            turns={"role": "user", "parts": [{"text": message["text"]}]},
-                            turn_complete=True,
-                        )
+                        await tell_model(str(message["text"]))
+                    elif kind == "press":
+                        await handle_press(message)
                     elif kind == "end":
                         break
 
@@ -524,8 +691,13 @@ async def relay(
                 cut_off = False
                 #: Whether this turn put a panel up, by whatever route.
                 drew_panel = False
+                nonlocal in_flight
                 async for frame in live.receive():
                     alive = True
+                    if in_flight is None:
+                        # Speech starts a turn too, and nothing tells us when;
+                        # the first frame of the answer is when it shows.
+                        in_flight = loop.time()
                     content = getattr(frame, "server_content", None)
                     if content is not None:
                         turn = getattr(content, "model_turn", None)
@@ -605,6 +777,7 @@ async def relay(
                             spoken_this_turn = ""
                             called_this_turn = False
                             nudged = False
+                            await turn_over()
 
                     call = getattr(frame, "tool_call", None)
                     calls = getattr(call, "function_calls", None) or []
@@ -660,7 +833,7 @@ async def relay(
                             # a control was a question with no controls — which
                             # is the thing this mode's brief spends a section
                             # telling it not to do.
-                            after = await _closing_draw(
+                            after, source = await _closing_draw(
                                 function.name, args, trip, context, drawings + 1
                             )
                             if after:
@@ -675,6 +848,7 @@ async def relay(
                                     # panel.
                                     if event["surfaceId"] in REBUILT_IN_A_TURN:
                                         drew_panel = True
+                                        learned({event["surfaceId"]: source})
 
                             responses.append(
                                 {
@@ -687,37 +861,9 @@ async def relay(
                         # one frame rather than one per call.
                         await live.send_tool_response(function_responses=responses)
 
-                        # The panels, which a voice call used to leave stale.
-                        # Saying "make it three of us" out loud changed the trip
-                        # and the record beside it went on saying two, which
-                        # reads as the app not having heard — the exact
-                        # impression the transcripts exist to prevent.
-                        await announce({"type": "trip", "trip": dict(trip)})
-                        # The same refresh the typed turn does, from the same
-                        # function — see `panel_events`.
-                        for event in panel_events(trip):
-                            await announce(event)
-
-                        # And a real redraw when the decisions changed shape
-                        # enough to need different controls — the same rule the
-                        # typed turn uses, and the same one model turn, spent
-                        # only when it is warranted.
-                        moved = model.decision_shape(trip)
-                        if moved != shape and trip.get("destination"):
-                            # Drawn by the agent already, or by us if not.
-                            #
-                            # `_redraw_panels` is a whole further model call,
-                            # and it is the fallback now rather than the only
-                            # route: the agent naming `Trip` in the call it was
-                            # already making costs nothing and draws the panel
-                            # in its own words.
-                            if not drew_panel:
-                                await _redraw_panels(
-                                    session, trip, today, announce, genai
-                                )
-                            shape = moved
-                            if session.on_shape:
-                                session.on_shape(shape)
+                        # The panels, which a voice call used to leave stale —
+                        # the same refresh, and the same replay, as a press.
+                        await refresh_panels(drew_panel)
 
                     # A fresh handle, as the API issues them.
                     #
@@ -775,8 +921,11 @@ async def _closing_draw(
     trip: dict[str, Any],
     context: Any,
     number: int,
-) -> list[dict[str, Any]]:
-    """The card a write asked for, as `ui` events. See `closing_express`.
+) -> tuple[list[dict[str, Any]], str]:
+    """The card a write asked for, as `ui` events, and the Express it came from.
+
+    The source comes back so a panel drawn this way (`draw: {macro: "Trip"}`)
+    can be kept and replayed when the trip moves. See `closing_express`.
 
     The same macro expansion the typed door does, from the same table, so a
     spoken `save_trip(draw: {macro: "Ask"})` draws the form a typed one draws.
@@ -795,7 +944,7 @@ async def _closing_draw(
     surface_id = f"voice-{number}"
     closing = closing_express(tool, args.get("draw"), surface_id)
     if not closing:
-        return []
+        return [], ""
     try:
         where_to = await context.provider.destinations()
         airports = airport_choices(await context.provider.origins(), where_to)
@@ -820,7 +969,7 @@ async def _closing_draw(
         )
     except Exception as why:  # noqa: BLE001 - reported, never raised at a caller
         print(f"voice draw failed after {tool}: {why!r}", flush=True)
-        return []
+        return [], ""
     # Grouped by the surface each message addresses, because a `Trip()` goes to
     # the panel rather than to this turn's card — see `DRAWS_ONTO`.
     out: list[dict[str, Any]] = []
@@ -839,17 +988,20 @@ async def _closing_draw(
                 "done": True,
             }
         )
-    return out
+    return out, closing
 
 
 async def _redraw_panels(
     session: VoiceSession,
     trip: dict[str, Any],
     today: str,
-    announce: Any,
     genai: Any,
-) -> None:
-    """A model-composed panel, for a trip a voice call changed.
+) -> tuple[dict[str, str], list[dict[str, Any]]]:
+    """A model-composed panel, for a trip a voice call changed, and its source.
+
+    Returned rather than announced, with the source: the caller checks the trip
+    has not moved while this was drawing before showing it, and keeps the
+    source so the next change is a replay rather than another model call.
 
     Drawn through the Interactions API rather than the Live session, because
     asking the Live model for a panel would make it *say* the panel. The same
@@ -859,6 +1011,8 @@ async def _redraw_panels(
     answer already arrived. A panel one turn stale is a much smaller problem
     than an error over a call that is going fine.
     """
+    composed: dict[str, str] = {}
+    events: list[dict[str, Any]] = []
     for surface_id in REBUILT_IN_A_TURN:
         system = build_system_prompt(
             variant=session.skill,
@@ -873,8 +1027,12 @@ async def _redraw_panels(
             components=COMPONENT_NAMES,
             validator=VALIDATOR,
             required=REQUIRED_PROPERTIES,
+            trip=trip,
+            # The trip's currency, or `Trip()` draws its money in dollars.
+            currency=str(trip.get("currency") or "USD"),
         )
         drawn: list[dict[str, Any]] = []
+        said: list[str] = []
         try:
             async for event in stream_interaction(
                 api_key=session.api_key,
@@ -892,11 +1050,12 @@ async def _redraw_panels(
                 client=session.client,
             ):
                 if event["type"] == "text":
+                    said.append(event["delta"])
                     drawn.extend(
                         {
                             "type": "ui",
                             "surfaceId": surface_id,
-                            "messages": finish(item.messages, trip),
+                            "messages": finish(on_its_own_surface(item.messages, surface_id), trip),
                             "done": item.done,
                         }
                         for item in stream.push(event["delta"])
@@ -906,16 +1065,20 @@ async def _redraw_panels(
                 {
                     "type": "ui",
                     "surfaceId": surface_id,
-                    "messages": finish(item.messages, trip),
+                    "messages": finish(on_its_own_surface(item.messages, surface_id), trip),
                     "done": item.done,
                 }
                 for item in stream.end()
                 if isinstance(item, Ui)
             )
         except Exception:  # noqa: BLE001 - a stale panel beats an error on a call
-            return
-        for event in drawn:
-            await announce(event)
+            continue
+        if drawn:
+            events.extend(drawn)
+            source = composition_for("".join(said), surface_id)
+            if source:
+                composed[surface_id] = source
+    return composed, events
 
 
 async def _race(asyncio_module: Any, *coroutines: Any) -> None:

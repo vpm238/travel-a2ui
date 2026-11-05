@@ -615,6 +615,10 @@ async def voice(socket: WebSocket) -> None:
         # receipt the typed door does rather than guessing from the trip.
         shape=stored.shape,
         on_shape=lambda value: sessions.set_shape(session_id, value),
+        # How the agent composed the panels, carried in and written back, so a
+        # choice made out loud replays the panel the same way a typed one does.
+        panels=dict(stored.panels),
+        on_panels=lambda value: sessions.set_panels(session_id, value),
         # Same reading of "today" as the typed path: a call plans dates too.
         client_hints=opening.get("client") if isinstance(opening.get("client"), dict) else None,
     )

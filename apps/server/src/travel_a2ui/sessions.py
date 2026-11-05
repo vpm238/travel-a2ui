@@ -248,6 +248,20 @@ class SessionStore:
             self._sessions[session_id] = session
             return session
 
+    def set_panels(self, session_id: str, panels: dict[str, str]) -> Session:
+        """Remembers how the agent composed the standing panels, merged.
+
+        Written by a call as well as a typed turn, and not a turn, like the
+        shape below: learning how the panel was composed is not the traveller
+        saying something.
+        """
+        with self._lock:
+            session = self._sessions.get(session_id) or Session(id=session_id)
+            session.panels = {**session.panels, **(panels or {})}
+            session.updated_at = time.time()
+            self._sessions[session_id] = session
+            return session
+
     def set_shape(self, session_id: str, shape: str | None) -> Session:
         """Remembers which decisions the standing panels were drawn for.
 

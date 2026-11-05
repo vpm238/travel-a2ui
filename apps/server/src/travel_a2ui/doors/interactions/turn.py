@@ -67,11 +67,9 @@ from .press import (
     TurnRequest,
     TurnResult,
     _commit,
-    _leg_pressed,
     _party_paths,
-    as_trip_fields,
     describe_action,
-    stop_of_fare,
+    record_press,
 )
 
 
@@ -86,46 +84,20 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     provider = request.provider or FixtureProvider()
 
     # Values the traveller set on screen are facts, and the host records them
-    # rather than depending on the model to notice and call `save_trip`. That
-    # dependency is what made a second card forget what the first one asked.
-    #
-    # The action's own context first, then the rest of the surface: the context
-    # is what the button declared it was sending, so it wins where they
-    # disagree, and the surrounding data model fills in anything the traveller
-    # set that no binding named.
-    from_surface = model.normalize((request.action.data_model or {}).get("trip") if request.action else None)
-    # The press's own keys, plus the ones that are the trip's under another name.
-    #
-    # A fare's context says `id` and `price`; the trip says `selectedFlight` and
-    # `flightPrice`, so normalising alone dropped them and recording the choice
-    # fell to the model. See `as_trip_fields` for what that cost on the return
-    # hop.
-    from_context = {
-        **model.normalize(request.action.context if request.action else None),
-        **model.normalize(as_trip_fields(request.action)),
-    }
-
-    # Which hop was pressed, when the press says so.
-    #
-    # A fare for the second hop carries its leg, because the second hop keeps
-    # its own ticket and the trip's flat `selectedFlight` is the first hop's.
-    # Without this the return landed on the trip and overwrote the outbound —
-    # see `onto_leg`. Read off the raw context rather than the normalised trip,
-    # because `leg` is not a trip field and normalising drops it.
-    #
-    # The fare's own route decides when it can: a card carries the airports it
-    # flies between, which is a fact, where `hop` is whatever the agent passed
-    # when it drew the list. See `stop_of_fare`.
-    pressed = request.action.context if request.action else None
-    stop = await stop_of_fare(pressed, {**request.trip, **from_surface}, provider)
-    leg_index = (stop - 1 if stop > 0 else None) if stop is not None else _leg_pressed(pressed)
-
-    proposed = {**request.trip, **from_surface, **from_context}
-    if leg_index is not None:
-        proposed = model.onto_leg(
-            {**request.trip, **from_surface}, dict(from_context), leg_index
+    # rather than depending on the model to notice and call `save_trip` — onto
+    # the hop the press belongs to. See `record_press`, which the voice door
+    # shares.
+    if request.action is not None:
+        recorded = await record_press(request.action, request.trip, provider, today)
+        trip, refused, leg_index, said = (
+            recorded.trip,
+            recorded.refused,
+            recorded.leg,
+            recorded.said,
         )
-    trip, refused = _commit(request.trip, proposed, today)
+    else:
+        trip, refused = _commit(request.trip, dict(request.trip), today)
+        leg_index, said = None, []
 
     # The standing panels, brought up to date with what changed — which is data,
     # and only ever data.
@@ -190,21 +162,9 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 )
         return out
 
-    # Pressing a button *is* saying so. Whatever the surface sent stops being a
-    # guess, however it got into the control — the agent's suggestion, a value
-    # carried over from an earlier turn, or something typed just now.
-    said = [*from_surface.keys(), *from_context.keys()]
+    # A press is already confirmed onto the trip (`record_press`), and the
+    # panels hear about it now, not at the end of the turn.
     if said:
-        # Replaced, not merged. `confirm` returns a trip with the `assumed` key
-        # *removed* once nothing is assumed any more, and merging a dict that
-        # lacks a key cannot take that key off the target — so the mark
-        # survived every press, the host kept the question open, and the agent
-        # went on re-asking something the traveller had already pressed.
-        confirmed = model.confirm(trip, said)
-        trip.clear()
-        trip.update(confirmed)
-        # And the panels hear about it now, not at the end of the turn.
-        #
         # They are bound to `$/trip/...`, so this is one `updateDataModel` and
         # no model call — the same messages the end of the turn sends. Sending
         # them only there meant a traveller who pressed a fare watched the

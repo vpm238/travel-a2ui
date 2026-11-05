@@ -21,7 +21,7 @@
  * arrival. Calling `start()` on arrival overlaps them into noise.
  */
 
-import { clientHints } from './api.js';
+import { clientHints, type SurfaceAction } from './api.js';
 
 /** What the relay sends down. Mirrors `ServerMessage` in the Worker. */
 export type VoiceEvent =
@@ -167,6 +167,15 @@ export interface VoiceSession {
   alive(): boolean;
   /** Types instead of speaking — useful when saying an airport code out loud fails. */
   say(text: string): void;
+  /**
+   * A press on a surface during the call, sent as the A2UI action itself.
+   *
+   * The server records it onto the trip, as it does a typed press, so the
+   * panel moves the moment it lands; then it tells the model what was chosen.
+   * It used to go as a sentence, and nothing was saved unless the model chose
+   * to call `save_trip`.
+   */
+  press(action: SurfaceAction): void;
   /** True while the agent is speaking. */
   speaking(): boolean;
   /**
@@ -504,6 +513,11 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
     say: (text: string) => {
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'text', text }));
+      }
+    },
+    press: (action: SurfaceAction) => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'press', action }));
       }
     },
     speaking: () => speaking,

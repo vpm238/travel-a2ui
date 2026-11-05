@@ -85,6 +85,9 @@ async def _rebuild_panels(
             components=COMPONENT_NAMES,
             validator=VALIDATOR,
             required=REQUIRED_PROPERTIES,
+            trip=trip,
+            # The trip's currency, or `Trip()` draws its money in dollars.
+            currency=str(trip.get("currency") or "USD"),
         )
 
         def drawn(events: Sequence[Any]) -> list[dict[str, Any]]:
