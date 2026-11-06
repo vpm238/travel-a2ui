@@ -498,6 +498,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
         # draws. Fetched once per turn rather than per macro: both are
         # catalogue calls, and `ChoicePicker.options` is static in the schema,
         # so the choices have to be in hand when the macro expands.
+        where_to: list[dict[str, Any]] = []
         try:
             where_to = await provider.destinations()
             airports = airport_choices(await provider.origins(), where_to)
@@ -963,6 +964,14 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
             dispatched_a_tool = True
             before_tool = json.dumps(trip, sort_keys=True, default=str)
             output, is_error = await run_tool(call.name, call.args, tool_context)
+            # A tool can name the destination this turn — the opening
+            # `save_trip` usually does — and the currency is the destination's.
+            # Read once at the start of the turn, it was still dollars when the
+            # panel this same call draws went up, beside fares in euros.
+            if where_to and trip.get("destination"):
+                currency = currency_for(where_to, trip)
+                trip["currency"] = currency
+                stream.currency = currency
             marks[f"tool:{call.name}"] = round((time.perf_counter() - tool_began) * 1000, 1)
             yield {
                 "type": "tool_result",

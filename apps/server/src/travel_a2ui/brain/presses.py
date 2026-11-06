@@ -243,6 +243,7 @@ async def record_press(
     # once nothing is assumed, and a merge cannot take a key away.
     if said:
         committed = model.confirm(committed, said)
+    committed = await complete_chosen_flights(committed, provider)
     return RecordedPress(trip=committed, refused=refused, leg=leg, said=said)
 
 
@@ -312,3 +313,71 @@ def describe_action(action: Any, leg: Any = _FROM_CONTEXT) -> str:
         )
 
     return f"[interface] {action.name} on {where} — context {said}"
+
+
+#: The facts about a chosen fare that the trip panel draws, by trip field.
+_FARE_DETAILS = (
+    ("airline", "airline"),
+    ("flightNumber", "flightNumber"),
+    ("departTime", "departTime"),
+    ("arriveTime", "arriveTime"),
+)
+
+
+async def complete_chosen_flights(trip: dict[str, Any], provider: Any) -> dict[str, Any]:
+    """The trip with every chosen fare's details filled in from the provider.
+
+    A hop's fare can be chosen three ways — a press, a spoken "the Air France
+    one", or the agent's own `save_trip` — and only a press carries the details.
+    The other two usually save an id and a price, and the trip panel then drew
+    the return with no airline: it binds what the record has when it is drawn,
+    and a card drawn with a blank stays blank. So the host completes the record
+    from the fare it offered, whoever chose it: the same search, asked again,
+    and the row with that id.
+
+    Only for a hop that has chosen a fare and is missing something about it, so
+    a complete trip costs nothing. Returns a new trip; the input is not changed.
+    """
+    out = {**trip, "legs": [dict(leg) for leg in trip.get("legs") or [] if isinstance(leg, dict)]}
+    for index, stop in enumerate(model.stops(trip)):
+        own = out if index == 0 else (out["legs"][index - 1] if index - 1 < len(out["legs"]) else None)
+        if own is None:
+            continue
+        chosen = str(own.get("selectedFlight") or "").strip()
+        if not chosen or all(own.get(field) for field, _ in _FARE_DETAILS):
+            continue
+        if not (stop.get("origin") and stop.get("destination") and stop.get("startDate")):
+            continue
+        try:
+            found = await provider.search_flights(
+                {
+                    "origin": stop["origin"],
+                    "destination": stop["destination"],
+                    "date": stop["startDate"],
+                    "travelers": stop.get("travelers") or trip.get("travelers") or 1,
+                }
+            )
+        except Exception:  # noqa: BLE001 - an incomplete card beats a failed save
+            continue
+        fares = [item for item in getattr(found, "items", None) or [] if isinstance(item, dict)]
+        # By id, and by flight number for a model that saved "Air France AF242".
+        fare = next((item for item in fares if str(item.get("id")) == chosen), None) or next(
+            (
+                item
+                for item in fares
+                if item.get("flightNumber") and str(item["flightNumber"]) in chosen
+            ),
+            None,
+        )
+        if fare is None:
+            continue
+        for field, key in _FARE_DETAILS:
+            if not own.get(field) and fare.get(key):
+                own[field] = fare[key]
+        if own.get("flightPrice") in (None, "") and isinstance(fare.get("priceValue"), (int, float)):
+            own["flightPrice"] = fare["priceValue"]
+        if str(fare.get("id") or "") and own.get("selectedFlight") != fare["id"]:
+            own["selectedFlight"] = fare["id"]
+    if not out["legs"] and "legs" not in trip:
+        out.pop("legs")
+    return out

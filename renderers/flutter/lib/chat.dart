@@ -91,6 +91,9 @@ class _ChatScreenState extends State<ChatScreen> {
   /// The standing panel, once the server has drawn one.
   String? _panel;
 
+  /// Whether the panel changed since the traveller last opened it.
+  bool _panelChanged = false;
+
   @override
   void initState() {
     super.initState();
@@ -231,7 +234,10 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_standing.contains(event.surfaceId)) {
       // Nothing to append: the panel watches the store and redraws itself.
       if (_processor.model.getSurface(event.surfaceId) != null) {
-        setState(() => _panel = event.surfaceId);
+        setState(() {
+          _panel = event.surfaceId;
+          _panelChanged = true;
+        });
       }
       return;
     }
@@ -254,104 +260,140 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  /// Opens the trip: the agent's panel, in a sheet over the conversation.
+  ///
+  /// A phone has no room for a sidebar, and a strip above the feed squeezed the
+  /// conversation into whatever was left. A cart is the shape people already
+  /// know for "what I have chosen so far": a bar that says so, and a tap to
+  /// review it. What is inside is the agent's own surface, drawn by the SDK —
+  /// this client only decides where it sits.
+  Future<void> _openTrip() async {
+    final panelId = _panel;
+    final panel = panelId == null ? null : _processor.model.getSurface(panelId);
+    if (panel == null) return;
+    setState(() => _panelChanged = false);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.72,
+        minChildSize: 0.35,
+        maxChildSize: 0.95,
+        builder: (context, scroll) => ListView(
+          controller: scroll,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          children: [A2uiSurface(surface: panel)],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provenance = widget.meta.provenance;
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final hasTrip = _panel != null && _processor.model.getSurface(_panel!) != null;
     return Scaffold(
+      backgroundColor: scheme.surfaceContainerLowest,
       appBar: AppBar(
-        title: Text(widget.meta.name),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(22),
-          child: Padding(
-            padding: const EdgeInsets.only(left: 16, bottom: 6),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              // Said once here rather than on every card, which is what
-              // `/api/meta` advertises it for.
-              child: Text(
-                'Flutter renderer · ${provenance['label'] ?? 'Sample data'}',
-                style: Theme.of(context).textTheme.bodySmall,
+        titleSpacing: 16,
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        title: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: scheme.primary,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.flight_takeoff, color: scheme.onPrimary, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(widget.meta.name, style: text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  // Said once here rather than on every card, which is what
+                  // `/api/meta` advertises it for.
+                  Text(
+                    'Flutter · ${provenance['label'] ?? 'Sample data'}',
+                    style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ],
               ),
             ),
-          ),
+          ],
         ),
+        actions: [
+          if (hasTrip)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: IconButton(
+                tooltip: 'Your trip',
+                onPressed: _openTrip,
+                icon: Badge(
+                  isLabelVisible: _panelChanged,
+                  smallSize: 9,
+                  child: const Icon(Icons.luggage_outlined),
+                ),
+              ),
+            ),
+        ],
       ),
-      // Two columns where there is room, one where there is not.
-      //
-      // The panel is the trip as it stands and the feed is how it got there,
-      // and on a phone those cannot both be on screen — so the panel folds to
-      // a strip above the conversation rather than competing with it. 900 is
-      // where a sidebar stops being a sidebar and starts being a squeeze.
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 900;
-          final conversation = Column(
-            children: [
-              Expanded(
-                child: _parts.isEmpty
-                    ? const _Empty()
-                    : ListView.builder(
-                        controller: _scroll,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _parts.length,
-                        itemBuilder: (context, index) => _part(_parts[index]),
-                      ),
-              ),
-              if (_busy) const LinearProgressIndicator(minHeight: 2),
-              _Composer(
-                controller: _composer,
-                enabled: !_busy,
-                onSend: (text) => _send(message: text),
-              ),
-            ],
-          );
-
-          final panelId = _panel;
-          final panel =
-              panelId == null ? null : _processor.model.getSurface(panelId);
-          if (panel == null) return conversation;
-
-          if (wide) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: conversation),
-                const VerticalDivider(width: 1),
-                SizedBox(width: 320, child: _Panel(surface: panel)),
-              ],
-            );
-          }
-          return Column(
-            children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 220),
-                child: _Panel(surface: panel),
-              ),
-              const Divider(height: 1),
-              Expanded(child: conversation),
-            ],
-          );
-        },
+      body: Column(
+        children: [
+          Expanded(
+            child: _parts.isEmpty
+                ? const _Empty()
+                : ListView.builder(
+                    controller: _scroll,
+                    padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+                    itemCount: _parts.length,
+                    itemBuilder: (context, index) => _part(_parts[index]),
+                  ),
+          ),
+          if (_busy) const LinearProgressIndicator(minHeight: 2),
+          if (hasTrip) _TripBar(changed: _panelChanged, onOpen: _openTrip),
+          _Composer(
+            controller: _composer,
+            enabled: !_busy,
+            onSend: (text) => _send(message: text),
+          ),
+        ],
       ),
     );
   }
 
   Widget _part(Part part) {
+    final scheme = Theme.of(context).colorScheme;
     return switch (part) {
       SaidByYou(:final text) => Align(
           alignment: Alignment.centerRight,
           child: Container(
-            margin: const EdgeInsets.only(bottom: 12, left: 48),
+            margin: const EdgeInsets.only(bottom: 12, left: 56),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(14),
+              color: scheme.primary,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+                bottomLeft: Radius.circular(18),
+                bottomRight: Radius.circular(6),
+              ),
             ),
-            child: Text(text),
+            child: Text(text, style: TextStyle(color: scheme.onPrimary)),
           ),
         ),
       SaidByAgent(:final text) => Padding(
-          padding: const EdgeInsets.only(bottom: 12, right: 32),
+          padding: const EdgeInsets.only(bottom: 12, right: 24),
           child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
         ),
       Drawn(:final surfaceId) => _drawn(surfaceId),
@@ -359,10 +401,10 @@ class _ChatScreenState extends State<ChatScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.errorContainer,
-            borderRadius: BorderRadius.circular(10),
+            color: scheme.errorContainer,
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Text(message),
+          child: Text(message, style: TextStyle(color: scheme.onErrorContainer)),
         ),
     };
   }
@@ -370,14 +412,16 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _drawn(String surfaceId) {
     final surface = _processor.model.getSurface(surfaceId);
     if (surface == null) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
 
     final spent = surfaceId != _liveSurface;
     final card = Container(
-      margin: const EdgeInsets.only(bottom: 16, right: 16),
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(14),
+        color: scheme.surface,
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: A2uiSurface(surface: surface),
     );
@@ -398,20 +442,106 @@ class _Empty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Describe a trip.', style: Theme.of(context).textTheme.headlineSmall),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(Icons.travel_explore, size: 32, color: scheme.onPrimaryContainer),
+            ),
+            const SizedBox(height: 16),
+            Text('Where to?', style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Text(
-              'Try: "I want to go from San Francisco to London and back, for two of us."',
+              'Describe a trip and the agent answers with flights, stays and plans you can tap.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Try: "San Francisco to London and back, for two of us."',
+              textAlign: TextAlign.center,
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The cart: a bar that says there is a trip, and opens it.
+///
+/// Knows nothing about what is in it — no airline, no total — because what a
+/// trip contains is the agent's to draw. It knows only that the panel exists
+/// and whether it changed since it was last looked at.
+class _TripBar extends StatelessWidget {
+  const _TripBar({required this.changed, required this.onOpen});
+
+  final bool changed;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Material(
+        color: scheme.inverseSurface,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onOpen,
+          child: Semantics(
+            button: true,
+            label: 'Your trip',
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Badge(
+                    isLabelVisible: changed,
+                    smallSize: 9,
+                    child: Icon(Icons.luggage_outlined, color: scheme.onInverseSurface),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Your trip',
+                          style: text.titleSmall?.copyWith(
+                            color: scheme.onInverseSurface,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          changed ? 'Updated — tap to review' : 'Tap to review what you have chosen',
+                          style: text.labelSmall?.copyWith(
+                            color: scheme.onInverseSurface.withValues(alpha: 0.75),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.keyboard_arrow_up, color: scheme.onInverseSurface),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -427,9 +557,11 @@ class _Composer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return SafeArea(
+      top: false,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
         child: Row(
           children: [
             Expanded(
@@ -438,44 +570,28 @@ class _Composer extends StatelessWidget {
                 enabled: enabled,
                 textInputAction: TextInputAction.send,
                 onSubmitted: enabled ? onSend : null,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Where are you going?',
-                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: scheme.surfaceContainerHigh,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   isDense: true,
                 ),
               ),
             ),
             const SizedBox(width: 8),
             IconButton.filled(
+              tooltip: 'Send',
               onPressed: enabled ? () => onSend(controller.text) : null,
               icon: const Icon(Icons.arrow_upward),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-
-/// The trip as it stands, beside the conversation that built it.
-///
-/// Read-only by construction rather than by convention: the server strips every
-/// action from a panel except `change`, so whatever arrives here is already
-/// safe to draw. Actions are not wired here either — the processor routes every
-/// surface's actions to one handler — which is what keeps this a view of a
-/// surface rather than a second place that knows what a trip is.
-class _Panel extends StatelessWidget {
-  const _Panel({required this.surface});
-
-  final SurfaceModel<ComponentImplementation> surface;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerLowest,
-      padding: const EdgeInsets.all(14),
-      child: SingleChildScrollView(child: A2uiSurface(surface: surface)),
     );
   }
 }

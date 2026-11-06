@@ -270,4 +270,36 @@ jobs:
       # than in a deployment.
       - name: Build for the web
         working-directory: renderers/flutter
-        run: flutter build web --release
+        # Under `/flutter/`, where the server mounts it and the browser test
+        # below loads it.
+        run: flutter build web --release --base-href=/flutter/
+
+      # The client in a real browser, against the real server with a scripted
+      # model: boot, the catalog fetch, a streamed turn, the rows filling in, a
+      # press, and the trip opening as a cart. Phone-sized, and again on a
+      # desktop where it draws inside a phone frame.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: In a browser, against the server
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          python3 -m pip install --quiet -e ./apps/server
+          GEMINI_API_KEY=scripted python3 tools/e2e/scripted_server.py 8130 &
+          for _ in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8130/api/meta >/dev/null && break
+            sleep 2
+          done
+          node tools/e2e/flutter.mjs
+          curl -sf -X POST http://127.0.0.1:8130/__test__/reset
+          FLUTTER_VIEWPORT=1440x900 node tools/e2e/flutter.mjs
+        env:
+          CHROMIUM_PATH: ''

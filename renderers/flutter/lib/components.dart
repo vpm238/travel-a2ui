@@ -59,7 +59,14 @@ class TravelProps {
   bool flag(String key) => props.value(key) == true;
 
   /// Bound to a path that has nothing at it yet.
-  bool pending(String key) => props.value(key) == null;
+  ///
+  /// Only a property the component *has*: one it was never given is absent,
+  /// not loading, and drawing a loading bar for it shimmers for ever — a trip
+  /// panel's fare has no duration, and its card waited for one.
+  bool pending(String key) => props.containsKey(key) && props.value(key) == null;
+
+  /// Not given at all.
+  bool absent(String key) => !props.containsKey(key);
 
   bool get hasAction => has('action');
 
@@ -123,8 +130,12 @@ class _Pending extends StatelessWidget {
 }
 
 /// Text, or a pending bar when what it is bound to has not arrived.
-Widget _bound(TravelProps build, String key, TextStyle? style, {double width = 64}) {
-  if (build.pending(key)) return _Pending(width: width);
+Widget _bound(TravelProps build, String key, TextStyle? style, {double width = 64, bool waiting = true}) {
+  if (build.absent(key)) return const SizedBox.shrink();
+  // `waiting` is whether the card as a whole is still on its way. A detail
+  // missing from a card that has arrived — a trip panel's fare has no
+  // duration — is not loading, and a bar there would shimmer for ever.
+  if (build.pending(key)) return waiting ? _Pending(width: width) : const SizedBox.shrink();
   return Text(build.string(key) ?? '', style: style);
 }
 
@@ -132,19 +143,63 @@ Widget _bound(TravelProps build, String key, TextStyle? style, {double width = 6
 // Layout and basics
 // ---------------------------------------------------------------------------
 
+/// A steady hue per airline, so the same carrier wears the same colour.
+Color _hueFor(String name, Brightness brightness) {
+  var seed = 0;
+  for (final unit in name.codeUnits) {
+    seed = (seed * 31 + unit) & 0x7fffffff;
+  }
+  return HSLColor.fromAHSL(
+    1,
+    (seed % 360).toDouble(),
+    0.45,
+    brightness == Brightness.dark ? 0.62 : 0.42,
+  ).toColor();
+}
+
+/// Up to two letters for a carrier's badge: "TAP Air Portugal" → "TP".
+String _initials(String name) {
+  final words = name.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).toList();
+  if (words.isEmpty) return '';
+  if (words.length == 1) return words.first.substring(0, words.first.length.clamp(0, 2)).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
 Widget _flightOption(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
   final badge = build.string('badge');
   final total = build.string('total');
+  final airline = build.string('airline') ?? '';
+  final chosen = build.flag('selected');
+  final hue = _hueFor(airline, Theme.of(context).brightness);
+  final muted = text.labelSmall?.copyWith(color: scheme.onSurfaceVariant, letterSpacing: 0.4);
+  // Still on its way: the facts every fare row has are not here yet.
+  final waiting = build.pending('airline') || build.pending('price');
+
+  // A time, and the airport under it.
+  Widget end(String time, String place, CrossAxisAlignment side) => Column(
+        crossAxisAlignment: side,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _bound(build, time, text.titleLarge?.copyWith(fontWeight: FontWeight.w800), width: 52),
+          const SizedBox(height: 2),
+          _bound(build, place, muted, width: 30),
+        ],
+      );
 
   return _tappable(
     onTap: build.hasAction ? build.fire : null,
-    child: Container(
-      padding: const EdgeInsets.all(14),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        color: chosen ? scheme.primaryContainer.withValues(alpha: 0.35) : scheme.surface,
+        border: Border.all(
+          color: chosen ? scheme.primary : scheme.outlineVariant.withValues(alpha: 0.7),
+          width: chosen ? 2 : 1,
+        ),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,71 +207,92 @@ Widget _flightOption(BuildContext context, TravelProps build) {
         children: [
           Row(
             children: [
-              Expanded(child: _bound(build, 'airline', text.titleMedium, width: 90)),
-              if (badge != null && badge.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: scheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(badge, style: text.labelSmall),
+              // The carrier's badge: initials on its own colour.
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: hue.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(11),
                 ),
-              const SizedBox(width: 8),
+                child: Text(
+                  _initials(airline),
+                  style: text.labelLarge?.copyWith(color: hue, fontWeight: FontWeight.w800),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _bound(build, 'airline', text.titleSmall?.copyWith(fontWeight: FontWeight.w700), width: 96),
+                    _bound(build, 'flightNumber', muted, width: 44, waiting: waiting),
+                  ],
+                ),
+              ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _bound(build, 'price',
-                      text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                      width: 56),
-                  // What the whole party pays, when the leg carries more than
-                  // one person. `price` is per traveller, so a return leg with
-                  // two tickets showed half of what it costs until this.
-                  if (total != null && total.isNotEmpty)
-                    Text(total,
+                  if (badge != null && badge.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: scheme.tertiaryContainer,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        badge.toUpperCase(),
                         style: text.labelSmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w600)),
+                          color: scheme.onTertiaryContainer,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  _bound(build, 'price', text.titleLarge?.copyWith(fontWeight: FontWeight.w800), width: 56),
+                  // What the whole party pays, when the leg carries more than
+                  // one person: `price` is per traveller.
+                  if (total != null && total.isNotEmpty)
+                    Text(total, style: muted),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _bound(build, 'departTime', text.bodyLarge, width: 48),
-              const SizedBox(width: 6),
-              // A Material icon rather than U+2192: the bundled Roboto subset
-              // does not carry that arrow, and a missing glyph renders as a
-              // tofu box — which reads as a broken card rather than a missing
-              // character.
-              Icon(Icons.arrow_right_alt, size: 16, color: scheme.onSurfaceVariant),
-              const SizedBox(width: 6),
-              _bound(build, 'arriveTime', text.bodyLarge, width: 48),
-              const SizedBox(width: 12),
-              Flexible(
-                child: _bound(build, 'origin', text.bodySmall, width: 32),
+              end('departTime', 'origin', CrossAxisAlignment.start),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _bound(build, 'duration', muted, width: 44, waiting: waiting),
+                      const SizedBox(height: 4),
+                      // The route: two airports and the line between them.
+                      Row(
+                        children: [
+                          Icon(Icons.circle_outlined, size: 8, color: scheme.outline),
+                          Expanded(child: Container(height: 1.4, color: scheme.outlineVariant)),
+                          RotatedBox(quarterTurns: 1, child: Icon(Icons.flight, size: 14, color: scheme.outline)),
+                          Expanded(child: Container(height: 1.4, color: scheme.outlineVariant)),
+                          Icon(Icons.circle_outlined, size: 8, color: scheme.outline),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      _bound(build, 'stops', muted, width: 60, waiting: waiting),
+                    ],
+                  ),
+                ),
               ),
-              Text(' · ', style: text.bodySmall),
-              Flexible(
-                child: _bound(build, 'destination', text.bodySmall, width: 32),
-              ),
+              end('arriveTime', 'destination', CrossAxisAlignment.end),
             ],
-          ),
-          const SizedBox(height: 4),
-          DefaultTextStyle(
-            style: text.bodySmall!.copyWith(color: scheme.onSurfaceVariant),
-            child: Row(
-              children: [
-                _bound(build, 'duration', text.bodySmall, width: 54),
-                const SizedBox(width: 10),
-                _bound(build, 'stops', text.bodySmall, width: 70),
-                const Spacer(),
-                _bound(build, 'flightNumber', text.bodySmall, width: 48),
-              ],
-            ),
           ),
         ],
       ),

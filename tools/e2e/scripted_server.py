@@ -65,6 +65,26 @@ SCRIPT: list[tuple[list[str], list[ToolCall]]] = [
         ],
         [],
     ),
+    # Round three answers a fare press: the host has already recorded the fare,
+    # and the agent puts the trip panel up (`draw: {macro: "Trip"}`), which is
+    # what a client's cart or sidebar shows.
+    (
+        ["Holding that one. "],
+        [
+            ToolCall(
+                id="call-2",
+                name="save_trip",
+                args={
+                    "destination": "Madrid",
+                    "origin": "JFK",
+                    "startDate": "2099-04-12",
+                    "travelers": 1,
+                    "draw": {"macro": "Trip", "heading": "Your trip to Madrid"},
+                },
+            )
+        ],
+    ),
+    (["It is on your trip."], []),
 ]
 
 
@@ -99,8 +119,34 @@ def _reset() -> None:
 
 # Patched on the module the agent imported it from, because that is the
 # reference the loop actually calls.
-interactions.stream_interaction = scripted
-gemini.stream_interaction = scripted
+# Every module that holds its own reference, not only the package: `turn` and
+# `panels` import the function by name, so patching the package alone left the
+# real client in the path and a scripted turn asked Gemini with a dummy key.
+from travel_a2ui.doors.interactions import panels as _panels, turn as _turn, warmup as _warmup  # noqa: E402
+
+async def background(**kwargs: Any) -> AsyncIterator[dict[str, Any]]:
+    """A warm-up or a panel draw: answered, and not a round of the script.
+
+    They are calls the app makes on its own, between and after turns, and they
+    must not use up the turn the test is about.
+    """
+    del kwargs
+    yield {
+        "type": "result",
+        "result": InteractionResult(
+            interaction_id="int_background",
+            tool_calls=[],
+            text="",
+            usage=Usage(input_tokens=1, output_tokens=0, cached_tokens=0),
+            status="completed",
+        ),
+    }
+
+
+for _module in (interactions, gemini, _turn):
+    _module.stream_interaction = scripted
+for _module in (_panels, _warmup):
+    _module.stream_interaction = background
 
 from travel_a2ui.doors.http import app  # noqa: E402
 
@@ -110,6 +156,11 @@ async def reset_script() -> dict[str, bool]:
     """Lets a test run more than one turn from the top of the script."""
     _reset()
     return {"ok": True}
+
+
+# Ahead of the static mounts: the client is mounted at `/`, which otherwise
+# answers this POST first, with a 405, and the script can never be reset.
+app.router.routes.insert(0, app.router.routes.pop())
 
 
 if __name__ == "__main__":

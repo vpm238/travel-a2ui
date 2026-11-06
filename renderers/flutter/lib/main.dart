@@ -29,24 +29,112 @@ const String _bundledFont = 'Roboto';
 class TravelApp extends StatelessWidget {
   const TravelApp({super.key});
 
+  /// The web client's accent, so the two clients read as one product.
+  static const Color _accent = Color(0xFF2257F5);
+
+  ThemeData _theme(Brightness brightness) {
+    final scheme = ColorScheme.fromSeed(seedColor: _accent, brightness: brightness).copyWith(
+      primary: brightness == Brightness.light ? _accent : const Color(0xFF8DA9FF),
+    );
+    return ThemeData(
+      colorScheme: scheme,
+      useMaterial3: true,
+      // The font is bundled, not fetched — see `_bundledFont`.
+      fontFamily: _bundledFont,
+      appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0, scrolledUnderElevation: 0),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        showDragHandle: true,
+      ),
+      cardTheme: CardThemeData(
+        elevation: 0,
+        color: scheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final seed = const Color(0xFF1F3F9E);
     return MaterialApp(
       title: 'Travel A2UI · Flutter',
       debugShowCheckedModeBanner: false,
-      // The font is bundled, not fetched — see `_bundledFont`.
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: seed),
-        useMaterial3: true,
-        fontFamily: _bundledFont,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark),
-        useMaterial3: true,
-        fontFamily: _bundledFont,
-      ),
+      theme: _theme(Brightness.light),
+      darkTheme: _theme(Brightness.dark),
+      // A phone, wherever it runs: full screen on one, and framed on anything
+      // wider. Inside the builder, so sheets and dialogs open inside the phone
+      // rather than across the desktop behind it.
+      builder: (context, child) => _PhoneFrame(child: child ?? const SizedBox.shrink()),
       home: const _Boot(),
+    );
+  }
+}
+
+/// The app at phone size, in a phone, on a screen wider than one.
+///
+/// Below 600 pixels it is a phone already and the frame is not drawn. Above, the
+/// app is laid out at 400 wide — the media query says so too, so every layout
+/// inside answers as it would on a handset — and drawn in a device frame.
+class _PhoneFrame extends StatelessWidget {
+  const _PhoneFrame({required this.child});
+
+  final Widget child;
+
+  static const double _width = 400;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    if (media.size.width < 600) return child;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final height = (media.size.height - 72).clamp(560.0, 880.0);
+    return ColoredBox(
+      color: dark ? const Color(0xFF0B0F17) : const Color(0xFFE9EDF5),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: _width + 22,
+              height: height + 22,
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: const Color(0xFF11151D),
+                borderRadius: BorderRadius.circular(54),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x33000000), blurRadius: 40, offset: Offset(0, 24)),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(44),
+                child: MediaQuery(
+                  data: media.copyWith(
+                    size: Size(_width, height),
+                    // Room for the camera, as a handset reports it.
+                    padding: const EdgeInsets.only(top: 26, bottom: 10),
+                    viewPadding: const EdgeInsets.only(top: 26, bottom: 10),
+                  ),
+                  child: SizedBox(width: _width, height: height, child: child),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Flutter web · rendered with a2ui_flutter',
+              style: TextStyle(
+                fontFamily: _bundledFont,
+                fontSize: 12,
+                color: dark ? const Color(0xFF8C97AB) : const Color(0xFF5B6678),
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

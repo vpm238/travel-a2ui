@@ -40,7 +40,10 @@ const check = (ok, what, detail = '') => {
 };
 
 const browser = await launchBrowser();
-const page = await browser.newPage({ viewport: { width: 900, height: 1100 } });
+// Phone-sized by default, which is what the client is designed for; the
+// desktop phone frame is exercised with FLUTTER_VIEWPORT=1440x900.
+const [viewportWidth, viewportHeight] = (process.env.FLUTTER_VIEWPORT ?? '390x844').split('x').map(Number);
+const page = await browser.newPage({ viewport: { width: viewportWidth, height: viewportHeight } });
 
 /**
  * What a screen reader would actually read.
@@ -130,7 +133,9 @@ try {
   const after = await readable();
 
   check(after.includes('Looking at flights'), 'the prose arrived');
-  check(/United|Lufthansa/.test(after), 'the flights filled in', after.slice(0, 400));
+  // Whatever carriers the fixtures pick: a flight number on a row is a row.
+  const numbers = after.match(/\b[A-Z]{2}\d{2,4}\b/g) ?? [];
+  check(numbers.length >= 4, 'the flights filled in', after.slice(0, 400));
 
   // Asserted against the labels rather than the whole page, because the app's
   // own header also says "Sample data" — reading the page as one string lets
@@ -146,7 +151,7 @@ try {
   );
 
   // Four options, as the fixtures return.
-  const fares = after.match(/\$\d{2,4}/g) ?? [];
+  const fares = after.match(/[$€£]\s?\d{2,4}/g) ?? [];
   check(fares.length >= 4, `four fares are on screen (found ${fares.length})`, fares.join(' '));
 
   console.log('\nPressing a flight');
@@ -154,12 +159,38 @@ try {
   // Pressed through the accessibility tree, which is the point: a flight card
   // is only selectable if it reached that tree as a button. Clicking painted
   // pixels by coordinate would pass whether or not it did.
-  const cards = page.locator('flt-semantics[role="button"]', { hasText: 'United' });
+  const cards = page.locator('flt-semantics[role="button"]').filter({ hasText: /\b[A-Z]{2}\d{2,4}\b/ });
   await cards.first().click({ timeout: 30_000 });
   await page.waitForTimeout(2000);
 
   const chats = requested.filter((url) => url.startsWith('/api/chat')).length;
   check(chats > before, 'the press became the next turn');
+
+  console.log('\nThe trip, as a cart');
+  // The agent answers the press by putting the trip panel up, and this client
+  // shows it the way a phone shows a cart: a bar that opens a sheet.
+  const tripBar = page.locator('flt-semantics[role="button"]', { hasText: 'Your trip' }).last();
+  let barShown = true;
+  await tripBar.waitFor({ timeout: 30_000 }).catch(() => {
+    barShown = false;
+  });
+  check(barShown, 'a "Your trip" bar appears once the agent draws the trip');
+  if (barShown) {
+    // The fare that was pressed: the first card's flight number.
+    const pressed = ((await readable()).match(/\b[A-Z]{2}\d{2,4}\b/) ?? [''])[0];
+    const before = (await readable()).split(pressed).length - 1;
+    await tripBar.click({ timeout: 10_000 });
+    await page.waitForTimeout(1500);
+    const sheet = await readable();
+    check(sheet.includes('Your trip to Madrid'), 'the bar opens the agent\'s trip panel', sheet.slice(-400));
+    // Once more than before: on its card in the feed, and now in the cart.
+    check(
+      Boolean(pressed) && sheet.split(pressed).length - 1 > before,
+      `and the chosen flight (${pressed}) is in it`,
+      sheet.slice(-400),
+    );
+    check(!/\$\d/.test(sheet.split('Your trip to Madrid').at(-1) ?? ''), 'in the trip\'s currency, not dollars');
+  }
 
   if (screenshot) {
     await page.screenshot({ path: screenshot, fullPage: true });

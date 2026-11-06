@@ -249,6 +249,16 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
         else:
             context.save(model.normalize(args))
 
+        # A fare chosen by id, by the agent or out loud, gets its airline and
+        # times from the fare it was offered, so the panel can name it.
+        from ..presses import complete_chosen_flights
+
+        completed = await complete_chosen_flights(model.normalize(context.trip), context.provider)
+        if completed != model.normalize(context.trip):
+            context.trip.clear()
+            context.trip.update(completed)
+            context.save({})
+
         saved = model.merge(model.normalize(context.trip), {})
         result: dict[str, Any] = {
             "saved": True,

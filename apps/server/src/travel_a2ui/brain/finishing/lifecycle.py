@@ -24,6 +24,13 @@ sent, and a page that opened on the recorded sample holds a panel this server
 never drew. A request carries the ids (`client.surfaces`); without them this
 falls back to what the server sent this conversation.
 
+Data for a surface that does not exist *yet* is held rather than dropped, and
+delivered right after that surface's create. A lookup files its rows while it
+runs — at `/flights` on the card it will feed — and when the agent asked for no
+placeholder, the card itself only arrives with the block written after the
+lookup. Dropped, those rows were gone, and the card painted its heading over an
+empty list in every renderer.
+
 A repeated create becomes `updateComponents` with the same components — the
 new `root` takes over, so the surface shows exactly what the create described
 — plus one `updateDataModel` per top-level key of its data model. Per key, not
@@ -42,6 +49,14 @@ def _escape(key: str) -> str:
     return key.replace("~", "~0").replace("/", "~1")
 
 
+def _top_key(path: Any) -> str | None:
+    """The data model key a JSON pointer starts at, unescaped; None for the root."""
+    if not isinstance(path, str) or path in ("", "/"):
+        return None
+    head = path.lstrip("/").split("/", 1)[0]
+    return head.replace("~1", "/").replace("~0", "~")
+
+
 def _surface_of(message: A2uiMessage) -> str | None:
     for kind in ("createSurface", "updateComponents", "updateDataModel", "deleteSurface"):
         body = message.get(kind)
@@ -56,6 +71,8 @@ class SurfaceLifecycle:
 
     def __init__(self, held: Iterable[str] = ()) -> None:
         self.held: set[str] = {surface for surface in held if isinstance(surface, str)}
+        #: Data for surfaces not created yet, in arrival order, by surface.
+        self.waiting: dict[str, list[A2uiMessage]] = {}
 
     def messages(self, messages: list[A2uiMessage]) -> list[A2uiMessage]:
         out: list[A2uiMessage] = []
@@ -70,6 +87,15 @@ class SurfaceLifecycle:
                 if surface not in self.held:
                     self.held.add(surface)
                     out.append(message)
+                    # After the create, and only where the create brings nothing
+                    # of its own: a key it carries a value for is newer than
+                    # anything held from before it existed.
+                    seeded = message["createSurface"].get("dataModel")
+                    seeded = seeded if isinstance(seeded, dict) else {}
+                    for held in self.waiting.pop(surface, []):
+                        key = _top_key(held["updateDataModel"].get("path"))
+                        if key is None or seeded.get(key) is None:
+                            out.append(held)
                     continue
                 body = message["createSurface"]
                 components = body.get("components")
@@ -106,6 +132,8 @@ class SurfaceLifecycle:
             # same values, seeded from the trip.
             if surface in self.held:
                 out.append(message)
+            elif "updateDataModel" in message:
+                self.waiting.setdefault(surface, []).append(message)
         return out
 
     def event(self, event: dict[str, Any]) -> dict[str, Any] | None:

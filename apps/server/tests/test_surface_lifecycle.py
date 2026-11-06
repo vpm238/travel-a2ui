@@ -82,3 +82,36 @@ def test_a_whole_recorded_conversation_is_accepted_by_a_strict_renderer() -> Non
                 except Exception as error:  # noqa: BLE001 - the message is the report
                     rejected.append(f"turn {number}: {type(error).__name__}: {str(error)[:200]}")
     assert not rejected, f"{len(rejected)} rejected:\n" + "\n".join(rejected[:5])
+
+
+class TestDataBeforeItsSurface:
+    """A lookup's rows, filed before the card that shows them exists."""
+
+    def _ui(self, *messages: dict) -> dict:
+        return {"type": "ui", "surfaceId": "inline-1", "messages": list(messages)}
+
+    def test_rows_filed_first_arrive_right_after_the_create(self) -> None:
+        from travel_a2ui.brain.finishing.lifecycle import SurfaceLifecycle
+
+        life = SurfaceLifecycle()
+        rows = {"version": "1.0", "updateDataModel": {"surfaceId": "inline-1", "path": "/flights", "value": [{"id": "IB1"}]}}
+        assert life.event(self._ui(rows)) is None, "held, not sent to a surface the client lacks"
+        create = {
+            "version": "1.0",
+            "createSurface": {"surfaceId": "inline-1", "catalogId": "c", "components": [], "dataModel": {"trip": {}}},
+        }
+        sent = life.event(self._ui(create))["messages"]
+        assert sent == [create, rows]
+
+    def test_but_never_over_what_the_create_brings(self) -> None:
+        from travel_a2ui.brain.finishing.lifecycle import SurfaceLifecycle
+
+        life = SurfaceLifecycle()
+        old = {"version": "1.0", "updateDataModel": {"surfaceId": "sidebar", "path": "/trip", "value": {"travelers": 1}}}
+        life.event({"type": "ui", "surfaceId": "sidebar", "messages": [old]})
+        create = {
+            "version": "1.0",
+            "createSurface": {"surfaceId": "sidebar", "catalogId": "c", "components": [], "dataModel": {"trip": {"travelers": 3}}},
+        }
+        sent = life.event({"type": "ui", "surfaceId": "sidebar", "messages": [create]})["messages"]
+        assert sent == [create], "an older value would have overwritten the newer seed"
