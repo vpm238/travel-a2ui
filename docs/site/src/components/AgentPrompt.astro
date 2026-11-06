@@ -1,70 +1,41 @@
 ---
-// The primary way through the quickstart: hand the tour to a coding agent.
+// The primary way through the quickstart: one line for a coding agent.
 //
-// Three ways in, because agents differ in what they can do. Anything that can
-// fetch a URL gets one line pointing at the prompt; the terminal agents get a
-// command that pipes the prompt straight in; and the whole prompt is here to
-// copy for anything else. One source for all three: `src/prompts/quickstart.md`.
-import { Tabs, TabItem, Code } from '@astrojs/starlight/components';
-import prompt from '../prompts/quickstart.md?raw';
+// The prompt is deliberately almost nothing. Everything the agent needs (how
+// to guide, which mode to run in, what to explain and where it is in the code)
+// lives behind the URL, in `src/prompts/quickstart.md`, so it can improve
+// without anyone re-copying a prompt.
+import { Code } from '@astrojs/starlight/components';
 import { absolute, local, PROMPT_PATH, bootstrapPrompt } from '../site';
-
-const url = absolute(PROMPT_PATH);
-const fetchIt = `"$(curl -fsSL ${url})"`;
 ---
 
 <section class="agent-prompt" aria-labelledby="agent-prompt-title">
-  <div class="agent-prompt__head">
-    <span class="agent-prompt__eyebrow">Recommended</span>
-    <h2 id="agent-prompt-title">Take the tour with your coding agent</h2>
-    <p>
-      Give this to Claude Code, Gemini CLI, Codex, Cursor or any coding agent. It clones the
-      demo, runs it on your machine and walks you through the code one concept at a time. It
-      pauses after each step so you can ask questions. No API key needed for the core tour.
-    </p>
-  </div>
-
-  <Tabs syncKey="coding-agent">
-    <TabItem label="Any agent">
-      <p class="agent-prompt__hint">Paste this into any agent that can read a web page:</p>
-      <Code code={bootstrapPrompt()} lang="text" wrap />
-    </TabItem>
-    <TabItem label="Claude Code">
-      <Code code={`claude ${fetchIt}`} lang="bash" wrap />
-    </TabItem>
-    <TabItem label="Gemini CLI">
-      <Code code={`gemini -i ${fetchIt}`} lang="bash" wrap />
-    </TabItem>
-    <TabItem label="Codex">
-      <Code code={`codex ${fetchIt}`} lang="bash" wrap />
-    </TabItem>
-  </Tabs>
-
-  <details class="agent-prompt__full">
-    <summary>See the whole prompt</summary>
-    <p class="agent-prompt__hint">
-      Copy it into an agent that cannot fetch URLs, or read it to see exactly what your agent
-      will do. Also served raw at <a href={local(PROMPT_PATH)}>{PROMPT_PATH}</a>.
-    </p>
-    <Code code={prompt} lang="md" wrap />
-  </details>
+  <span class="agent-prompt__eyebrow">Start here</span>
+  <h2 id="agent-prompt-title">Paste this into your coding agent</h2>
+  <Code code={bootstrapPrompt()} lang="text" wrap />
+  <p class="agent-prompt__note">
+    Works in Claude Code, Gemini CLI, Codex, Cursor or any agent that can read a web page. It
+    uses Gemini if you have a key, a built-in mock if you don't, and shows you where another model
+    platform would plug in. It can also just explain the code without running anything.
+  </p>
+  <ul class="agent-prompt__links" aria-label="Machine-readable versions">
+    <li><a href={local(PROMPT_PATH)}>What your agent reads</a></li>
+    <li><a href={local('quickstart.md')}>This page as Markdown</a></li>
+    <li><a href={local('llms.txt')}>llms.txt</a></li>
+  </ul>
 </section>
 
 <style>
   .agent-prompt {
     margin-top: 1.5rem;
-    padding: 1.25rem 1.25rem 1rem;
+    padding: 1.25rem;
     border: 1px solid var(--sl-color-accent);
     border-radius: 1rem;
     background: var(--qs-prompt-bg);
   }
-  .agent-prompt__head h2 {
-    margin: 0.15rem 0 0.4rem;
+  .agent-prompt h2 {
+    margin: 0.15rem 0 0.75rem;
     font-size: var(--sl-text-h3);
-  }
-  .agent-prompt__head p {
-    margin: 0;
-    color: var(--sl-color-gray-2);
   }
   .agent-prompt__eyebrow {
     font-size: var(--sl-text-xs);
@@ -73,24 +44,21 @@ const fetchIt = `"$(curl -fsSL ${url})"`;
     text-transform: uppercase;
     color: var(--sl-color-accent-high);
   }
-  .agent-prompt__hint {
-    margin: 0 0 0.5rem;
+  .agent-prompt__note {
+    margin: 0.75rem 0 0;
     font-size: var(--sl-text-sm);
     color: var(--sl-color-gray-2);
   }
-  .agent-prompt__full {
-    margin-top: 1rem;
+  .agent-prompt__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--sl-text-sm);
   }
-  .agent-prompt__full summary {
-    cursor: pointer;
-    font-weight: 600;
-    color: var(--sl-color-accent-high);
-  }
-  .agent-prompt__full[open] summary {
-    margin-bottom: 0.5rem;
-  }
-  .agent-prompt__full :global(.expressive-code pre) {
-    max-height: 26rem;
-    overflow: auto;
+  .agent-prompt__links li {
+    margin: 0;
   }
 </style>

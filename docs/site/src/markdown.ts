@@ -41,21 +41,29 @@ function attribute(tag: string, name: string): string | undefined {
   return expression ? resolve(expression[1]) : undefined;
 }
 
-const AGENT_PROMPT = `## Take the tour with your coding agent
-
-Give your coding agent the tour prompt, ${absolute(PROMPT_PATH)}. It clones the demo, runs it and walks you through the code one concept at a time, pausing after each step. To start it from any agent that can read a web page:
+const AGENT_PROMPT = `## Paste this into your coding agent
 
 \`\`\`text
 ${bootstrapPrompt()}
 \`\`\`
 
-Or from a terminal agent:
+Works in Claude Code, Gemini CLI, Codex, Cursor or any agent that can read a web page. It uses Gemini if you have a key, a built-in mock if you don't, and shows where another model platform would plug in. It can also just explain the code without running anything.`;
 
-\`\`\`bash
-claude "$(curl -fsSL ${absolute(PROMPT_PATH)})"
-gemini -i "$(curl -fsSL ${absolute(PROMPT_PATH)})"
-codex "$(curl -fsSL ${absolute(PROMPT_PATH)})"
+const ARCHITECTURE = `\`\`\`text
+ Flutter client (mobile)            React client (web)
+ a2ui_flutter · a2ui_core           @a2ui/react · @a2ui/web_core
+ renderers/flutter/                 renderers/react/ · apps/web/
+              \\                      /
+   A2UI messages over SSE ↓      ↑ actions
+                \\                  /
+            Python agent server  (apps/server/src/travel_a2ui/)
+            agent loop, tools, trip, macros, A2UI agent SDK
+                         |
+            Gemini by default · a scripted mock · another platform
 \`\`\``;
+
+/** What every Markdown page tells an agent first, as parallel.ai's docs do. */
+const FOR_AGENTS = `> For AI agents: to give someone the A2UI quickstart, follow ${absolute(PROMPT_PATH)}. A documentation index is at ${absolute('llms.txt')}, and the full text of every page is at ${absolute('llms-full.txt')}. Any page is available as Markdown by adding \`.md\` to its URL.`;
 
 const TURN_FLOW = `1. **You** type a message, or press something on a surface.
 2. **The agent's model** decides what to show and writes it in A2UI Express, taught by skills generated from the catalog.
@@ -70,6 +78,7 @@ export function toMarkdown(title: string, description: string | undefined, body:
     .replace(/^import .*$\n?/gm, '')
     .replace(/<AgentPrompt\s*\/>/g, AGENT_PROMPT)
     .replace(/<TurnFlow\s*\/>/g, TURN_FLOW)
+    .replace(/<ArchDiagram\s*\/>/g, ARCHITECTURE)
     // Asides become block quotes with their title in bold.
     .replace(/<Aside([^>]*)>([\s\S]*?)<\/Aside>/g, (_, attrs: string, inner: string) => {
       const heading = attribute(attrs, 'title');
@@ -88,6 +97,7 @@ export function toMarkdown(title: string, description: string | undefined, body:
     .replace(/<p class="shot-caption">([\s\S]*?)<\/p>/g, (_, inner: string) =>
       `*${inner.trim().replace(/\s*\n\s*/g, ' ')}*`,
     )
+    .replace(/<code>([^<]*)<\/code>/g, '`$1`')
     .replace(/<a href=\{([^}]*)\}>([^<]*)<\/a>/g, (_, href: string, label: string) => `[${label}](${resolve(href)})`)
     .replace(/<a href="([^"]*)">([^<]*)<\/a>/g, '[$2]($1)')
     // Wrappers that only arrange things on screen. Each leaves a blank line,
@@ -106,7 +116,7 @@ export function toMarkdown(title: string, description: string | undefined, body:
   const leftover = text.match(/<[A-Z][A-Za-z]*[\s/>]/);
   if (leftover) throw new Error(`"${title}" uses a component the Markdown export does not handle: ${leftover[0]}`);
 
-  return `# ${title}\n\n${description ? `> ${description}\n\n` : ''}${text}\n`;
+  return `${FOR_AGENTS}\n\n# ${title}\n\n${description ? `> ${description}\n\n` : ''}${text}\n`;
 }
 
 /** The tour prompt, verbatim. */

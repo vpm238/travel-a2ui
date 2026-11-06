@@ -1,4 +1,5 @@
-// The tour prompt, raw, at a stable URL: what a coding agent is pointed at.
+// The agent guide at its first published address, kept so links to it work.
+// `agent.md` beside it is the canonical one.
 
 import type { APIRoute } from 'astro';
 import { tourPrompt } from '../../markdown';

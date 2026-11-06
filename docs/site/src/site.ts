@@ -17,8 +17,12 @@ export const local = (path: string) => `${base}/${path.replace(/^\//, '')}`;
 export const REPO = 'https://github.com/vpm238/travel-a2ui';
 export const LIVE_DEMO = 'https://travel-a2ui-vy7stnte2a-uc.a.run.app';
 
-/** The prompt a coding agent follows, served raw. */
-export const PROMPT_PATH = 'quickstart/prompt.md';
+/**
+ * What a coding agent follows, served raw: the URL in the one-line prompt.
+ * `quickstart/prompt.md` serves the same file, because it was the first
+ * address this was published at.
+ */
+export const PROMPT_PATH = 'quickstart/agent.md';
 
 /** Where the quickstart ends: the partner and consultant demos. */
 export const PARTNERS_PATH = 'ecosystem/partners/';
@@ -41,6 +45,5 @@ export const A2UI = {
   glossary: 'https://a2ui.org/concepts/glossary/',
 };
 
-/** The one-line prompt to paste into any agent that can fetch a URL. */
-export const bootstrapPrompt = () =>
-  `Fetch ${absolute(PROMPT_PATH)} and follow it: guide me step by step through cloning, running and touring the Travel A2UI demo, and explain A2UI's core concepts as we go.`;
+/** The whole prompt a developer pastes. Everything else is behind the URL. */
+export const bootstrapPrompt = () => `Give me the A2UI quickstart: ${absolute(PROMPT_PATH)}`;

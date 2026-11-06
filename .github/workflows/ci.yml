@@ -243,7 +243,8 @@ jobs:
           for file in docs/site/src/prompts/quickstart.md docs/site/src/content/docs/quickstart.mdx; do
             for path in $(grep -oE '`[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]*`' "$file" | tr -d '`' | sort -u); do
               case "$path" in *...*|*\**) continue ;; esac
-              if [ ! -e "$path" ]; then
+              # The page abbreviates server paths, and says so under the table.
+              if [ ! -e "$path" ] && [ ! -e "apps/server/src/travel_a2ui/$path" ]; then
                 echo "::error file=$file::names $path, which does not exist"
                 missing=1
               fi
@@ -260,10 +261,12 @@ jobs:
       - name: The agent-facing files are there
         working-directory: docs/site
         run: |
-          for file in quickstart/prompt.md quickstart.md llms.txt llms-full.txt; do
+          for file in quickstart/agent.md quickstart/prompt.md quickstart.md llms.txt llms-full.txt; do
             test -s "dist/$file" || { echo "::error::dist/$file is missing or empty"; exit 1; }
           done
-          # What an agent is pointed at is the prompt itself, not a page about it.
+          # What an agent is pointed at is the guide itself, not a page about
+          # it, at the canonical address and the one it was first published at.
+          cmp -s dist/quickstart/agent.md src/prompts/quickstart.md
           cmp -s dist/quickstart/prompt.md src/prompts/quickstart.md
 
 

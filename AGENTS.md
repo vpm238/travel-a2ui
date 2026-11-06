@@ -8,7 +8,7 @@ panel) drawn by a React client and a Flutter client from the same messages.
 the guided tour in [`docs/site/src/prompts/quickstart.md`](docs/site/src/prompts/quickstart.md).
 It is written for a coding agent: one step at a time, running things and
 explaining each A2UI concept where it can be seen working. It is also published
-at https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/prompt.md.
+at https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/agent.md.
 
 ## Set up, run, test
 

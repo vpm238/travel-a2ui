@@ -12,13 +12,13 @@ export const GET: APIRoute = async () => {
 
   const body = `# A2UI Quickstart
 
-> A guided tour of Travel A2UI, a working A2UI app: clone it, run it, watch its A2UI messages on the wire, and learn catalogs, messages, data binding, actions and functions, inference formats and renderers in its code. Most of it needs no API key.
+> A quickstart for A2UI on web and mobile, built on Travel A2UI: a Python agent server with a React web client and a Flutter mobile client. It teaches the core pieces of A2UI, what is A2UI versus deterministic code (the catalog and macros), how agent skills are generated from the catalog, how agent output (the Express DSL) becomes A2UI messages applied by a MessageProcessor, and which renderers exist. It runs on Gemini by default, on a built-in mock with no key, or explains the code without running it.
 
-If you are a coding agent asked to give someone the A2UI quickstart, fetch the tour prompt and follow it step by step.
+If you are a coding agent asked to give someone the A2UI quickstart, fetch the agent guide below and follow it.
 
-## Tour
+## Agent guide
 
-- [Tour prompt for coding agents](${absolute(PROMPT_PATH)}): step-by-step instructions for guiding a developer through cloning, running and touring the demo
+- [A2UI quickstart: instructions for coding agents](${absolute(PROMPT_PATH)}): how to guide a developer through cloning, running and explaining the demo, with the modes, the learning outcomes and where each lives in the code
 
 ## Pages
 
