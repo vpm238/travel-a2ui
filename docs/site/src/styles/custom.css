@@ -1,0 +1,73 @@
+/*
+ * The quickstart's look: Starlight, with the demo's own blue as the accent so
+ * the screenshots and the page read as one thing. Starlight's dark palette is
+ * the bare :root; light is stamped as data-theme="light".
+ */
+
+:root {
+  --sl-color-accent-low: #131d3d;
+  --sl-color-accent: #3d6bff;
+  --sl-color-accent-high: #aec2ff;
+  --sl-color-gray-1: #eceef4;
+  --sl-color-gray-2: #c4c8d4;
+  --sl-color-gray-3: #8d93a5;
+  --sl-color-gray-4: #545a6b;
+  --sl-color-gray-5: #353a48;
+  --sl-color-gray-6: #23262f;
+  --sl-color-black: #15171d;
+  --qs-prompt-bg: color-mix(in srgb, var(--sl-color-accent) 9%, var(--sl-color-bg));
+  --qs-shot-border: #353a48;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #dfe6ff;
+  --sl-color-accent: #2257f5;
+  --sl-color-accent-high: #1a3fae;
+  --sl-color-white: #15171d;
+  --sl-color-gray-1: #23262f;
+  --sl-color-gray-2: #353a48;
+  --sl-color-gray-3: #545a6b;
+  --sl-color-gray-4: #8d93a5;
+  --sl-color-gray-5: #d3d7e2;
+  --sl-color-gray-6: #eef0f6;
+  --sl-color-gray-7: #f7f8fb;
+  --sl-color-black: #ffffff;
+  --qs-prompt-bg: color-mix(in srgb, var(--sl-color-accent) 5%, #ffffff);
+  --qs-shot-border: #d3d7e2;
+}
+
+/* Screenshots: framed, so a light screenshot does not bleed into a light page. */
+.sl-markdown-content img {
+  border: 1px solid var(--qs-shot-border);
+  border-radius: 0.75rem;
+}
+.sl-markdown-content .site-title img,
+.sl-markdown-content .hero img {
+  border: 0;
+}
+
+/* A caption under a screenshot. */
+.sl-markdown-content .shot-caption {
+  margin-top: 0.4rem;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-3);
+}
+
+/* Two screenshots side by side, stacked on a phone. */
+.sl-markdown-content .shots {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 1rem;
+  align-items: start;
+}
+@media (max-width: 50rem) {
+  .sl-markdown-content .shots {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tables of paths scroll on their own rather than widening the page. */
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+}

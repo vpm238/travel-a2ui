@@ -12,6 +12,7 @@ in that moment**, not chosen from screens somebody designed in advance.
 
 <p align="center">
   <b><a href="https://travel-a2ui-vy7stnte2a-uc.a.run.app">Try it live</a></b> ·
+  <b><a href="https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/">Learn A2UI with the quickstart</a></b> ·
   <a href="#try-it-in-two-minutes">two-minute setup</a> ·
   <a href="#build-one-of-your-own">build one</a> ·
   <a href="docs/architecture.md">how it works</a>
@@ -23,6 +24,11 @@ in that moment**, not chosen from screens somebody designed in advance.
 > independent app built on top of it, not affiliated with or endorsed by Google
 > LLC. Treat it as a worked example of building and deploying a generative-UI
 > application, not as a reference implementation of the protocol.
+
+> **New to A2UI?** The [quickstart](https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/)
+> is a guided tour of this repository, run by your coding agent or read on your
+> phone. It covers clone, run, watching the messages on the wire, and the
+> concepts behind them, and most of it needs no API key.
 
 ---
 

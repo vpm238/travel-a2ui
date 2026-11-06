@@ -28,6 +28,23 @@ RUN npm run build -w @travel-a2ui/renderer \
  && npm run build -w @travel-a2ui/web
 
 # ---------------------------------------------------------------------------
+# Stage 1a: build the quickstart
+# ---------------------------------------------------------------------------
+#
+# `docs/site`, the A2UI quickstart, is a Starlight site with its own lockfile:
+# it is written to move into the A2UI documentation, so it is not a workspace
+# of this app. Built for `/docs`, where the server mounts it.
+FROM node:22-slim AS docs
+
+WORKDIR /build
+
+COPY docs/site/package.json docs/site/package-lock.json ./
+RUN npm ci
+
+COPY docs/site/ ./
+RUN npm run build
+
+# ---------------------------------------------------------------------------
 # Stage 1b: build the Flutter client
 # ---------------------------------------------------------------------------
 #
@@ -126,6 +143,7 @@ COPY apps/server/src/ apps/server/src/
 
 COPY --from=web /build/apps/web/dist/ apps/web/dist/
 COPY --from=flutter /build/build/web/ renderers/flutter/build/web/
+COPY --from=docs /build/dist/ docs/site/dist/
 
 # Import the app at build time, so a broken image fails here rather than in
 # production.

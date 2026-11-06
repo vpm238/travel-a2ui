@@ -37,7 +37,7 @@ EXCLUDES=(
   './node_modules' './.venv' './.git' './.github'
   '**/node_modules' '**/dist' '**/.wrangler' '**/__pycache__'
   '**/*.tsbuildinfo' '**/.agent.json' '**/.dev.vars' '**/.pytest_cache'
-  '**/build/web'
+  '**/build/web' '**/.astro'
 )
 
 tar_excludes=()

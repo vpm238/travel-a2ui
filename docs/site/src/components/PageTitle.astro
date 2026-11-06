@@ -1,0 +1,88 @@
+---
+// Starlight's page title, plus the actions an agent-friendly docs page offers:
+// copy the page as Markdown, open the Markdown itself, or open a chat
+// assistant already pointed at it. Every page has a Markdown twin at the same
+// path with `.md` on the end (`src/pages/[...slug].md.ts`).
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+import { absolute, local } from '../site';
+
+const route = Astro.locals.starlightRoute;
+const splash = route.entry.data.template === 'splash';
+const slug = route.id === '' || route.id === 'index' ? 'index' : route.id;
+const markdown = local(`${slug}.md`);
+const markdownUrl = absolute(`${slug}.md`);
+const ask = encodeURIComponent(`Read ${markdownUrl} so I can ask you questions about it.`);
+---
+
+<Default />
+{
+  !splash && (
+    <div class="page-actions" data-markdown={markdown}>
+      <button type="button" class="page-actions__copy">
+        <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z"/></svg>
+        <span>Copy page</span>
+      </button>
+      <a href={markdown}>View as Markdown</a>
+      <a href={`https://claude.ai/new?q=${ask}`} target="_blank" rel="noopener">Open in Claude</a>
+      <a href={`https://chatgpt.com/?q=${ask}`} target="_blank" rel="noopener">Open in ChatGPT</a>
+      <span class="page-actions__status" role="status" aria-live="polite"></span>
+    </div>
+  )
+}
+
+<script>
+  for (const actions of document.querySelectorAll<HTMLElement>('.page-actions')) {
+    const button = actions.querySelector<HTMLButtonElement>('.page-actions__copy');
+    const status = actions.querySelector<HTMLElement>('.page-actions__status');
+    button?.addEventListener('click', async () => {
+      try {
+        const response = await fetch(actions.dataset.markdown ?? '');
+        if (!response.ok) throw new Error(String(response.status));
+        await navigator.clipboard.writeText(await response.text());
+        if (status) status.textContent = 'Copied as Markdown';
+      } catch {
+        if (status) status.textContent = 'Could not copy. Use View as Markdown instead.';
+      }
+      setTimeout(() => status && (status.textContent = ''), 2500);
+    });
+  }
+</script>
+
+<style>
+  .page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+  .page-actions > button,
+  .page-actions > a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 999px;
+    background: var(--sl-color-bg);
+    color: var(--sl-color-gray-1);
+    font: inherit;
+    font-size: var(--sl-text-xs);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .page-actions > button:hover,
+  .page-actions > a:hover {
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-accent-high);
+  }
+  .page-actions > button:focus-visible,
+  .page-actions > a:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+  .page-actions__status {
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+  }
+</style>

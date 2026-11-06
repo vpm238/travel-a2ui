@@ -1,0 +1,315 @@
+---
+title: 'Quickstart: tour a real A2UI app'
+description: Clone and run Travel A2UI, watch its A2UI messages on the wire, and learn catalogs, messages, data binding, actions and inference formats in working code.
+---
+
+import { Steps, Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import AgentPrompt from '../../components/AgentPrompt.astro';
+import TurnFlow from '../../components/TurnFlow.astro';
+import { A2UI, BUILD_YOUR_OWN, FLUTTER_DEMO, PARTNERS } from '../../site';
+
+In about an hour you will run **Travel A2UI** on your own machine. It is a trip
+planner whose agent answers with flight cards, date pickers and a live trip
+panel instead of paragraphs. Along the way you will see every core A2UI concept
+in code that works: catalogs, messages, data binding, actions and functions,
+inference formats and renderers.
+
+Most people take the tour with their coding agent, which runs the commands and
+explains as it goes. If you are reading on your phone, or want the overview
+first, the same tour is written out below.
+
+<AgentPrompt />
+
+## What you will build
+
+![The Travel A2UI web app: a conversation on the left where the agent's replies are flight cards, and the trip so far on the right](../../assets/quickstart/chat.png)
+
+<p class="shot-caption">
+  Every card on this screen was composed by the agent for this conversation, out of components
+  the app already knows how to draw.
+</p>
+
+By the end you will have:
+
+- the app running locally, with a **React** client and optionally a **Flutter**
+  client drawing the same agent's messages;
+- watched a whole turn as raw A2UI messages, with no API key;
+- read the catalog, the server and both renderers, one concept at a time;
+- made one small change of your own and seen where it lands.
+
+<Aside type="note" title="A sample app, not the reference implementation">
+  Travel A2UI is an independent app built on A2UI with the official SDKs. It is
+  meant to be read and borrowed from. The tour points out which parts are A2UI
+  and which are this app's own choices.
+</Aside>
+
+## Run it
+
+You need `git`, **Node 20+** and **Python 3.11+**. A Gemini API key is optional:
+everything up to talking to the live agent works without one.
+
+<Steps>
+
+1. Clone the repository and set it up. Setup takes a minute or two: it
+   installs the Python server and the Node packages, regenerates everything
+   derived from the catalog, builds the web client and runs the tests.
+
+   ```bash
+   git clone https://github.com/vpm238/travel-a2ui
+   cd travel-a2ui
+   npm run setup
+   ```
+
+2. Start the server. One process serves the API and the clients.
+
+   ```bash
+   source .venv/bin/activate
+   uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src
+   ```
+
+3. Open [http://127.0.0.1:8080](http://127.0.0.1:8080). With no key, three
+   things already work:
+   - **The sample trip** you land on is a recording of a real conversation
+     with the agent, replayed through the same code as a live turn.
+   - **The Catalog tab** draws every component the agent can use.
+   - **The Wire tab** shows what the model wrote next to the A2UI the client
+     received.
+
+</Steps>
+
+![The Catalog tab: a grid of every component the agent may use, drawn by the real renderer, including travel components such as ActivityItem and DateRangePicker](../../assets/quickstart/catalog.png)
+
+<p class="shot-caption">
+  The Catalog tab. The agent cannot invent a component, and nothing here is something the client
+  cannot draw.
+</p>
+
+## How a turn works
+
+Before the details, here is the whole loop. Every concept below is one part
+of it.
+
+<TurnFlow />
+
+## Messages: what goes over the wire
+
+The repository includes a scripted server: the real server, with a script
+standing in for the model, so you can watch a full turn without a key. It is a
+test tool of this app, not part of A2UI.
+
+```bash
+# terminal 2
+source .venv/bin/activate
+GEMINI_API_KEY=scripted python tools/e2e/scripted_server.py 8130
+
+# terminal 3: ask for flights, keep only the A2UI messages
+curl -sN -X POST localhost:8130/api/chat \
+  -H 'content-type: application/json' \
+  -d '{"message":"flights to Madrid"}' | grep '"type": "ui"'
+```
+
+One turn produces four kinds of message. Trimmed, the ones that drew the
+flight list look like this:
+
+```json
+{ "version": "1.0",
+  "createSurface": {
+    "surfaceId": "inline-1",
+    "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+    "components": [
+      { "id": "head", "component": "Text", "text": "### Flights to Madrid" },
+      { "id": "row",  "component": "FlightOption",
+        "airline": { "@path": "airline" }, "price": { "@path": "price" },
+        "action": { "event": { "name": "select_flight",
+                               "context": { "id": { "@path": "id" } } } } },
+      { "id": "list", "component": "List",
+        "children": { "path": "/flights", "componentId": "row" } },
+      { "id": "root", "component": "Column", "children": ["head", "list"] }
+    ],
+    "sendDataModel": true } }
+
+{ "version": "1.0",
+  "updateDataModel": { "surfaceId": "inline-1", "path": "/flights",
+                       "value": [ { "id": "TP5256", "airline": "TAP Air Portugal", "price": "€310" } ] } }
+```
+
+- **`createSurface`** opens a *surface*, a region of UI with its own id,
+  drawn from the catalog it names.
+- **`updateComponents`** sends components as a **flat list** with ids. A parent
+  lists its children by id, and `root` is drawn first. A flat list streams
+  well, because each component can be drawn as soon as it arrives.
+- **`updateDataModel`** writes a value at a JSON Pointer path. The cards are
+  already on screen, bound to `/flights`. They fill in when the search results
+  land there.
+- **`deleteSurface`** removes a surface.
+
+The other events in the stream (`text`, `tool`, `trip`) are this app's own
+envelope around the A2UI messages, written in
+`apps/server/src/travel_a2ui/doors/interactions/turn.py`.
+
+<LinkCard title="Read more: A2UI messages" href={A2UI.messages} />
+
+## Catalogs: what the agent is allowed to draw
+
+A **catalog** is a JSON Schema document listing the components (and
+functions) an agent may use, with every property's type and description. This
+app's catalog extends the A2UI **basic catalog** (`Text`, `Row`, `List`,
+`Button`, `TextField` and so on) with travel components such as `FlightOption`,
+`HotelCard` and `DateRangePicker`.
+
+The same document has three readers, and that is what keeps them in agreement:
+
+| Reader | Uses the catalog to | Where |
+| --- | --- | --- |
+| The agent server | teach the model, compile its output, validate every message | `apps/server/src/travel_a2ui/brain/catalog.py` |
+| The React client | bind each component to a React implementation | `renderers/react/src/catalog.ts` |
+| The Flutter client | bind each component to a Flutter widget | `renderers/flutter/lib/catalog.dart` |
+
+The catalog file, `catalogs/a2ui-travel/catalog.json`, is generated:
+`scripts/build_catalog.py` takes the basic catalog from the A2UI SDK and
+adds the travel components to it.
+
+<LinkCard title="Read more: catalogs" href={A2UI.catalogs} />
+<LinkCard title="Guide: define your own catalog" href={A2UI.ownCatalog} />
+
+## Data model and binding
+
+Each surface has a **data model**, a JSON document the client holds. Component
+properties bind to it by path, as in `{"@path": "airline"}`, instead of
+carrying literal values.
+
+- A `List` with a **template**,
+  `{"path": "/flights", "componentId": "row"}`, draws `row` once per item.
+  Inside it, relative paths such as `airline` resolve against the current item.
+- Inputs bind both ways. Dragging a date picker writes the new date into the
+  data model locally, with no turn and no tokens. The agent sees it when the
+  next action carries the data model.
+
+<LinkCard title="Read more: data binding" href={A2UI.dataBinding} />
+
+## Actions and functions
+
+**Actions** are how the interface talks back. The `FlightOption` above
+declares `select_flight` with the flight's `id` in its context. When you press
+a card, the client resolves the binding and sends the real id as the next turn.
+In this app the client side is `apps/web/src/surfaces.ts`, and the server
+records the choice in `apps/server/src/travel_a2ui/brain/presses.py`.
+
+**Functions** run in the client, against the live data model. Basic functions
+like `formatCurrency` and `formatDate` come with the SDK. This catalog adds
+`calcNights`, implemented in `renderers/react/src/functions.ts` and
+`renderers/flutter/lib/functions.dart`. A label bound to it recomputes the
+moment a date moves, which a "3 nights" written by the model never could.
+
+<LinkCard title="Read more: actions" href={A2UI.actions} />
+
+## Inference: how a model writes UI
+
+The model does not write that JSON. It writes **A2UI Express**, a compact
+notation for the same tree, and the A2UI SDK compiles it as it streams:
+
+```text
+head = Text("### Flights to Madrid")
+row  = FlightOption($airline, $departTime, $arriveTime, $origin, $destination,
+                    $price, Event("select_flight", {id: $id}))
+list = List(_template($/flights, row))
+root = Column([head, list])
+```
+
+Express is about half the size of the equivalent JSON, and a half-written
+program still compiles. That is why the surface paints while the model is
+still typing. The inference format is swappable: A2UI does not require Express,
+and a model can emit the JSON directly.
+
+Two things teach the model, and they are deliberately different:
+
+- **Skills** (`skills/express-modular/*/SKILL.md`) say what components exist
+  and how to write them. They are **generated** from the catalog by the A2UI
+  agent SDK, so they cannot drift from it.
+- **Prompts** (`prompts/flow.md`, `prompts/role.md`) say what to ask and when.
+  That is judgement, written as plain markdown.
+
+![The Wire tab: the A2UI Express the model wrote on the left, 55% smaller than the A2UI JSON the client received on the right](../../assets/quickstart/wire.png)
+
+<p class="shot-caption">
+  The Wire tab: the same surface as the model wrote it and as the client received it.
+</p>
+
+You can run the server's compiler yourself, from the repository root with the
+virtualenv active:
+
+```bash
+printf '%s' '[{"surfaceId":"demo-1","source":"title = Text(\"### Hello, A2UI\")\nprice = Text(formatCurrency($/total, \"EUR\"))\nroot = Column([title, price])\n$/total = 412"}]' \
+| python tools/e2e/compile.py | python3 -m json.tool
+```
+
+Then try `Text("Hi", variant="h3")`. The compiler refuses it, because the
+catalog only allows `caption` and `body` there. The catalog is the contract: a
+model cannot draw what it does not define.
+
+<LinkCard title="Read more: the A2UI v1.0 specification" href={A2UI.spec} />
+
+## Renderers: same messages, different clients
+
+The React client renders with `@a2ui/react` and `@a2ui/web_core`. The Flutter
+client renders with `a2ui_flutter`. Neither contains any travel logic: each
+knows how to draw a `FlightOption`, and nothing about what a trip is. The
+server never learns which client it is talking to.
+
+<div class="shots">
+
+![The React client on the web: flight cards in the conversation and the trip so far beside it](../../assets/quickstart/chat.png)
+
+![The Flutter client on a phone drawing the same flight list from the same messages](../../assets/quickstart/flutter.png)
+
+</div>
+
+<p class="shot-caption">
+  React on the web and Flutter on a phone, both drawing the same agent's messages. Open the
+  Flutter client on the <a href={FLUTTER_DEMO}>hosted demo</a>, or build it with
+  `flutter build web --release --base-href=/flutter/` in `renderers/flutter`.
+</p>
+
+<LinkCard title="A2UI renderers" href={A2UI.renderers} />
+
+## Make one change of your own
+
+Pick one. Each is small, and each shows one concept at work.
+
+- **Teach the model something.** Change a property description for
+  `FlightOption` in `scripts/build_catalog.py`, then run `npm run generate` and
+  `git diff`. One edit lands in the catalog every renderer reads and in the
+  skill the model reads.
+- **Restyle a component.** Edit `FlightOption` in
+  `renderers/react/src/components/travel.tsx`, run `npm run build`, then reload.
+  The agent is untouched, yet every flight it draws changes.
+- **Compose a surface.** Write a few lines of Express with a `List` template and
+  compile it as above.
+
+With a Gemini key ([free from AI Studio](https://aistudio.google.com/apikey)),
+restart the server with `GEMINI_API_KEY` set, or paste the key when the app
+asks. Then try *"Six days in Madrid in April, two of us, around $2,500 all in"*
+with the Wire tab open.
+
+## Keep going
+
+You have now seen A2UI from the inside. Next, see what teams have built with
+it, and how they fitted it into an existing product.
+
+<CardGrid>
+  <LinkCard
+    title="Partner and consultant demos"
+    description="A2UI in production apps, and how teams brought it into their own stack."
+    href={PARTNERS}
+  />
+  <LinkCard
+    title="Build your own"
+    description="What to change to make this app about something other than travel."
+    href={BUILD_YOUR_OWN}
+  />
+  <LinkCard
+    title="A2UI documentation"
+    description="Concepts, the v1.0 specification and the renderer SDKs."
+    href={A2UI.home}
+  />
+</CardGrid>

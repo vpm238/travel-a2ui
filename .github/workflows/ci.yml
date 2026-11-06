@@ -222,6 +222,50 @@ jobs:
       - name: Signature generation matches the reference
         run: python3 -m pytest tools/tests/test_sdk_parity.py -q
 
+  quickstart:
+    name: The quickstart site
+    runs-on: ubuntu-latest
+    # `docs/site`: the A2UI quickstart, and the prompt a coding agent follows
+    # to tour this repository. A tour that names a file which has since moved
+    # sends someone's agent hunting for it, so every path it names is checked.
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/site/package-lock.json
+
+      - name: Every path the tour names exists
+        run: |
+          missing=0
+          for file in docs/site/src/prompts/quickstart.md docs/site/src/content/docs/quickstart.mdx; do
+            for path in $(grep -oE '`[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]*`' "$file" | tr -d '`' | sort -u); do
+              case "$path" in *...*|*\**) continue ;; esac
+              if [ ! -e "$path" ]; then
+                echo "::error file=$file::names $path, which does not exist"
+                missing=1
+              fi
+            done
+          done
+          exit $missing
+
+      - name: Build
+        working-directory: docs/site
+        run: |
+          npm ci
+          npm run build
+
+      - name: The agent-facing files are there
+        working-directory: docs/site
+        run: |
+          for file in quickstart/prompt.md quickstart.md llms.txt llms-full.txt; do
+            test -s "dist/$file" || { echo "::error::dist/$file is missing or empty"; exit 1; }
+          done
+          # What an agent is pointed at is the prompt itself, not a page about it.
+          cmp -s dist/quickstart/prompt.md src/prompts/quickstart.md
+
 
   flutter:
     name: The Flutter client

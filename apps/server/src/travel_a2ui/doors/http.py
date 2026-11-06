@@ -61,6 +61,8 @@ _ROOT = ROOT
 #: yesterday.
 WEB_DIST = _ROOT / "apps" / "web" / "dist"
 FLUTTER_DIST = _ROOT / "renderers" / "flutter" / "build" / "web"
+#: The A2UI quickstart (`docs/site`), a static Starlight site built for `/docs`.
+DOCS_DIST = _ROOT / "docs" / "site" / "dist"
 
 #: What this deployment can run, reported for information.
 #:
@@ -674,6 +676,12 @@ def mount_clients() -> None:
     """
     if FLUTTER_DIST.is_dir():
         app.mount("/flutter", StaticFiles(directory=FLUTTER_DIST, html=True), name="flutter")
+
+    # The quickstart: documentation about this app, served beside it so the
+    # tour and the demo it tours share one address. A static site with its own
+    # 404 page, which `html=True` serves for a missing path under /docs.
+    if DOCS_DIST.is_dir():
+        app.mount("/docs", StaticFiles(directory=DOCS_DIST, html=True), name="docs")
 
     if WEB_DIST.is_dir():
         app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")

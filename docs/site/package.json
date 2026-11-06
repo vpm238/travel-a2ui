@@ -1,0 +1,19 @@
+{
+  "name": "travel-a2ui-docs",
+  "private": true,
+  "type": "module",
+  "description": "The A2UI quickstart: a guided tour of this repository, for a person or their coding agent.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.42.7",
+    "astro": "7.4.2",
+    "sharp": "0.34.5"
+  },
+  "engines": {
+    "node": ">=20.3"
+  }
+}

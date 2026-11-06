@@ -1,0 +1,33 @@
+---
+title: Learn A2UI by running it
+description: A guided tour of a real A2UI app, for you or your coding agent.
+template: splash
+hero:
+  tagline: Run a real A2UI app, watch its messages on the wire, and learn the core concepts in working code. Bring your coding agent, or read along.
+  actions:
+    - text: Start the quickstart
+      link: quickstart/
+      icon: right-arrow
+    - text: See it live
+      link: https://travel-a2ui-vy7stnte2a-uc.a.run.app
+      icon: external
+      variant: minimal
+---
+
+import { CardGrid, Card } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="Built for coding agents" icon="rocket">
+    One prompt, and your agent clones the demo, runs it and tours the code with
+    you, a concept at a time. Every page is also available as Markdown, and
+    `llms.txt` lists them all.
+  </Card>
+  <Card title="Readable anywhere" icon="open-book">
+    The same tour, written out with screenshots, for reading on your phone or
+    getting the overview first.
+  </Card>
+  <Card title="No key to start" icon="approve-check">
+    The catalog, a recorded conversation and a scripted model all run without
+    an API key. Add a free Gemini key when you want to talk to the agent.
+  </Card>
+</CardGrid>
