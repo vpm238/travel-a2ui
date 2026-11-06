@@ -95,13 +95,6 @@ function announce(turns: Agent['turns'], busy: boolean): string {
   return drew ? 'Reply ready, with an interface below it.' : 'Reply ready.';
 }
 
-const OPENERS = [
-  'Six days in Madrid in April, two of us, around $2,500 all in',
-  'Find me a nonstop to Lisbon and somewhere to stay in Alfama',
-  'Plan three days in Tokyo — first visit, we like walking',
-  'What would a week in Mexico City cost in November?',
-];
-
 export function Chat({ agent }: { agent: Agent }) {
   const [draft, setDraft] = useState('');
   const feedRef = useRef<HTMLDivElement>(null);
@@ -182,7 +175,7 @@ export function Chat({ agent }: { agent: Agent }) {
               this conversation.
             </p>
             <ul className="chat__openers">
-              {OPENERS.map((opener) => (
+              {(agent.meta?.openers ?? []).map((opener) => (
                 <li key={opener}>
                   <button type="button" onClick={() => void agent.send(opener, { surface: 'inline' })}>
                     {opener}

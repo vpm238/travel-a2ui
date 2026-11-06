@@ -23,6 +23,13 @@ class ServerMeta {
   String get defaultSkill => raw['defaultSkill'] as String? ?? '';
   bool get keyProvided => raw['keyProvided'] == true;
 
+  /// What an empty conversation offers to say first, the same list the React
+  /// client shows.
+  List<String> get openers => [
+        for (final entry in (raw['openers'] as List? ?? const []))
+          if (entry is String && entry.isNotEmpty) entry,
+      ];
+
   /// Where the numbers came from, said once in the chrome rather than on every
   /// card.
   Map<String, dynamic> get provenance =>

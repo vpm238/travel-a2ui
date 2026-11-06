@@ -127,6 +127,8 @@ export interface Meta {
    * the same handler as a live turn — see `tools/sample/record.py`.
    */
   sampleTrip?: string | null;
+  /** What an empty conversation offers to say first, shared by every client. */
+  openers?: string[];
   /**
    * The deployment's Google Maps key, for loading the Maps JavaScript API.
    *

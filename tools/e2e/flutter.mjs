@@ -109,9 +109,34 @@ try {
     'it fetched the catalog rather than shipping one',
   );
 
+  // The suggestions are the server's, from `/api/meta`, so the test reads
+  // them from there rather than repeating the list.
+  const meta = await (await fetch(`${ORIGIN}/api/meta`)).json();
+  const openers = meta.openers ?? [];
+  check(openers.length > 0, 'the server offers starter prompts');
+  check(
+    openers.every((opener) => bootText.includes(opener)),
+    'the empty conversation shows every one of them',
+    bootText.slice(0, 400),
+  );
+
   console.log('\nA turn');
   // The composer is a real text field once semantics are on.
   const field = page.locator('input, textarea, [role="textbox"]').first();
+  /**
+   * What the composer invites you to type, as assistive tech is told it.
+   *
+   * The accessible name rather than the DOM `placeholder`: Flutter paints the
+   * hint itself, and the engine's hidden input keeps whatever placeholder it
+   * was created with, while the name follows the hint the app draws.
+   */
+  const hint = () =>
+    page
+      .locator('input, textarea, [role="textbox"]')
+      .first()
+      .evaluate((el) => el.getAttribute('aria-label') ?? '')
+      .catch(() => '');
+  check((await hint()).includes('Where are you going'), 'the composer starts by asking where to', await hint());
   await field.click({ timeout: 30_000 });
   await field.fill('flights to Madrid');
   await page.keyboard.press('Enter');
@@ -136,6 +161,12 @@ try {
   // Whatever carriers the fixtures pick: a flight number on a row is a row.
   const numbers = after.match(/\b[A-Z]{2}\d{2,4}\b/g) ?? [];
   check(numbers.length >= 4, 'the flights filled in', after.slice(0, 400));
+  const later = await hint();
+  check(
+    later.length > 0 && !later.includes('Where are you going'),
+    'once the conversation is under way, the composer stops asking where to',
+    later,
+  );
 
   // Asserted against the labels rather than the whole page, because the app's
   // own header also says "Sample data" — reading the page as one string lets

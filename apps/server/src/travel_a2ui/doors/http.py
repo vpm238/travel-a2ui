@@ -148,6 +148,14 @@ async def warm_up(
     )
 
 
+OPENERS = [
+    "Six days in Madrid in April, two of us, around $2,500 all in",
+    "Find me a nonstop to Lisbon and somewhere to stay in Alfama",
+    "Plan three days in Tokyo — first visit, we like walking",
+    "What would a week in Mexico City cost in November?",
+]
+
+
 @app.get("/api/meta")
 async def meta() -> JSONResponse:
     """Everything a client needs to configure itself, so none of it is compiled in."""
@@ -182,6 +190,10 @@ async def meta() -> JSONResponse:
             # carrying a badge — and so a reader of the API can tell a demo
             # from a live deployment without guessing from the prices.
             "provenance": provider.provenance.as_dict(),
+            # What an empty conversation offers to say first. Here rather than
+            # in each client, so the React and Flutter apps open on the same
+            # suggestions and changing them is a deploy, not two releases.
+            "openers": OPENERS,
             "contract": {"stamp": contract_stamp(), "maxAgeMs": INSTANTIATION_MAX_AGE_MS},
             # True when the deployment carries its own key and the UI need not ask.
             "keyProvided": bool(os.environ.get("GEMINI_API_KEY")),

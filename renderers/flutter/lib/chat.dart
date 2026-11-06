@@ -352,7 +352,10 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: _parts.isEmpty
-                ? const _Empty()
+                ? _Empty(
+                    openers: widget.meta.openers,
+                    onPick: (opener) => _send(message: opener),
+                  )
                 : ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
@@ -365,6 +368,16 @@ class _ChatScreenState extends State<ChatScreen> {
           _Composer(
             controller: _composer,
             enabled: !_busy,
+            // What to type next depends on where the conversation is: a
+            // destination to begin with, then anything at all, including
+            // changes to a trip that already has things on it.
+            hint: _busy
+                ? 'Working…'
+                : _parts.isEmpty
+                    ? 'Where are you going?'
+                    : hasTrip
+                        ? 'Ask anything, or change your trip'
+                        : 'Reply, or ask for something else',
             onSend: (text) => _send(message: text),
           ),
         ],
@@ -438,14 +451,17 @@ class _ChatScreenState extends State<ChatScreen> {
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty();
+  const _Empty({required this.openers, required this.onPick});
+
+  final List<String> openers;
+  final void Function(String) onPick;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -467,12 +483,26 @@ class _Empty extends StatelessWidget {
               textAlign: TextAlign.center,
               style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Try: "San Francisco to London and back, for two of us."',
-              textAlign: TextAlign.center,
-              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
+            const SizedBox(height: 20),
+            // The server's suggestions, one tap each: a tap is the same as
+            // typing it and pressing send.
+            for (final opener in openers)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => onPick(opener),
+                    style: OutlinedButton.styleFrom(
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      side: BorderSide(color: scheme.outlineVariant),
+                    ),
+                    child: Text(opener, style: text.bodyMedium),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -549,10 +579,16 @@ class _TripBar extends StatelessWidget {
 }
 
 class _Composer extends StatelessWidget {
-  const _Composer({required this.controller, required this.enabled, required this.onSend});
+  const _Composer({
+    required this.controller,
+    required this.enabled,
+    required this.hint,
+    required this.onSend,
+  });
 
   final TextEditingController controller;
   final bool enabled;
+  final String hint;
   final void Function(String) onSend;
 
   @override
@@ -571,7 +607,7 @@ class _Composer extends StatelessWidget {
                 textInputAction: TextInputAction.send,
                 onSubmitted: enabled ? onSend : null,
                 decoration: InputDecoration(
-                  hintText: 'Where are you going?',
+                  hintText: hint,
                   filled: true,
                   fillColor: scheme.surfaceContainerHigh,
                   border: OutlineInputBorder(
