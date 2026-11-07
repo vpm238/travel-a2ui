@@ -94,12 +94,16 @@ form entirely:
 The Catalog tab needs no key at all — it draws every component with the A2UI
 SDK and no model in the path, so it is the fastest way to see A2UI render.
 
+The Flutter client, at http://127.0.0.1:8080/flutter/ (needs Flutter 3.47+):
+
+  cd renderers/flutter && flutter pub get && flutter build web --base-href=/flutter/
+
 Other things you can do:
 
-  npm run dev:web           Vite with hot reload, proxying to :8080
+  npm run dev:web           Vite with hot reload on :5173, using the server on :8080
   npm run e2e               drive a whole turn in a browser, with a scripted model
   npm run screenshots       regenerate docs/screenshots
   npm run check             every generated file and golden is current
 
-Deploying is a push to main; see docs/deploying.md for Cloud Run.
+To deploy to Cloud Run, see docs/deploying.md: one click, or one command.
 DONE

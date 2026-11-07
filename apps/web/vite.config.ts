@@ -15,8 +15,11 @@ export default defineConfig({
     // In dev the app runs on Vite and the API on uvicorn; in production both
     // are the same origin. Proxying keeps the client's fetch paths identical in
     // both, so there is no "is this dev?" branch in application code.
+    //
+    // `ws` carries the voice socket. The Host header is left as the browser
+    // sent it, so the server's same-origin check on that socket passes.
     proxy: {
-      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/api': { target: 'http://127.0.0.1:8080', ws: true },
     },
   },
 });

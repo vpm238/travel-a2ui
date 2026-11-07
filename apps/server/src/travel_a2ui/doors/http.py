@@ -23,7 +23,7 @@ import os
 from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .. import ROOT
@@ -54,12 +54,8 @@ from .live import INSTANTIATION_MAX_AGE_MS, VoiceSession, contract_stamp, relay
 
 _ROOT = ROOT
 
-#: Where the built clients are, when they have been built.
-#:
-#: Absent in development, which is deliberate rather than unhandled: `npm run
-#: dev` serves the React app on its own port against this API, and mounting a
-#: stale `dist/` underneath it is how you end up debugging a build from
-#: yesterday.
+#: Where the built clients are. Either may be missing: `npm run dev:web`
+#: serves React on its own port against this API, and Flutter is optional.
 WEB_DIST = _ROOT / "apps" / "web" / "dist"
 FLUTTER_DIST = _ROOT / "renderers" / "flutter" / "build" / "web"
 #: The A2UI quickstart (`docs/site`), a static Starlight site built for `/docs`.
@@ -576,15 +572,45 @@ async def healthz() -> JSONResponse:
     return JSONResponse({"ok": True, "sessions": len(sessions)})
 
 
-def mount_clients() -> None:
-    """Serves the built front ends, when they have been built.
+def _is_api(path: str) -> bool:
+    return path.startswith(("/api/", "/healthz"))
 
-    Mounted last so nothing here can shadow an API route, and each only if its
-    build output exists — a missing `dist/` in development is the normal case,
-    not a misconfiguration.
+
+class BuiltClient(StaticFiles):
+    """A front end served from its build folder, looked up on each request.
+
+    So a client built while the server is running is served at once, with no
+    restart, and one not built yet says how to build it instead of a bare 404.
     """
-    if FLUTTER_DIST.is_dir():
-        app.mount("/flutter", StaticFiles(directory=FLUTTER_DIST, html=True), name="flutter")
+
+    def __init__(self, directory: Any, how_to_build: str) -> None:
+        super().__init__(directory=directory, html=True, check_dir=False)
+        self.folder = directory
+        self.how_to_build = how_to_build
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if self.folder.is_dir():
+            await super().__call__(scope, receive, send)
+            return
+        if _is_api(scope.get("path", "")):
+            raise HTTPException(status_code=404)
+        page = f"Not built yet. {self.how_to_build}, then reload this page.\n"
+        await PlainTextResponse(page, status_code=404)(scope, receive, send)
+
+
+def mount_clients() -> None:
+    """Serves the front ends: React at `/`, Flutter at `/flutter`, the docs at `/docs`.
+
+    Mounted last so nothing here can shadow an API route.
+    """
+    app.mount(
+        "/flutter",
+        BuiltClient(
+            FLUTTER_DIST,
+            "Build the Flutter client: cd renderers/flutter && flutter build web --base-href=/flutter/",
+        ),
+        name="flutter",
+    )
 
     # The quickstart: documentation about this app, served beside it so the
     # tour and the demo it tours share one address. A static site with its own
@@ -592,18 +618,17 @@ def mount_clients() -> None:
     if DOCS_DIST.is_dir():
         app.mount("/docs", StaticFiles(directory=DOCS_DIST, html=True), name="docs")
 
-    if WEB_DIST.is_dir():
-        app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
+    app.mount("/", BuiltClient(WEB_DIST, "Build the React client: npm install && npm run build"), name="web")
 
-        @app.exception_handler(404)
-        async def spa_fallback(request: Request, _exc: Any) -> Any:
-            # A single-page app owns its own routing, so an unknown path that
-            # is not an API path is a route the client knows about and the
-            # server does not. An API path stays a 404, or a typo in a fetch
-            # silently returns HTML and fails somewhere much less obvious.
-            if request.url.path.startswith(("/api/", "/healthz")):
-                return _no_store({"error": f"No route for {request.url.path}"}, 404)
-            return FileResponse(WEB_DIST / "index.html")
+    @app.exception_handler(404)
+    async def spa_fallback(request: Request, _exc: Any) -> Any:
+        # A single-page app owns its own routing, so an unknown path that is
+        # not an API path is a route the client knows about and the server
+        # does not. An API path stays a 404, or a typo in a fetch silently
+        # returns HTML and fails somewhere much less obvious.
+        if _is_api(request.url.path) or not (WEB_DIST / "index.html").is_file():
+            return _no_store({"error": f"No route for {request.url.path}"}, 404)
+        return FileResponse(WEB_DIST / "index.html")
 
 
 mount_clients()

@@ -1,0 +1,16 @@
+{
+  "name": "travel-a2ui",
+  "options": {
+    "allow-unauthenticated": true,
+    "memory": "1Gi",
+    "cpu": "1",
+    "concurrency": 40
+  },
+  "hooks": {
+    "postcreate": {
+      "commands": [
+        "gcloud run services update \"$K_SERVICE\" --project \"$GOOGLE_CLOUD_PROJECT\" --region \"$GOOGLE_CLOUD_REGION\" --max-instances 1 --timeout 600 --quiet"
+      ]
+    }
+  }
+}

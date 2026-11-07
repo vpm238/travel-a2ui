@@ -13,7 +13,8 @@ in that moment**, not chosen from screens somebody designed in advance.
 <p align="center">
   <b><a href="https://travel-a2ui-vy7stnte2a-uc.a.run.app">Try it live</a></b> ·
   <b><a href="https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/">Learn A2UI with the quickstart</a></b> ·
-  <a href="#try-it-in-two-minutes">two-minute setup</a> ·
+  <a href="#run-it-on-your-machine">run it locally</a> ·
+  <a href="#deploy-it">deploy in one click</a> ·
   <a href="#build-one-of-your-own">build one</a> ·
   <a href="docs/architecture.md">how it works</a>
 </p>
@@ -28,9 +29,9 @@ built on top of it. Treat it as a worked example of building and deploying a
 generative-UI application, not as a reference implementation of the protocol.
 
 > **New to A2UI?** The [quickstart](https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/)
-> is a guided tour of this repository, run by your coding agent or read on your
-> phone. It covers clone, run, watching the messages on the wire, and the
-> concepts behind them, and most of it needs no API key.
+> is one line to paste into your coding agent. It sets up the Python server,
+> the React client and the Flutter client on your machine, explaining each as
+> it starts working, and needs no API key to begin.
 
 ---
 
@@ -152,20 +153,47 @@ the agent is describing an interface rather than emitting one.
 
 ---
 
-## Build one of your own
+## Run it on your machine
+
+One Python server and two clients. You need `git`, Python 3.11+, Node 20+, and
+Flutter 3.47+ for the Flutter client.
+
+**1. The Python server**, the agent:
 
 ```bash
 git clone https://github.com/vpm238/travel-a2ui && cd travel-a2ui
-npm run setup                      # installs everything, regenerates, builds, tests
-source .venv/bin/activate          # setup made it, unless a virtualenv was already active
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e apps/server
 uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src
 ```
 
-`npm run setup` installs the server package itself, into a `.venv` it creates
-if none is active — the generators import it, so it has to come first.
+**2. The React client** (web), in a second terminal:
 
-Open `http://127.0.0.1:8080`. One server serves the API and
-both clients from one origin.
+```bash
+npm install && npm run build
+```
+
+Open http://127.0.0.1:8080.
+
+**3. The Flutter client** (mobile):
+
+```bash
+cd renderers/flutter && flutter pub get && flutter build web --base-href=/flutter/
+```
+
+Open http://127.0.0.1:8080/flutter/.
+
+The server serves each client as soon as it is built, without a restart.
+React opens on a sample trip with no key; to talk to the agent, and for
+Flutter, paste a Gemini key into the app when it asks, or start the server
+with `GEMINI_API_KEY` set. `npm run setup` does steps 1 and 2 in one go, and also
+regenerates the generated files and runs the tests.
+
+---
+
+## Build one of your own
+
+Start from [Run it on your machine](#run-it-on-your-machine).
 
 **Nothing here is coupled to travel except the names.** The fastest way to see
 that is to replace them:
@@ -443,8 +471,8 @@ Start wherever matches what you want:
 ---
 ## Running it, in detail
 
-[Build one of your own](#build-one-of-your-own) is the three-command version.
-This is everything around it.
+[Run it on your machine](#run-it-on-your-machine) is the short version. This
+is everything around it.
 
 One server. It is Python, it is two packages — `brain/` and `doors/` — and it
 serves the API and the built clients from one origin.
@@ -461,7 +489,8 @@ uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src --reloa
 npm run dev:web                      # http://127.0.0.1:5173
 ```
 
-Open `http://127.0.0.1:5173` and paste a Gemini API key when asked. Once the
+Open `http://127.0.0.1:5173` and paste a Gemini API key when asked. Vite
+passes `/api`, the voice socket included, to the server on 8080. Once the
 client is built (`npm run build`), the server serves it too and one port is
 enough:
 
@@ -490,43 +519,20 @@ with nothing else in the path.
 
 ### Deploy it
 
-One server, serving the API and both built clients from one
-origin — one deploy, one URL, no CORS to configure.
+[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/vpm238/travel-a2ui)
 
-**Cloud Run** builds from the `Dockerfile` at the repository
-root: Node builds the clients in one stage, Python runs them in the next. Run
-[`.github/workflows/cloudrun.yml`](.github/workflows/cloudrun.yml)
-from the Actions tab with four settings in place:
+One click deploys it to Cloud Run in your own Google Cloud project: the server
+and both clients, on one URL. The button opens Cloud Shell, builds the
+`Dockerfile` (about ten minutes the first time) and asks only for a project and
+a region; its settings are in [`app.json`](app.json). No key is stored on the
+service, because each visitor pastes their own.
 
-| Setting | What it is |
-| --- | --- |
-| `GCP_PROJECT_ID` *(variable)* | The Google Cloud project to deploy into |
-| `GCP_REGION` *(variable)* | e.g. `us-central1` |
-| `WIF_PROVIDER` *(secret)* | A Workload Identity provider, so no service-account key is ever stored |
-| `WIF_SERVICE_ACCOUNT` *(secret)* | The account it impersonates — needs Cloud Run Admin, Artifact Registry Writer and Service Account User |
+**[docs/deploying.md](docs/deploying.md)** has the one-command version
+(`gcloud run deploy --source .`), a deploy on every push to `main`, and the
+one setting not to change: `--max-instances 1`, because conversations live in
+the server's memory.
 
-Every push to `main` deploys. The live service is
-[travel-a2ui-vy7stnte2a-uc.a.run.app](https://travel-a2ui-vy7stnte2a-uc.a.run.app),
-and it serves all of it: the React client at `/`, the Flutter client at
-`/flutter`, and the agent API.
-
-**[docs/deploying.md](docs/deploying.md)** has the one-time setup — including the `gcloud` commands that create the Workload Identity
-pool, and why its `attribute-condition` is not optional.
-
-One detail worth knowing before you scale it: the service runs with
-`--max-instances 1`, and that is a correctness constraint rather than a cost
-one. Conversations, and the server's mirror of each renderer, live in the
-server's memory — nothing is written to disk,
-which is what "we do not store your conversation" has to mean if it means
-anything — so a second instance would hold a second set of conversations, and a
-traveller whose next request landed on it would find their trip gone. Raising
-the limit means giving the sessions somewhere shared to live first.
-
-By default every visitor brings their own key. To run a shared deployment on one
-key instead, set `GEMINI_API_KEY` as a Cloud Run environment variable and the
-app stops asking.
-
-One thing the deploy does that is worth copying: the image ends with
+One thing the image does that is worth copying: it ends with
 
 ```dockerfile
 RUN python -c "import travel_a2ui.doors.http"

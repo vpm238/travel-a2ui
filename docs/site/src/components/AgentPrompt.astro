@@ -2,7 +2,7 @@
 // The primary way through the quickstart: one line for a coding agent.
 //
 // The prompt is deliberately almost nothing. Everything the agent needs (how
-// to guide, which mode to run in, what to explain and where it is in the code)
+// to guide, the setup steps, what to explain and where it is in the code)
 // lives behind the URL, in `src/prompts/quickstart.md`, so it can improve
 // without anyone re-copying a prompt.
 import { Code } from '@astrojs/starlight/components';
@@ -14,9 +14,9 @@ import { absolute, local, PROMPT_PATH, bootstrapPrompt } from '../site';
   <h2 id="agent-prompt-title">Paste this into your coding agent</h2>
   <Code code={bootstrapPrompt()} lang="text" wrap />
   <p class="agent-prompt__note">
-    Works in Claude Code, Gemini CLI, Codex, Cursor or any agent that can read a web page. It
-    uses Gemini if you have a key, a built-in mock if you don't, and shows you where another model
-    platform would plug in. It can also just explain the code without running anything.
+    Works in Claude Code, Gemini CLI, Codex, Cursor or any agent that can read a web page. It sets
+    up the Python server, then the React client, then the Flutter client, and explains each one as
+    it starts working. No API key is needed to begin.
   </p>
   <ul class="agent-prompt__links" aria-label="Machine-readable versions">
     <li><a href={local(PROMPT_PATH)}>What your agent reads</a></li>

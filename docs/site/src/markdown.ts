@@ -47,19 +47,19 @@ const AGENT_PROMPT = `## Paste this into your coding agent
 ${bootstrapPrompt()}
 \`\`\`
 
-Works in Claude Code, Gemini CLI, Codex, Cursor or any agent that can read a web page. It uses Gemini if you have a key, a built-in mock if you don't, and shows where another model platform would plug in. It can also just explain the code without running anything.`;
+Works in Claude Code, Gemini CLI, Codex, Cursor or any agent that can read a web page. It sets up the Python server, then the React client, then the Flutter client, and explains each one as it starts working. No API key is needed to begin.`;
 
 const ARCHITECTURE = `\`\`\`text
- Flutter client (mobile)            React client (web)
- a2ui_flutter · a2ui_core           @a2ui/react · @a2ui/web_core
- renderers/flutter/                 renderers/react/ · apps/web/
+ React client (web)                 Flutter client (mobile)
+ @a2ui/react · @a2ui/web_core       a2ui_flutter · a2ui_core
+ renderers/react/ · apps/web/       renderers/flutter/
               \\                      /
    A2UI messages over SSE ↓      ↑ actions
                 \\                  /
             Python agent server  (apps/server/src/travel_a2ui/)
             agent loop, tools, trip, macros, A2UI agent SDK
                          |
-            Gemini by default · a scripted mock · another platform
+                       Gemini
 \`\`\``;
 
 /** What every Markdown page tells an agent first, as parallel.ai's docs do. */

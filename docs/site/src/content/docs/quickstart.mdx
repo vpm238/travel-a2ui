@@ -1,331 +1,162 @@
 ---
 title: A2UI quickstart for web and mobile
-description: Run a real A2UI app with a Python backend, a React web client and a Flutter mobile client, and learn what A2UI is, what is deterministic, how skills are generated, how agent output becomes A2UI messages, and which renderers exist.
+description: Set up a small A2UI app on your machine, a Python agent server, a React web client and a Flutter mobile client, and deploy it to Cloud Run in one click.
 ---
 
-import { Steps, Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { Steps, CardGrid, LinkCard } from '@astrojs/starlight/components';
 import AgentPrompt from '../../components/AgentPrompt.astro';
 import ArchDiagram from '../../components/ArchDiagram.astro';
 import TurnFlow from '../../components/TurnFlow.astro';
 import { A2UI, BUILD_YOUR_OWN, FLUTTER_DEMO, PARTNERS } from '../../site';
 
-**A2UI** lets an AI agent answer with an interface instead of a paragraph. In
-this quickstart you run **Travel A2UI**, a trip planner whose agent replies
-with flight cards, date pickers and a live trip panel. One Python backend
-serves the same replies to a React web client and a Flutter mobile client.
+**A2UI** lets an AI agent answer with an interface instead of a paragraph. This
+quickstart sets up **Travel A2UI**, a trip planner whose agent replies with
+flight cards, date pickers and a live trip panel.
 
-Hand the tour to your coding agent, which runs it on your machine and explains
-as it goes. Or read it here, on any screen.
+It is a simple app on purpose: **one Python server** holds the agent, and **two
+clients** draw what it sends, **React** on the web and **Flutter** on mobile.
+Both get the same A2UI messages, and neither knows anything about travel.
+
+Hand the setup to your coding agent, which runs each step on your machine and
+explains it as it goes. Or follow the steps here.
 
 <AgentPrompt />
 
-## What you will learn
-
-1. **The core pieces of A2UI**: catalog, surface, components, data model,
-   messages, actions, functions and renderer.
-2. **What is A2UI and what is deterministic**: what the model decides, and what
-   ordinary code decides, including the **catalog** and **macros**.
-3. **Agent skills for A2UI**: what they are, and how they are generated from
-   the catalog.
-4. **Agent output versus A2UI messages**: the **Express** DSL the model writes,
-   the JSON messages on the wire, and the **MessageProcessor** that applies them.
-5. **Renderers**: the two in this app, and the others A2UI has.
-
-## The architecture
-
 <ArchDiagram />
 
-One Python server serves the API, the React app at `/` and the Flutter app at
-`/flutter/`. Neither client contains any travel logic. Each knows how to draw
-the catalog's components, and nothing about what a trip is.
+## Before you start
 
-<div class="shots">
+You need `git`, **Python 3.11+** and **Node 20+**. The Flutter client also
+needs **Flutter 3.47+**.
 
-![The React web client: flight cards in the conversation and the trip so far beside it](../../assets/quickstart/chat.png)
+A Gemini API key is optional for the React client: without one, it opens on a
+recorded sample trip, and you can browse every component. With a free key from
+[AI Studio](https://aistudio.google.com/apikey), you can talk to the agent, and
+the Flutter client asks for one before it starts. Paste it into the app when it
+asks; it stays in your browser.
 
-![The Flutter client in a phone layout, showing the trip as a sheet with the chosen outbound and return flights](../../assets/quickstart/flutter-trip.png)
-
-</div>
-
-<p class="shot-caption">
-  The same agent on the web and in a phone layout. In this repository the Flutter client is built
-  for the web; the same Dart code can target iOS and Android.
-</p>
-
-## Run it
-
-You need `git`, **Node 20+** and **Python 3.11+**.
+## 1. The Python server
 
 <Steps>
 
-1. Clone and set up (one to two minutes):
+1. Clone, install and start it:
 
    ```bash
    git clone https://github.com/vpm238/travel-a2ui
    cd travel-a2ui
-   npm run setup
-   ```
-
-2. Start the server. Set a free Gemini key from
-   [AI Studio](https://aistudio.google.com/apikey) to talk to the agent, or
-   leave it out:
-
-   ```bash
+   python3 -m venv .venv
    source .venv/bin/activate
-   export GEMINI_API_KEY=...   # optional
+   pip install -e apps/server
    uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src
    ```
 
-3. Open [http://127.0.0.1:8080](http://127.0.0.1:8080). With no key, you land
-   on a recorded sample trip, and the **Catalog** and **Wire** tabs work.
+2. Leave it running. In another terminal, `curl -s http://127.0.0.1:8080/api/healthz`
+   prints `{"ok":true,...}`.
 
 </Steps>
 
-<Aside type="tip" title="No key, or another model platform?">
-  The repository has a mock: `GEMINI_API_KEY=scripted python tools/e2e/scripted_server.py 8130`
-  runs the real server with a script in place of the model, so you can watch whole turns for
-  free. The model is called in one function, `stream_interaction` in
-  `apps/server/src/travel_a2ui/gemini.py`, and the mock replaces exactly that. An adapter for
-  Claude, OpenAI or a local model replaces it the same way. Your coding agent can walk you
-  through it.
-</Aside>
+The server is the agent. It sends the conversation to Gemini, and the model
+answers with UI written against a **catalog**: the components it may use, such
+as `FlightOption` and `DateRangePicker`, plus basics like `Text` and `Column`.
+The A2UI agent SDK checks every message against the catalog before it leaves
+the server.
 
-## 1. The core pieces of A2UI
+## 2. The React client (web)
 
-Ask the mock for flights and keep only the A2UI messages:
+<Steps>
 
-```bash
-curl -sN -X POST localhost:8130/api/chat \
-  -H 'content-type: application/json' \
-  -d '{"message":"flights to Madrid"}' | grep '"type": "ui"'
-```
+1. In a new terminal, from the repository root:
 
-Trimmed (most of the `FlightOption`'s bound properties are left out), the
-messages that drew the flight list:
+   ```bash
+   npm install
+   npm run build
+   ```
 
-```json
-{ "version": "1.0",
-  "createSurface": {
-    "surfaceId": "inline-1",
-    "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
-    "components": [
-      { "id": "head", "component": "Text", "text": "### Flights to Madrid" },
-      { "id": "fares__flightoption_1", "component": "FlightOption",
-        "airline": { "@path": "airline" }, "price": { "@path": "price" },
-        "action": { "event": { "name": "select_flight",
-                               "context": { "id": { "@path": "id" } } } } },
-      { "id": "fares__list_1", "component": "List",
-        "children": { "path": "/flights", "componentId": "fares__flightoption_1" } },
-      { "id": "fares", "component": "Column", "children": ["fares__list_1"] },
-      { "id": "root", "component": "Column", "children": ["head", "fares"] }
-    ] } }
+2. Open [http://127.0.0.1:8080](http://127.0.0.1:8080). The server serves the
+   build, with no restart.
 
-{ "version": "1.0",
-  "updateDataModel": { "surfaceId": "inline-1", "path": "/flights",
-                       "value": [ { "id": "TP5256", "airline": "TAP Air Portugal", "price": "€310" } ] } }
-```
+</Steps>
 
-| Piece | What it is | In this app |
-| --- | --- | --- |
-| **Catalog** | JSON Schema of every component and function the agent may use | `catalogs/a2ui-travel/catalog.json` |
-| **Surface** | A region of UI with an id, opened by `createSurface` | each card in the chat; the trip panel |
-| **Components** | A flat list of typed nodes with ids; `root` is drawn first | `Text`, `FlightOption`, `List`, `Column` above |
-| **Data model** | A JSON document per surface; components bind to it by path | `{"@path": "airline"}`, rows at `/flights` |
-| **Messages** | `createSurface`, `updateComponents`, `updateDataModel`, `deleteSurface` | streamed over SSE |
-| **Actions** | What a press sends back, as an A2UI v1.0 action with bound values resolved | `select_flight` with the flight's `id` |
-| **Functions** | Pure functions the client evaluates against the data model | `formatCurrency`, and the catalog's own `calcNights` |
-| **Renderer** | Applies messages and draws components with native widgets | the React and Flutter clients |
+![The React web client: flight cards in the conversation and the trip so far beside it](../../assets/quickstart/chat.png)
 
-The components carry no flight data. `FlightOption` is a template, repeated for
-each row at `/flights`, and the rows arrive in one `updateDataModel` from the
-host. The model never retypes what the search found.
+Try the **Catalog** tab, which draws every component the agent may use, and the
+**Wire** tab, which shows what the model wrote beside the A2UI JSON the client
+received. With a key, ask for *"Six days in Madrid in April, two of us, around
+$2,500 all in"*.
 
-Messages also go the other way. Every request from a client carries A2UI v1.0
-renderer-to-agent messages: a press as an `action`, anything the renderer
-refused as an `error`, and, as metadata, the renderer's capabilities and the
-data model of every surface that asks for answers. The transport around them
-is this app's own and is documented in
-[`docs/transport.md`](https://github.com/vpm238/travel-a2ui/blob/main/docs/transport.md).
+For hot reload while you edit the client, run `npm run dev:web` and open
+[http://localhost:5173](http://localhost:5173). It talks to the same server.
 
-<LinkCard title="Read more: A2UI messages" href={A2UI.messages} />
+## 3. The Flutter client (mobile)
 
-## 2. What is A2UI, and what is deterministic
+<Steps>
 
-The model decides **what to show**. Ordinary code decides **everything that
-must not vary**.
+1. Build it:
 
-**The catalog is the boundary.** The model can only use what the catalog
-defines, and every message is validated against it. This catalog extends the
-A2UI basic catalog (`Text`, `Row`, `List`, `Button` and so on) with travel
-components such as `FlightOption` and `DateRangePicker`. It is generated by
-`scripts/build_catalog.py`, and the server, the React client and the Flutter
-client all read the same file.
+   ```bash
+   cd renderers/flutter
+   flutter pub get
+   flutter build web --base-href=/flutter/
+   ```
 
-![The Catalog tab: every component the agent may use, drawn by the real renderer](../../assets/quickstart/catalog.png)
+2. Open [http://127.0.0.1:8080/flutter/](http://127.0.0.1:8080/flutter/) and
+   paste your Gemini key when it asks.
 
-**The model composes every surface.** The server never draws one and never
-rewrites what the model wrote. Every message is checked against the catalog
-and against a mirror of what the renderer already holds, before it is sent; a
-block that does not fit goes back to the model with the reason, once.
+</Steps>
 
-**Macros are templates the model calls.** The model writes one line,
-`Flights(...)`, and the server expands it, with the A2UI SDK's
-`MacroExpander`, into catalog components bound to `/flights`. The host fills
-`/flights` with the rows the search returned. The macros are in
-`apps/server/src/travel_a2ui/brain/macros.py`.
+![The Flutter client in a phone layout, showing the trip with the chosen outbound and return flights](../../assets/quickstart/flutter-trip.png)
 
-```text
-fares = Flights("Outbound · JFK → MAD", "/trip/selectedFlight")
-```
+The same agent, the same server and the same messages, drawn by a second
+renderer with Flutter's widgets. Nothing on the server changed. Here Flutter is
+built for the web in a phone layout; the same Dart code can target iOS and
+Android. No Flutter? Try the <a href={FLUTTER_DEMO}>hosted one</a>.
 
-becomes a heading `Text`, a `FlightOption` template, a `List` bound to
-`/flights` and the `Column` holding them. The model still decides *whether*,
-*when* and *where* to show flights, and what goes around them. The macro saves
-it from retyping data a tool just returned: hundreds of output tokens, and a
-chance to disagree with what was found. Macros are in the model's skill, but
-not in `catalog.json`. Renderers never see one.
+## 4. Deploy to Cloud Run
 
-The trip panel works the same way. The model draws it once, with `Trip()`, and
-from then on the host keeps it current with `updateDataModel` alone: a pressed
-fare reaches the panel in one message, not another model turn.
+One click, in your own Google Cloud project with billing enabled:
 
-| Decided by the model (A2UI) | Decided by code (deterministic) |
-| --- | --- |
-| Whether to draw, and which components | Which components exist: the catalog |
-| Layout, headings and wording | Macro expansion: `brain/macros.py` |
-| What goes on every surface, including the panel | That every message applies, checked against a mirror of the renderer: `brain/ui.py` |
-| | The data each surface binds, kept current: `brain/data.py` |
-| Which tool to call, with what arguments | What the tool returns: `brain/tools/run.py` |
-| What to ask next, guided by `prompts/flow.md` | That a date is asked in a date picker: `brain/controls.py` |
-| | Recording a press on the trip: `brain/presses.py` |
-| | Presses answered with no model at all: `brain/host_actions.py` |
-| | In the client: rendering, data binding and functions |
+[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/vpm238/travel-a2ui)
 
-<p class="shot-caption">Server paths are under <code>apps/server/src/travel_a2ui/</code>.</p>
+It opens Cloud Shell, builds the app (about ten minutes the first time) and
+deploys it to one URL that serves the server and both clients. No key is stored
+on the service: each visitor pastes their own. The repository's
+[`docs/deploying.md`](https://github.com/vpm238/travel-a2ui/blob/main/docs/deploying.md)
+has a one-command version and a deploy on every push.
 
-A rule in a prompt is a request to a model. A rule in code is a guarantee.
-
-<LinkCard title="Read more: catalogs" href={A2UI.catalogs} />
-
-## 3. Agent skills for A2UI
-
-A **skill** is a markdown file that teaches a model to write A2UI for one
-catalog. This app has two:
-
-- `skills/express-modular/a2ui-core/SKILL.md`: the **notation**. How to write
-  Express, and the rules that never change between catalogs.
-- `skills/express-modular/a2ui-travel/SKILL.md`: the **catalog**. Every
-  component as a signature with its properties described, plus the macros.
-
-```text
-• FlightOption(airline, departTime, arriveTime, origin, destination, price, action (static), duration?, stops?, ...)
-  - Description: A single selectable flight itinerary leg. Use one per option when presenting a choice of flights.
-  - airline: Operating carrier, e.g. 'Iberia' or 'Delta'.
-  - price: Preformatted price including currency, e.g. '$412'.
-```
-
-Skills are **generated, never hand-written**, so they cannot drift from the
-catalog:
-
-```text
-scripts/build_catalog.py → catalog.json ┐
-brain/macros.py, examples/*.json ───────┴→ A2uiRequestProcessor ─→ SkillGenerator(processor.format) → skills/*/SKILL.md
-                                                                └→ processor.prompt_snippet (the agent's own prompt)
-```
-
-One processor configuration (`brain/catalog.py`) produces the skills, the A2UI
-part of the agent's own prompt, and the parser that reads what the model
-writes, so what another agent is taught, what this agent is taught and what it
-is held to are the same. `npm run generate` runs the pipeline, and `npm run
-check` fails CI if a skill is stale. The other half of what the model reads, `prompts/`, is authored:
-judgement about what to ask and when.
-
-## 4. Agent output versus A2UI messages
-
-There are two representations of the same interface, and software on each side
-of the wire:
+## How it works
 
 <TurnFlow />
 
-- **Agent output is Express**, a compact DSL the model writes:
+The model writes a compact notation called **Express**. The server's A2UI SDK
+turns it into **A2UI messages** and streams them to the client, whose renderer
+draws them. A flight list, as the model writes it:
 
-  ```text
-  head = Text("### Flights to Madrid")
-  row  = FlightOption($airline, $departTime, $arriveTime, $origin, $destination,
-                      $price, Event("select_flight", {id: $id}))
-  list = List(_template($/flights, row))
-  root = Column([head, list])
-  ```
+```text
+head = Text("### Flights to Madrid")
+row  = FlightOption($airline, $departTime, $arriveTime, $origin, $destination,
+                    $price, Event("select_flight", {id: $id}))
+list = List(_template($/flights, row))
+root = Column([head, list])
+```
 
-- **The A2UI agent SDK's request processor reads it** on the server
-  (`A2uiRequestProcessor.open_stream`): it parses the Express as it streams,
-  turns it into the JSON messages above and validates them against the
-  catalog. Messages go out as the model writes, so the surface paints before
-  the reply is finished.
-- **A `MessageProcessor` applies the messages in the client.** It keeps each
-  surface's components and data model, resolves bindings, evaluates functions,
-  and reports presses, errors, capabilities and the data model back as A2UI
-  v1.0 messages. React uses `@a2ui/web_core`'s, in `apps/web/src/surfaces.ts`.
-  Flutter uses `a2ui_core`'s, in `renderers/flutter/lib/chat.dart`.
+`FlightOption` is a template repeated for each row at `/flights`, and the server
+fills `/flights` with what the search found, so the model never retypes it. A
+press on a flight goes back to the agent as an A2UI **action**.
 
-![The Wire tab: the Express the model wrote, beside the A2UI JSON the client received, which is about twice the size](../../assets/quickstart/wire.png)
-
-<p class="shot-caption">
-  The Wire tab shows both: what the model wrote, and what the client received.
-</p>
-
-Express is one inference format. A2UI does not require it: a model can write
-the JSON directly.
-
-<LinkCard title="Read more: the A2UI v1.0 specification" href={A2UI.spec} />
-
-## 5. Renderers
-
-A **renderer** implements the catalog's components with native widgets, and
-uses a `MessageProcessor` to apply messages and send actions and errors back.
-
-- **In this app:** React on the web (`@a2ui/react`, `@a2ui/web_core`) and
-  Flutter on mobile (`a2ui_flutter`, `a2ui_core`).
-- **Maintained by the A2UI project:** Lit (web components), Angular, React,
-  Flutter and Markdown.
-- **From the community:** SwiftUI and UIKit, Android Compose, React Native,
-  Vue, Lynx, a terminal renderer and more.
-
-![The Flutter client drawing the same flight list from the same messages](../../assets/quickstart/flutter.png)
-
-<p class="shot-caption">
-  The Flutter client draws the flights from the same messages as the React one. Try it on the <a href={FLUTTER_DEMO}>hosted demo</a>.
-</p>
-
-<LinkCard title="A2UI renderers" href={A2UI.renderers} />
-
-## What's new in A2UI 1.0, and what this app uses
-
-| 1.0 feature | What it is | Here |
+| Idea | What it is | In this app |
 | --- | --- | --- |
-| **Renderer capabilities** | The renderer says which catalogs it can draw (`a2uiRendererCapabilities`); the agent negotiates | sent on every request; the server negotiates with the SDK's `resolve_catalogs` |
-| **Data model metadata** | A surface created with `sendDataModel` reports its data model with every message (`a2uiRendererDataModel`) | how answers reach the agent: there is no special "submit" payload |
-| **Renderer-to-agent messages** | A press is an `action`, a refused message an `error`, both with a `version` | validated with the SDK's v1.0 models; errors are told to the model |
-| **Functions** | Catalog functions the renderer evaluates (`formatCurrency`, this catalog's `calcNights`), and an agent may call a renderer function (`callRendererFunction`) | renderer-side functions only |
-| **One `createSurface`** | Components and an initial data model in a single message | every surface |
+| **Catalog** | The components and functions the agent may use | `catalogs/a2ui-travel/catalog.json` |
+| **Surface** | A region of UI, opened by `createSurface` | each card in the chat; the trip panel |
+| **Data model** | The data a surface shows; components bind to it by path | rows at `/flights` |
+| **Renderer** | Applies the messages and draws native widgets | `@a2ui/react` on the web, `a2ui_flutter` on mobile |
+| **Action** | A press, sent back to the agent | `select_flight` with the flight's `id` |
+| **Skills** | What the model reads to write A2UI, generated from the catalog | `skills/` |
 
-**The transport here is this app's own**: server-sent events for a typed turn and
-a WebSocket for voice, carrying v1.0 messages in both directions
-([`docs/transport.md`](https://github.com/vpm238/travel-a2ui/blob/main/docs/transport.md)).
-A2UI also has standard transports, A2A (`a2ui-a2a`) and ADK (`a2ui-adk`); an
-agent built on either gets the envelope from the SDK instead.
+![The Wire tab: the Express the model wrote, beside the A2UI JSON the client received](../../assets/quickstart/wire.png)
 
 ## Keep going
 
-You have now seen A2UI from the inside. Next, see what teams have built with
-it, and how they fitted it into an existing product.
-
 <CardGrid>
-  <LinkCard
-    title="Partner and consultant demos"
-    description="A2UI in production apps, and how teams brought it into their own stack."
-    href={PARTNERS}
-  />
   <LinkCard
     title="Build your own"
     description="What to change to make this app about something other than travel."
@@ -333,7 +164,12 @@ it, and how they fitted it into an existing product.
   />
   <LinkCard
     title="A2UI documentation"
-    description="Concepts, the v1.0 specification and the renderer SDKs."
+    description="Concepts, the v1.0 specification and the renderers."
     href={A2UI.home}
+  />
+  <LinkCard
+    title="Partner and consultant demos"
+    description="A2UI in other products, and how teams brought it into their stack."
+    href={PARTNERS}
   />
 </CardGrid>

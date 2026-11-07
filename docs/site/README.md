@@ -35,7 +35,7 @@ absolute URLs, so they must match the deployment.
 ## Agent-friendly, concretely
 
 - One line to paste into any coding agent, carrying one URL. Everything the
-  agent needs (modes, learning outcomes, where each lives in the code) is
+  agent needs (the setup steps, what to explain, where each lives in the code) is
   behind that URL, so it improves without anyone re-copying a prompt.
 - Every Markdown page opens with a note for agents pointing at the guide,
   `llms.txt` and `llms-full.txt`, as parallel.ai's docs do.

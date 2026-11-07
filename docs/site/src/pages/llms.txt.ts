@@ -12,13 +12,13 @@ export const GET: APIRoute = async () => {
 
   const body = `# A2UI Quickstart
 
-> A quickstart for A2UI on web and mobile, built on Travel A2UI: a Python agent server with a React web client and a Flutter mobile client. It teaches the core pieces of A2UI, what is A2UI versus deterministic code (the catalog and macros), how agent skills are generated from the catalog, how agent output (the Express DSL) becomes A2UI messages applied by a MessageProcessor, and which renderers exist. It runs on Gemini by default, on a built-in mock with no key, or explains the code without running it.
+> A quickstart for A2UI on web and mobile, built on Travel A2UI: one Python agent server, a React web client and a Flutter mobile client that draw the same A2UI messages. It sets up each piece locally, server first, then React, then Flutter, explains the catalog, messages, data binding, renderers and actions as each starts working, and deploys to Cloud Run in one click. No API key is needed to begin.
 
 If you are a coding agent asked to give someone the A2UI quickstart, fetch the agent guide below and follow it.
 
 ## Agent guide
 
-- [A2UI quickstart: instructions for coding agents](${absolute(PROMPT_PATH)}): how to guide a developer through cloning, running and explaining the demo, with the modes, the learning outcomes and where each lives in the code
+- [A2UI quickstart: instructions for coding agents](${absolute(PROMPT_PATH)}): the steps to set up the Python server, the React client and the Flutter client, what to explain at each, and the one-click deploy
 
 ## Pages
 
@@ -26,7 +26,7 @@ ${pages.map((entry) => `- [${entry.data.title}](${absolute(`${entry.id}.md`)})${
 
 ## Source
 
-- [Travel A2UI repository](${REPO}): the app the tour runs
+- [Travel A2UI repository](${REPO}): the app the quickstart sets up
 - [All pages in one file](${absolute('llms-full.txt')})
 
 ## Optional
