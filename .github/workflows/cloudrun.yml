@@ -128,7 +128,7 @@ jobs:
           if [ -n "${RUNTIME_SERVICE_ACCOUNT:-}" ]; then
             identity=(--service-account "${RUNTIME_SERVICE_ACCOUNT}")
           else
-            echo "::warning::RUNTIME_SERVICE_ACCOUNT is not set; the service runs as the default compute account."
+            echo "::warning::RUNTIME_SERVICE_ACCOUNT is not set; the service runs as the default compute account. After scripts/setup-cloud-run.sh the deployer may no longer act as that account, so set the variable it prints."
           fi
 
           gcloud run deploy "${{ inputs.service || 'travel-a2ui' }}" \

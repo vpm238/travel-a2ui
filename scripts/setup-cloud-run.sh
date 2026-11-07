@@ -95,11 +95,13 @@ fi
 if gcloud iam workload-identity-pools providers describe "$PROVIDER" \
      --location=global --workload-identity-pool="$POOL" \
      --project "$PROJECT_ID" >/dev/null 2>&1; then
-  echo "   provider '$PROVIDER' already exists"
-  echo "   (if you changed REPO, update its --attribute-condition by hand:"
-  echo "    gcloud iam workload-identity-pools providers update-oidc $PROVIDER \\"
-  echo "      --location=global --workload-identity-pool=$POOL \\"
-  echo "      --attribute-condition=\"assertion.repository == '$REPO' && assertion.ref == 'refs/heads/main'\")"
+  # Brought up to date on every run, so an older setup gains the main-only rule.
+  gcloud iam workload-identity-pools providers update-oidc "$PROVIDER" \
+    --location=global --workload-identity-pool="$POOL" \
+    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
+    --attribute-condition="assertion.repository == '${REPO}' && assertion.ref == 'refs/heads/main'" \
+    --project "$PROJECT_ID" >/dev/null
+  echo "   provider '$PROVIDER' now accepts only ${REPO} on main"
 else
   gcloud iam workload-identity-pools providers create-oidc "$PROVIDER" \
     --location=global --workload-identity-pool="$POOL" \
@@ -129,6 +131,16 @@ for role in roles/run.developer roles/artifactregistry.writer; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:${SA}" --role="$role" --condition=None >/dev/null
   echo "   $role"
+done
+
+# What an older setup granted project-wide, and the deploy no longer needs:
+# Cloud Run Admin (Developer is enough) and Service Account User on every
+# account in the project (it is granted on the runtime account alone below).
+for role in roles/run.admin roles/iam.serviceAccountUser; do
+  if gcloud projects remove-iam-policy-binding "$PROJECT_ID" \
+       --member="serviceAccount:${SA}" --role="$role" --condition=None >/dev/null 2>&1; then
+    echo "   removed project-wide $role"
+  fi
 done
 
 # ---------------------------------------------------------------------------
