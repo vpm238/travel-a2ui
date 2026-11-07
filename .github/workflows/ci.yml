@@ -198,13 +198,23 @@ jobs:
       - name: The agent-facing files are there
         working-directory: docs/site
         run: |
-          for file in quickstart/agent.md quickstart/prompt.md quickstart.md llms.txt llms-full.txt; do
+          guides="quickstart/agent/web.md quickstart/agent/mobile.md quickstart/agent.md quickstart/prompt.md"
+          for file in $guides quickstart.md quickstart/step-by-step.md llms.txt llms-full.txt; do
             test -s "dist/$file" || { echo "::error::dist/$file is missing or empty"; exit 1; }
           done
-          # What an agent is pointed at is the guide itself, not a page about
-          # it, at the canonical address and the one it was first published at.
-          cmp -s dist/quickstart/agent.md src/prompts/quickstart.md
-          cmp -s dist/quickstart/prompt.md src/prompts/quickstart.md
+          # The guides are built from src/prompts/quickstart.md, one per app.
+          # Each is the guide itself, with no app markers left in it, and the
+          # web and mobile ones run their own app.
+          for file in $guides; do
+            head -n 1 "dist/$file" | grep -q '^# A2UI quickstart' || { echo "::error::dist/$file is not the guide"; exit 1; }
+            ! grep -q '<!-- only:\|<!-- /only' "dist/$file" || { echo "::error::dist/$file has markers left"; exit 1; }
+          done
+          grep -q 'quickstart.sh react' dist/quickstart/agent/web.md
+          ! grep -q 'quickstart.sh flutter' dist/quickstart/agent/web.md
+          grep -q 'quickstart.sh flutter' dist/quickstart/agent/mobile.md
+          ! grep -q 'quickstart.sh react' dist/quickstart/agent/mobile.md
+          # The canonical address and the one it was first published at.
+          cmp -s dist/quickstart/agent.md dist/quickstart/prompt.md
 
 
   flutter:
