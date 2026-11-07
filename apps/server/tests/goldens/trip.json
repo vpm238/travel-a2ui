@@ -443,13 +443,6 @@
       },
       "summarize": {
         "decided": [],
-        "missing": [
-          "destination",
-          "origin",
-          "startDate",
-          "endDate",
-          "travelers"
-        ],
         "problems": []
       },
       "basisOf": "",
@@ -495,12 +488,6 @@
             "value": "Madrid",
             "label": "where you are going"
           }
-        ],
-        "missing": [
-          "origin",
-          "startDate",
-          "endDate",
-          "travelers"
         ],
         "problems": []
       },
@@ -576,7 +563,6 @@
             "label": "how many of you are going"
           }
         ],
-        "missing": [],
         "nights": 7,
         "problems": []
       },
@@ -671,7 +657,6 @@
             "label": "how many of you are going"
           }
         ],
-        "missing": [],
         "problems": [
           {
             "field": "endDate",
@@ -767,7 +752,6 @@
             "label": "how many of you are going"
           }
         ],
-        "missing": [],
         "nights": 7,
         "problems": [
           {
@@ -870,10 +854,6 @@
             ],
             "label": "the values nobody confirmed"
           }
-        ],
-        "missing": [
-          "startDate",
-          "endDate"
         ],
         "problems": []
       },
@@ -981,7 +961,6 @@
             "label": "what that stay costs a night"
           }
         ],
-        "missing": [],
         "nights": 7,
         "problems": []
       },
@@ -1115,7 +1094,6 @@
             "label": "the other stops"
           }
         ],
-        "missing": [],
         "nights": 2,
         "problems": []
       },
@@ -1257,7 +1235,6 @@
             "label": "how many of you are going"
           }
         ],
-        "missing": [],
         "nights": 7,
         "problems": []
       },

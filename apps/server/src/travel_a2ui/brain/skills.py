@@ -59,14 +59,6 @@ You are answering out loud, and everything you write is spoken. To draw, call
 written exactly as the rules below describe. Never write a block, a
 `surface(...)` line or a component name in a reply: it would be read aloud."""
 
-#: The jobs whose readiness is worth reporting, in the order they come up.
-_GOALS = [
-    ("priceFlights", "pricing flights"),
-    ("priceStay", "pricing a stay"),
-    ("totalTrip", "totalling the trip"),
-    ("planDays", "planning the days"),
-]
-
 
 def describe_skill(variant: str = "express-modular") -> dict[str, Any]:
     """What a client can show about the A2UI skill the agent is given."""
@@ -108,30 +100,11 @@ def describe_trip(trip: dict[str, Any], today: str, surface: str) -> str:
     if summary.get("nights") is not None:
         lines.append(f"- That is {summary['nights']} nights.")
 
-    missing = summary["missing"]
-    if missing:
-        lines.append(
-            f"- Not yet known: {', '.join(missing)}. Ask for what this turn needs, all of "
-            "it at once, in one surface with one button, rather than assuming a value."
-        )
-        blocked = [
-            f"{label} (needs {', '.join(model.missing_for(normalized, goal))})"
-            for goal, label in _GOALS
-            if not model.can_do(normalized, goal)
-        ]
-        if blocked:
-            lines.append(f"- Blocked until then: {'; '.join(blocked)}.")
-    else:
-        lines.append(
-            "- No tool is blocked: every field the lookups need is known. That is not the "
-            "same as the trip being settled; the route below says what still is not."
-        )
-
     if summary["problems"]:
         lines.append(
-            "- Wrong with it: "
+            "- Notes on what is recorded: "
             + " ".join(problem["message"] for problem in summary["problems"])
-            + " Get it corrected before relying on it."
+            + " Decide what to do about each."
         )
     basis = model.basis_of(normalized)
     if basis:

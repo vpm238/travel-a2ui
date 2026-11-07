@@ -34,7 +34,7 @@ from ...brain.ui import Canvas, Drawing, surface_of
 from ...gemini import describe_api_error, stream_interaction
 from ..settings import FALLBACK_MODEL, MAX_TOOL_ROUNDS, _today
 from .panels import draw_panel
-from .press import TurnRequest, TurnResult, _commit, describe_action, record_press
+from .press import TurnRequest, TurnResult, describe_action, record_press
 
 
 def ui_events(messages: Iterable[dict[str, Any]], done: bool = False) -> list[dict[str, Any]]:
@@ -74,10 +74,11 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     edits = canvas.edits(request.data_model, action.surface_id if action else None)
     if action is not None:
         recorded = await record_press(action, request.trip, provider, today, edits)
-        trip, refused, leg = recorded.trip, recorded.refused, recorded.leg
+        trip, notes, leg = recorded.trip, recorded.notes, recorded.leg
     else:
         from_screen = model.screen_patch(request.trip, edits)
-        trip, refused = _commit(request.trip, {**request.trip, **from_screen}, today)
+        trip = {**request.trip, **from_screen}
+        notes = [problem["message"] for problem in model.problems(trip, today)] if from_screen else []
         if from_screen:
             trip = model.confirm(trip, list(from_screen))
         leg = None
@@ -106,11 +107,8 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     tool_context = ToolContext(trip=trip, provider=provider, save=save, today=today)
 
     lines = [request.message or (describe_action(action, leg) if action else "")]
-    if refused:
-        lines.append(
-            f"[interface] Refused, and not saved: {' '.join(refused)} "
-            "Say so plainly and ask for it again, keeping everything else they set."
-        )
+    if notes:
+        lines.append(f"[interface] Recorded as set. Notes on it: {' '.join(notes)}")
     for error in request.errors:
         lines.append(f"[renderer] The renderer reported an error: {error.describe()}")
     opening = "\n\n".join(line for line in lines if line) or "Continue."

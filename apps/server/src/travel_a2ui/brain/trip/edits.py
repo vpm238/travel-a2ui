@@ -48,10 +48,9 @@ def _legs_merged(saved: Any, patched: list[Any]) -> list[Any]:
     against an outbound row carrying the airline and both times — because the
     trip's flat fields are hop one's and nothing was overwriting *those*.
 
-    This is `sieve`'s argument one level down: a save is applied field by field
-    and never refused whole, for exactly the reason that a model saving the route
-    and a hotel in one call must not lose the hotel. A leg is the same shape of
-    mistake, and it cost the same thing.
+    A save is applied field by field, so a model saving the route and a hotel
+    in one call keeps both. A leg is the same: a patch that names some of a
+    hop's fields must not cost the hop the others.
 
     The patch decides how many hops there are, so a route that genuinely lost a
     hop loses it. Only the *fields* of a surviving hop are preserved.

@@ -230,7 +230,10 @@ the grounds for judging it:
   in the heading or a caption. A price with no basis on screen is the thing that
   makes people distrust the whole answer.
 - **Save decisions as they happen** with `save_trip`, so the other surfaces
-  and later turns see them.
+  and later turns see them. It records exactly what you write: the route, each
+  hop's party and dates are yours to get right. If something looks off (a date
+  in the past, a hop that goes nowhere) it comes back as `notes`; decide what to
+  do about each, and ask the traveller when only they know.
 
 ## What starts a turn, and what does not
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from .fields import Leg, Trip
-from .values import _days_between, _to_date
+from .values import _days_between
 
 
 def _legs_of(trip: Trip) -> list[dict[str, Any]]:
@@ -31,7 +31,8 @@ def stops(trip: Trip) -> list[Leg]:
     Two defaults are filled in here so nothing downstream reimplements them: a
     leg with no origin departs from wherever the previous leg ended, and a leg
     with no party size carries the trip's. Both are what a person means when
-    they leave it out.
+    they leave it out. Dates are taken as recorded: when a stay ends is the
+    model's to write, because only it knows who leaves when.
     """
     first: Leg | None = None
     if trip.get("destination"):
@@ -60,20 +61,6 @@ def stops(trip: Trip) -> list[Leg]:
         travelers = leg.get("travelers") if leg.get("travelers") is not None else trip.get("travelers")
         if travelers is not None:
             out["travelers"] = travelers
-        # **A hop ends when they leave it, which is the day the next hop
-        # departs.** Nobody says "I leave Chicago on the 12th and also arrive in
-        # New York on the 12th" — they say it once, and the second date is the
-        # same fact written twice. Derived here so nothing downstream has to ask
-        # for it: a stop whose nights were unknown had no nights, so it was
-        # never offered a stay or a plan, and `journey` reported it as wanting
-        # dates it had already been given.
-        #
-        # The last hop keeps no end, because it has none. It is where the
-        # journey stops.
-        if out.get("endDate") is None and index + 1 < len(all_legs):
-            following = _to_date(all_legs[index + 1].get("startDate"))
-            if following:
-                out["endDate"] = following
         # The trip's own choices belong to the first stop, which is what the
         # flat fields describe.
         #

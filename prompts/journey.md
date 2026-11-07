@@ -24,12 +24,17 @@ Start at `origin`, walk the legs in order, look at where the last one lands.
   way back later" → `save_trip({oneWay: true})`, and stop asking. The route
   then ends where it ends and nothing is missing from it.
 
-**A hop is dated by when it leaves.** One date each, and the day they leave a
-stop is the day the next hop departs — you do not write that twice. The host
-reads a hop's end off the hop that follows it, so a three-stop route is three
-departure dates and nothing else. Give a hop its own `endDate` only when
-nothing follows it and they still want a stay priced: "a week in Madrid, then
-I'm staying on" is 12 Apr to 19 Apr with no hop after it.
+**A hop is dated by when it leaves, and its stay by when they leave the
+city.** Write each hop's `startDate`, and on every hop where they stay, its
+`endDate`: the day the party leaves that city. The trip records exactly the
+dates you write; nothing is filled in for you.
+
+**When the party splits, write it as it is.** "Three of us out on Sunday, one
+back after a week, the other two after two weeks" is three hops: out to New
+York for 3; `{origin: "JFK", destination: "SFO", startDate: <in 7 days>,
+travelers: 1}`; and `{origin: "JFK", destination: "SFO", startDate: <in 14
+days>, travelers: 2}`. The New York stay runs until the last of them leaves, so
+its `endDate` is the later date. A hop that lands home needs no stay.
 
 **The last hop has no end date, and is not missing one.** It is where the
 journey stops. It wants a ticket and nothing else — no stay, no days, no second

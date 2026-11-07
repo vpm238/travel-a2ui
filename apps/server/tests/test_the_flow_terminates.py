@@ -103,14 +103,18 @@ class TestTheLastHopIsNotMissingItsDates:
         for hop in model.journey(self.ROUTE):
             assert "dates" not in hop["wants"], hop
 
-    def test_a_hop_ends_when_the_next_one_leaves(self):
-        route = model.stops(self.ROUTE)
-        assert route[0]["endDate"] == "2027-04-12"
-        assert route[1]["endDate"] == "2027-04-16"
-        assert "endDate" not in route[2]
+    def test_a_stay_ends_only_where_the_agent_says_it_does(self):
+        # Nothing is invented: a party that splits leaves a city on two dates,
+        # and only the agent knows which one ends the stay.
+        assert all("endDate" not in stop for stop in model.stops(self.ROUTE))
 
-    def test_so_the_middle_stops_have_nights_and_a_stay_to_ask_about(self):
-        hops = model.journey(self.ROUTE)
+    def test_so_the_stops_it_dates_have_nights_and_a_stay_to_ask_about(self):
+        dated = {
+            **self.ROUTE,
+            "endDate": "2027-04-12",
+            "legs": [{**self.ROUTE["legs"][0], "endDate": "2027-04-16"}, self.ROUTE["legs"][1]],
+        }
+        hops = model.journey(dated)
         assert hops[0]["nights"] == 2
         assert hops[1]["nights"] == 4
         assert "somewhere to stay" in hops[0]["wants"]
@@ -148,8 +152,8 @@ class TestOneWay:
         assert data.plan_rows(settled) != data.plan_rows({**settled, "oneWay": True})
 
 
-class TestSaveTripKeepsTheSoundHalf:
-    """One bad field never throws away everything in the call with it."""
+class TestSaveTripRecordsWhatItIsGiven:
+    """Everything in the call is recorded; what looks wrong comes back as notes."""
 
     SAVED = {
         "destination": "MAD",
@@ -174,22 +178,20 @@ class TestSaveTripKeepsTheSoundHalf:
         assert is_error is False
         assert result["trip"]["selectedHotel"] == "h_MAD_0"
         assert result["trip"]["nightlyPrice"] == 175
-        # The route is the part that was wrong, so the route is the part that
-        # did not move.
-        assert "legs" not in result["trip"]
-        assert result["refused"]
+        assert result["trip"]["legs"][0]["endDate"] == "2027-04-01", "recorded as written"
+        assert any("before" in note for note in result["notes"])
 
-    def test_and_the_model_is_told_which_field_to_ask_for_again(self):
+    def test_and_the_model_is_told_what_looks_wrong(self):
         trip = dict(self.SAVED)
         result, _ = _save("save_trip", {"endDate": "2027-04-01", "budget": 4000}, _ctx(trip))
         assert result["trip"]["budget"] == 4000
-        assert result["trip"]["endDate"] == "2027-04-19"
-        assert "ask the traveler for it again" in result["message"].lower()
+        assert result["trip"]["endDate"] == "2027-04-01"
+        assert any("not after" in note for note in result["notes"])
 
-    def test_a_sound_call_says_nothing_about_refusals(self):
+    def test_a_sound_call_has_no_notes(self):
         trip = dict(self.SAVED)
         result, _ = _save("save_trip", {"selectedFlight": "IB925"}, _ctx(trip))
-        assert "refused" not in result
+        assert "notes" not in result
         assert result["trip"]["selectedFlight"] == "IB925"
 
 
@@ -366,15 +368,10 @@ class TestAGuessIsAnOpenQuestionAndNotAVeto:
 
 
 class TestAOneWayTripStopsBeingAskedForAReturn:
-    """The other half of the one-way story.
+    """What to ask next is the agent's call, not a list the host keeps.
 
-    `journey` was taught that a journey which does not come back is not missing
-    a hop. The summary beside it was not: every goal that wants an `endDate`
-    reported one missing, on every turn, and that line is what reaches the
-    prompt and what `save_trip` hands back as `stillNeeded`. So the route said
-    nothing was wanted and the summary said "endDate", and the agent went
-    looking for a return date on a trip that had told it twice there was not
-    one.
+    The summary reports what is recorded. Only a tool that cannot run says what
+    it needs, and only when it is called.
     """
 
     ONE_WAY = {
@@ -385,12 +382,8 @@ class TestAOneWayTripStopsBeingAskedForAReturn:
         "oneWay": True,
     }
 
-    def test_the_summary_stops_asking_for_a_return_date(self):
-        assert model.summarize(self.ONE_WAY, TODAY)["missing"] == []
-
-    def test_a_round_trip_is_untouched(self):
-        there_and_back = {key: value for key, value in self.ONE_WAY.items() if key != "oneWay"}
-        assert "endDate" in model.summarize(there_and_back, TODAY)["missing"]
+    def test_the_summary_keeps_no_list_of_what_to_ask(self):
+        assert "missing" not in model.summarize(self.ONE_WAY, TODAY)
 
     def test_but_a_total_still_refuses_to_invent_a_length(self):
         # The goals stay strict on purpose. Without this, `estimate_cost` would

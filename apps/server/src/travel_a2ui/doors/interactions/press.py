@@ -24,10 +24,6 @@ from ...brain.providers.types import TravelProvider
 from ...brain.ui import Canvas
 from ..settings import DEFAULT_EFFORT
 
-#: Values a commit is not allowed to corrupt the trip with. One table, in the
-#: model, so a press and a `save_trip` are refused for the same reasons.
-REFUSABLE = model.REFUSABLE
-
 
 @dataclass
 class TurnRequest:
@@ -75,7 +71,6 @@ from ...brain.presses import (  # noqa: E402,F401
     _SAVES_AS,
     RecordedPress,
     _belongs_on_the_leg,
-    _commit,
     _leg_pressed,
     as_trip_fields,
     describe_action,

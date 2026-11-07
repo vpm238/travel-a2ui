@@ -512,11 +512,12 @@ time somebody types.
 
 The decisions in there that are load-bearing:
 
-**What the traveller set is recorded before the model is asked.** The press and
-the diffed edits go through the same validation `save_trip` uses
-(`model.sieve`), field by field, so a bad value is refused without losing the
-rest. The model is *told* about anything refused, because otherwise it reads
-back the old trip and nothing in it says a value was turned away.
+**What the traveller set is recorded before the model is asked, as set.** The
+press and the diffed edits are written onto the trip; so is everything the
+model passes to `save_trip`. The host refuses none of it. Anything that looks
+wrong (a date in the past, a hop that goes nowhere) reaches the model as a note
+(`model.problems`), and the model decides what to do: the legs, the data and
+the UI are its to decide.
 
 **The stable half of the prompt comes first, and that is the whole
 optimisation.** The skill is thousands of tokens and identical on every turn of

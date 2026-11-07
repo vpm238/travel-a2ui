@@ -146,13 +146,14 @@ class TestWhatTheTravellerDid:
         trip = next(event for event in events if event["type"] == "__result__")["result"].trip
         assert (trip["startDate"], trip["endDate"], trip["travelers"]) == ("2027-05-01", "2027-05-08", 3)
 
-    def test_a_value_the_record_refuses_is_said(self) -> None:
+    def test_a_value_that_looks_wrong_is_recorded_and_noted(self) -> None:
+        """The traveller's values are recorded as set; the model decides what to do."""
         canvas = a_panel()
         model = FakeModel([(["ok"], [])])
         reported = {"inline-1": {"trip": {"startDate": "2027-05-08", "endDate": "2027-05-01"}}}
         values = lambda _s: data.session_values({}, None)  # noqa: E731
         Drawing(canvas, "inline-1", values).feed(ASKING)
-        events_of(
+        events = events_of(
             base(
                 action=SurfaceAction(name="find_flights", surface_id="inline-1"),
                 data_model=reported,
@@ -160,7 +161,10 @@ class TestWhatTheTravellerDid:
                 canvas=canvas,
             )
         )
-        assert "Refused" in said_to_model(model, 0)
+        said = said_to_model(model, 0)
+        assert "Notes on it" in said and "2027-05-01 is not after 2027-05-08" in said
+        trip = next(event for event in events if event["type"] == "__result__")["result"].trip
+        assert (trip["startDate"], trip["endDate"]) == ("2027-05-08", "2027-05-01")
 
     def test_a_renderer_error_reaches_the_model(self) -> None:
         model = FakeModel([(["Sorry."], [])])

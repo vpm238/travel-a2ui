@@ -68,12 +68,10 @@ from .fields import (  # noqa: F401 — re-exported: this package is one module 
     is_trip_key,
 )
 from .problems import (  # noqa: F401 — re-exported: this package is one module to its callers
-    REFUSABLE,
     _route_problems,
     days_until,
     nights,
     problems,
-    sieve,
 )
 from .route import (  # noqa: F401 — re-exported: this package is one module to its callers
     _HOP_DECISIONS,

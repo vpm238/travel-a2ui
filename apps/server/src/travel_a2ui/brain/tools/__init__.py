@@ -48,7 +48,6 @@ from .contracts import (  # noqa: F401 — re-exported: this package is one modu
     _ROOT,
     DATA_TOOL_NAMES,
     GROUNDING,
-    REFUSABLE,
     TOOLS,
     ToolContext,
     gemini_tools,

@@ -153,7 +153,6 @@ class TestTheHostRecordsTheWholeFareItself:
         from travel_a2ui.brain import trip as model
         from travel_a2ui.doors.interactions.press import (
             SurfaceAction,
-            _commit,
             as_trip_fields,
         )
 
@@ -177,9 +176,8 @@ class TestTheHostRecordsTheWholeFareItself:
             **model.normalize(action.context),
             **model.normalize(as_trip_fields(action)),
         }
-        proposed = model.onto_leg({**before}, dict(renamed), leg) if leg is not None else {**before, **renamed}
-        trip, _ = _commit(before, proposed, "2026-11-02")
-        return trip
+        # A press is recorded as it is: what it carried lands on its hop.
+        return model.onto_leg({**before}, dict(renamed), leg) if leg is not None else {**before, **renamed}
 
     FARE = {
         # An id that is not the flight number, as with any real provider: the

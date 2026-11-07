@@ -25,17 +25,9 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from ... import ROOT
-from .. import trip as model
 
 _ROOT = ROOT
 TOOLS: list[dict[str, Any]] = json.loads((_ROOT / "data" / "tools.json").read_text("utf-8"))["tools"]
-
-#: Fields a surface may not quietly change, even by pressing a button.
-#:
-#: A button press is validated as `save_trip` is, so a picker sending
-#: 20 Apr → 12 Apr is refused rather than priced. The table lives in the model,
-#: with the sieve that applies it.
-REFUSABLE = model.REFUSABLE
 
 
 @dataclass

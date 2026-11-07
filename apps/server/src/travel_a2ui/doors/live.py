@@ -415,8 +415,8 @@ async def relay(
                     trip.clear()
                     trip.update(recorded.trip)
                     lines.insert(0, describe_action(action, recorded.leg))
-                    if recorded.refused:
-                        lines.append("[interface] Refused, and not saved: " + " ".join(recorded.refused))
+                    if recorded.notes:
+                        lines.append("[interface] Recorded as set. Notes on it: " + " ".join(recorded.notes))
                 elif edits:
                     save(model.screen_patch(trip, edits))
                 if session.on_trip:

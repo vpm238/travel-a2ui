@@ -201,9 +201,8 @@ class TestAHopHasToGoSomewhere:
     draws a row for it that can never be filled, so the agent goes on trying to
     ticket it every turn.
 
-    Refused rather than reported, because `legs` is already REFUSABLE: the agent
-    is told and asks which city they meant, instead of committing to a reading
-    of a sentence that had two.
+    Recorded, with a note: the agent is told and asks which city they meant,
+    instead of committing to a reading of a sentence that had two.
     """
 
     @staticmethod
@@ -228,13 +227,39 @@ class TestAHopHasToGoSomewhere:
         found = self._problems(self.NOWHERE)
         assert any("has to go somewhere" in message for message in found), f"a JFK → JFK hop saved cleanly: {found}"
 
-    def test_and_the_save_is_turned_away_so_the_agent_asks(self) -> None:
-        from travel_a2ui.brain import trip as model
+    def test_and_save_trip_records_it_and_tells_the_agent(self) -> None:
+        import asyncio
 
-        saved = {k: v for k, v in self.NOWHERE.items() if k != "legs"}
-        _, refused = model.sieve(saved, self.NOWHERE, "2026-11-02")
-        assert refused, "the nowhere hop was recorded without a word to the agent"
-        assert any("has to go somewhere" in message for message in refused)
+        from travel_a2ui.brain import trip as model
+        from travel_a2ui.brain.providers.fixture import FixtureProvider
+        from travel_a2ui.brain.tools import ToolContext, run_tool
+
+        trip: dict = {}
+
+        def save(patch: dict) -> None:
+            merged = model.merge(trip, patch)
+            trip.clear()
+            trip.update(merged)
+
+        context = ToolContext(trip=trip, provider=FixtureProvider(), save=save, today="2026-11-02")
+        result, _ = asyncio.run(run_tool("save_trip", self.NOWHERE, context))
+        assert len(trip["legs"]) == 2, "recorded as written"
+        assert any("has to go somewhere" in note for note in result["notes"])
+
+    def test_two_hops_home_from_one_city_go_somewhere(self) -> None:
+        """Three out; one flies home after a week, two after two weeks."""
+        split = {
+            "origin": "SFO",
+            "destination": "New York",
+            "startDate": "2026-11-08",
+            "endDate": "2026-11-22",
+            "travelers": 3,
+            "legs": [
+                {"origin": "JFK", "destination": "SFO", "startDate": "2026-11-15", "travelers": 1},
+                {"origin": "JFK", "destination": "SFO", "startDate": "2026-11-22", "travelers": 2},
+            ],
+        }
+        assert self._problems(split) == [], "a party that splits is a trip, not a mistake"
 
     def test_but_a_there_and_back_is_fine(self) -> None:
         """The commonest route there is. Coming home is not a hop to nowhere."""

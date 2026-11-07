@@ -1,19 +1,12 @@
-"""What is wrong with a trip, and what not to let into it.
+"""What looks wrong with a trip, as notes for the agent.
 
-Two kinds. `problems` is what the agent should be told — a date in the past, a
-route that ends before it starts, a hop with nowhere to go — phrased so it can
-be read out to the traveller and acted on. `sieve` is the other kind: values a
-commit is not allowed to write at all, because a press and a `save_trip` can
-both arrive carrying a date the traveller never agreed to.
-
-They are deliberately separate. A problem is a thing to say; a refusal is a
-thing to not do, and conflating them is how an agent ends up narrating a
-validation rule instead of fixing the trip.
+A date in the past, a stay that ends before it starts, a hop with nowhere to
+go — phrased so it can be read out to the traveller and acted on. They are
+notes, never refusals: the trip records what the agent and the traveller wrote,
+and the agent decides what to do about a note.
 """
 
 from __future__ import annotations
-
-from typing import Iterable
 
 from .fields import Trip
 from .route import stops
@@ -94,10 +87,10 @@ def _route_problems(trip: Trip) -> list[dict[str, str]]:
         # panel draws a row for it that can never be filled. The agent then goes
         # on trying to ticket it every turn.
         #
-        # Refused rather than reported, so the agent is told and asks instead of
-        # inventing a reading. That is the whole point: an ambiguous route is
-        # exactly the case where it should come back and check.
-        leaving = (route[index - 1].get("destination") or "").strip().casefold()
+        # A note, so the agent is told and asks instead of inventing a reading:
+        # an ambiguous route is exactly the case where it should come back and
+        # check.
+        leaving = (leg.get("origin") or "").strip().casefold()
         arriving = (leg.get("destination") or "").strip().casefold()
         if leaving and arriving and leaving == arriving:
             found.append(
@@ -133,78 +126,4 @@ def _route_problems(trip: Trip) -> list[dict[str, str]]:
         if leg.get("travelers") is not None and leg["travelers"] < 1:
             found.append({"field": "legs", "message": f"{where} needs at least one traveler."})
 
-        # A stop cannot begin before the one it follows has ended. `endDate or
-        # startDate` so an open-ended previous stop still pins the earliest this
-        # one can start.
-        previous = route[index - 1]
-        after = _to_date(previous.get("endDate")) or _to_date(previous.get("startDate"))
-        if start and after and start < after:
-            found.append(
-                {
-                    "field": "legs",
-                    "message": (
-                        f"{where} starts {start}, before "
-                        f"{previous.get('destination') or 'the previous stop'} ends {after}. "
-                        "Stops are in travel order."
-                    ),
-                }
-            )
-
     return found
-
-
-#: Fields a trip will turn away rather than record.
-#:
-#: Everything downstream prices against these, so a range that ends before it
-#: starts produces numbers that look authoritative and are not. Everything
-#: *else* is recorded as given: an over-budget trip is a real state, not a
-#: mistake.
-#:
-#: One table, read by every path a value can arrive on — a press committed by
-#: the host and a `save_trip` the model made — because two copies of this list
-#: is two rules, and the one that drifts is the one nobody is testing.
-REFUSABLE: tuple[str, ...] = ("startDate", "endDate", "travelers", "legs")
-
-
-def sieve(saved: Trip, proposed: Trip, today: str | None = None) -> tuple[Trip, list[str]]:
-    """What of `proposed` can be recorded, and what had to be turned away.
-
-    **Field by field, never the whole call.** `save_trip` takes the whole trip,
-    so a model saves a chosen hotel, the party and the route in one call;
-    refusing the call because a hop's dates were a day out would lose the
-    hotel with it.
-    A refused field goes back to what was saved rather than being deleted —
-    dropping it outright would lose a value they had already agreed to, which
-    is a second wrong answer — and the messages go back to the model so the
-    next surface re-asks for it, with everything else they said still in place.
-    """
-
-    def refusable(candidate: Trip) -> list[dict[str, str]]:
-        return [problem for problem in problems(candidate, today) if problem["field"] in REFUSABLE]
-
-    found = refusable(proposed)
-    if not found:
-        return proposed, []
-
-    def revert(candidate: Trip, fields: Iterable[str]) -> Trip:
-        out = dict(candidate)
-        for name in fields:
-            if name in saved:
-                out[name] = saved[name]
-            else:
-                out.pop(name, None)
-        return out
-
-    trip = revert(proposed, [problem["field"] for problem in found])
-
-    # Reverting the field that *reported* the problem is not always enough, and
-    # the date pair is the case that proves it. `problems` names `endDate` for a
-    # range that runs backwards, so a commit of 20 Apr → 12 Apr over a saved
-    # 1 Apr → 8 Apr reverts only the end and leaves 20 Apr → 8 Apr: still
-    # backwards, still negative nights, and now a pair the traveller never
-    # typed. A range is one decision, so when one end is refused and putting it
-    # back does not settle it, the whole decision goes back.
-    if refusable(trip):
-        trip = revert(proposed, [name for name in REFUSABLE if proposed.get(name) != saved.get(name)])
-
-    return trip, [problem["message"] for problem in found]

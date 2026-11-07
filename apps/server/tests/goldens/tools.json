@@ -2858,11 +2858,7 @@
         "destination": "Madrid",
         "origin": "JFK",
         "travelers": 2
-      },
-      "stillNeeded": [
-        "startDate",
-        "endDate"
-      ]
+      }
     },
     "isError": false,
     "trip": {
@@ -2893,25 +2889,25 @@
       "trip": {
         "destination": "Madrid",
         "origin": "JFK",
-        "startDate": "2027-04-20"
+        "startDate": "2027-04-20",
+        "endDate": "2027-04-12"
       },
-      "stillNeeded": [
-        "endDate",
-        "travelers"
-      ],
-      "refused": [
+      "notes": [
         "2027-04-12 is not after 2027-04-20."
-      ],
-      "message": "Saved, except: 2027-04-12 is not after 2027-04-20. That field is still what it was — ask the traveler for it again, and keep everything else they said."
+      ]
     },
     "isError": false,
     "trip": {
       "destination": "Madrid",
       "origin": "JFK",
-      "startDate": "2027-04-20"
+      "startDate": "2027-04-20",
+      "endDate": "2027-04-12"
     },
     "saved": [
-      {}
+      {
+        "startDate": "2027-04-20",
+        "endDate": "2027-04-12"
+      }
     ]
   },
   "saving a date already past": {
@@ -2925,25 +2921,22 @@
     "result": {
       "saved": true,
       "trip": {
-        "destination": "Madrid"
+        "destination": "Madrid",
+        "startDate": "2020-01-01"
       },
-      "stillNeeded": [
-        "origin",
-        "startDate",
-        "endDate",
-        "travelers"
-      ],
-      "refused": [
+      "notes": [
         "2020-01-01 is in the past."
-      ],
-      "message": "Saved, except: 2020-01-01 is in the past. That field is still what it was — ask the traveler for it again, and keep everything else they said."
+      ]
     },
     "isError": false,
     "trip": {
-      "destination": "Madrid"
+      "destination": "Madrid",
+      "startDate": "2020-01-01"
     },
     "saved": [
-      {}
+      {
+        "startDate": "2020-01-01"
+      }
     ]
   },
   "saving a trip that is over budget, which is a real state and not a mistake": {
@@ -2971,8 +2964,7 @@
         "startDate": "2027-04-12",
         "endDate": "2027-04-19",
         "budget": 100
-      },
-      "stillNeeded": []
+      }
     },
     "isError": false,
     "trip": {
@@ -3017,10 +3009,6 @@
         "origin": "JFK",
         "travelers": 2
       },
-      "stillNeeded": [
-        "startDate",
-        "endDate"
-      ],
       "message": "Released startDate, endDate. Re-ask inline, pre-filled with what was there, and say what else this undid."
     },
     "isError": false,
@@ -3049,12 +3037,6 @@
       "trip": {
         "destination": "Madrid"
       },
-      "stillNeeded": [
-        "origin",
-        "startDate",
-        "endDate",
-        "travelers"
-      ],
       "message": "Nothing to release — it was not set."
     },
     "isError": false,
@@ -3086,12 +3068,6 @@
       "trip": {
         "destination": "Madrid"
       },
-      "stillNeeded": [
-        "origin",
-        "startDate",
-        "endDate",
-        "travelers"
-      ],
       "message": "Released nothing; put stay back in the plan. Re-ask inline, pre-filled with what was there, and say what else this undid."
     },
     "isError": false,

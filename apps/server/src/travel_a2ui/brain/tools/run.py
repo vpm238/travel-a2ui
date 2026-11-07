@@ -218,31 +218,12 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
         )
 
     if name == "save_trip":
-        # Normalised on the way in, so what is stored is in the trip's own
-        # shapes rather than whatever the model happened to type.
-        current = model.normalize(context.trip)
-        proposed = model.merge(current, args)
+        # **Recorded as written**, normalised into the trip's own shapes. The
+        # agent decides the route, the parties and the dates; what looks wrong
+        # comes back as notes for it to act on, never as a refusal that drops
+        # something the traveller said.
         today = context.day()
-
-        # **What is sound is recorded; only the offending field is turned away.**
-        #
-        # `save_trip` takes the whole trip, so refusing the call would throw
-        # away a chosen stay because one hop's dates were a day out.
-        #
-        # The sieve is the model's, the same one a button press goes through,
-        # so a value is refused for the same reason wherever it came from.
-        kept, refused = model.sieve(current, proposed, today)
-        if refused:
-            # A refused field goes back to what it was, and putting a value
-            # *back* is not something a patch can express — a field that had no
-            # value has to end with none. So the trip is rewritten in place, the
-            # way `release_decision` rewrites it, and the save is announced with
-            # nothing in it.
-            context.trip.clear()
-            context.trip.update(kept)
-            context.save({})
-        else:
-            context.save(model.normalize(args))
+        context.save(model.normalize(args))
 
         # A fare chosen by id, by the agent or out loud, gets its airline and
         # times from the fare it was offered, so the panel can name it.
@@ -255,24 +236,10 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
             context.save({})
 
         saved = model.merge(model.normalize(context.trip), {})
-        result: dict[str, Any] = {
-            "saved": True,
-            "trip": saved,
-            "stillNeeded": model.summarize(saved, today)["missing"],
-        }
-        if refused:
-            # Named, so the next surface asks for it again rather than the model
-            # believing it holds a value the trip turned down.
-            result["refused"] = refused
-            result["message"] = (
-                "Saved, except: "
-                + " ".join(refused)
-                + " That field is still what it was — ask the traveler for it again, "
-                "and keep everything else they said."
-            )
-        warnings = [problem for problem in model.problems(saved, today) if problem["field"] == "spent"]
-        if warnings:
-            result["warnings"] = warnings
+        result: dict[str, Any] = {"saved": True, "trip": saved}
+        notes = [problem["message"] for problem in model.problems(saved, today)]
+        if notes:
+            result["notes"] = notes
         return result, False
 
     if name == "release_decision":
@@ -296,7 +263,6 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
         context.trip.update(current)
         context.save({})
 
-        today = context.day()
         if not cleared and not stages:
             message = "Nothing to release — it was not set."
         else:
@@ -310,7 +276,6 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
                 "released": cleared,
                 "unskipped": stages,
                 "trip": current,
-                "stillNeeded": model.summarize(current, today)["missing"],
                 "message": message,
             },
             False,

@@ -1,15 +1,9 @@
 """What is still worth asking about, and how to say it.
 
-`missing_for` is the strict half: which fields a goal cannot be reached
-without. `summarize` is the half the prompt actually reads — what is known,
-what is assumed, what is blocked and by what — and `basis_of` is the sentence
-that says where the facts came from, so an agent does not re-ask for something
-the traveller already said.
-
-Strictness belongs in `missing_for` and nowhere else. Everything here that
-softens it does so by naming what it is ruling out and why, which is how
-`oneWay` stopped a trip being nagged about a way home it had already said it
-did not want.
+`missing_for` is what a tool needs before it can run: a flight search needs a
+route and a date. `summarize` is what the prompt reads — what is recorded and
+any notes on it; what to ask next is the agent's call — and `basis_of` is the
+sentence that says where the facts came from.
 """
 
 from __future__ import annotations
@@ -55,26 +49,8 @@ def summarize(trip: Trip, today: str | None = None) -> dict[str, Any]:
         if not _blank(trip.get(field["key"]))
     ]
 
-    # What the trip is still waiting on, as the prompt and `save_trip` report
-    # it — minus anything the trip has ruled out.
-    #
-    # `endDate` on a one-way journey is the case. There is no day they come
-    # back, so every goal that wants one reported it missing on every turn for
-    # the rest of the conversation: the route said nothing was wanted and the
-    # line beside it said "endDate", and the agent went looking for a return
-    # date on a trip that had told it twice there was not one. The goals
-    # themselves stay strict — `missing_for` is what stops a total inventing a
-    # length — so a tool that needs nights still asks for the nights it is
-    # pricing, which is a question with an answer.
-    ruled_out = {"endDate"} if trip.get("oneWay") is True else set()
-    missing: dict[str, None] = {}
-    for goal in REQUIREMENTS:
-        for key in missing_for(trip, goal):
-            if key not in ruled_out:
-                missing[key] = None
-
     night_count = nights(trip)
-    out: dict[str, Any] = {"decided": decided, "missing": list(missing)}
+    out: dict[str, Any] = {"decided": decided}
     # Key order matches the TypeScript literal: `nights` is spread in before
     # `problems`, and omitted entirely when there is no coherent range.
     if night_count is not None:

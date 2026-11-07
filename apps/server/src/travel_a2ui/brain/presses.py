@@ -104,18 +104,6 @@ async def stop_of_fare(context: dict[str, Any] | None, trip: dict[str, Any], pro
     return matched[0] if len(matched) == 1 else None
 
 
-def _commit(saved: dict[str, Any], proposed: dict[str, Any], today: str) -> tuple[dict, list[str]]:
-    """Applies what a surface sent, minus anything that would break the trip.
-
-    A picker can hand back 20 April → 12 April as readily as a model can invent
-    it, so a press is validated too. The rule is `model.sieve`, the one
-    `save_trip` uses: a value arriving from a press is held to exactly what a
-    value arriving from the model is held to, field by field, so one bad field
-    never costs the traveller the rest.
-    """
-    return model.sieve(saved, proposed, today)
-
-
 #: What a press carries, named as the trip field it belongs in.
 #:
 #: Per press, because `id` and `price` mean different fields depending on what
@@ -202,8 +190,8 @@ class RecordedPress:
 
     #: The trip after the press, with whatever it settled no longer `assumed`.
     trip: dict[str, Any]
-    #: Values the trip would not take, as sentences, for the model to be told.
-    refused: list[str]
+    #: What looks wrong with the trip as recorded, as notes for the model.
+    notes: list[str]
     #: Which leg the press landed on, or None for the trip's own fields.
     leg: int | None
     #: The trip fields the press said something about.
@@ -244,7 +232,7 @@ async def record_press(
     proposed = {**trip, **from_surface, **from_context}
     if leg is not None:
         proposed = model.onto_leg({**trip, **from_surface}, dict(from_context), leg)
-    committed, refused = _commit(trip, proposed, today)
+    committed = proposed
     said = [*from_surface.keys(), *from_context.keys()]
     # Pressing a button *is* saying so: whatever the surface sent stops being a
     # guess. Replaced rather than merged, because `confirm` removes `assumed`
@@ -252,7 +240,8 @@ async def record_press(
     if said:
         committed = model.confirm(committed, said)
     committed = await complete_chosen_flights(committed, provider)
-    return RecordedPress(trip=committed, refused=refused, leg=leg, said=said)
+    notes = [problem["message"] for problem in model.problems(committed, today)]
+    return RecordedPress(trip=committed, notes=notes, leg=leg, said=said)
 
 
 _FROM_CONTEXT: Any = object()
