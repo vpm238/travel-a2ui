@@ -76,10 +76,8 @@ travel loads `a2ui-core` + `a2ui-travel` and never pays for the charting
 catalog. Adding a second domain adds one skill, not a second copy of the
 grammar.
 
-A generated sample of each retired shape is kept in
-[`docs/skill-variants/`](../docs/skill-variants), and
-`VARIANTS` in `scripts/build_skills.py` is one line: put a shape back and re-run
-the evaluation whenever a new model makes the question live again.
+`VARIANTS` in `scripts/build_skills.py` is one line: put a shape back and
+re-run the evaluation whenever a new model makes the question live again.
 
 **The directory carries the variant; the skill name stays clean** — a skill that
 renames itself to say which generator produced it is a skill whose description

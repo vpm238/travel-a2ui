@@ -635,26 +635,12 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
 #: Travel arithmetic the client can do for itself.
 #:
 #: A2UI functions run *in the renderer*, so a label bound to one recomputes the
-#: instant a date changes — no model turn, no round trip, no token. Nights is the
-#: number every stay question hangs off ("3 nights, $291 a night"), and asking a
-#: language model to subtract two dates is the wrong tool by several orders of
-#: magnitude.
-def _tag_as_client_side(functions: dict[str, Any]) -> dict[str, Any]:
-    """Marks every function with where it runs.
-
-    All of them run in the renderer, and nothing in the schema said so. You
-    could only find out by noticing there was an implementation in
-    `packages/renderer/src/functions.ts` and in the Flutter client's
-    `functions.dart`, and none on the server — which is a fact about where code
-    happens to live, not a contract. A third client had to guess, and guessing
-    wrong means a label that silently never updates.
-
-    Applied to the basic catalog's functions too, not just this one's: the
-    distinction is about A2UI, not about travel.
-    """
-    return {name: {**fn, "x-runsOn": "client"} for name, fn in functions.items()}
-
-
+#: instant a date changes: no model turn, no round trip, no token. Nights is the
+#: number every stay question hangs off ("3 nights, $291 a night").
+#:
+#: Written in the v1.0 shape the catalog schema requires: the call name under
+#: `@call`, and `returnType` at the top level. Where a function may run is the
+#: spec's `allowedCallers`, which defaults to the renderer.
 TRAVEL_FUNCTIONS: dict[str, dict[str, Any]] = {
     #: Whether two values are the same, for a card that should be marked chosen.
     #:
@@ -665,12 +651,13 @@ TRAVEL_FUNCTIONS: dict[str, dict[str, Any]] = {
     #: own id is in scope, and the basic catalog has no equality function.
     "equals": {
         "type": "object",
+        "returnType": "boolean",
         "description": (
             "Returns true when the two values are equal, compared as text. For marking a "
             "list row chosen: selected=equals(a: ${id}, b: ${/trip/selectedFlight})."
         ),
         "properties": {
-            "call": {"const": "equals"},
+            "@call": {"const": "equals"},
             "args": {
                 "type": "object",
                 "properties": {
@@ -680,13 +667,12 @@ TRAVEL_FUNCTIONS: dict[str, dict[str, Any]] = {
                 "required": ["a", "b"],
                 "unevaluatedProperties": False,
             },
-            "returnType": {"const": "boolean"},
         },
-        "required": ["call", "args"],
-        "unevaluatedProperties": False,
+        "required": ["@call", "args"],
     },
     "calcNights": {
         "type": "object",
+        "returnType": "number",
         "description": (
             "Returns the number of nights between two ISO-8601 dates (yyyy-MM-dd), "
             "counting the nights slept rather than the days spanned: a 12th-to-15th "
@@ -694,7 +680,7 @@ TRAVEL_FUNCTIONS: dict[str, dict[str, Any]] = {
             "inverted, so a half-filled form shows a zero rather than nonsense."
         ),
         "properties": {
-            "call": {"const": "calcNights"},
+            "@call": {"const": "calcNights"},
             "args": {
                 "type": "object",
                 "properties": {
@@ -704,10 +690,8 @@ TRAVEL_FUNCTIONS: dict[str, dict[str, Any]] = {
                 "required": ["start", "end"],
                 "unevaluatedProperties": False,
             },
-            "returnType": {"const": "number"},
         },
-        "required": ["call", "args"],
-        "unevaluatedProperties": False,
+        "required": ["@call", "args"],
     },
 }
 
@@ -936,7 +920,7 @@ def build() -> dict[str, Any]:
             *(
                 FunctionApi(
                     name,
-                    return_type=schema["properties"]["returnType"]["const"],
+                    return_type=schema["returnType"],
                     schema=schema,
                     is_definition=True,
                     from_document=True,
@@ -958,14 +942,13 @@ def build() -> dict[str, Any]:
         "title": "A2UI Travel Catalog",
         "description": CATALOG_DESCRIPTION,
         "instructions": CATALOG_INSTRUCTIONS,
-        "extends": basic.catalog_id,
         # Every component, ours and the basic catalog's alike. This decides the
         # positional argument order the model is taught, and leaving it to
         # `allOf` order as written made `weight` argument one.
         "components": {
             name: _own_properties_lead(schema) for name, schema in derived["components"].items()
         },
-        "functions": _tag_as_client_side(derived["functions"]),
+        "functions": derived["functions"],
         "$defs": _defs_for_1_0(derived["$defs"]),
     }
 

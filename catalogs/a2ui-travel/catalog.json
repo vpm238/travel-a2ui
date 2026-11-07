@@ -6,7 +6,6 @@
   "title": "A2UI Travel Catalog",
   "description": "Plans trips as interactive UI: flight and hotel options, day-by-day itineraries, price breakdowns, and trip dashboards.",
   "instructions": "You are composing travel UI. A few house rules that matter more than anything else:\n\n- Prefer a travel component over hand-assembling one out of Row/Column/Text. If\n  you are showing a flight, use FlightOption. If you are showing a night's stay,\n  use HotelCard. The host styles these natively and they carry semantics the\n  plain layout primitives do not.\n- **A list of results is one call: `Flights()` or `Stays()`.** `search_flights`\n  files its rows at `/flights` and `search_hotels` at `/hotels`, and those two\n  read them — bound, labelled, pressable, however many arrive. Never write a\n  fare card per result: re-typing what a lookup just handed you is the largest\n  thing a turn says and the only part of it that can be wrong.\n\n      fares = Flights(\"Outbound · JFK → MAD\", \"/trip/selectedOutbound\")\n\n  Pass the heading, the path your choice is recorded at, and the hop when it is\n  not the first. The macro draws that heading itself, so do not also write a\n  `Text` with the same words above it: the traveller reads the line twice.\n- **Draw it before you call the lookup.** The shape of the answer is known the\n  moment you decide to look something up, and `Flights()` is nine characters —\n  so put it on screen, then call the tool, and the traveller watches it fill in\n  instead of waiting at a blank space.\n- **A planning turn draws `Highlights()` first.** `get_destination` files what\n  a city is worth going for at `/highlights`, and that is the one thing on a\n  planning turn whose shape is known early. Writing the days into `save_trip`\n  is the longest thing you say and nothing about the plan exists until it is\n  written, so draw the highlights while you write it. Without this the\n  traveller waits at an empty space for the whole plan.\n- **And then sends the plan's heading with it.** `save_trip({days: […], draw:\n  {heading: \"Four days in Berlin\"}})` draws `Itinerary()` the moment the write\n  lands. Saying `Itinerary()` in a block of your own afterwards is correct and\n  costs a whole further round for nine characters — measured at 16.7s. The\n  result tells you the card is up; say one sentence and end the turn.\n- Every option the user could plausibly act on needs an `action`. A flight the\n  user cannot select is a screenshot, not an interface.\n- And every one of them needs a name. A card is read aloud in the order it is\n  written — \"Iberia IB6250 18:40 JFK 08:15 +1 MAD 7h 35m Nonstop $412\", every\n  fact and no sentence — so write the sentence:\n  `accessibility={label: \"Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412\"}`.\n  Name every fare, every stay, every tile anyone can press. It replaces the\n  card's own text rather than adding to it, so say the whole thing.\n- Money is always a preformatted display string (\"$412\", \"€1,180 total\"). Do not\n  emit bare numbers and hope the host formats them.\n- Times are display strings in the traveler's local time (\"07:15\", \"Tue 14 Apr\").\n  The one exception is DateRangePicker, whose bound values are calendar dates\n  (\"2026-04-12\"): a trip day is a day, not an instant in some time zone.\n- When you present a set of options, bind the user's current choice into the data\n  model so a later turn can read it back — e.g. `$/trip/selectedOutbound`.\n- Keep a surface to one job. An inline card answers the message it is attached\n  to; the sidebar refines the trip in flight; the home surface summarizes.\n- `accessibility` also carries `live: \"polite\"` for a value that re-reckons\n  itself and `hidden: true` for decoration. Leave the block off anything whose\n  own text already reads as a sentence.",
-  "extends": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
   "components": {
     "Text": {
       "type": "object",
@@ -1963,8 +1962,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "regex": {
       "type": "object",
@@ -1995,8 +1993,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "length": {
       "type": "object",
@@ -2044,8 +2041,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "numeric": {
       "type": "object",
@@ -2091,8 +2087,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "email": {
       "type": "object",
@@ -2118,8 +2113,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "formatString": {
       "type": "object",
@@ -2145,8 +2139,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "formatNumber": {
       "type": "object",
@@ -2181,8 +2174,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "formatCurrency": {
       "type": "object",
@@ -2222,8 +2214,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "formatDate": {
       "type": "object",
@@ -2255,8 +2246,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "pluralize": {
       "type": "object",
@@ -2308,8 +2298,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "openUrl": {
       "type": "object",
@@ -2348,8 +2337,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "and": {
       "type": "object",
@@ -2380,8 +2368,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "or": {
       "type": "object",
@@ -2412,8 +2399,7 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "not": {
       "type": "object",
@@ -2440,14 +2426,14 @@
       "required": [
         "@call",
         "args"
-      ],
-      "x-runsOn": "client"
+      ]
     },
     "equals": {
       "type": "object",
+      "returnType": "boolean",
       "description": "Returns true when the two values are equal, compared as text. For marking a list row chosen: selected=equals(a: ${id}, b: ${/trip/selectedFlight}).",
       "properties": {
-        "call": {
+        "@call": {
           "const": "equals"
         },
         "args": {
@@ -2467,23 +2453,19 @@
             "b"
           ],
           "unevaluatedProperties": false
-        },
-        "returnType": {
-          "const": "boolean"
         }
       },
       "required": [
-        "call",
+        "@call",
         "args"
-      ],
-      "unevaluatedProperties": false,
-      "x-runsOn": "client"
+      ]
     },
     "calcNights": {
       "type": "object",
+      "returnType": "number",
       "description": "Returns the number of nights between two ISO-8601 dates (yyyy-MM-dd), counting the nights slept rather than the days spanned: a 12th-to-15th stay is 3. Returns 0 when either date is missing or the range is inverted, so a half-filled form shows a zero rather than nonsense.",
       "properties": {
-        "call": {
+        "@call": {
           "const": "calcNights"
         },
         "args": {
@@ -2503,17 +2485,12 @@
             "end"
           ],
           "unevaluatedProperties": false
-        },
-        "returnType": {
-          "const": "number"
         }
       },
       "required": [
-        "call",
+        "@call",
         "args"
-      ],
-      "unevaluatedProperties": false,
-      "x-runsOn": "client"
+      ]
     }
   },
   "$defs": {

@@ -246,14 +246,14 @@ leaves the components themselves to a *catalog* the app supplies. Our catalog is
 verbose to generate. A2UI Express is a compact notation for the same tree:
 
 ```
-head = Text("Flights to London", variant="h3")
+head = Text("### Flights to London")
 row  = FlightOption($airline, $departTime, $arriveTime, $origin, $destination,
                     $price, Event("select_flight", {id: $id}))
 list = List(_template($/flights, row))
 root = Column([head, list])
 ```
 
-About a third of the tokens of the equivalent JSON, and — this is the part that
+Roughly half the size of the equivalent JSON, and — this is the part that
 matters for how it *feels* — **a half-written Express program is still a valid
 program.** So the interface can be compiled and painted while the model is still
 typing the rest of it, instead of appearing all at once at the end.
@@ -794,7 +794,6 @@ Direct JSON drew nothing at all on three of the four asks, and took longest
 doing it. Between the two Express shapes, five more samples on the scenarios
 where they differed put modular ahead again with no scenario going the other
 way — so there is one shape now, and no picker for a question with one answer.
-A generated sample of each retired shape is in `docs/skill-variants/`, and
 `VARIANTS` in `scripts/build_skills.py` is one line: put a shape back and re-run
 the evaluation whenever a new model makes the question live again.
 
@@ -820,7 +819,7 @@ The notation the agent writes:
 ```
 surface("inline-flights")
 $/trip/selectedOutbound = ""
-heading = Text("Outbound · JFK → MAD · Sun 12 Apr", variant="h3")
+heading = Text("### Outbound · JFK → MAD · Sun 12 Apr")
 f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412",
                   Event("select_flight", {id: "IB6250"}),
                   duration="7h 35m", stops="Nonstop", badge="Cheapest")
@@ -829,7 +828,7 @@ root = Column([heading, f1])
 
 Three properties make it worth a compiler:
 
-- **It is about a third the tokens of the equivalent JSON.** The Wire tab prints
+- **It is roughly half the size of the equivalent JSON.** The Wire tab prints
   the exact ratio for whatever is on screen.
 - **A partial program is still a program.** `root = Column([heading, f1])` is
   valid the moment those lines exist, so the surface paints while the model is

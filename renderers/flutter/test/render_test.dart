@@ -488,4 +488,121 @@ void main() {
       expect('${format.execute({'value': 1240, 'currency': 'USD'}, context)}', contains('1,240'));
     });
   });
+
+  group('the travel views read the catalog', () {
+    // Every property a view reads must be one the catalog declares for that
+    // component, or an item property of one of its arrays. A view reading a
+    // name the catalog never mentions draws nothing for a field the agent
+    // filled in: ItineraryDay once read `activities` where the catalog says
+    // `children`, and showed no activities at all.
+    test('reads only properties its catalog entry declares', () {
+      final source = File('lib/components.dart').readAsStringSync();
+      final map = source.substring(source.indexOf('travelViews'));
+      final views = {
+        for (final match in RegExp(r"'(\w+)':\s*(_\w+),").allMatches(map)) match.group(1)!: match.group(2)!,
+      };
+      expect(views, isNotEmpty);
+      const common = {'weight', 'accessibility', 'id', 'checks'};
+      final problems = <String>[];
+      for (final MapEntry(key: component, value: function) in views.entries) {
+        final start = source.indexOf('Widget $function(BuildContext context, TravelProps build) {');
+        expect(start, isNot(-1), reason: function);
+        final rest = source.substring(start + 1);
+        final end = RegExp(r'\n(Widget |class |final |const |typedef |String |DateTime|bool |///|// -)').firstMatch(rest);
+        final body = end == null ? rest : rest.substring(0, end.start);
+
+        final declared = <String>{};
+        final items = <String>{};
+        final schema = (_document['components'] as Map)[component] as Map;
+        for (final part in (schema['allOf'] as List? ?? [schema])) {
+          final properties = (part as Map)['properties'] as Map? ?? {};
+          for (final MapEntry(:key, :value) in properties.entries) {
+            declared.add('$key');
+            final itemProperties = ((value as Map)['items'] as Map?)?['properties'] as Map?;
+            if (itemProperties != null) items.addAll(itemProperties.keys.map((k) => '$k'));
+          }
+        }
+
+        final top = {
+          ...RegExp(r"build\.(?:string|number|flag|pending|absent|has|fire|write|children|value)\('(\w+)'")
+              .allMatches(body)
+              .map((m) => m.group(1)!),
+          ...RegExp(r"build\['(\w+)'\]").allMatches(body).map((m) => m.group(1)!),
+          ...RegExp(r"_\w+\(build, '(\w+)'").allMatches(body).map((m) => m.group(1)!),
+        };
+        final itemReads = RegExp(r"\b(\w+)\['(\w+)'\]")
+            .allMatches(body)
+            .where((m) => m.group(1) != 'build')
+            .map((m) => m.group(2)!)
+            .toSet();
+        final undeclared = top.difference(declared).difference(common);
+        final undeclaredItems = itemReads.difference(items).difference(declared);
+        if (undeclared.isNotEmpty || undeclaredItems.isNotEmpty) {
+          problems.add('$component reads $undeclared (items $undeclaredItems)');
+        }
+      }
+      expect(problems, isEmpty);
+    });
+
+    testWidgets('an ItineraryDay draws its activities, which are its children', (tester) async {
+      final run = _Run();
+      run.apply([
+        _surface('day', [
+          {'id': 'root', 'component': 'ItineraryDay', 'title': 'Day 1 · Madrid', 'children': ['a', 'b']},
+          {'id': 'a', 'component': 'ActivityItem', 'title': 'Prado Museum', 'time': '10:00'},
+          {'id': 'b', 'component': 'ActivityItem', 'title': 'Dinner at Sobrino', 'time': '21:00'},
+        ]),
+      ]);
+      await _pump(tester, run.surface('day'));
+      expect(find.text('Day 1 · Madrid'), findsOneWidget);
+      expect(find.text('Prado Museum'), findsOneWidget);
+      expect(find.text('Dinner at Sobrino'), findsOneWidget);
+      expect(run.errors, isEmpty);
+    });
+
+    testWidgets('an ExpenseSplit draws its title, total and every participant', (tester) async {
+      final run = _Run();
+      run.apply([
+        _surface('split', [
+          {
+            'id': 'root',
+            'component': 'ExpenseSplit',
+            'title': 'Dinner at Sobrino',
+            'total': '€96',
+            'participants': [
+              {'name': 'Ana', 'share': '€48', 'status': 'paid'},
+              {'name': 'Ben', 'share': '€48', 'status': 'owes'},
+            ],
+            'actionLabel': 'Settle up',
+            'action': {
+              'event': {'name': 'settle'},
+            },
+          },
+        ]),
+      ]);
+      await _pump(tester, run.surface('split'));
+      expect(find.text('Dinner at Sobrino'), findsOneWidget);
+      expect(find.text('€96'), findsOneWidget);
+      expect(find.text('Ana'), findsOneWidget);
+      expect(find.text('Ben'), findsOneWidget);
+      expect(find.text('€48'), findsNWidgets(2));
+      expect(find.text('paid'), findsOneWidget);
+      expect(find.text('owes'), findsOneWidget);
+      await tester.tap(find.text('Settle up'));
+      await tester.pump();
+      expect(run.actions.single.name, 'settle');
+    });
+
+    testWidgets('a ProgressMeter fills to value over max', (tester) async {
+      final run = _Run();
+      run.apply([
+        _surface('meter', [
+          {'id': 'root', 'component': 'ProgressMeter', 'label': 'Budget', 'value': 500, 'max': 2000},
+        ]),
+      ]);
+      await _pump(tester, run.surface('meter'));
+      final bar = tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator));
+      expect(bar.value, closeTo(0.25, 1e-9));
+    });
+  });
 }

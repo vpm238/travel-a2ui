@@ -45,11 +45,11 @@ all.
 does not have to emit verbose JSON:
 
 ```
-head = Text("Flights to London", variant="h3")
+head = Text("### Flights to London")
 root = Column([head])
 ```
 
-About a third the tokens of the JSON it compiles to, and — crucially — a
+Roughly half the size of the JSON it compiles to, and — crucially — a
 half-written Express program is still a valid program, so a surface can be
 compiled and painted while the model is still typing.
 

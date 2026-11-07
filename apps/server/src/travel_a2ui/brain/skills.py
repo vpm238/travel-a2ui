@@ -55,10 +55,6 @@ SurfaceKind = Literal["inline", "sidebar", "home"]
 #: scenario either. One skill set, and it is the modular one, which is also the
 #: shape that scales: a second domain adds a catalog skill rather than a second
 #: copy of the grammar.
-#:
-#: A generated sample of each retired variant is kept under
-#: `docs/skill-variants/`, because what the generator produces for a format is
-#: worth being able to read without running it.
 SKILL_VARIANTS: list[str] = ["express-modular"]
 
 #: Which generated skill files each variant loads, in load order.

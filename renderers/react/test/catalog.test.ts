@@ -96,3 +96,44 @@ describe('equals', () => {
     expect(equals({ a: 'IB6250', b: undefined })).toBe(false);
   });
 });
+
+describe('the travel views read the catalog', () => {
+  // Every property a view reads must be one its catalog entry declares, or an
+  // item property of one of its arrays (a writable property's `setX` setter is
+  // the SDK's). A view reading a name the catalog never mentions draws nothing
+  // for a field the agent filled in.
+  it('reads only properties its catalog entry declares', () => {
+    const source = readFileSync(join(__dirname, '..', 'src', 'components', 'travel.tsx'), 'utf8');
+    const common = new Set(['weight', 'accessibility', 'id', 'checks', 'validationErrors', 'component']);
+    const problems: string[] = [];
+    let scanned = 0;
+    for (const match of source.matchAll(/export function (\w+)\(\{[^)]*\}: ViewProps\) \{/g)) {
+      const component = match[1]!;
+      const schema = document.components[component];
+      if (!schema) continue;
+      scanned += 1;
+      const rest = source.slice(match.index! + match[0].length);
+      const end = rest.search(/\nexport function |\n\/\/ -{4,}/);
+      const body = end === -1 ? rest : rest.slice(0, end);
+
+      const declared = new Set<string>();
+      const items = new Set<string>();
+      for (const part of schema.allOf ?? [schema]) {
+        for (const [key, value] of Object.entries<Record<string, any>>(part.properties ?? {})) {
+          declared.add(key);
+          for (const item of Object.keys(value.items?.properties ?? {})) items.add(item);
+        }
+      }
+      const isSetter = (key: string) => /^set[A-Z]/.test(key) && declared.has(key[3]!.toLowerCase() + key.slice(4));
+      const top = [...body.matchAll(/props\['(\w+)'\]/g)].map((m) => m[1]!);
+      const itemReads = [...body.matchAll(/\b(\w+)\['(\w+)'\]/g)].filter((m) => m[1] !== 'props').map((m) => m[2]!);
+      const undeclared = top.filter((key) => !declared.has(key) && !common.has(key) && !isSetter(key));
+      const undeclaredItems = itemReads.filter((key) => !items.has(key) && !declared.has(key));
+      if (undeclared.length || undeclaredItems.length) {
+        problems.push(`${component} reads ${[...new Set(undeclared)]} (items ${[...new Set(undeclaredItems)]})`);
+      }
+    }
+    expect(scanned).toBe(Object.keys(document.components).length - basicCatalog.components.size);
+    expect(problems).toEqual([]);
+  });
+});

@@ -284,18 +284,13 @@ class TestTheRefusals:
 
 
 class TestCatalogFunctionsAreClientSide:
-    """Where a catalog function runs, stated rather than inferred.
+    """Every catalog function runs in the renderer, against the live data model.
 
-    All fifteen run in the renderer, against the live data model: that is what
-    makes a nights label recompute the instant a date picker moves, with no
-    turn, no wait and no tokens. The server composes the call and never
-    evaluates one.
-
-    Nothing in the schema said so. You could only find out by noticing there was
-    an implementation in `packages/renderer/src/functions.ts` and in
-    `lib/functions.dart` and none on the server — which is a fact about where
-    code happens to live, not a contract. A third client would have had to
-    guess, and guessing wrong means a label that never updates.
+    That is what makes a nights label recompute the instant a date picker
+    moves, with no turn and no tokens. v1.0 says where a function may run with
+    `allowedCallers`, which defaults to the renderer, so a function that ever
+    needs the agent to call it has to say so, and needs a server
+    implementation and a test.
     """
 
     @staticmethod
@@ -306,34 +301,13 @@ class TestCatalogFunctionsAreClientSide:
         root = pathlib.Path(__file__).resolve().parents[3]
         return json.loads((root / "catalogs" / "a2ui-travel" / "catalog.json").read_text("utf-8"))
 
-    def test_every_function_says_where_it_runs(self) -> None:
+    def test_they_all_run_in_the_renderer(self) -> None:
         functions = self._catalog()["functions"]
         assert functions, "the catalog declares no functions"
-        untagged = sorted(n for n, f in functions.items() if "x-runsOn" not in f)
-        assert not untagged, f"{untagged} do not say where they run"
-
-    def test_they_all_run_on_the_client(self) -> None:
-        """If one ever does not, it needs a server implementation and a test."""
-        functions = self._catalog()["functions"]
-        assert {f["x-runsOn"] for f in functions.values()} == {"client"}
-
-    def test_the_server_implements_none_of_them(self) -> None:
-        """The claim, checked against the code rather than trusted.
-
-        A function quietly implemented on the server would mean two answers to
-        one call — the renderer's and the agent's — that agree until they do
-        not.
-        """
-        import pathlib
-
-        root = pathlib.Path(__file__).resolve().parents[3]
-        source = "\n".join(
-            path.read_text("utf-8")
-            for path in (root / "apps" / "server" / "src" / "travel_a2ui").glob("*.py")
+        elsewhere = sorted(
+            name for name, fn in functions.items() if fn.get("allowedCallers", "rendererOnly") != "rendererOnly"
         )
-        for name in self._catalog()["functions"]:
-            assert f"def {name}" not in source, f"{name} has a server implementation"
-
+        assert not elsewhere, f"{elsewhere} may be called by the agent, which has no implementation"
 
 class TestALegCarriesItsOwnParty:
     """"On the way back I need 2 tickets" makes the return a different size.

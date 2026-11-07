@@ -141,9 +141,8 @@ def make_format(inference_format: str, catalog, examples: list[list[dict]]):
 #: The directory name still carries both axes, because the skill *name* inside
 #: it is `a2ui-core` + `a2ui-travel` and should stay clean: a skill that has to
 #: rename itself to say which generator produced it is a skill whose description
-#: is doing the wrong job. A generated sample of each retired shape is kept under
-#: `docs/skill-variants/` — changing this list and re-running is all it takes to
-#: bring one back for another measurement.
+#: is doing the wrong job. Changing this list and re-running is all it takes to
+#: bring a retired shape back for another measurement.
 VARIANTS: list[tuple[str, str]] = [
     ("express", "modular"),
 ]

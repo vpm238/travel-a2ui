@@ -1,8 +1,9 @@
 /**
  * The two functions the travel catalog adds, evaluated in the renderer.
  *
- * Both are declared in `catalogs/a2ui-travel/catalog.json` with
- * `x-runsOn: client`, and both are pure: the SDK resolves their arguments
+ * Both are declared in `catalogs/a2ui-travel/catalog.json` in the v1.0 shape
+ * (`@call`, a top-level `returnType`, and the default `rendererOnly` callers),
+ * and both are pure: the SDK resolves their arguments
  * (bindings, nested calls) before calling them, and re-evaluates when the data
  * they read changes.
  */

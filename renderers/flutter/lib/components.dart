@@ -388,8 +388,9 @@ Widget _statTile(BuildContext context, TravelProps build) {
 Widget _progressMeter(BuildContext context, TravelProps build) {
   final text = Theme.of(context).textTheme;
   final value = build.number('value')?.toDouble() ?? 0;
-  final total = build.number('total')?.toDouble() ?? 1;
-  final tone = build.string('tone');
+  // `max`, as the catalog declares it; 100 when it is not given, as on the web.
+  final max = build.number('max')?.toDouble() ?? 100;
+  final tone = build.string('tone') ?? (max > 0 && value > max ? 'critical' : 'accent');
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisSize: MainAxisSize.min,
@@ -399,7 +400,7 @@ Widget _progressMeter(BuildContext context, TravelProps build) {
       ClipRRect(
         borderRadius: BorderRadius.circular(999),
         child: LinearProgressIndicator(
-          value: total <= 0 ? 0 : (value / total).clamp(0, 1).toDouble(),
+          value: max <= 0 ? 0 : (value / max).clamp(0, 1).toDouble(),
           minHeight: 8,
           color: tone == 'critical' ? Theme.of(context).colorScheme.error : null,
         ),
@@ -478,7 +479,8 @@ Widget _itineraryDay(BuildContext context, TravelProps build) {
             child: Text(build.string('summary') ?? '', style: text.bodySmall),
           ),
         const SizedBox(height: 8),
-        ...build.children('activities'),
+        // The day's ActivityItems are its `children`, as the catalog declares.
+        ...build.children('children'),
         if (build.has('onAdd'))
           Align(
             alignment: Alignment.centerLeft,
@@ -977,25 +979,55 @@ String _day(String? iso) {
 }
 
 Widget _expenseSplit(BuildContext context, TravelProps build) {
+  final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
-  final people = build['people'];
+  final participants = build['participants'];
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     mainAxisSize: MainAxisSize.min,
     children: [
-      Text(build.string('label') ?? 'Split', style: text.titleMedium),
-      if (people is List)
-        for (final person in people)
+      Row(
+        children: [
+          Expanded(child: Text(build.string('title') ?? '', style: text.titleMedium)),
+          _bound(build, 'total', text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+        ],
+      ),
+      const SizedBox(height: 6),
+      if (participants is List)
+        for (final person in participants)
           if (person is Map)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
+              padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(
                 children: [
+                  CircleAvatar(
+                    radius: 12,
+                    child: Text(
+                      (person['name']?.toString() ?? '?').characters.take(1).toString().toUpperCase(),
+                      style: text.labelSmall,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(child: Text(person['name']?.toString() ?? '')),
-                  Text(person['amount']?.toString() ?? ''),
+                  Text(person['share']?.toString() ?? '', style: text.bodyMedium),
+                  const SizedBox(width: 8),
+                  // `status` is one of paid, owes and settled; owes when unsaid.
+                  Chip(
+                    label: Text(person['status']?.toString() ?? 'owes'),
+                    visualDensity: VisualDensity.compact,
+                    side: BorderSide(color: scheme.outlineVariant),
+                  ),
                 ],
               ),
             ),
+      if (build.hasAction)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: build.fire,
+            child: Text(build.string('actionLabel') ?? 'Settle up'),
+          ),
+        ),
     ],
   );
 }
