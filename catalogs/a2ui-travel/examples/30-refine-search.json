@@ -8,6 +8,19 @@
         "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
         "components": [
           {
+            "id": "root",
+            "component": "Column",
+            "children": [
+              "title",
+              "dates",
+              "who",
+              "budget",
+              "stops",
+              "apply"
+            ],
+            "align": "stretch"
+          },
+          {
             "id": "title",
             "component": "Text",
             "text": "### Refine"
@@ -94,19 +107,6 @@
             "id": "apply_child",
             "component": "Text",
             "text": "Apply"
-          },
-          {
-            "id": "root",
-            "component": "Column",
-            "children": [
-              "title",
-              "dates",
-              "who",
-              "budget",
-              "stops",
-              "apply"
-            ],
-            "align": "stretch"
           }
         ],
         "dataModel": {

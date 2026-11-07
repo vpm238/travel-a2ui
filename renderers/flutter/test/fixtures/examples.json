@@ -11,6 +11,18 @@
           "sendDataModel": true,
           "components": [
             {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "title",
+                "from",
+                "dates",
+                "who",
+                "go"
+              ],
+              "align": "stretch"
+            },
+            {
               "id": "title",
               "component": "Text",
               "text": "### Madrid in April — two travellers"
@@ -56,11 +68,6 @@
               "max": 8
             },
             {
-              "id": "go_label",
-              "component": "Text",
-              "text": "Find flights"
-            },
-            {
               "id": "go",
               "component": "Button",
               "child": "go_label",
@@ -73,16 +80,9 @@
               }
             },
             {
-              "id": "root",
-              "component": "Column",
-              "children": [
-                "title",
-                "from",
-                "dates",
-                "who",
-                "go"
-              ],
-              "align": "stretch"
+              "id": "go_label",
+              "component": "Text",
+              "text": "Find flights"
             }
           ]
         }
@@ -131,6 +131,14 @@
           "surfaceId": "inline-2",
           "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "fares",
+                "note"
+              ]
+            },
             {
               "component": "Text",
               "id": "fares__text_1",
@@ -254,14 +262,6 @@
               "id": "note",
               "component": "Text",
               "text": "Prices are per traveler, round trip."
-            },
-            {
-              "id": "root",
-              "component": "Column",
-              "children": [
-                "fares",
-                "note"
-              ]
             }
           ]
         }
@@ -375,6 +375,19 @@
           "sendDataModel": true,
           "components": [
             {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "title",
+                "dates",
+                "who",
+                "budget",
+                "stops",
+                "apply"
+              ],
+              "align": "stretch"
+            },
+            {
               "id": "title",
               "component": "Text",
               "text": "### Refine"
@@ -461,19 +474,6 @@
               "id": "apply_child",
               "component": "Text",
               "text": "Apply"
-            },
-            {
-              "id": "root",
-              "component": "Column",
-              "children": [
-                "title",
-                "dates",
-                "who",
-                "budget",
-                "stops",
-                "apply"
-              ],
-              "align": "stretch"
             }
           ],
           "dataModel": {
@@ -496,6 +496,13 @@
           "surfaceId": "sidebar",
           "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "panel"
+              ]
+            },
             {
               "component": "Text",
               "id": "panel__text_1",
@@ -679,13 +686,6 @@
               ],
               "justify": "start",
               "align": "stretch"
-            },
-            {
-              "id": "root",
-              "component": "Column",
-              "children": [
-                "panel"
-              ]
             }
           ]
         }
@@ -740,6 +740,40 @@
           "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
             {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "day2",
+                "packingTitle",
+                "packing"
+              ]
+            },
+            {
+              "id": "day2",
+              "component": "ItineraryDay",
+              "title": "Day 2 — Old Madrid",
+              "children": [
+                "a1",
+                "a2",
+                "a3"
+              ],
+              "date": "Mon 13 Apr",
+              "summary": "Art in the morning, a long lunch, green afternoon"
+            },
+            {
+              "id": "packingTitle",
+              "component": "Text",
+              "text": "#### Packing"
+            },
+            {
+              "id": "packing",
+              "component": "List",
+              "children": {
+                "path": "/packing",
+                "componentId": "packingRow"
+              }
+            },
+            {
               "id": "a1",
               "component": "ActivityItem",
               "title": "Prado Museum",
@@ -776,18 +810,6 @@
               "note": "Rowboats until 19:00"
             },
             {
-              "id": "day2",
-              "component": "ItineraryDay",
-              "title": "Day 2 — Old Madrid",
-              "children": [
-                "a1",
-                "a2",
-                "a3"
-              ],
-              "date": "Mon 13 Apr",
-              "summary": "Art in the morning, a long lunch, green afternoon"
-            },
-            {
               "id": "packingRow",
               "component": "CheckBox",
               "label": {
@@ -796,28 +818,6 @@
               "value": {
                 "@path": "done"
               }
-            },
-            {
-              "id": "packing",
-              "component": "List",
-              "children": {
-                "path": "/packing",
-                "componentId": "packingRow"
-              }
-            },
-            {
-              "id": "packingTitle",
-              "component": "Text",
-              "text": "#### Packing"
-            },
-            {
-              "id": "root",
-              "component": "Column",
-              "children": [
-                "day2",
-                "packingTitle",
-                "packing"
-              ]
             }
           ],
           "dataModel": {
@@ -847,41 +847,22 @@
           "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "components": [
             {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "hello",
+                "tiles",
+                "budget",
+                "when",
+                "weather",
+                "map"
+              ],
+              "align": "stretch"
+            },
+            {
               "id": "hello",
               "component": "Text",
               "text": "# 17 days to Madrid"
-            },
-            {
-              "id": "t1",
-              "component": "StatTile",
-              "label": "Booked",
-              "value": "3 of 5",
-              "caption": "flights, hotel, transfer",
-              "tone": "positive"
-            },
-            {
-              "id": "t2",
-              "component": "StatTile",
-              "label": "Budget left",
-              "value": "$680",
-              "caption": "of $2,000",
-              "tone": "caution"
-            },
-            {
-              "id": "t3",
-              "component": "StatTile",
-              "label": "Next up",
-              "value": "Pick dinner",
-              "caption": "Sat 11 Apr",
-              "tone": "accent",
-              "action": {
-                "event": {
-                  "name": "open_task",
-                  "context": {
-                    "id": "dinner"
-                  }
-                }
-              }
             },
             {
               "id": "tiles",
@@ -973,17 +954,36 @@
               "caption": "Everything on day 2 is walkable"
             },
             {
-              "id": "root",
-              "component": "Column",
-              "children": [
-                "hello",
-                "tiles",
-                "budget",
-                "when",
-                "weather",
-                "map"
-              ],
-              "align": "stretch"
+              "id": "t1",
+              "component": "StatTile",
+              "label": "Booked",
+              "value": "3 of 5",
+              "caption": "flights, hotel, transfer",
+              "tone": "positive"
+            },
+            {
+              "id": "t2",
+              "component": "StatTile",
+              "label": "Budget left",
+              "value": "$680",
+              "caption": "of $2,000",
+              "tone": "caution"
+            },
+            {
+              "id": "t3",
+              "component": "StatTile",
+              "label": "Next up",
+              "value": "Pick dinner",
+              "caption": "Sat 11 Apr",
+              "tone": "accent",
+              "action": {
+                "event": {
+                  "name": "open_task",
+                  "context": {
+                    "id": "dinner"
+                  }
+                }
+              }
             }
           ]
         }
@@ -1017,6 +1017,18 @@
           "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
           "sendDataModel": true,
           "components": [
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "title",
+                "name",
+                "email",
+                "seat",
+                "save"
+              ],
+              "align": "stretch"
+            },
             {
               "id": "title",
               "component": "Text",
@@ -1084,18 +1096,6 @@
               "id": "save_child",
               "component": "Text",
               "text": "Save traveller"
-            },
-            {
-              "id": "root",
-              "component": "Column",
-              "children": [
-                "title",
-                "name",
-                "email",
-                "seat",
-                "save"
-              ],
-              "align": "stretch"
             }
           ]
         }

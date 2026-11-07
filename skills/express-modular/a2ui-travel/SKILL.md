@@ -368,26 +368,27 @@ Travel components carry meaning the layout primitives do not:
 
 <a2ui>
 surface("inline-1", sendDataModel=true)
+root = Column([title, from, dates, who, go], _, "stretch")
 title = Text("### Madrid in April — two travellers")
 from = AirportPicker("Where from?", $/trip/origin, $/places/origins, "origin", "City or airport")
 dates = DateRangePicker("Travel dates", $/trip/startDate, $/trip/endDate, _, formatString("${calcNights(start: ${/trip/startDate}, end: ${/trip/endDate})} nights"))
 who = TravelerCounter("Travellers", $/trip/travelers, 1, 8)
-go_label = Text("Find flights")
 go = Button(go_label, "primary", Event("find_flights", userMessage="Find flights for these dates"))
-root = Column([title, from, dates, who, go], _, "stretch")
+go_label = Text("Find flights")
 </a2ui>
 
 <a2ui>
 surface("inline-2")
+root = Column([fares, note])
 fares = Flights("Outbound · JFK → MAD · Sun 12 Apr", "/trip/selectedFlight")
 note = Text("Prices are per traveler, round trip.")
-root = Column([fares, note])
 </a2ui>
 
 <a2ui>
 surface("inline-3", sendDataModel=true)
 $/filters/adults = 2
 $/filters/maxPrice = 600
+root = Column([title, dates, who, budget, stops, apply], _, "stretch")
 title = Text("### Refine")
 dates = DateRangePicker("Travel dates", $/filters/start, $/filters/end, Event("dates_changed"), "6 nights")
 who = TravelerCounter("Adults", $/filters/adults, 1, 8)
@@ -395,49 +396,48 @@ budget = Slider("Max fare", 150, 1500, $/filters/maxPrice)
 stops = ChoicePicker("Stops", "mutuallyExclusive", [{label: "Any", value: "any"}, {label: "Nonstop only", value: "nonstop"}], $/filters/stops)
 apply = Button(apply_child, "primary", Event("apply_filters", {maxPrice: $/filters/maxPrice, adults: $/filters/adults, stops: $/filters/stops}))
 apply_child = Text("Apply")
-root = Column([title, dates, who, budget, stops, apply], _, "stretch")
 </a2ui>
 
 <a2ui>
 surface("sidebar")
-panel = Trip("Your trip to Madrid", true)
 root = Column([panel])
+panel = Trip("Your trip to Madrid", true)
 </a2ui>
 
 <a2ui>
 surface("inline-4")
 $/packing = [{item: "Passport", done: true}, {item: "Adapter", done: false}]
+root = Column([day2, packingTitle, packing])
+day2 = ItineraryDay("Day 2 — Old Madrid", [a1, a2, a3], "Mon 13 Apr", "Art in the morning, a long lunch, green afternoon")
+packingTitle = Text("#### Packing")
+packing = List(_template($/packing, packingRow))
 a1 = ActivityItem("Prado Museum", "10:00", "sight", "Paseo del Prado 23", "2h", "Book the timed entry", Event("open_activity", {id: "prado"}))
 a2 = ActivityItem("Lunch at Sobrino", "13:30", "food", "Calle de Cuchilleros 17", "1h 30m")
 a3 = ActivityItem("Retiro Park", "16:00", "outdoors", _, "1h 30m", "Rowboats until 19:00")
-day2 = ItineraryDay("Day 2 — Old Madrid", [a1, a2, a3], "Mon 13 Apr", "Art in the morning, a long lunch, green afternoon")
 packingRow = CheckBox($item, $done)
-packing = List(_template($/packing, packingRow))
-packingTitle = Text("#### Packing")
-root = Column([day2, packingTitle, packing])
 </a2ui>
 
 <a2ui>
 surface("home")
+root = Column([hello, tiles, budget, when, weather, map], _, "stretch")
 hello = Text("# 17 days to Madrid")
-t1 = StatTile("Booked", "3 of 5", "flights, hotel, transfer", "positive")
-t2 = StatTile("Budget left", "$680", "of $2,000", "caution")
-t3 = StatTile("Next up", "Pick dinner", "Sat 11 Apr", "accent", Event("open_task", {id: "dinner"}))
 tiles = Row([t1, t2, t3])
 budget = ProgressMeter("Budget used", 1320, 2000, "$1,320 of $2,000", "caution")
 when = TripCalendar($/trip/startDate, $/trip/endDate, [{date: "2027-04-12", icon: "plane", label: "Fly out"}, {date: "2027-04-18", icon: "plane", label: "Fly home"}], "Madrid", "6 nights")
 weather = WeatherStrip([{day: "Sun", high: "21°", low: "9°", condition: "sun"}, {day: "Mon", high: "19°", low: "8°", condition: "sun"}, {day: "Tue", high: "16°", low: "7°", condition: "rain"}], "Madrid", "Pack a light jacket for Tuesday")
 map = MapPreview([{label: "Hotel", kind: "stay"}, {label: "Prado", kind: "sight", day: "2"}, {label: "Sobrino", kind: "food", day: "2"}], "Everything on day 2 is walkable")
-root = Column([hello, tiles, budget, when, weather, map], _, "stretch")
+t1 = StatTile("Booked", "3 of 5", "flights, hotel, transfer", "positive")
+t2 = StatTile("Budget left", "$680", "of $2,000", "caution")
+t3 = StatTile("Next up", "Pick dinner", "Sat 11 Apr", "accent", Event("open_task", {id: "dinner"}))
 </a2ui>
 
 <a2ui>
 surface("inline-5", sendDataModel=true)
+root = Column([title, name, email, seat, save], _, "stretch")
 title = Text("### Who is travelling?")
 name = TextField("Full name (as on passport)", $/traveler/name)
 email = TextField("Email", $/traveler/email, "shortText")
 seat = ChoicePicker("Seat", "mutuallyExclusive", [{label: "Window", value: "window"}, {label: "Aisle", value: "aisle"}], $/traveler/seat)
 save = Button(save_child, "primary", Event("save_traveler", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))
 save_child = Text("Save traveller")
-root = Column([title, name, email, seat, save], _, "stretch")
 </a2ui>

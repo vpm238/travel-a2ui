@@ -8,8 +8,8 @@ to the record, so every later decision reaches it as data:
 
     <a2ui>
     surface("sidebar")
-    panel = Trip("Your trip to Madrid")
     root = Column([panel])
+    panel = Trip("Your trip to Madrid")
     </a2ui>
 
 Each hop shows its route, dates and party, and its fare and stay once chosen,

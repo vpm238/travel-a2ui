@@ -10,9 +10,9 @@
 // one fails the build (see `leftover` below) instead of shipping raw JSX.
 
 import * as site from './site';
-import prompt from './prompts/quickstart.md?raw';
+import { guide } from './prompts/guides';
 
-const { absolute, PROMPT_PATH, bootstrapPrompt } = site;
+const { absolute, PROMPT_PATH } = site;
 
 /** The screenshots, by file name, as the URLs the build gave them. */
 const images = Object.fromEntries(
@@ -41,13 +41,11 @@ function attribute(tag: string, name: string): string | undefined {
   return expression ? resolve(expression[1]) : undefined;
 }
 
-const AGENT_PROMPT = `## Paste this into your coding agent
+const AGENT_PROMPT = `## Quickstart with your coding agent
 
-\`\`\`text
-${bootstrapPrompt()}
-\`\`\`
+Copy one prompt into Claude Code, Gemini CLI, Codex, Cursor or any agent that can read a web page. The link holds the full instructions: your agent runs three commands, then explains how A2UI works with the app open.
 
-Works in Claude Code, Gemini CLI, Codex, Cursor or any agent that can read a web page. It asks whether you want React, Flutter or both, runs three commands, then explains how A2UI works with the app open.`;
+${site.QUICKSTART_PROMPTS.map((entry) => `**${entry.app} (${entry.stack})**\n\n\`\`\`text\n${entry.prompt}\n\`\`\``).join('\n\n')}`;
 
 const ARCHITECTURE = `\`\`\`text
  React client (web)                 Flutter client (mobile)
@@ -119,5 +117,5 @@ export function toMarkdown(title: string, description: string | undefined, body:
   return `${FOR_AGENTS}\n\n# ${title}\n\n${description ? `> ${description}\n\n` : ''}${text}\n`;
 }
 
-/** The tour prompt, verbatim. */
-export const tourPrompt = prompt;
+/** The general agent guide, which asks which app to set up. */
+export const tourPrompt = guide('any');

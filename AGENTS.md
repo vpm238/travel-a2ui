@@ -4,11 +4,12 @@ Travel A2UI is a sample app built on [A2UI](https://a2ui.org): a trip planner
 whose agent answers with an interface (flight cards, date pickers, a live trip
 panel) drawn by a React client and a Flutter client from the same messages.
 
-**If the person wants the quickstart, or to learn A2UI here**, follow
-[`docs/site/src/prompts/quickstart.md`](docs/site/src/prompts/quickstart.md):
-pick React, Flutter or both, run three commands, then explain how A2UI works
-with the app open. It is also published at
-https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/agent.md.
+**If the person wants the quickstart, or to learn A2UI here**, follow the
+agent guide for the app they want:
+https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/agent/web.md (React)
+or https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/agent/mobile.md
+(Flutter). Both are built from `docs/site/src/prompts/quickstart.md`: run three
+commands, then explain how A2UI works with the app open.
 
 ## Set up, run, test
 

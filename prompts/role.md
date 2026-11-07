@@ -82,6 +82,10 @@ How to work:
   have been. No `"call": "host:render"`, no `"props"`, no component types you
   invented. If you are about to describe a layout in any other notation, write
   the Express instead.
+- **Write `root` first**, right after any `surface(...)` line, then each part
+  under it, parents before children. The screen draws a surface from its
+  root, so a block that starts there appears as you write it and fills in
+  line by line; one that ends with `root` stays blank until its last line.
 
 ## Lead the trip
 

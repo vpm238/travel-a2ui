@@ -1,12 +1,11 @@
 ---
 title: A2UI quickstart
-description: Run a small A2UI app, a Python agent server with a React web client, a Flutter mobile client or both, in three commands, then learn how A2UI works.
+description: Run a small A2UI app, a Python agent server with a React web client or a Flutter mobile client, from one prompt to your coding agent or in three commands.
 ---
 
-import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 import AgentPrompt from '../../components/AgentPrompt.astro';
 import ArchDiagram from '../../components/ArchDiagram.astro';
-import { CONCEPTS, QS_BOTH, QS_FLUTTER, QS_REACT } from '../../site';
+import { STEP_BY_STEP } from '../../site';
 
 **A2UI** lets an AI agent answer with an interface instead of a paragraph:
 cards you can tap, dates you can drag, a panel that keeps up with you.
@@ -14,46 +13,10 @@ cards you can tap, dates you can drag, a panel that keeps up with you.
 This quickstart runs **Travel A2UI**, a small trip planner built on the official
 A2UI SDKs. It is simple on purpose: **one Python server** holds the agent, and
 a **React** client (web) or a **Flutter** client (mobile) draws what it sends.
-Both clients get the same A2UI messages.
 
 <AgentPrompt />
 
-## Or set it up yourself
-
-Each takes three commands.
-
-<CardGrid>
-  <LinkCard
-    title="Python + React"
-    description="The agent server and the web client. Needs Python and Node."
-    href={QS_REACT}
-  />
-  <LinkCard
-    title="Python + Flutter"
-    description="The agent server and the mobile client. Needs Python and Flutter."
-    href={QS_FLUTTER}
-  />
-  <LinkCard
-    title="Python + React + Flutter"
-    description="Both clients on one server, drawing the same messages."
-    href={QS_BOTH}
-  />
-</CardGrid>
-
-## What you will learn
-
-Once it runs, <a href={CONCEPTS}>How A2UI works</a> explains, with the app open:
-
-1. **The core pieces of A2UI**, and how parent and child components make a
-   surface reliable.
-2. **Which parts of the screen are A2UI** and which are ordinary app code, and
-   the **catalog** that draws the line.
-3. **Agent skills**: what they are and how they are generated from the catalog.
-4. **Agent output versus A2UI messages**: the Express DSL the model writes, the
-   JSON on the wire and the **MessageProcessor** that applies it.
-5. **Renderers**: the two here, and the others A2UI has.
-
-## The architecture
+## What it sets up
 
 <ArchDiagram />
 
@@ -61,11 +24,16 @@ One server serves the API, the React app at `/` and the Flutter app at
 `/flutter/`. The clients know nothing about travel: each knows how to draw the
 catalog's components, and the agent decides what to draw.
 
-## Put it online
+## What you will learn
 
-[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/vpm238/travel-a2ui)
+Once it runs, your agent (or the <a href={STEP_BY_STEP}>step-by-step quickstart</a>)
+explains, with the app open:
 
-One click deploys the server and both clients to Cloud Run in your own Google
-Cloud project. It asks for a project and a region, and the first build takes
-about ten minutes. No key is stored on the service: each visitor pastes their
-own.
+1. **The core pieces of A2UI**, and how parent and child components make a
+   card reliable and let it stream.
+2. **Which parts of the screen are A2UI** and which are ordinary app code, and
+   the **catalog** that draws the line.
+3. **Agent skills**: what they are and how they are generated from the catalog.
+4. **Agent output versus A2UI messages**: the Express DSL the model writes, the
+   JSON on the wire and the **MessageProcessor** that applies it.
+5. **Renderers**: the two here, and the others A2UI has.

@@ -46,12 +46,9 @@ export default defineConfig({
           label: 'Get started',
           items: [
             { label: 'Quickstart', slug: 'quickstart' },
-            { label: 'Python + React', slug: 'quickstart/react' },
-            { label: 'Python + Flutter', slug: 'quickstart/flutter' },
-            { label: 'Python + React + Flutter', slug: 'quickstart/both' },
+            { label: 'Step-by-step quickstart', slug: 'quickstart/step-by-step' },
           ],
         },
-        { label: 'Learn', items: [{ label: 'How A2UI works', slug: 'concepts' }] },
         { label: 'Keep going', items: [{ label: 'Partner & consultant demos', slug: 'ecosystem/partners' }] },
       ],
       lastUpdated: false,

@@ -31,11 +31,28 @@ export const PARTNERS = local(PARTNERS_PATH);
 export const BUILD_YOUR_OWN = `${REPO}#build-one-of-your-own`;
 export const FLUTTER_DEMO = `${LIVE_DEMO}/flutter/`;
 
-/** The three quickstarts, and the page that explains what they run. */
-export const QS_REACT = local('quickstart/react/');
-export const QS_FLUTTER = local('quickstart/flutter/');
-export const QS_BOTH = local('quickstart/both/');
-export const CONCEPTS = local('concepts/');
+/** The traditional quickstart: the commands, then how A2UI works. */
+export const STEP_BY_STEP = local('quickstart/step-by-step/');
+
+/** What a coding agent follows for each app, served raw. */
+export const PROMPT_WEB = 'quickstart/agent/web.md';
+export const PROMPT_MOBILE = 'quickstart/agent/mobile.md';
+
+/** The prompts the quickstart button copies: one line, one URL each. */
+export const QUICKSTART_PROMPTS = [
+  {
+    app: 'Web app',
+    stack: 'Python + React',
+    prompt: `Follow the steps at ${absolute(PROMPT_WEB)} to set up the A2UI quickstart web app and explain it to me.`,
+    guide: PROMPT_WEB,
+  },
+  {
+    app: 'Mobile app',
+    stack: 'Python + Flutter',
+    prompt: `Follow the steps at ${absolute(PROMPT_MOBILE)} to set up the A2UI quickstart mobile app and explain it to me.`,
+    guide: PROMPT_MOBILE,
+  },
+];
 
 /** The A2UI documentation, one entry per concept the tour teaches. */
 export const A2UI = {
@@ -51,5 +68,3 @@ export const A2UI = {
   glossary: 'https://a2ui.org/concepts/glossary/',
 };
 
-/** The whole prompt a developer pastes. Everything else is behind the URL. */
-export const bootstrapPrompt = () => `Give me the A2UI quickstart: ${absolute(PROMPT_PATH)}`;

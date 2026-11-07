@@ -8,6 +8,18 @@
         "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
         "components": [
           {
+            "id": "root",
+            "component": "Column",
+            "children": [
+              "title",
+              "name",
+              "email",
+              "seat",
+              "save"
+            ],
+            "align": "stretch"
+          },
+          {
             "id": "title",
             "component": "Text",
             "text": "### Who is travelling?"
@@ -74,18 +86,6 @@
             "id": "save_child",
             "component": "Text",
             "text": "Save traveller"
-          },
-          {
-            "id": "root",
-            "component": "Column",
-            "children": [
-              "title",
-              "name",
-              "email",
-              "seat",
-              "save"
-            ],
-            "align": "stretch"
           }
         ],
         "sendDataModel": true

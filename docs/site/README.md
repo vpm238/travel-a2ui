@@ -34,9 +34,10 @@ absolute URLs, so they must match the deployment.
 
 ## Agent-friendly, concretely
 
-- One line to paste into any coding agent, carrying one URL. Everything the
-  agent needs (the setup steps, what to explain, where each lives in the code) is
-  behind that URL, so it improves without anyone re-copying a prompt.
+- A quickstart button with one prompt per app (web first, then mobile), each one
+  line carrying one URL. Everything the agent needs (the setup steps, what to
+  explain, where each lives in the code) is behind that URL, built from
+  `src/prompts/quickstart.md`, so it improves without anyone re-copying a prompt.
 - Every Markdown page opens with a note for agents pointing at the guide,
   `llms.txt` and `llms-full.txt`, as parallel.ai's docs do.
 - Every page as clean Markdown at its own path plus `.md`, built from the

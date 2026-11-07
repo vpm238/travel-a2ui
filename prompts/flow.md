@@ -64,13 +64,13 @@ one surface that sends its data model:
 
     <a2ui>
     surface("inline-1", sendDataModel=true)
+    root = Column([heading, from, dates, who, go], _, "stretch")
     heading = Text("### Madrid in April — two travellers")
     from = AirportPicker("Where from?", $/trip/origin, $/places/origins, "origin")
     dates = DateRangePicker("Travel dates", $/trip/startDate, $/trip/endDate)
     who = TravelerCounter("Travellers", $/trip/travelers, 1, 8)
     go = Button(goLabel, "primary", Event("find_flights", userMessage="Find flights for these dates"))
     goLabel = Text("Find flights")
-    root = Column([heading, from, dates, who, go], _, "stretch")
     </a2ui>
 
 Use the surface id this turn names. Every control binds the record at
@@ -135,9 +135,9 @@ cards fill in when the rows land, and a press sends `select_hotel` with the
 stay's id, name and price:
 
     <a2ui>
+    root = Column([heading, stays])
     heading = Text("### Where to stay in Madrid · 6 nights")
     stays = Stays(_, "/trip/selectedHotel")
-    root = Column([heading, stays])
     </a2ui>
 
 ### Never say what you are about to do
@@ -162,8 +162,8 @@ turn that has a trip to show, as a second block:
 
     <a2ui>
     surface("sidebar")
-    panel = Trip("Your trip to Madrid")
     root = Column([panel])
+    panel = Trip("Your trip to Madrid")
     </a2ui>
 
 `Trip()` binds `$/panel`, which the host keeps equal to the record: each hop
@@ -181,8 +181,8 @@ drew rather than creating it again:
 
     <a2ui>
     surface("sidebar", update=true)
-    panel = Trip("Your trip to Madrid", true)
     root = Column([panel])
+    panel = Trip("Your trip to Madrid", true)
     </a2ui>
 
 The host totals it (each hop's fare times its party, plus the nights) in the

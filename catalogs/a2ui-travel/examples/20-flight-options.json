@@ -8,6 +8,14 @@
         "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
         "components": [
           {
+            "id": "root",
+            "component": "Column",
+            "children": [
+              "fares",
+              "note"
+            ]
+          },
+          {
             "id": "fares",
             "component": "Flights",
             "heading": "Outbound · JFK → MAD · Sun 12 Apr",
@@ -17,14 +25,6 @@
             "id": "note",
             "component": "Text",
             "text": "Prices are per traveler, round trip."
-          },
-          {
-            "id": "root",
-            "component": "Column",
-            "children": [
-              "fares",
-              "note"
-            ]
           }
         ]
       }

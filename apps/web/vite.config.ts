@@ -9,6 +9,9 @@ export default defineConfig({
     // The Python server serves this directory; source maps make a production bug
     // debuggable without a separate upload step.
     sourcemap: true,
+    // One bundle of React, the A2UI SDK (with its Lit elements) and Markdown:
+    // about 980 kB, 290 kB gzipped, served from the same origin as the API.
+    chunkSizeWarningLimit: 1100,
   },
   server: {
     port: 5173,
