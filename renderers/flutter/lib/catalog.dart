@@ -9,8 +9,8 @@
 //
 // - a basic component (Text, Row, Button, Slider, ...) is `a2ui_flutter`'s own
 //   widget, from `basicCatalog()`;
-// - a basic function (formatString, pluralize, the checks, ...) is
-//   `a2ui_core`'s own;
+// - a basic function (formatString, pluralize, the checks, openUrl, ...) is
+//   `a2ui_core`'s own, with `openUrl` opening links through url_launcher;
 // - a travel component or function is ours, from `components.dart` and
 //   `functions.dart`.
 //
@@ -21,6 +21,7 @@
 import 'package:a2ui_core/a2ui_core.dart';
 import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:a2ui_flutter/basic_catalog.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'components.dart';
 import 'functions.dart';
@@ -28,7 +29,8 @@ import 'functions.dart';
 /// The renderer catalog for a travel catalog document.
 CatalogImplementation travelCatalog(Map<String, Object?> document) {
   final CatalogApi api = Catalog.fromJson(document);
-  final CatalogImplementation basic = basicCatalog();
+  // `openUrl` opens the link in the browser; the SDK runs it only from a press.
+  final CatalogImplementation basic = basicCatalog(openUrl: launchUrl);
 
   final missing = <String>[];
 

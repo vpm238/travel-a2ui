@@ -85,15 +85,16 @@ try {
 
     ok('the sample is there on arrival', (await page.locator('.sample').count()) === 1);
     ok('and nothing covers it', (await page.locator('.gate').count()) === 0);
-    ok(
-      'it says it is a sample',
-      /sample trip/i.test((await page.locator('.sample').textContent()) ?? ''),
-    );
+    ok('it says it is a sample', /sample trip/i.test((await page.locator('.sample').textContent()) ?? ''));
 
     const users = page.locator('.bubble--user');
     const userCount = await users.count();
     const tagged = await page.locator('.bubble--sample').count();
-    ok('every turn in it is marked as the sample', userCount > 0 && tagged === userCount, `${tagged}/${userCount}`);
+    ok(
+      'every turn in it is marked as the sample',
+      userCount > 0 && tagged === userCount,
+      `${tagged}/${userCount}`,
+    );
 
     ok(
       'its cards are drawn',
@@ -101,7 +102,10 @@ try {
       String(await page.locator('.chat__feed .a2-surface').count()),
     );
     ok('so is the panel beside it', (await page.locator('.sidebar__body .a2-surface').count()) === 1);
-    ok('and the panel says it is the sample', /sample/i.test((await page.locator('.sidebar__head').textContent()) ?? ''));
+    ok(
+      'and the panel says it is the sample',
+      /sample/i.test((await page.locator('.sidebar__head').textContent()) ?? ''),
+    );
 
     const presses = await page.locator('.bubble--event p').allTextContents();
     ok(

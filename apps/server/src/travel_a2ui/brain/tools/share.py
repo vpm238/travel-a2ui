@@ -55,9 +55,7 @@ def _share_page(trip: dict[str, Any], note: str, today: str) -> str:
         lines.append("## Getting there")
         for index, leg in enumerate(legs):
             where = f"{leg.get('origin') or '?'} → {leg.get('destination') or '?'}"
-            when = " – ".join(
-                _day_text(part) for part in (leg.get("startDate"), leg.get("endDate")) if part
-            )
+            when = " – ".join(_day_text(part) for part in (leg.get("startDate"), leg.get("endDate")) if part)
             party = leg.get("travelers")
             who = f"{party} traveller{'' if party == 1 else 's'}" if party else ""
             flight = leg.get("selectedFlight")
@@ -83,11 +81,7 @@ def _share_page(trip: dict[str, Any], note: str, today: str) -> str:
         for day in days:
             if not isinstance(day, dict):
                 continue
-            heading = " — ".join(
-                part
-                for part in (day.get("title"), _day_text(day.get("date")))
-                if part
-            )
+            heading = " — ".join(part for part in (day.get("title"), _day_text(day.get("date"))) if part)
             lines.append("")
             lines.append(f"### {heading or 'A day'}")
             if day.get("summary"):
@@ -102,9 +96,7 @@ def _share_page(trip: dict[str, Any], note: str, today: str) -> str:
                 if not isinstance(item, dict):
                     continue
                 when = f"**{item['time']}** " if item.get("time") else ""
-                tail = " · ".join(
-                    part for part in (item.get("duration"), item.get("note")) if part
-                )
+                tail = " · ".join(part for part in (item.get("duration"), item.get("note")) if part)
                 lines.append(f"- {when}{item.get('title', '')}" + (f" — {tail}" if tail else ""))
 
     if trip.get("budget") is not None or trip.get("spent") is not None:

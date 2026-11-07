@@ -6,7 +6,7 @@ publish_to: 'none'
 version: 0.1.0
 
 environment:
-  # `a2ui_flutter` 0.0.1-wip003 requires Dart >=3.10 and Flutter >=3.38.
+  # `a2ui_flutter` 0.1.0 requires Dart >=3.10 and Flutter >=3.38.
   sdk: ^3.10.0
 
 dependencies:
@@ -24,8 +24,15 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   http: ^1.2.0
-  intl: any
-  json_schema_builder: any
+
+  # Markdown in the basic `Text`, as `a2ui_flutter`'s README renders it
+  # (`A2uiMarkdown` over `MarkdownBody`), and links and `openUrl` opened in the
+  # browser.
+  flutter_markdown_plus: ^1.0.7
+  url_launcher: ^6.3.2
+
+  # Removing the `#key=` fragment from the address bar on the web.
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -38,12 +45,9 @@ flutter:
   # Roboto, bundled rather than fetched.
   #
   # Flutter web's default theme asks for Roboto and the engine then downloads it
-  # from `fonts.gstatic.com`, blocking the first frame until it arrives. On a
-  # network that cannot reach Google the page loads, the engine starts, no error
-  # is reported, and nothing ever paints — which is exactly how this was found.
-  #
-  # Naming a font the engine cannot resolve is worse: the layout appears and
-  # every glyph is invisible. So it is bundled. Apache-2.0, the same licence as
+  # from `fonts.gstatic.com`, blocking the first frame until it arrives; on a
+  # network that cannot reach Google nothing ever paints. Naming a font the
+  # engine cannot resolve is worse: every glyph is invisible. So it is bundled. Apache-2.0, the same licence as
   # this project, and 340 KB against a 40 MB engine.
   fonts:
     - family: Roboto

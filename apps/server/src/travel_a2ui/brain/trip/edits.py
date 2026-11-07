@@ -10,11 +10,12 @@ attached to a city nobody is visiting.
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, Iterable, Sequence
 
-from .fields import Trip, _LEG_KEY
+from .fields import _LEG_KEY, Trip
 from .route import _legs_of
 from .values import coerce
+
 
 def normalize(value: Any) -> Trip:
     """Everything in `value` that belongs to a trip, in the shape a trip wants."""

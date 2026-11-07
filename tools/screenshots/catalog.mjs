@@ -281,9 +281,7 @@ async function main() {
         captured.push({
           name: preview.name,
           express: preview.express,
-          description: (catalog.components?.[preview.name]?.description ?? '')
-            .replace(/\s+/g, ' ')
-            .trim(),
+          description: (catalog.components?.[preview.name]?.description ?? '').replace(/\s+/g, ' ').trim(),
         });
       }
     }

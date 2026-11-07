@@ -25,7 +25,8 @@ const CATALOG = 'https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json';
 describe('a whole recorded conversation', () => {
   const surfaces = new Surfaces();
   for (const turn of sample.turns) {
-    for (const event of turn.events) if (event.type === 'ui' && event.messages) surfaces.apply(event.messages);
+    for (const event of turn.events)
+      if (event.type === 'ui' && event.messages) surfaces.apply(event.messages);
   }
 
   it('is accepted, every message of it', () => {
@@ -46,7 +47,12 @@ describe('a whole recorded conversation', () => {
       }
     }
     expect(created.size).toBeGreaterThan(0);
-    expect(surfaces.ids().filter((id) => id.startsWith('sample-inline-')).sort()).toEqual([...created].sort());
+    expect(
+      surfaces
+        .ids()
+        .filter((id) => id.startsWith('sample-inline-'))
+        .sort(),
+    ).toEqual([...created].sort());
     expect(surfaces.has('sidebar')).toBe(true);
   });
 
@@ -97,7 +103,7 @@ describe('the adapter', () => {
     },
   ]);
 
-  it("reads a component as the agent wrote it, for naming a press", () => {
+  it('reads a component as the agent wrote it, for naming a press', () => {
     expect(surfaces.component('inline-1', 'face')).toMatchObject({ component: 'Text', text: 'Send' });
   });
 
@@ -137,7 +143,9 @@ describe('the adapter', () => {
     };
     expect(metadata.a2uiRendererCapabilities['1.0']!.supportedCatalogIds).toContain(CATALOG);
     expect(metadata.a2uiRendererDataModel.version).toBe('1.0');
-    expect(metadata.a2uiRendererDataModel.surfaces['inline-1']).toEqual({ trip: { origin: 'JFK', travelers: 2 } });
+    expect(metadata.a2uiRendererDataModel.surfaces['inline-1']).toEqual({
+      trip: { origin: 'JFK', travelers: 2 },
+    });
     // A surface that did not ask (sendDataModel) is not reported.
     expect(metadata.a2uiRendererDataModel.surfaces['inline-2']).toBeUndefined();
   });

@@ -82,17 +82,15 @@ export function Sidebar({ agent }: { agent: Agent }) {
       ) : (
         <div className="sidebar__placeholder">
           <p>
-            What you have settled, as you settle it — the route, the flight, where you are
-            staying, what it comes to. Read-only on purpose: changing something sends it back
-            to the conversation, pre-filled, so there is one place to decide and one record of
-            when you did.
+            What you have settled, as you settle it — the route, the flight, where you are staying, what it
+            comes to. Read-only on purpose: changing something sends it back to the conversation, pre-filled,
+            so there is one place to decide and one record of when you did.
           </p>
           <button type="button" className="button" onClick={build} disabled={agent.busy}>
             Build the panel
           </button>
         </div>
       )}
-
     </aside>
   );
 }

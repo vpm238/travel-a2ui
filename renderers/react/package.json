@@ -1,7 +1,7 @@
 {
   "name": "@travel-a2ui/renderer",
   "version": "0.1.0",
-  "description": "The travel catalog for the A2UI SDK renderers: fourteen travel components, two functions, and the theme.",
+  "description": "The travel catalog for the A2UI SDK renderers: fifteen travel components, two functions, and the theme.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -19,7 +19,9 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "clean": "rm -rf dist *.tsbuildinfo"
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "typecheck": "tsc -b",
+    "test": "vitest run --root ../.. renderers/react/test"
   },
   "dependencies": {
     "@a2ui/react": "^0.15.0",

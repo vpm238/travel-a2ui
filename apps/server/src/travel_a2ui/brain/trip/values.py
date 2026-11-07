@@ -26,15 +26,16 @@ import re
 from typing import Any
 
 from .fields import (
+    _CODE,
+    _DATE_ONLY,
+    _LEADING_NUMBER,
     BY_KEY,
     LIST_KINDS,
     STAGES,
     Leg,
     _blank,
-    _CODE,
-    _DATE_ONLY,
-    _LEADING_NUMBER,
 )
+
 
 def _js_round(value: float) -> int:
     """`Math.round`: halves go toward positive infinity.
@@ -271,9 +272,7 @@ def coerce(key: str, value: Any) -> Any:
     if kind == "fields":
         entries = value if isinstance(value, list) else [value]
         named = [str(entry).strip() for entry in entries]
-        kept = list(
-            dict.fromkeys(entry for entry in named if entry in BY_KEY and entry != "assumed")
-        )
+        kept = list(dict.fromkeys(entry for entry in named if entry in BY_KEY and entry != "assumed"))
         return kept or None
 
     if kind == "legs":

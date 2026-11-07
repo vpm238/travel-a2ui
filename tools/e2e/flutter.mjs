@@ -59,9 +59,7 @@ const readable = () =>
   page.evaluate(() =>
     [
       document.body.innerText,
-      ...[...document.querySelectorAll('[aria-label]')].map((el) =>
-        el.getAttribute('aria-label'),
-      ),
+      ...[...document.querySelectorAll('[aria-label]')].map((el) => el.getAttribute('aria-label')),
     ].join('\n'),
   );
 
@@ -136,7 +134,11 @@ try {
       .first()
       .evaluate((el) => el.getAttribute('aria-label') ?? '')
       .catch(() => '');
-  check((await hint()).includes('Where are you going'), 'the composer starts by asking where to', await hint());
+  check(
+    (await hint()).includes('Where are you going'),
+    'the composer starts by asking where to',
+    await hint(),
+  );
   await field.click({ timeout: 30_000 });
   await field.fill('flights to Madrid');
   await page.keyboard.press('Enter');
@@ -212,11 +214,18 @@ try {
     await tripBar.click({ timeout: 10_000 });
     await page.waitForTimeout(1500);
     const sheet = await readable();
-    check(sheet.includes('Your trip to Madrid'), 'the bar opens the agent\'s trip panel', sheet.slice(-400));
+    check(sheet.includes('Your trip to Madrid'), "the bar opens the agent's trip panel", sheet.slice(-400));
     // In the sheet itself: what follows the modal barrier, which hides the feed.
     const panel = sheet.split('Dismiss').at(-1) ?? '';
-    check(Boolean(pressed) && panel.includes(pressed), `and the chosen flight (${pressed}) is in it`, panel.slice(-400));
-    check(!/\$\d/.test(sheet.split('Your trip to Madrid').at(-1) ?? ''), 'in the trip\'s currency, not dollars');
+    check(
+      Boolean(pressed) && panel.includes(pressed),
+      `and the chosen flight (${pressed}) is in it`,
+      panel.slice(-400),
+    );
+    check(
+      !/\$\d/.test(sheet.split('Your trip to Madrid').at(-1) ?? ''),
+      "in the trip's currency, not dollars",
+    );
   }
 
   if (screenshot) {

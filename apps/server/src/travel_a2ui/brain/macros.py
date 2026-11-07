@@ -25,8 +25,10 @@ from a2ui.builder.v1_0 import (
     ComponentBuilderNode,
     DataBinding,
     DynamicChildList,
-    List as ListOf,
     Text,
+)
+from a2ui.builder.v1_0 import (
+    List as ListOf,
 )
 from a2ui.transformers import MacroExpander, macro
 
@@ -365,7 +367,9 @@ def booked(heading: str = "") -> Column:
         flightNumber=bind("flightNumber"),
         selected=True,
         action=_event("change", {"what": "flight", "hop": bind("hop")}),
-        accessibility={"label": formatted("${route}: ${airline} ${flightNumber}, ${departTime} to ${arriveTime}, ${price}")},
+        accessibility={
+            "label": formatted("${route}: ${airline} ${flightNumber}, ${departTime} to ${arriveTime}, ${price}")
+        },
     )
     return _titled(heading, ListOf(children=DynamicChildList(path="/booked", template=fare)))
 

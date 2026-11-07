@@ -18,6 +18,7 @@ from typing import Any
 from .fields import Leg, Trip
 from .values import _days_between, _to_date
 
+
 def _legs_of(trip: Trip) -> list[dict[str, Any]]:
     """The legs, as a list of dicts, whatever the trip actually holds."""
     legs = trip.get("legs")
@@ -53,9 +54,7 @@ def stops(trip: Trip) -> list[Leg]:
         # its position, exactly as a JavaScript spread does — and skipped when
         # there is no value, because `JSON.stringify` drops `undefined` and the
         # golden compares serialised JSON.
-        origin = leg.get("origin") or (
-            all_legs[index - 1]["destination"] if index > 0 else trip.get("origin")
-        )
+        origin = leg.get("origin") or (all_legs[index - 1]["destination"] if index > 0 else trip.get("origin"))
         if origin is not None:
             out["origin"] = origin
         travelers = leg.get("travelers") if leg.get("travelers") is not None else trip.get("travelers")
@@ -150,9 +149,7 @@ def _planned_days(trip: Trip, leg: Leg) -> int:
     return sum(
         1
         for day in (trip.get("days") or [])
-        if isinstance(day, dict)
-        and isinstance(day.get("date"), str)
-        and start <= day["date"] <= end
+        if isinstance(day, dict) and isinstance(day.get("date"), str) and start <= day["date"] <= end
     )
 
 

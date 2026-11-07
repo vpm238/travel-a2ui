@@ -9,26 +9,21 @@ dependencies = [
   # reads what the model writes, the macro expander, the renderer state that
   # validates every outbound message, and the skill generator.
   #
-  # Pinned exactly, both, because they are pre-1.0 and release together: an
-  # open range makes every image build an upgrade nobody reviewed, and
-  # `a2ui-core` is a transitive dependency that has changed public APIs
-  # between minor versions before. Bump them together, deliberately.
+  # Pinned exactly, both: they are pre-1.0 and release together, so an open
+  # range would make every image build an unreviewed upgrade. Bump them
+  # together.
   "a2ui-agent-sdk==0.10.0",
   "a2ui-core==0.5.0",
   # Both Gemini surfaces this app uses: `client.interactions` for the typed
   # loop, `client.aio.live` for voice. Capped rather than pinned: these keep
   # compatibility across a minor, and a cap still takes security fixes.
   "google-genai>=2.25.0,<3",
-  # Not 0.142, and the ceiling is load-bearing: FastAPI 0.142 wants
-  # `opentelemetry-api>=1.44`, while `google-adk` — which arrives under
-  # `a2ui-agent-sdk` — still caps it at `<=1.42.1`. Taking the newer FastAPI
-  # makes the dependency set unresolvable. Raise this when adk's cap moves.
-  "fastapi>=0.115,<0.142",
+  "fastapi>=0.115,<1",
   "uvicorn[standard]>=0.54,<1",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-asyncio>=0.24", "httpx>=0.27"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "httpx>=0.27", "ruff==0.17.4"]
 
 [build-system]
 requires = ["hatchling"]

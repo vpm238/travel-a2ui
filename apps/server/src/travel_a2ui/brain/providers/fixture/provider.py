@@ -9,11 +9,10 @@ is in `numbers`, everything it needs to be *plausible* is in `routes` and
 from __future__ import annotations
 
 import math
-
 from datetime import date, timedelta
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
-from ..types import Found, Outcome, found, not_found
+from ..types import Outcome, found, not_found
 from .numbers import (
     _clock,
     _duration_minutes,
@@ -27,16 +26,17 @@ from .numbers import (
 from .places import _resolve, _unknown_destination
 from .routes import _carriers_for, _distance_km
 from .tables import (
-    FIXTURE_PROVENANCE,
     _AIRLINES,
     _AMENITIES,
     _DESTINATION_LIST,
-    _HOTELS,
     _HOTEL_NAMES,
     _HOTEL_WORDS,
+    _HOTELS,
     _ORIGINS,
+    FIXTURE_PROVENANCE,
     _fold,
 )
+
 
 def _relax_until_non_empty(
     all_items: Sequence[dict[str, Any]],
@@ -90,9 +90,7 @@ class FixtureProvider:
             # city, but not by pretending to have one. The sample is named.
             stand_in = _ORIGINS[0]
             origin = stand_in["code"]
-            sampled.append(
-                f"no departure city — sampled from {stand_in['city']} ({stand_in['code']})"
-            )
+            sampled.append(f"no departure city — sampled from {stand_in['city']} ({stand_in['code']})")
 
         when = query.get("date") or ""
         cabin = query.get("cabin") or "economy"
@@ -117,7 +115,6 @@ class FixtureProvider:
         # provider is handed one hop and cannot tell a Copenhagen–Berlin
         # outbound from the Berlin–Copenhagen return. Unset means dollars.
         fare_currency = str(query.get("currency") or "USD")
-
 
         # Carriers that actually fly this route, and how — see `_carriers_for`.
         # An empty pool means a route between airports we have no geography for,
@@ -146,11 +143,7 @@ class FixtureProvider:
             # connects; one that can connects only when the dice say so and it
             # has a hub on the way.
             wants_stop = index == 4 or random() < 0.28
-            hub = (
-                _pick(airline["via"], random)
-                if airline["via"] and (wants_stop or not airline["nonstop"])
-                else None
-            )
+            hub = _pick(airline["via"], random) if airline["via"] and (wants_stop or not airline["nonstop"]) else None
             stops = hub is not None
             depart = math.floor(6 * 60 + random() * 15 * 60)
 
@@ -191,9 +184,7 @@ class FixtureProvider:
         filters: list[tuple[str, Callable[[dict[str, Any]], bool]]] = []
         if query.get("maxPrice"):
             cap = query["maxPrice"]
-            filters.append(
-                (f"the {_money(cap, 'USD')} cap", lambda flight: flight["priceValue"] <= cap)
-            )
+            filters.append((f"the {_money(cap, 'USD')} cap", lambda flight: flight["priceValue"] <= cap))
         if query.get("nonstopOnly"):
             filters.append(("nonstop only", lambda flight: flight["stops"] == "Nonstop"))
 
@@ -227,7 +218,6 @@ class FixtureProvider:
         destination = _resolve(query.get("destination") or "")
         if not destination:
             return _unknown_destination(query.get("destination") or "")
-
 
         code = destination["airport"]
         currency = destination["currency"]
@@ -276,8 +266,7 @@ class FixtureProvider:
                     (
                         f"being near {neighborhood}",
                         lambda hotel: any(
-                            wanted in place or place in wanted
-                            for place in places.get(hotel["id"], set())
+                            wanted in place or place in wanted for place in places.get(hotel["id"], set())
                         ),
                     )
                 )
@@ -357,9 +346,7 @@ class FixtureProvider:
 
         return found(shown, FIXTURE_PROVENANCE, note, relaxed, currency)
 
-    async def get_weather(
-        self, destination: str, start_date: str | None = None, days: int = 5
-    ) -> Outcome:
+    async def get_weather(self, destination: str, start_date: str | None = None, days: int = 5) -> Outcome:
         resolved = _resolve(destination)
         if not resolved:
             return _unknown_destination(destination)
@@ -391,11 +378,7 @@ class FixtureProvider:
             )
 
         wet = sum(1 for entry in forecast if entry["condition"] == "rain")
-        note = (
-            "Rain on more than one day — pack a shell."
-            if wet > 1
-            else "Mostly dry; a light jacket is enough."
-        )
+        note = "Rain on more than one day — pack a shell." if wet > 1 else "Mostly dry; a light jacket is enough."
 
         return found(
             [{"place": resolved["city"], "days": forecast, "note": note}],

@@ -20,9 +20,34 @@
 
 import 'package:a2ui_core/a2ui_core.dart';
 import 'package:a2ui_flutter/a2ui_flutter.dart';
+import 'package:a2ui_flutter/basic_catalog.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'api.dart';
+
+/// A surface, with the Markdown in its `Text` rendered, as the web client does.
+///
+/// The basic `Text` hands its Markdown to the nearest `A2uiMarkdown`; without
+/// one, headings and emphasis show as plain text.
+class TravelSurface extends StatelessWidget {
+  const TravelSurface({super.key, required this.surface});
+
+  final SurfaceModel<ComponentImplementation> surface;
+
+  static Widget _markdown(BuildContext context, String markdown, TextStyle style) => MarkdownBody(
+        data: markdown,
+        onTapLink: (_, href, _) {
+          final uri = href == null ? null : Uri.tryParse(href);
+          if (uri != null) launchUrl(uri).ignore();
+        },
+        styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(p: style),
+      );
+
+  @override
+  Widget build(BuildContext context) => A2uiMarkdown(builder: _markdown, child: A2uiSurface(surface: surface));
+}
 
 /// One thing in the feed.
 sealed class Part {}
@@ -107,9 +132,14 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     // Which surfaces exist is the SDK's to say: a card joins the conversation
     // when it is created and leaves when it is deleted.
-    _processor.model.onSurfaceCreated.subscribe((surface) => _created(surface.id));
-    _processor.model.onSurfaceDeleted.subscribe(_deleted);
+    _subscriptions.addAll([
+      _processor.model.onSurfaceCreated.subscribe((surface) => _created(surface.id)),
+      _processor.model.onSurfaceDeleted.subscribe(_deleted),
+    ]);
   }
+
+  /// What this screen subscribed to on the processor, undone on dispose.
+  final _subscriptions = <Subscription>[];
 
   void _report(ErrorMessage error) {
     _unsentErrors.add(error.toJson());
@@ -151,6 +181,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    for (final subscription in _subscriptions) {
+      subscription.unsubscribe();
+    }
+    _processor.dispose();
     _composer.dispose();
     _scroll.dispose();
     super.dispose();
@@ -295,7 +329,7 @@ class _ChatScreenState extends State<ChatScreen> {
         builder: (context, scroll) => ListView(
           controller: scroll,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: [A2uiSurface(surface: panel)],
+          children: [TravelSurface(surface: panel)],
         ),
       ),
     );
@@ -446,7 +480,7 @@ class _ChatScreenState extends State<ChatScreen> {
         border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: A2uiSurface(surface: surface),
+      child: TravelSurface(surface: surface),
     );
 
     if (!spent) return card;

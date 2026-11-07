@@ -30,7 +30,9 @@ const present = (value: unknown): value is string | number =>
 function valuesOf(accessibility: unknown): Record<string, unknown> {
   if (!accessibility || typeof accessibility !== 'object') return {};
   return Object.fromEntries(
-    Object.entries(accessibility as Record<string, unknown>).filter(([, value]) => typeof value !== 'function'),
+    Object.entries(accessibility as Record<string, unknown>).filter(
+      ([, value]) => typeof value !== 'function',
+    ),
   );
 }
 

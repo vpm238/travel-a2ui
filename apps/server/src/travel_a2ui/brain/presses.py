@@ -21,7 +21,6 @@ from typing import Any
 from . import trip as model
 from .ui import STANDING_SURFACES
 
-
 #: What a `change` on a panel card re-opens, by the card's `what`.
 _CHANGED = {"flight": "selectedFlight", "stay": "selectedHotel"}
 
@@ -58,9 +57,7 @@ def _leg_pressed(context: dict[str, Any] | None) -> int | None:
     return None
 
 
-async def stop_of_fare(
-    context: dict[str, Any] | None, trip: dict[str, Any], provider: Any
-) -> int | None:
+async def stop_of_fare(context: dict[str, Any] | None, trip: dict[str, Any], provider: Any) -> int | None:
     """Which stop of the route a pressed fare flies, read off the fare itself.
 
     0 is the first hop, whose choices are the trip's own fields; stop N is
@@ -95,18 +92,14 @@ async def stop_of_fare(
                 except Exception:  # noqa: BLE001 - an unresolvable place is just unmatched
                     found = None
                 if isinstance(found, dict):
-                    out |= {
-                        str(found.get(key) or "").strip().casefold()
-                        for key in ("airport", "city")
-                    } - {""}
+                    out |= {str(found.get(key) or "").strip().casefold() for key in ("airport", "city")} - {""}
             names[said] = out
         return names[said]
 
     matched = [
         index
         for index, stop in enumerate(model.stops(trip))
-        if flies_from in await known_as(stop.get("origin"))
-        and flies_to in await known_as(stop.get("destination"))
+        if flies_from in await known_as(stop.get("origin")) and flies_to in await known_as(stop.get("destination"))
     ]
     return matched[0] if len(matched) == 1 else None
 
@@ -281,7 +274,7 @@ def describe_action(action: Any, leg: Any = _FROM_CONTEXT) -> str:
     where = action.surface_id
     words = getattr(action, "user_message", None)
     if words:
-        said = f"{said} — in their words: \"{words}\""
+        said = f'{said} — in their words: "{words}"'
 
     # A panel is a record, not a form. An interaction there is a request to
     # re-open a decision in the conversation, where there is one place to edit
@@ -380,11 +373,7 @@ async def complete_chosen_flights(trip: dict[str, Any], provider: Any) -> dict[s
         fares = [item for item in getattr(found, "items", None) or [] if isinstance(item, dict)]
         # By id, and by flight number for a model that saved "Air France AF242".
         fare = next((item for item in fares if str(item.get("id")) == chosen), None) or next(
-            (
-                item
-                for item in fares
-                if item.get("flightNumber") and str(item["flightNumber"]) in chosen
-            ),
+            (item for item in fares if item.get("flightNumber") and str(item["flightNumber"]) in chosen),
             None,
         )
         if fare is None:

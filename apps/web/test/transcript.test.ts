@@ -51,7 +51,12 @@ describe('a press in the transcript', () => {
       accessibility: { label: 'Iberia IB6250, 18:40 JFK to 08:15 next day MAD, $412' },
     });
     const line = describeForTranscript(
-      { name: 'select_flight', surfaceId: 's', sourceComponentId: 'fare-1', context: { flight: 'IB6250', seats: 2 } },
+      {
+        name: 'select_flight',
+        surfaceId: 's',
+        sourceComponentId: 'fare-1',
+        context: { flight: 'IB6250', seats: 2 },
+      },
       lookup,
     );
     // The flight number is already in the label, so it is not said twice.
@@ -66,7 +71,13 @@ describe('a press in the transcript', () => {
       { id: 'words', component: 'Text', text: { '@path': '/cta' } },
     );
     const line = describeForTranscript(
-      { name: 'search', surfaceId: 's', sourceComponentId: 'go', context: {}, dataModel: { cta: 'Find flights' } },
+      {
+        name: 'search',
+        surfaceId: 's',
+        sourceComponentId: 'go',
+        context: {},
+        dataModel: { cta: 'Find flights' },
+      },
       lookup,
     );
     expect(line).toBe('Find flights');
@@ -83,9 +94,9 @@ describe('a press in the transcript', () => {
       { id: 'a', component: 'Button', child: 'b' },
       { id: 'b', component: 'Row', children: ['a'] },
     );
-    expect(describeForTranscript({ name: 'go', surfaceId: 's', sourceComponentId: 'a', context: {} }, lookup)).toBe(
-      'Go',
-    );
+    expect(
+      describeForTranscript({ name: 'go', surfaceId: 's', sourceComponentId: 'a', context: {} }, lookup),
+    ).toBe('Go');
   });
 });
 

@@ -13,11 +13,21 @@
  * and a day look like.
  */
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 
 import { monthLabel, monthsFor, parseCivil, toIso, weekStartFor, weekdayLetters } from '../calendar.js';
 import { Icon, hasIcon } from './icons.js';
 import { ariaFrom } from '../accessibility.js';
+import { MapsKeyContext } from '../maps.js';
 
 // The binder's prop types are inferred from schemas loaded at runtime, so they
 // are `any` by construction. Reading them through these helpers keeps the
@@ -32,10 +42,13 @@ export interface ViewProps {
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(' ');
 const text = (value: unknown): string => (value === null || value === undefined ? '' : String(value));
 const rows = (value: unknown): Props[] =>
-  Array.isArray(value) ? value.filter((item): item is Props => Boolean(item) && typeof item === 'object') : [];
+  Array.isArray(value)
+    ? value.filter((item): item is Props => Boolean(item) && typeof item === 'object')
+    : [];
 
 /** A field that has not arrived: the binder resolves an unfilled binding to `undefined`. */
 const isPending = (value: unknown) => value === undefined;
+const isAction = (value: unknown): value is () => unknown => typeof value === 'function';
 
 /**
  * Bound text, or a shimmer of roughly its size while its row is on its way.
@@ -52,6 +65,26 @@ function Field({ value, width, waiting }: { value: unknown; width?: number; wait
 /** What assistive technology is told: the standard `accessibility` block (`ariaFrom`). */
 function aria(props: Props, role?: string) {
   return { ...(role ? { role } : {}), ...ariaFrom(props['accessibility']) };
+}
+
+/**
+ * The root of a view: what assistive technology is told, and the `weight` a
+ * Row or Column gives it.
+ *
+ * The SDK hosts each view in an element with `display: contents`, so the
+ * view's own root is the flex item, and `weight` is its `flex-grow`, as the
+ * SDK's basic components apply it.
+ */
+function frame(props: Props, role?: string, style?: CSSProperties) {
+  const weight = typeof props['weight'] === 'number' ? props['weight'] : undefined;
+  const merged = weight === undefined ? style : { ...style, flexGrow: weight, minWidth: 0 };
+  return { ...aria(props, role), ...(merged ? { style: merged } : {}) };
+}
+
+/** Whether a chosen card says so: `aria-pressed` on one that is a control, else `aria-current`. */
+function chosen(selected: boolean, pressed: boolean) {
+  if (!selected) return pressed ? { 'aria-pressed': false } : {};
+  return pressed ? { 'aria-pressed': true } : { 'aria-current': true as const };
 }
 
 /** Click and Enter/Space for a card that is itself the control. */
@@ -128,8 +161,9 @@ export function FlightOption({ props }: ViewProps) {
     <article
       className={cx('tv-fare', selected && 'is-selected', pending && 'is-awaiting')}
       aria-busy={pending || undefined}
-      {...aria(props, 'group')}
+      {...frame(props, 'group')}
       {...pressable(props['action'], !pending)}
+      {...chosen(selected, isAction(props['action']) && !pending)}
     >
       <div className="tv-fare__carrier">
         <span className="tv-fare__mark" style={{ ['--mark-hue' as string]: String(hue) }} aria-hidden>
@@ -167,7 +201,11 @@ export function FlightOption({ props }: ViewProps) {
         </div>
         <div className="tv-fare__end">
           <strong className="tv-time">
-            {isPending(props['arriveTime']) ? <Field value={undefined} width={52} waiting={pending} /> : arrive}
+            {isPending(props['arriveTime']) ? (
+              <Field value={undefined} width={52} waiting={pending} />
+            ) : (
+              arrive
+            )}
             {offset ? <sup>{offset}</sup> : null}
           </strong>
           <span className="tv-code">
@@ -215,7 +253,13 @@ function Skyline({ name }: { name: string }) {
         <circle cx={118 - (seed % 80)} cy="15" r="7" className="tv-art__sun" />
         {towers.map((tower) => (
           <g key={tower.x}>
-            <rect x={tower.x} y={62 - tower.height} width={tower.width} height={tower.height} className="tv-art__tower" />
+            <rect
+              x={tower.x}
+              y={62 - tower.height}
+              width={tower.width}
+              height={tower.height}
+              className="tv-art__tower"
+            />
             {Array.from({ length: Math.floor(tower.height / 10) }, (_, row) => (
               <rect
                 key={row}
@@ -251,8 +295,9 @@ export function HotelCard({ props }: ViewProps) {
     <article
       className={cx('tv-stay', selected && 'is-selected', pending && 'is-awaiting')}
       aria-busy={pending || undefined}
-      {...aria(props, 'group')}
+      {...frame(props, 'group')}
       {...pressable(props['action'], !pending)}
+      {...chosen(selected, isAction(props['action']) && !pending)}
     >
       <div className="tv-stay__media">
         {SAFE_IMAGE.test(image) ? <img src={image} alt="" loading="lazy" /> : <Skyline name={name} />}
@@ -298,15 +343,28 @@ export function HotelCard({ props }: ViewProps) {
 
 export function ItineraryDay({ props, buildChild }: ViewProps) {
   const children = Array.isArray(props['children']) ? props['children'] : [];
-  const add = typeof props['onAdd'] === 'function' ? (props['onAdd'] as () => unknown) : null;
+  const add = isAction(props['onAdd']) ? props['onAdd'] : null;
+  const open = isAction(props['action']) ? props['action'] : null;
+  const title = text(props['title']);
   return (
-    <section className="tv-day" {...aria(props, 'group')}>
+    <section className="tv-day" {...frame(props, 'group')}>
       <header className="tv-day__head">
         <div>
-          <h3>{text(props['title'])}</h3>
+          <h3>{title}</h3>
           {props['summary'] ? <p>{text(props['summary'])}</p> : null}
         </div>
         {props['date'] ? <span className="tv-day__date">{text(props['date'])}</span> : null}
+        {/* The whole day's own control: a heading cannot sit inside a button. */}
+        {open ? (
+          <button
+            type="button"
+            className="tv-ghost tv-day__edit"
+            aria-label={`Edit ${title || 'this day'}`}
+            onClick={() => void open()}
+          >
+            Edit day
+          </button>
+        ) : null}
       </header>
       <div className="tv-day__timeline">
         {children.map((child: string | { id: string; basePath?: string }) =>
@@ -330,30 +388,40 @@ export function ActivityItem({ props }: ViewProps) {
   const category = text(props['category']) || 'sight';
   const done = props['done'] === true;
   const meta = [text(props['location']), text(props['duration'])].filter(Boolean).join(' · ');
-  const remove = typeof props['onRemove'] === 'function' ? (props['onRemove'] as () => unknown) : null;
+  const remove = isAction(props['onRemove']) ? props['onRemove'] : null;
+  const open = isAction(props['action']) ? props['action'] : null;
   const title = text(props['title']);
-  return (
-    <div className={cx('tv-activity', done && 'is-done')} {...aria(props, 'group')} {...pressable(props['action'])}>
+  const content = (
+    <>
       <span className="tv-activity__time">{text(props['time'])}</span>
       <span className={`tv-activity__dot tv-cat--${category}`} aria-hidden>
         <Icon name={hasIcon(category) ? category : 'pin'} />
       </span>
-      <div className="tv-activity__body">
+      <span className="tv-activity__body">
         <strong>{title}</strong>
         {meta ? <span className="tv-activity__meta">{meta}</span> : null}
         {props['note'] ? <em className="tv-activity__note">{text(props['note'])}</em> : null}
-      </div>
-      {/* Its own button, never the row's: "tell me more" and "get rid of it"
-          sharing one gesture is how a plan loses a museum nobody meant to lose. */}
+      </span>
+    </>
+  );
+  return (
+    <div className={cx('tv-activity', done && 'is-done')} {...frame(props, 'group')}>
+      {/* Two sibling controls, never one inside the other: "tell me more" and
+          "get rid of it" sharing one gesture is how a plan loses a museum
+          nobody meant to lose. */}
+      {open ? (
+        <button type="button" className="tv-activity__main" onClick={() => void open()}>
+          {content}
+        </button>
+      ) : (
+        <div className="tv-activity__main">{content}</div>
+      )}
       {remove ? (
         <button
           type="button"
           className="tv-activity__remove"
           aria-label={`Remove ${title}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            void remove();
-          }}
+          onClick={() => void remove()}
         >
           <Icon name="close" />
         </button>
@@ -368,7 +436,7 @@ export function PriceSummary({ props }: ViewProps) {
   const lines = rows(props['lines']);
   const act = typeof props['action'] === 'function' ? (props['action'] as () => unknown) : null;
   return (
-    <div className="tv-receipt" {...aria(props, 'group')}>
+    <div className="tv-receipt" {...frame(props, 'group')}>
       <ul className="tv-receipt__lines">
         {lines.map((line, index) => (
           <li key={index}>
@@ -399,7 +467,7 @@ export function ExpenseSplit({ props }: ViewProps) {
   const people = rows(props['participants']);
   const act = typeof props['action'] === 'function' ? (props['action'] as () => unknown) : null;
   return (
-    <div className="tv-split" {...aria(props, 'group')}>
+    <div className="tv-split" {...frame(props, 'group')}>
       <div className="tv-split__head">
         <strong>{text(props['title'])}</strong>
         <span className="tv-money">{text(props['total'])}</span>
@@ -410,7 +478,11 @@ export function ExpenseSplit({ props }: ViewProps) {
           const name = text(person['name']);
           return (
             <li key={index}>
-              <span className="tv-avatar" style={{ ['--mark-hue' as string]: String(MARK_HUES[seedOf(name) % MARK_HUES.length]) }} aria-hidden>
+              <span
+                className="tv-avatar"
+                style={{ ['--mark-hue' as string]: String(MARK_HUES[seedOf(name) % MARK_HUES.length]) }}
+                aria-hidden
+              >
                 {name.slice(0, 1).toUpperCase()}
               </span>
               <span className="tv-split__name">{name}</span>
@@ -432,7 +504,11 @@ export function ExpenseSplit({ props }: ViewProps) {
 export function StatTile({ props }: ViewProps) {
   const tone = text(props['tone']) || 'neutral';
   return (
-    <div className={cx('tv-stat', `tv-tone--${tone}`)} {...aria(props, 'group')} {...pressable(props['action'])}>
+    <div
+      className={cx('tv-stat', `tv-tone--${tone}`)}
+      {...frame(props, 'group')}
+      {...pressable(props['action'])}
+    >
       <span className="tv-stat__label">{text(props['label'])}</span>
       <strong className="tv-stat__value">
         <Field value={props['value']} width={56} waiting />
@@ -448,12 +524,20 @@ export function ProgressMeter({ props }: ViewProps) {
   const tone = text(props['tone']) || (max > 0 && value > max ? 'critical' : 'accent');
   const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
   return (
-    <div className={cx('tv-meter', `tv-tone--${tone}`)} {...aria(props, 'group')}>
+    <div className={cx('tv-meter', `tv-tone--${tone}`)} {...frame(props, 'group')}>
       <div className="tv-meter__head">
         <span>{text(props['label'])}</span>
         {props['caption'] ? <em>{text(props['caption'])}</em> : null}
       </div>
-      <div className="tv-meter__track" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={max}>
+      <div
+        className="tv-meter__track"
+        role="progressbar"
+        aria-label={text(props['label']) || 'Progress'}
+        aria-valuetext={text(props['caption']) || undefined}
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={max}
+      >
         <span className="tv-meter__fill" style={{ width: `${pct}%` }} />
       </div>
     </div>
@@ -462,20 +546,63 @@ export function ProgressMeter({ props }: ViewProps) {
 
 // ---------------------------------------------------------------- inputs
 
+/** The validation errors a field shows, linked to its inputs by id. */
+function useErrors(props: Props) {
+  const id = useId();
+  const errors: string[] = Array.isArray(props['validationErrors'])
+    ? props['validationErrors'].map(text)
+    : [];
+  const invalid = errors.length > 0;
+  return {
+    invalid,
+    describe: invalid ? { 'aria-invalid': true as const, 'aria-describedby': id } : {},
+    list: invalid ? (
+      <span id={id} className="tv-field__errors">
+        {errors.map((error, index) => (
+          <span key={index} className="tv-field__error">
+            {error}
+          </span>
+        ))}
+      </span>
+    ) : null,
+  };
+}
+
 export function DateRangePicker({ props }: ViewProps) {
   const start = text(props['start']).slice(0, 10);
   const end = text(props['end']).slice(0, 10);
   const setStart = typeof props['setStart'] === 'function' ? props['setStart'] : null;
   const setEnd = typeof props['setEnd'] === 'function' ? props['setEnd'] : null;
-  const errors: string[] = Array.isArray(props['validationErrors']) ? props['validationErrors'] : [];
+  const errors = useErrors(props);
+  const commit = isAction(props['action']) ? props['action'] : null;
+
+  // `action` is "fired when the traveler commits a new range": once an edit
+  // has landed in the data model and both ends are set, so whatever the event
+  // carries reads the range the traveller now sees.
+  const edited = useRef(false);
+  useEffect(() => {
+    if (!edited.current || !commit || !start || !end || end < start) return;
+    edited.current = false;
+    void commit();
+  }, [start, end, commit]);
+  const edit = (set: ((value: string) => void) | null, value: string) => {
+    edited.current = true;
+    set?.(value);
+  };
+
   return (
-    <div className={cx('tv-field', errors.length > 0 && 'is-invalid')} {...aria(props, 'group')}>
+    <div className={cx('tv-field', errors.invalid && 'is-invalid')} {...frame(props, 'group')}>
       <span className="tv-field__label">{text(props['label'])}</span>
       <div className="tv-dates">
         {/* Calendar dates, as the catalog says: a trip day is a day. */}
         <label className="tv-dates__half">
           <span>Depart</span>
-          <input type="date" value={start} onChange={(event) => setStart?.(event.target.value)} />
+          <input
+            type="date"
+            value={start}
+            {...errors.describe}
+            onChange={(event) => edit(setStart, event.target.value)}
+          />
         </label>
         <span className="tv-dates__arrow" aria-hidden>
           <Icon name="arrow" />
@@ -486,16 +613,15 @@ export function DateRangePicker({ props }: ViewProps) {
             type="date"
             value={end}
             min={start || undefined}
-            onChange={(event) => setEnd?.(event.target.value)}
+            {...errors.describe}
+            onChange={(event) => edit(setEnd, event.target.value)}
           />
         </label>
       </div>
-      {props['nightsLabel'] ? <span className="tv-pill tv-pill--accent">{text(props['nightsLabel'])}</span> : null}
-      {errors.map((error, index) => (
-        <span key={index} className="tv-field__error">
-          {error}
-        </span>
-      ))}
+      {props['nightsLabel'] ? (
+        <span className="tv-pill tv-pill--accent">{text(props['nightsLabel'])}</span>
+      ) : null}
+      {errors.list}
     </div>
   );
 }
@@ -543,8 +669,8 @@ export function AirportPicker({ props }: ViewProps) {
   }));
   const value = text(props['value']);
   const set = typeof props['setValue'] === 'function' ? props['setValue'] : null;
-  const chosen = places.find((place) => place.value === value);
-  const errors: string[] = Array.isArray(props['validationErrors']) ? props['validationErrors'] : [];
+  const picked = places.find((place) => place.value === value);
+  const errors = useErrors(props);
   const destination = props['kind'] === 'destination';
 
   const [open, setOpen] = useState(false);
@@ -579,10 +705,10 @@ export function AirportPicker({ props }: ViewProps) {
     }
   };
 
-  const shown = open ? query : chosen ? chosen.label : value;
+  const shown = open ? query : picked ? picked.label : value;
 
   return (
-    <div className={cx('tv-field', 'tv-place', errors.length > 0 && 'is-invalid')} {...aria(props, 'group')}>
+    <div className={cx('tv-field', 'tv-place', errors.invalid && 'is-invalid')} {...frame(props, 'group')}>
       <span className="tv-field__label">{text(props['label'])}</span>
       <div className={cx('tv-place__box', open && 'is-open')}>
         {/* Material Icons, the font the SDK's own basic Icon draws with. */}
@@ -595,13 +721,19 @@ export function AirportPicker({ props }: ViewProps) {
           aria-controls={listId}
           aria-autocomplete="list"
           aria-label={text(props['label'])}
+          {...errors.describe}
           aria-activedescendant={open && matches[active] ? `${listId}-${active}` : undefined}
           placeholder={text(props['placeholder']) || 'City or airport'}
           value={shown}
           disabled={!set}
           onFocus={() => {
             setOpen(true);
-            setActive(Math.max(0, matches.findIndex((place) => place.value === value)));
+            setActive(
+              Math.max(
+                0,
+                matches.findIndex((place) => place.value === value),
+              ),
+            );
           }}
           onBlur={() => {
             setOpen(false);
@@ -614,7 +746,7 @@ export function AirportPicker({ props }: ViewProps) {
           }}
           onKeyDown={onKeyDown}
         />
-        {chosen?.code && !open ? <span className="tv-place__code">{chosen.code}</span> : null}
+        {picked?.code && !open ? <span className="tv-place__code">{picked.code}</span> : null}
       </div>
       {open ? (
         <ul className="tv-place__list" id={listId} role="listbox" ref={list}>
@@ -650,11 +782,7 @@ export function AirportPicker({ props }: ViewProps) {
           )}
         </ul>
       ) : null}
-      {errors.map((error, index) => (
-        <span key={index} className="tv-field__error">
-          {error}
-        </span>
-      ))}
+      {errors.list}
     </div>
   );
 }
@@ -665,18 +793,31 @@ export function TravelerCounter({ props }: ViewProps) {
   const max = typeof props['max'] === 'number' ? props['max'] : 9;
   const set = typeof props['setValue'] === 'function' ? props['setValue'] : null;
   const step = (delta: number) => set?.(Math.min(max, Math.max(min, value + delta)));
+  const label = text(props['label']) || 'Travellers';
   return (
-    <div className="tv-counter" {...aria(props, 'group')}>
+    <div className="tv-counter" {...frame(props, 'group')}>
       <div className="tv-counter__labels">
         <span className="tv-field__label">{text(props['label'])}</span>
         {props['caption'] ? <span className="tv-caption">{text(props['caption'])}</span> : null}
       </div>
       <div className="tv-stepper">
-        <button type="button" onClick={() => step(-1)} disabled={!set || value <= min} aria-label="One fewer">
+        <button
+          type="button"
+          onClick={() => step(-1)}
+          disabled={!set || value <= min}
+          aria-label={`One fewer: ${label}`}
+        >
           <Icon name="minus" />
         </button>
-        <output aria-live="polite">{value}</output>
-        <button type="button" onClick={() => step(1)} disabled={!set || value >= max} aria-label="One more">
+        <output aria-live="polite" aria-label={`${label}: ${value}`}>
+          {value}
+        </output>
+        <button
+          type="button"
+          onClick={() => step(1)}
+          disabled={!set || value >= max}
+          aria-label={`One more: ${label}`}
+        >
           <Icon name="plus" />
         </button>
       </div>
@@ -689,7 +830,7 @@ export function TravelerCounter({ props }: ViewProps) {
 export function WeatherStrip({ props }: ViewProps) {
   const days = rows(props['days']).slice(0, 7);
   return (
-    <div className="tv-weather" {...aria(props, 'group')}>
+    <div className="tv-weather" {...frame(props, 'group')}>
       {props['place'] ? <span className="tv-eyebrow">{text(props['place'])}</span> : null}
       <ul className="tv-weather__days">
         {days.map((day, index) => {
@@ -697,7 +838,10 @@ export function WeatherStrip({ props }: ViewProps) {
           return (
             <li key={index}>
               <span className="tv-weather__day">{text(day['day'])}</span>
-              <Icon name={hasIcon(condition) ? condition : 'sun'} className={`tv-weather__icon is-${condition}`} />
+              <Icon
+                name={hasIcon(condition) ? condition : 'sun'}
+                className={`tv-weather__icon is-${condition}`}
+              />
               <span className="tv-weather__temps">
                 {/* Display strings, degree sign included, as the catalog says. */}
                 <strong>{text(day['high'])}</strong>
@@ -733,11 +877,13 @@ export function TripCalendar({ props }: ViewProps) {
   }
   const legend = [
     ...new Map(
-      [...marks.values()].filter((mark) => mark.icon && mark.label).map((mark) => [`${mark.icon} ${mark.label}`, mark]),
+      [...marks.values()]
+        .filter((mark) => mark.icon && mark.label)
+        .map((mark) => [`${mark.icon} ${mark.label}`, mark]),
     ).values(),
   ];
   return (
-    <div className="tv-cal" {...aria(props, 'group')} {...pressable(props['action'])}>
+    <div className="tv-cal" {...frame(props, 'group')} {...pressable(props['action'])}>
       {props['title'] ? <span className="tv-eyebrow">{text(props['title'])}</span> : null}
       {start ? (
         <div className="tv-cal__months">
@@ -762,7 +908,11 @@ export function TripCalendar({ props }: ViewProps) {
                       return (
                         <td
                           key={column}
-                          className={cx(cell.inRange && 'in-range', cell.isStart && 'is-start', cell.isEnd && 'is-end')}
+                          className={cx(
+                            cell.inRange && 'in-range',
+                            cell.isStart && 'is-start',
+                            cell.isEnd && 'is-end',
+                          )}
                           title={mark?.label || undefined}
                         >
                           <span className="tv-cal__day">{cell.date.day}</span>
@@ -811,13 +961,17 @@ export function MapPreview({ props }: ViewProps) {
     };
   });
   return (
-    <figure className="tv-mapsketch" {...aria(props, 'group')} {...pressable(props['action'])}>
+    <figure className="tv-mapsketch" {...frame(props, 'group')} {...pressable(props['action'])}>
       <div className="tv-mapsketch__canvas" aria-hidden>
         <svg className="tv-mapsketch__route" viewBox="0 0 100 100" preserveAspectRatio="none">
           <polyline points={placed.map((p) => `${p.left},${p.top}`).join(' ')} />
         </svg>
         {placed.map((marker, index) => (
-          <span key={index} className="tv-mapsketch__pin" style={{ left: `${marker.left}%`, top: `${marker.top}%` }}>
+          <span
+            key={index}
+            className="tv-mapsketch__pin"
+            style={{ left: `${marker.left}%`, top: `${marker.top}%` }}
+          >
             <Icon name={hasIcon(marker.kind) ? marker.kind : 'pin'} />
             <em>{marker.label}</em>
           </span>
@@ -834,6 +988,7 @@ interface Pin {
   lat: number;
   lng: number;
   label: string;
+  placeId: string;
 }
 
 function point(value: unknown): { lat: number; lng: number } | null {
@@ -845,65 +1000,115 @@ function point(value: unknown): { lat: number; lng: number } | null {
 
 function pin(value: unknown): Pin | null {
   const at = point(value);
-  return at ? { ...at, label: text((value as Props)['label']) } : null;
+  return at
+    ? { ...at, label: text((value as Props)['label']), placeId: text((value as Props)['placeId']) }
+    : null;
 }
 
-let mapsLoading: Promise<boolean> | null = null;
+/** The catalog's `travelMode`, as the Maps Directions API spells it. */
+const TRAVEL_MODES: Record<string, string> = {
+  driving: 'DRIVING',
+  walking: 'WALKING',
+  bicycling: 'BICYCLING',
+  transit: 'TRANSIT',
+};
 
-/** The Maps JavaScript API, loaded once, with the deployment's public Maps key. */
+/** Where a place opens in Google Maps: its place id when there is one. */
+function placeUrl(place: Pin): string {
+  const query = encodeURIComponent(place.label || `${place.lat},${place.lng}`);
+  const id = place.placeId ? `&query_place_id=${encodeURIComponent(place.placeId)}` : '';
+  return `https://www.google.com/maps/search/?api=1&query=${query}${id}`;
+}
+
+/**
+ * The Maps JavaScript API, loaded once per key.
+ *
+ * Only a load that succeeded, or is under way, is kept: a key that had not
+ * arrived yet, or a script that failed, is tried again on the next map rather
+ * than leaving every map on the page unavailable.
+ */
+const mapsLoads = new Map<string, Promise<boolean>>();
+
 function loadMaps(apiKey: string): Promise<boolean> {
-  if (mapsLoading) return mapsLoading;
-  mapsLoading = new Promise<boolean>((resolve) => {
-    if (typeof document === 'undefined' || !apiKey) return resolve(false);
-    if (document.querySelector('script[data-a2ui-maps]')) return resolve(true);
+  if (typeof document === 'undefined' || !apiKey) return Promise.resolve(false);
+  if (typeof window.google?.maps?.importLibrary === 'function') return Promise.resolve(true);
+  const known = mapsLoads.get(apiKey);
+  if (known) return known;
+  const loading = new Promise<boolean>((resolve) => {
     const script = document.createElement('script');
     script.async = true;
     script.dataset['a2uiMaps'] = 'yes';
-    script.src = `https://maps.googleapis.com/maps/api/js?loading=async&libraries=maps&key=${encodeURIComponent(apiKey)}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?loading=async&libraries=maps,marker&key=${encodeURIComponent(apiKey)}`;
+    const fail = () => {
+      script.remove();
+      mapsLoads.delete(apiKey);
+      resolve(false);
+    };
     script.onload = () => {
       const started = Date.now();
       const settle = () => {
-        const maps = window.google?.maps;
-        if (typeof maps?.importLibrary === 'function') return resolve(true);
-        if (Date.now() - started > 15_000) return resolve(false);
+        if (typeof window.google?.maps?.importLibrary === 'function') return resolve(true);
+        if (Date.now() - started > 15_000) return fail();
         setTimeout(settle, 50);
       };
       settle();
     };
-    script.onerror = () => resolve(false);
+    script.onerror = fail;
     document.head.appendChild(script);
   });
-  return mapsLoading;
+  mapsLoads.set(apiKey, loading);
+  return loading;
 }
 
-const mapsKey = () =>
-  typeof window === 'undefined' ? '' : String(window.__A2UI_MAPS_KEY ?? '');
+/**
+ * Google's demo map id: advanced markers, heading and tilt need a map id, and
+ * this one carries Google's default style. A deployment with its own styled
+ * map would pass that instead.
+ */
+const MAP_ID = 'DEMO_MAP_ID';
 
 export function GoogleMap({ props }: ViewProps) {
   const host = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState<'loading' | 'ready' | 'unavailable'>('loading');
-  const key = mapsKey();
+  const key = useContext(MapsKeyContext);
   const centre = point(props['center']);
-  const zoom = Number(props['zoom'] ?? 11) || 11;
+  const zoom = Math.min(16, Number(props['zoom'] ?? 11) || 11);
   const mode = text(props['mode']) || 'roadmap';
+  const tilt = Number(props['tilt']);
+  const heading = Number(props['heading']);
+  const travelMode = TRAVEL_MODES[text(props['travelMode']).toLowerCase()] ?? '';
   const anchor = pin(props['anchorMarker']);
-  const markers = rows(props['markers']).map(pin).filter((item): item is Pin => item !== null);
+  const markers = rows(props['markers'])
+    .map(pin)
+    .filter((item): item is Pin => item !== null);
   const legs = rows(props['routes'])
     .map((row) => ({ from: pin(row['origin']), to: pin(row['destination']) }))
     .filter((leg): leg is { from: Pin; to: Pin } => leg.from !== null && leg.to !== null);
-  const from = point(props['origin']);
-  const to = point(props['destination']);
-  if (from && to) legs.push({ from: { ...from, label: '' }, to: { ...to, label: '' } });
+  const from = pin(props['origin']);
+  const to = pin(props['destination']);
+  const single = from && to ? { from, to } : null;
 
   useEffect(() => {
     let live = true;
+    setReady('loading');
     void loadMaps(key).then((ok) => live && setReady(ok ? 'ready' : 'unavailable'));
     return () => {
       live = false;
     };
   }, [key]);
 
-  const signature = JSON.stringify({ centre, zoom, mode, anchor, markers, legs });
+  const signature = JSON.stringify({
+    centre,
+    zoom,
+    mode,
+    tilt,
+    heading,
+    travelMode,
+    anchor,
+    markers,
+    legs,
+    single,
+  });
   useEffect(() => {
     if (ready !== 'ready' || !host.current || !centre) return;
     const element = host.current;
@@ -911,7 +1116,7 @@ export function GoogleMap({ props }: ViewProps) {
     void (async () => {
       const maps = window.google?.maps;
       if (!maps?.importLibrary) return;
-      const [{ Map, Polyline }, { LatLngBounds }, { Marker }] = await Promise.all([
+      const [{ Map, Polyline }, { LatLngBounds }, { AdvancedMarkerElement, Marker }] = await Promise.all([
         maps.importLibrary('maps'),
         maps.importLibrary('core'),
         maps.importLibrary('marker'),
@@ -924,22 +1129,69 @@ export function GoogleMap({ props }: ViewProps) {
       const map = new Map(canvas, {
         center: centre,
         zoom,
+        mapId: MAP_ID,
         mapTypeId: mode === 'satellite' ? 'satellite' : 'roadmap',
+        ...(Number.isFinite(tilt) ? { tilt } : {}),
+        ...(Number.isFinite(heading) ? { heading } : {}),
         disableDefaultUI: true,
         zoomControl: true,
       });
       const bounds = new LatLngBounds();
       let points = 0;
-      for (const place of anchor ? [anchor, ...markers] : markers) {
-        new Marker({ map, position: { lat: place.lat, lng: place.lng }, title: place.label });
-        bounds.extend({ lat: place.lat, lng: place.lng });
+      const drop = (place: Pin) => {
+        const position = { lat: place.lat, lng: place.lng };
+        // `AdvancedMarkerElement` where the API has it; the classic `Marker`
+        // (deprecated) only where it does not.
+        const marker = AdvancedMarkerElement
+          ? new AdvancedMarkerElement({
+              map,
+              position,
+              title: place.label,
+              gmpClickable: Boolean(place.placeId),
+            })
+          : new Marker({ map, position, title: place.label });
+        if (place.placeId) {
+          marker.addListener(AdvancedMarkerElement ? 'gmp-click' : 'click', () =>
+            window.open(placeUrl(place), '_blank', 'noopener'),
+          );
+        }
+        bounds.extend(position);
         points += 1;
-      }
-      for (const leg of legs) {
-        new Polyline({ map, path: [leg.from, leg.to], geodesic: true, strokeOpacity: 0.9, strokeWeight: 3 });
-        bounds.extend(leg.from);
-        bounds.extend(leg.to);
+      };
+      for (const place of anchor ? [anchor, ...markers] : markers) drop(place);
+      const line = (leg: { from: Pin; to: Pin }) => {
+        const ends = [leg.from, leg.to].map((end) => ({ lat: end.lat, lng: end.lng }));
+        new Polyline({ map, path: ends, geodesic: true, strokeOpacity: 0.9, strokeWeight: 3 });
+        for (const end of ends) bounds.extend(end);
         points += 2;
+      };
+      for (const leg of legs) line(leg);
+      if (single) {
+        // A route travelled a named way is drawn along the way it is
+        // travelled; without a mode, or if directions are unavailable for this
+        // key, as the straight line between its ends.
+        let routed = false;
+        if (travelMode) {
+          try {
+            const { DirectionsService, DirectionsRenderer } = await maps.importLibrary('routes');
+            const result = await new DirectionsService().route({
+              origin: { lat: single.from.lat, lng: single.from.lng },
+              destination: { lat: single.to.lat, lng: single.to.lng },
+              travelMode,
+            });
+            if (cancelled) return;
+            new DirectionsRenderer({
+              map,
+              directions: result,
+              suppressMarkers: false,
+              preserveViewport: false,
+            });
+            routed = true;
+          } catch {
+            routed = false;
+          }
+        }
+        if (!routed) line(single);
       }
       if (points > 1) map.fitBounds(bounds, 48);
     })().catch(() => !cancelled && setReady('unavailable'));
@@ -949,16 +1201,20 @@ export function GoogleMap({ props }: ViewProps) {
     };
   }, [ready, signature]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const caption = [anchor?.label, ...markers.map((m) => m.label)].filter(Boolean).slice(0, 4).join(' · ');
+  const how = text(props['travelMode']);
+  const caption = [
+    ...[anchor?.label, ...markers.map((m) => m.label)].filter(Boolean).slice(0, 4),
+    ...(single && how ? [`${how} · ${single.from.label || 'start'} → ${single.to.label || 'end'}`] : []),
+  ].join(' · ');
   if (!centre) {
     return (
-      <div className="tv-map tv-map--empty" role="note">
+      <div className="tv-map tv-map--empty" role="note" {...frame(props)}>
         No map for this one — there are no coordinates for it.
       </div>
     );
   }
   return (
-    <figure className="tv-map" {...aria(props, 'group')}>
+    <figure className="tv-map" {...frame(props, 'group')}>
       <div className="tv-map__canvas" ref={host} aria-label={caption || 'Map'}>
         {ready !== 'ready' ? (
           <p className="tv-map__fallback">

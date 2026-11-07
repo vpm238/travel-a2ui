@@ -26,9 +26,11 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "apps" / "s
 
 # A test starts from an empty conversation unless it asks for the sample trip.
 os.environ.setdefault("SAMPLE_TRIP", "0")
+# A test server answers every suite on the shared (scripted) key.
+os.environ.setdefault("SHARED_KEY_TURNS_PER_HOUR", "1000000")
 
-from travel_a2ui.doors import interactions
 from travel_a2ui import gemini  # noqa: E402
+from travel_a2ui.doors import interactions
 from travel_a2ui.gemini import InteractionResult, ToolCall, Usage  # noqa: E402
 
 A2UI_OPEN = "<a2ui>"
@@ -117,7 +119,10 @@ def _reset() -> None:
 
 # Patched in every module that holds its own reference to it: `turn` and
 # `panels` import the function by name.
-from travel_a2ui.doors.interactions import panels as _panels, turn as _turn, warmup as _warmup  # noqa: E402
+from travel_a2ui.doors.interactions import panels as _panels  # noqa: E402
+from travel_a2ui.doors.interactions import turn as _turn
+from travel_a2ui.doors.interactions import warmup as _warmup
+
 
 async def background(**kwargs: Any) -> AsyncIterator[dict[str, Any]]:
     """A warm-up or a panel draw: answered, and not a round of the script.

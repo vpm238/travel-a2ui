@@ -109,7 +109,9 @@ for (const { name, width } of WIDTHS) {
     }
   }
 
-  console.log(`\n${name} (${width}px): ${overflows.length ? `${overflows.length} of ${previews.length} overflow` : `all ${previews.length} clean`}`);
+  console.log(
+    `\n${name} (${width}px): ${overflows.length ? `${overflows.length} of ${previews.length} overflow` : `all ${previews.length} clean`}`,
+  );
   for (const entry of overflows) {
     console.log(`  ${entry.component.padEnd(18)} ${entry.node.padEnd(30)} +${entry.over}px`);
   }

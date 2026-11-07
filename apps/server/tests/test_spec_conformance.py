@@ -13,12 +13,8 @@ and say why.
 from __future__ import annotations
 
 import json
-import warnings
 
 import pytest
-
-warnings.filterwarnings("ignore")
-
 from a2ui.utils import RendererState  # noqa: E402
 
 from travel_a2ui import ROOT  # noqa: E402
@@ -28,9 +24,7 @@ SCHEMAS = ROOT / "node_modules" / "@a2ui" / "web_core" / "src" / "v1_0" / "schem
 CATALOG_FILE = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
 SAMPLE = ROOT / "apps" / "web" / "public" / "sample-trip.json"
 
-pytestmark = pytest.mark.skipif(
-    not SCHEMAS.is_dir(), reason="the v1.0 schemas come from node_modules: run npm install"
-)
+pytestmark = pytest.mark.skipif(not SCHEMAS.is_dir(), reason="the v1.0 schemas come from node_modules: run npm install")
 
 
 def _validator(schema_file: str):

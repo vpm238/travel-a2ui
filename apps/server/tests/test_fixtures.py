@@ -18,9 +18,7 @@ import pytest
 from travel_a2ui.brain.providers.fixture import FixtureProvider
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-GOLDEN = json.loads(
-    (pathlib.Path(__file__).parent / "goldens" / "fixtures.json").read_text("utf-8")
-)
+GOLDEN = json.loads((pathlib.Path(__file__).parent / "goldens" / "fixtures.json").read_text("utf-8"))
 
 provider = FixtureProvider()
 
@@ -185,9 +183,7 @@ class TestTheContract:
     def test_a_filter_matching_nothing_widens_and_says_so(self):
         import asyncio
 
-        outcome = asyncio.run(
-            provider.search_flights({"destination": "Tokyo", "origin": "LAX", "maxPrice": 1})
-        )
+        outcome = asyncio.run(provider.search_flights({"destination": "Tokyo", "origin": "LAX", "maxPrice": 1}))
         assert outcome.ok is True
         assert outcome.items
         assert outcome.relaxed == ["the $1 cap"]
@@ -222,8 +218,10 @@ class TestTheDataIsNotEmpty:
             "airlines.csv": fixture._AIRLINES,
             "origins.csv": fixture._ORIGINS,
             "currencies.csv": list(fixture._CURRENCY_SYMBOL),
-            **{f"lodging.csv ({kind})": fixture._LODGING.get(kind, [])
-               for kind in ("word", "name", "amenity", "connection")},
+            **{
+                f"lodging.csv ({kind})": fixture._LODGING.get(kind, [])
+                for kind in ("word", "name", "amenity", "connection")
+            },
         }
         empty = sorted(name for name, rows in lists.items() if not rows)
         assert not empty, f"{empty} would produce 'undefined undefined' rather than fail"
@@ -241,9 +239,7 @@ class TestTheDataIsNotEmpty:
 
         departures = {entry["code"] for entry in fixture._ORIGINS}
         for entry in fixture._DESTINATIONS:
-            assert entry["airport"] in departures, (
-                f"{entry['city']} can be flown to and not from"
-            )
+            assert entry["airport"] in departures, f"{entry['city']} can be flown to and not from"
 
     def test_every_destination_a_tool_can_be_asked_for_actually_answers(self) -> None:
         """The inventory in the prompt is a promise; this is the check on it.
@@ -266,9 +262,7 @@ class TestTheDataIsNotEmpty:
                     {"destination": city, "origin": "JFK", "date": "2027-04-12", "travelers": 1}
                 )
                 assert getattr(flights, "items", None), f"no flights for {city}"
-                stays = await provider.search_hotels(
-                    {"destination": city, "nights": 3, "travelers": 2}
-                )
+                stays = await provider.search_hotels({"destination": city, "nights": 3, "travelers": 2})
                 assert getattr(stays, "items", None), f"nowhere to stay in {city}"
 
         asyncio.run(check())

@@ -192,9 +192,7 @@ class Canvas:
         held = {str(surface_id) for surface_id in held}
         self.drop(self.surfaces - held)
         return [
-            delete_surface(surface_id)
-            for surface_id in sorted(held - self.surfaces)
-            if surface_id in STANDING_SURFACES
+            delete_surface(surface_id) for surface_id in sorted(held - self.surfaces) if surface_id in STANDING_SURFACES
         ]
 
     def data_of(self, surface_id: str) -> dict[str, Any]:
@@ -352,15 +350,9 @@ class Drawing:
         self.surface_id = surface_id
         self.values = values
         self.any_card = creatable == "any"
-        self.creatable = (
-            {surface_id, *STANDING_SURFACES}
-            if creatable is None or self.any_card
-            else set(creatable)
-        )
+        self.creatable = {surface_id, *STANDING_SURFACES} if creatable is None or self.any_card else set(creatable)
         self.processor = canvas.processor(surface_id)
-        self.stream = self.processor.open_stream(
-            wrapped=True, state=canvas.drafted, after_rejected_block="continue"
-        )
+        self.stream = self.processor.open_stream(wrapped=True, state=canvas.drafted, after_rejected_block="continue")
         self.gate = FenceGate()
         self.raw: list[str] = []
         #: The surface whose block was refused, until that block ends.
@@ -442,11 +434,7 @@ class Drawing:
         if self._refused is not None and surface_id == self._refused:
             return []
 
-        new = [
-            message["createSurface"]["surfaceId"]
-            for message in written
-            if "createSurface" in message
-        ]
+        new = [message["createSurface"]["surfaceId"] for message in written if "createSurface" in message]
         for created in new:
             if created not in self.creatable and not self.any_card:
                 # The whole part is refused, so every surface it created goes

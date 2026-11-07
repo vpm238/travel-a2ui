@@ -57,12 +57,7 @@ export function Home({ agent }: { agent: Agent }) {
         <div className="home__actions">
           {agent.liveSurface === 'home' ? <Spinner label="Laying out" /> : null}
           {hasSurface ? (
-            <button
-              type="button"
-              className="button"
-              onClick={() => regenerate()}
-              disabled={agent.busy}
-            >
+            <button type="button" className="button" onClick={() => regenerate()} disabled={agent.busy}>
               Rebuild
             </button>
           ) : null}
@@ -78,8 +73,8 @@ export function Home({ agent }: { agent: Agent }) {
           {canRun ? (
             <>
               <p>
-                Nothing here yet. Plan something in the chat, then build this from
-                it — the route, the dates, what is still open and what it costs.
+                Nothing here yet. Plan something in the chat, then build this from it — the route, the dates,
+                what is still open and what it costs.
               </p>
               <button
                 type="button"

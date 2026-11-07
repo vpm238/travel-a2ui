@@ -15,10 +15,9 @@ each one names its own cause. The conversations that found them are in
 from __future__ import annotations
 
 import asyncio
-import json
-import pathlib
 
-from travel_a2ui.brain import tools, trip as model
+from travel_a2ui.brain import tools
+from travel_a2ui.brain import trip as model
 from travel_a2ui.brain.controls import half_asked
 from travel_a2ui.doors.interactions import _party_paths
 
@@ -33,6 +32,7 @@ def _ctx(trip: dict) -> tools.ToolContext:
     a harness that used `update` reported the mark surviving a restate, which is
     a bug in the harness and not in the trip.
     """
+
     def save(patch: dict) -> None:
         merged = model.merge(trip, patch)
         trip.clear()
@@ -181,9 +181,7 @@ class TestSaveTripKeepsTheSoundHalf:
 
     def test_and_the_model_is_told_which_field_to_ask_for_again(self):
         trip = dict(self.SAVED)
-        result, _ = _save(
-            "save_trip", {"endDate": "2027-04-01", "budget": 4000}, _ctx(trip)
-        )
+        result, _ = _save("save_trip", {"endDate": "2027-04-01", "budget": 4000}, _ctx(trip))
         assert result["trip"]["budget"] == 4000
         assert result["trip"]["endDate"] == "2027-04-19"
         assert "ask the traveler for it again" in result["message"].lower()
@@ -295,9 +293,7 @@ class TestTheDaysAreKept:
         # `drop_activity` edits it and `journey` counts it — and `save_trip`
         # had no property for it, so nothing could ever write one. A rule the
         # schema cannot express is not a rule anything can follow.
-        schema = next(
-            tool for tool in tools.TOOLS if tool["name"] == "save_trip"
-        )["input_schema"]["properties"]
+        schema = next(tool for tool in tools.TOOLS if tool["name"] == "save_trip")["input_schema"]["properties"]
         assert "days" in schema
 
     def test_a_planned_hop_stops_asking_for_things_to_do(self):

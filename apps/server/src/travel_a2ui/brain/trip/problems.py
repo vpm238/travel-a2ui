@@ -13,9 +13,12 @@ validation rule instead of fixing the trip.
 
 from __future__ import annotations
 
+from typing import Iterable
+
 from .fields import Trip
 from .route import stops
 from .values import _days_between, _to_date
+
 
 def nights(trip: Trip) -> int | None:
     """Nights implied by the range, if there is a coherent one."""
@@ -54,11 +57,7 @@ def problems(trip: Trip, today: str | None = None) -> list[dict[str, str]]:
             found.append({"field": "startDate", "message": f"{trip['startDate']} is in the past."})
     if trip.get("travelers") is not None and trip["travelers"] < 1:
         found.append({"field": "travelers", "message": "A trip needs at least one traveler."})
-    if (
-        trip.get("budget") is not None
-        and trip.get("spent") is not None
-        and trip["spent"] > trip["budget"]
-    ):
+    if trip.get("budget") is not None and trip.get("spent") is not None and trip["spent"] > trip["budget"]:
         # Not an error — a real state a dashboard should show — so it is
         # reported rather than rejected.
         found.append({"field": "spent", "message": "Committed spend is over the budget."})
@@ -179,12 +178,9 @@ def sieve(saved: Trip, proposed: Trip, today: str | None = None) -> tuple[Trip, 
     is a second wrong answer — and the messages go back to the model so the
     next surface re-asks for it, with everything else they said still in place.
     """
+
     def refusable(candidate: Trip) -> list[dict[str, str]]:
-        return [
-            problem
-            for problem in problems(candidate, today)
-            if problem["field"] in REFUSABLE
-        ]
+        return [problem for problem in problems(candidate, today) if problem["field"] in REFUSABLE]
 
     found = refusable(proposed)
     if not found:

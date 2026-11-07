@@ -72,11 +72,7 @@ class TestTheFareSaysWhereItFlies:
         from helpers import drawn
 
         wire = drawn('f = Flights("Return · MAD → JFK")\nroot = Column([f])', trip=TRIP)
-        card = next(
-            node
-            for node in wire[0]["createSurface"]["components"]
-            if node.get("component") == "FlightOption"
-        )
+        card = next(node for node in wire[0]["createSurface"]["components"] if node.get("component") == "FlightOption")
         context = card["action"]["event"]["context"]
         assert context["from"] == {"@path": "origin"}
         assert context["to"] == {"@path": "destination"}

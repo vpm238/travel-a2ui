@@ -37,8 +37,7 @@ class TestTheToolCanRecordIt:
     def test_a_leg_can_hold_a_flight(self) -> None:
         props = _save_trip_leg_properties()
         assert "selectedFlight" in props, (
-            "a hop after the first has no way to record its ticket, so the "
-            "return can only overwrite the outbound"
+            "a hop after the first has no way to record its ticket, so the return can only overwrite the outbound"
         )
         assert "flightPrice" in props
 
@@ -111,9 +110,7 @@ class TestThePanelIsToldAboutIt:
         "endDate": "2026-10-15",
         "travelers": 2,
         "selectedFlight": "SK8603",
-        "legs": [
-            {"origin": "BER", "destination": "CPH", "startDate": "2026-10-15", "travelers": 1}
-        ],
+        "legs": [{"origin": "BER", "destination": "CPH", "startDate": "2026-10-15", "travelers": 1}],
     }
 
     def test_the_flight_home_is_on_the_second_hop(self) -> None:
@@ -153,12 +150,12 @@ class TestTheHostRecordsTheWholeFareItself:
 
     @staticmethod
     def _pressed(name: str, context: dict, leg: int | None) -> dict:
+        from travel_a2ui.brain import trip as model
         from travel_a2ui.doors.interactions.press import (
             SurfaceAction,
             _commit,
             as_trip_fields,
         )
-        from travel_a2ui.brain import trip as model
 
         action = SurfaceAction(name=name, surface_id="inline-3", context=context)
         before = {
@@ -180,11 +177,7 @@ class TestTheHostRecordsTheWholeFareItself:
             **model.normalize(action.context),
             **model.normalize(as_trip_fields(action)),
         }
-        proposed = (
-            model.onto_leg({**before}, dict(renamed), leg)
-            if leg is not None
-            else {**before, **renamed}
-        )
+        proposed = model.onto_leg({**before}, dict(renamed), leg) if leg is not None else {**before, **renamed}
         trip, _ = _commit(before, proposed, "2026-11-02")
         return trip
 

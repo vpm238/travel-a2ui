@@ -1,0 +1,14 @@
+# Python lint and format, for the server, scripts and tools.
+line-length = 120
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "I"]
+
+[lint.isort]
+known-first-party = ["travel_a2ui"]
+
+[lint.per-file-ignores]
+# Scripts put the server's source on sys.path before importing it.
+"tools/**" = ["E402"]
+"scripts/**" = ["E402"]

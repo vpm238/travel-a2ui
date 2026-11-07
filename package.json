@@ -17,19 +17,24 @@
     "test:watch": "vitest",
     "e2e": "node tools/e2e/chat.mjs && node tools/e2e/interaction.mjs && node tools/e2e/frameworks.mjs && node tools/e2e/keys.mjs && node tools/e2e/sample.mjs",
     "typecheck": "tsc -b renderers/react && tsc -p apps/web --noEmit",
-    "generate": "python3 scripts/build_catalog.py && python3 scripts/build_skills.py && python3 scripts/build_catalog_reference.py && python3 scripts/build_fixtures.py",
+    "generate": "python3 scripts/build_catalog.py && python3 scripts/build_skills.py && python3 scripts/build_catalog_reference.py && python3 scripts/build_fixtures.py && python3 renderers/flutter/tool/build_example_fixtures.py",
     "check:catalog": "python3 scripts/build_catalog.py --check",
     "check:skills": "python3 scripts/build_skills.py --check",
-    "check": "npm run check:catalog && npm run check:skills && npm run check:reference && npm run check:fixtures",
+    "check": "npm run check:catalog && npm run check:skills && npm run check:reference && npm run check:fixtures && npm run check:examples",
     "screenshots": "node tools/e2e/chat.mjs --screenshot docs/screenshots/01-chat-light.png && node tools/screenshots/capture.mjs docs/screenshots",
     "check:catalog-page": "node tools/screenshots/catalog.mjs --check",
     "docs:catalog": "node tools/screenshots/catalog.mjs",
     "check:reference": "python3 scripts/build_catalog_reference.py --check",
-    "check:fixtures": "python3 scripts/build_fixtures.py --check"
+    "check:fixtures": "python3 scripts/build_fixtures.py --check",
+    "check:examples": "python3 renderers/flutter/tool/build_example_fixtures.py --check",
+    "lint": "npm run typecheck && ruff check apps/server scripts tools renderers/flutter/tool",
+    "format": "prettier --write \"apps/web/**/*.{ts,tsx}\" \"renderers/react/**/*.{ts,tsx}\" \"tools/**/*.mjs\" && ruff format apps/server scripts tools renderers/flutter/tool",
+    "format:check": "prettier --check \"apps/web/**/*.{ts,tsx}\" \"renderers/react/**/*.{ts,tsx}\" \"tools/**/*.mjs\" && ruff format --check apps/server scripts tools renderers/flutter/tool"
   },
   "devDependencies": {
     "happy-dom": "^15.11.7",
     "playwright": "^1.62.1",
+    "prettier": "^3.6.2",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   },

@@ -17,8 +17,9 @@ import datetime as _dt
 from typing import Any
 
 from .. import trip as model
-from ..providers.types import Found, NotFound, TravelProvider
+from ..providers.types import NotFound, TravelProvider
 from .contracts import ToolContext
+
 
 def _str(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
@@ -68,9 +69,7 @@ def _cannot(outcome: NotFound) -> dict[str, Any]:
     }
 
 
-async def _trip_currency(
-    provider: TravelProvider, context: ToolContext, fallback: dict[str, Any] | None = None
-) -> str:
+async def _trip_currency(provider: TravelProvider, context: ToolContext, fallback: dict[str, Any] | None = None) -> str:
     """The one currency this trip's money is quoted in.
 
     The *trip's* destination, because that is what the stays are quoted in and a
@@ -218,8 +217,7 @@ def _priced_for(
                 "total": _money_text(total, currency),
                 "totalValue": model._js_round(total),
                 "priceLabel": (
-                    f"{_money_text(value, currency)} {unit} · "
-                    f"{_money_text(total, currency)} {whole}"
+                    f"{_money_text(value, currency)} {unit} · {_money_text(total, currency)} {whole}"
                     if count > 1
                     else _money_text(value, currency)
                 ),
@@ -259,7 +257,7 @@ def _estimate(
     every stop that needs a bed has its own nights. So each is a line, and the
     total is their sum.
     """
-    from ..providers.fixture import _js_round, _money, _rng, _seed, code_for_seed
+    from ..providers.fixture import _money, _rng, _seed, code_for_seed
 
     # The trip's own currency, because the stays are quoted in it. Totalling a
     # "€112 / night" card as "$336" is the whole reason this is a parameter.
@@ -285,8 +283,10 @@ def _estimate(
         for index, leg in enumerate(hops):
             party = max(1, int(leg.get("travelers") or people))
             fare = leg.get("flightPrice")
-            fare = float(fare) if fare is not None else (
-                float(flight_price) if index == 0 and flight_price is not None else fallback_fare
+            fare = (
+                float(fare)
+                if fare is not None
+                else (float(flight_price) if index == 0 and flight_price is not None else fallback_fare)
             )
             leg_flight = fare * party
             flight += leg_flight
@@ -305,18 +305,17 @@ def _estimate(
             if leg.get("needsStay") is False or not leg_nights:
                 continue
             rate = leg.get("nightlyPrice")
-            rate = float(rate) if rate is not None else (
-                float(nightly_price) if index == 0 and nightly_price is not None else fallback_nightly
+            rate = (
+                float(rate)
+                if rate is not None
+                else (float(nightly_price) if index == 0 and nightly_price is not None else fallback_nightly)
             )
             leg_stay = rate * leg_nights
             stay += leg_stay
             food += 55 * party * leg_nights
             lines.append(
                 {
-                    "label": (
-                        f"{leg.get('destination')}, {leg_nights} "
-                        f"night{'' if leg_nights == 1 else 's'}"
-                    ),
+                    "label": (f"{leg.get('destination')}, {leg_nights} night{'' if leg_nights == 1 else 's'}"),
                     "amount": _money(leg_stay, currency),
                     "note": "nightly rate" if leg.get("nightlyPrice") is not None else "estimated",
                 }
@@ -330,9 +329,7 @@ def _estimate(
         food = food or 55 * people * (nights_total + 1)
         local = 24 * (nights_total + len(hops))
         lines.append({"label": "Food and drink", "amount": _money(food, currency), "note": "estimated"})
-        lines.append(
-            {"label": "Local transport", "amount": _money(local, currency), "note": "metro and taxis"}
-        )
+        lines.append({"label": "Local transport", "amount": _money(local, currency), "note": "metro and taxis"})
         total = flight + stay + food + local
         return {
             "lines": lines,

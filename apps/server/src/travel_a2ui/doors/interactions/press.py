@@ -73,10 +73,10 @@ class TurnResult:
 # this module has always had.
 from ...brain.presses import (  # noqa: E402,F401
     _SAVES_AS,
+    RecordedPress,
     _belongs_on_the_leg,
     _commit,
     _leg_pressed,
-    RecordedPress,
     as_trip_fields,
     describe_action,
     record_press,

@@ -78,13 +78,13 @@ Use these exact positional signatures to instantiate components. Do not output p
   - nightsLabel: Derived caption, e.g. '6 nights'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
-• DateTimeInput(label, value, enableDate? (static), enableTime? (static), min?, max?, weight? (static), checks? (static))
-  - label: The text label for the input field.
+• DateTimeInput(value, enableDate? (static), enableTime? (static), min?, max?, label?, weight? (static), checks? (static))
   - value: The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string.
   - enableDate: If true, allows the user to select a date.
   - enableTime: If true, allows the user to select a time.
   - min: The minimum allowed date/time in ISO 8601 format.
   - max: The maximum allowed date/time in ISO 8601 format.
+  - label: The text label for the input field.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
 • ExpenseSplit(title, total, participants (static), action? (static), actionLabel?, weight? (static), accessibility? (static))
   - Description: Splits a shared trip cost between travelers and shows who owes what.
@@ -346,57 +346,23 @@ Examples:
 
 ## Catalog Instructions
 
-You are composing travel UI. A few house rules that matter more than anything else:
+Travel components carry meaning the layout primitives do not:
 
-- Prefer a travel component over hand-assembling one out of Row/Column/Text. If
-  you are showing a flight, use FlightOption. If you are showing a night's stay,
-  use HotelCard. The host styles these natively and they carry semantics the
-  plain layout primitives do not.
-- **A list of results is one call: `Flights()` or `Stays()`.** `search_flights`
-  files its rows at `/flights` and `search_hotels` at `/hotels`, and those two
-  read them — bound, labelled, pressable, however many arrive. Never write a
-  fare card per result: re-typing what a lookup just handed you is the largest
-  thing a turn says and the only part of it that can be wrong.
-
-      fares = Flights("Outbound · JFK → MAD", "/trip/selectedFlight")
-
-  Pass the heading, the path your choice is recorded at, and the hop when it is
-  not the first. The macro draws that heading itself, so do not also write a
-  `Text` with the same words above it: the traveller reads the line twice.
-- **Draw it before you call the lookup.** The shape of the answer is known the
-  moment you decide to look something up, and `Flights()` is nine characters —
-  so put it on screen, then call the tool, and the traveller watches it fill in
-  instead of waiting at a blank space.
-- **A planning turn draws `Highlights()` first.** `get_destination` files what
-  a city is worth going for at `/highlights`, and that is the one thing on a
-  planning turn whose shape is known early. Writing the days into `save_trip`
-  is the longest thing you say and nothing about the plan exists until it is
-  written, so draw the highlights while you write it. Without this the
-  traveller waits at an empty space for the whole plan.
-- **Then draw the plan with `Itinerary("Four days in Berlin")`.** It binds
-  `/days`, which the host fills the moment `save_trip({days: […]})` lands, so
-  draw it in the same reply as the write and end the turn with one sentence.
-- Every option the user could plausibly act on needs an `action`. A flight the
-  user cannot select is a screenshot, not an interface.
-- And every one of them needs a name. A card is read aloud in the order it is
-  written — "Iberia IB6250 18:40 JFK 08:15 +1 MAD 7h 35m Nonstop $412", every
-  fact and no sentence — so write the sentence:
-  `accessibility={label: "Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412"}`.
-  Name every fare, every stay, every tile anyone can press. It replaces the
-  card's own text rather than adding to it, so say the whole thing.
-- Money is always a preformatted display string ("$412", "€1,180 total"). Do not
-  emit bare numbers and hope the host formats them.
-- Times are display strings in the traveler's local time ("07:15", "Tue 14 Apr").
-  The one exception is DateRangePicker, whose bound values are calendar dates
-  ("2026-04-12"): a trip day is a day, not an instant in some time zone.
-- When you present a set of options, bind the user's current choice into the data
-  model so a later turn can read it back — e.g. `$/trip/selectedFlight`.
-- Keep a surface to one job. An inline card answers the message it is attached
-  to; the sidebar is the read-only record of what is settled; the home surface
-  summarizes.
-- `accessibility` also carries `live: "polite"` for a value that re-reckons
-  itself and `hidden: true` for decoration. Leave the block off anything whose
-  own text already reads as a sentence.
+- Prefer a travel component to one assembled from Row, Column and Text: a
+  flight is a FlightOption, a night's stay a HotelCard.
+- Every option someone could act on has an action. An option that cannot be
+  chosen is a picture of one.
+- Give every pressable card an accessibility label that reads as a sentence
+  ("Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412"): it
+  replaces the card's own text for a screen reader, so say all of it. Use
+  live: "polite" for a value that updates itself and hidden: true for
+  decoration.
+- Money is a preformatted display string ("$412", "€1,180 total"), and so are
+  times ("07:15", "Tue 14 Apr"). DateRangePicker's values are calendar dates
+  ("2026-04-12").
+- Bind the current choice of a set of options into the data model so it can
+  be read back and marked selected.
+- One job per surface.
 
 ### Examples:
 

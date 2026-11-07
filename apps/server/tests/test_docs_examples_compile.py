@@ -13,11 +13,8 @@ updates a surface (`update=true`) is checked against a surface created first.
 from __future__ import annotations
 
 import re
-import warnings
 
 import pytest
-
-warnings.filterwarnings("ignore")
 
 from travel_a2ui import ROOT  # noqa: E402
 from travel_a2ui.brain import data  # noqa: E402

@@ -160,16 +160,22 @@ await page.click('.composer__send');
 await page.waitForSelector('.tv-dates', { timeout: 15000 });
 
 const afterFirst = chatTurns();
-await page.fill('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface input[type="text"]', 'LHR');
+await page.fill(
+  '.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface input[type="text"]',
+  'LHR',
+);
 await page.fill('.tv-dates input[type="date"] >> nth=0', '2026-04-12');
-await page.click('.tv-counter button[aria-label="One more"]');
+await page.click('.tv-counter button[aria-label^="One more"]');
 await page.waitForTimeout(400);
 
 check('three edits sent nothing', chatTurns() === afterFirst, `${chatTurns() - afterFirst} turns`);
 
 // --- committing sends once, with everything -------------------------------
 console.log('\ncommitting');
-await page.locator('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface .a2ui-button').first().click();
+await page
+  .locator('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface .a2ui-button')
+  .first()
+  .click();
 await page.waitForTimeout(900);
 
 const commit = sent.filter((entry) => entry.surface === 'inline').at(-1);
@@ -214,7 +220,10 @@ const spent = page.locator('.turn__surface--spent').first();
 check('the answered surface is greyed', (await page.locator('.turn__surface--spent').count()) > 0);
 check(
   'and inert, so nothing in it can be clicked',
-  await spent.locator('.a2-surface').first().evaluate((element) => element.hasAttribute('inert')),
+  await spent
+    .locator('.a2-surface')
+    .first()
+    .evaluate((element) => element.hasAttribute('inert')),
 );
 const greyed = await spent.evaluate((element) => getComputedStyle(element).filter);
 check('visibly, not just functionally', /grayscale/.test(greyed), greyed);
@@ -235,7 +244,10 @@ check(
 // --- a card's values reach the agent in its data model ---------------------
 console.log('\nthe values a card sends');
 const before = chatTurns();
-await page.locator('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface input[type="range"]').first().fill('3400');
+await page
+  .locator('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface input[type="range"]')
+  .first()
+  .fill('3400');
 await page.waitForTimeout(400);
 check('moving the slider sent nothing', chatTurns() === before);
 
@@ -250,7 +262,8 @@ check(
   // In `a2uiRendererDataModel`, the renderer's data model for every surface
   // created with `sendDataModel`, sent in the request's metadata.
   'with the edited value in the data model it sends',
-  sent.at(-1)?.metadata?.a2uiRendererDataModel?.surfaces?.[pressOf(sent.at(-1))?.surfaceId]?.trip?.budget === 3400,
+  sent.at(-1)?.metadata?.a2uiRendererDataModel?.surfaces?.[pressOf(sent.at(-1))?.surfaceId]?.trip?.budget ===
+    3400,
   JSON.stringify(sent.at(-1)?.metadata?.a2uiRendererDataModel ?? {}),
 );
 
@@ -258,7 +271,10 @@ check(
 console.log('\nthe panel');
 await page.waitForSelector('.sidebar .a2-surface', { timeout: 20000 }).catch(() => {});
 if ((await page.locator('.sidebar .a2-surface').count()) === 0) {
-  await page.locator('.sidebar__placeholder button').click().catch(() => {});
+  await page
+    .locator('.sidebar__placeholder button')
+    .click()
+    .catch(() => {});
   await page.waitForSelector('.sidebar .a2-surface', { timeout: 20000 }).catch(() => {});
 }
 
@@ -271,10 +287,7 @@ if ((await page.locator('.sidebar .a2-surface').count()) > 0) {
     await page.waitForTimeout(400);
     check('a control in the panel sends nothing, whatever the model drew', chatTurns() === beforePanel);
   }
-  check(
-    'and the panel never offers to submit',
-    (await page.locator('.sidebar .pending').count()) === 0,
-  );
+  check('and the panel never offers to submit', (await page.locator('.sidebar .pending').count()) === 0);
   check(
     'the plan is A2UI the agent drew, not React the app shipped',
     (await page.locator('.sidebar .plan').count()) === 0,
@@ -295,10 +308,7 @@ if ((await page.locator('.sidebar .a2-surface').count()) > 0) {
     asked?.surface === 'inline' && pressOf(asked)?.name === 'change',
     `${asked?.surface}: ${JSON.stringify(pressOf(asked) ?? {}).slice(0, 90)}`,
   );
-  check(
-    'and it reads as a message like any other',
-    (await page.locator('.bubble--event').count()) >= 2,
-  );
+  check('and it reads as a message like any other', (await page.locator('.bubble--event').count()) >= 2);
 } else {
   check('the panel rendered', false, 'no panel appeared');
 }

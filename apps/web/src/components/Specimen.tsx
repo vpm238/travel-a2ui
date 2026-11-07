@@ -13,9 +13,9 @@ import { Surfaces } from '../surfaces.js';
 import { SurfaceView } from './SurfaceView.js';
 
 export function Specimen({ name }: { name: string }) {
-  const component = (reference.components as Array<{ name: string; messages?: unknown[]; error?: string }>).find(
-    (entry) => entry.name === name,
-  );
+  const component = (
+    reference.components as Array<{ name: string; messages?: unknown[]; error?: string }>
+  ).find((entry) => entry.name === name);
   const surfaces = useMemo(() => {
     if (!component?.messages) return null;
     const one = new Surfaces();

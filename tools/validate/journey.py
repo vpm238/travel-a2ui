@@ -45,7 +45,8 @@ sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
 
 from travel_a2ui.brain import data  # noqa: E402
 from travel_a2ui.brain import trip as model
-from travel_a2ui.brain.ui import STANDING_SURFACES as STANDING, Canvas  # noqa: E402
+from travel_a2ui.brain.ui import STANDING_SURFACES as STANDING  # noqa: E402
+from travel_a2ui.brain.ui import Canvas
 from travel_a2ui.doors.interactions import SurfaceAction, TurnRequest, run_turn  # noqa: E402
 
 DEFAULT_MODEL = "gemini-3.8-flash"
@@ -243,9 +244,11 @@ SCRIPTS: dict[str, dict[str, Any]] = {
     "berlin": {
         "why": "The demo prompt: two out, one back, a hotel by the Kurfürstendamm.",
         "steps": [
-            {"say": "A trip for two from Copenhagen to Berlin, leaving next monday, "
-                    "coming back next thursday, but only one person on the way back. "
-                    "Include hotel close to Kurfürstendamm."},
+            {
+                "say": "A trip for two from Copenhagen to Berlin, leaving next monday, "
+                "coming back next thursday, but only one person on the way back. "
+                "Include hotel close to Kurfürstendamm."
+            },
             {"press": "FlightOption"},
             {"press": "FlightOption"},
             {"press": "HotelCard"},
@@ -256,10 +259,7 @@ SCRIPTS: dict[str, dict[str, Any]] = {
     "one-way": {
         "why": "A journey that does not come back is not missing a hop.",
         "steps": [
-            {
-                "say": "one way from JFK to Madrid on the 12th of April 2027, just me, "
-                "I'm staying on after"
-            },
+            {"say": "one way from JFK to Madrid on the 12th of April 2027, just me, I'm staying on after"},
             {"say": "find me a flight"},
         ],
         "wants": {"oneWay": True},
@@ -404,8 +404,9 @@ async def play(name: str, model_id: str, effort: str, quiet: bool) -> dict[str, 
                 print(f'  says  "{spoken[:180]}"')
             for node in nodes:
                 body = {key: value for key, value in node.items() if key != "id"}
-                print(f"  {str(node.get('id', '?')):<14} {kind_of(node):<16} "
-                      f"{json.dumps(body, ensure_ascii=False)[:150]}")
+                print(
+                    f"  {str(node.get('id', '?')):<14} {kind_of(node):<16} {json.dumps(body, ensure_ascii=False)[:150]}"
+                )
             print(f"  trip  {json.dumps(trip, ensure_ascii=False)[:400]}")
 
         record.append(

@@ -14,14 +14,10 @@ is caught the day it ships.
 
 from __future__ import annotations
 
-import json
 import pathlib
 import sys
-import warnings
 
 import pytest
-
-warnings.filterwarnings("ignore")
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -32,7 +28,8 @@ pytest.importorskip(
     reason="the reference A2UI SDK is not installed (pip install a2ui-agent-sdk)",
 )
 
-from travel_a2ui.brain.catalog import AGENT_COMPONENTS as ALLOW, CATALOG_JSON, model_catalogs  # noqa: E402
+from travel_a2ui.brain.catalog import AGENT_COMPONENTS as ALLOW  # noqa: E402
+from travel_a2ui.brain.catalog import CATALOG_JSON, model_catalogs
 from travel_a2ui.brain.macros import MACRO_NAMES  # noqa: E402
 
 

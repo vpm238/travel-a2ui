@@ -8,9 +8,6 @@ output. These hold the three together.
 from __future__ import annotations
 
 import sys
-import warnings
-
-warnings.filterwarnings("ignore")
 
 from travel_a2ui import ROOT  # noqa: E402
 from travel_a2ui.brain.catalog import PROCESSOR  # noqa: E402

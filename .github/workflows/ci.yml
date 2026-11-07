@@ -20,61 +20,33 @@ jobs:
     name: Build and test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
 
       - run: npm ci
 
-      # The wheel, not a git checkout — so the SDK that generates the prompt
-      # here is the SDK the image runs. The ANTLR toolchain went with the
-      # source build: a published wheel ships its parser already generated,
-      # which also takes a minute and a flaky download out of every run.
-      #
-      # The server package comes too, because the generators import it now:
-      # one `load_catalog` that knows how this SDK wants a catalog loaded,
-      # rather than the incantation repeated in four scripts.
-      #
-      # `-e`, and not as a preference: `travel_a2ui.ROOT` is four directories up
-      # from `__init__.py`, which is the repository when the package is read
-      # from `apps/server/src` and a path inside the virtualenv when it is
-      # copied into site-packages. `brain/catalog.py` reads the catalog at
-      # import time, so a non-editable install made every generator that
-      # imports it look for `catalogs/a2ui-travel/catalog.json` somewhere that
-      # has no catalogs directory at all — which is what "10-inline-flight-
-      # options.express does not compile: FileNotFoundError" was. The image
-      # installs it `-e` for the same reason (see the Dockerfile), so this is
-      # also the rule the previous commit was applying: install it the way the
-      # image does.
-      # Installed from `apps/server/pyproject.toml`, with no version named
-      # here.
-      #
-      # This step used to pin its own: a git commit once, then
-      # `a2ui-agent-sdk==0.9.0`. Both are a second place that decides which SDK
-      # this repo builds against. The first spelling had CI build the prompt
-      # with one SDK while the image ran another, and `check:skills` reported
-      # stale for weeks against a repository that was perfectly consistent with
-      # itself. The second had pyproject move to 0.10.0 while this line stayed
-      # at 0.9.0, so pip was handed both in one command and CI went red on a
-      # commit whose every suite was green.
-      #
-      # `-e ./apps/server` installs exactly what the image installs, because it
-      # reads the same file. One answer, and the next bump is one line.
+      # The server package, editable, exactly as the image installs it: the
+      # SDK version comes from `apps/server/pyproject.toml` alone, and the
+      # generators import the server's own catalog and processor from the
+      # repository (`travel_a2ui.ROOT` is the checkout only when editable).
       - name: A2UI agent SDK
         run: |
           python3 -m pip install --quiet -e ./apps/server
           python3 -c "from a2ui.skill import SkillGenerator; print('SkillGenerator ready')"
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Lint and format
+        run: |
+          python3 -m pip install --quiet ruff==0.17.4
+          npm run lint
+          npm run format:check
 
       - name: Test
         run: npm test
@@ -117,24 +89,18 @@ jobs:
           python3 -m pip install --quiet pytest httpx
           python3 -m pytest apps/server/tests -q
 
-      # The two browser paths, against one dev server and a scripted model, so
-      # they need no API key and cost nothing:
+      # The browser suites, against the real server with a scripted model in
+      # place of Gemini, so they need no key and cost nothing:
       #
-      #   chat.mjs  a whole turn — typing, streaming, a surface appearing,
-      #             clicking it, the click becoming the next turn.
-      #   interaction.mjs
-      #             the rules that decide whether the app feels coherent:
-      #             editing sends nothing, committing sends everything once,
-      #             answered surfaces go grey and inert, and what you set on
-      #             one card is pre-filled on the next.
+      #   chat.mjs         a whole turn: typing, streaming, a surface, a press.
+      #   interaction.mjs  editing sends nothing, a press sends the data model
+      #                    once, answered surfaces go inert.
+      #   frameworks.mjs   the runtime picker.
+      #   keys.mjs         no key, and a key held by the server.
+      #   sample.mjs       the recorded sample trip a first visit opens on.
       - name: End-to-end
         run: |
           npx playwright install --with-deps chromium
-          # The real server with a scripted model in place of Gemini, so this
-          # needs no API key and costs nothing to run — which is the only way an
-          # end-to-end test actually gets run. Everything else in the process is
-          # the real thing: the real agent events, the real SDK processor, the
-          # real SSE transport, the real static mounts.
           pip install --quiet -e ./apps/server
           GEMINI_API_KEY=scripted python3 tools/e2e/scripted_server.py 8131 &
           for _ in $(seq 1 60); do
@@ -148,60 +114,51 @@ jobs:
           node tools/e2e/chat.mjs
           node tools/e2e/interaction.mjs
           node tools/e2e/frameworks.mjs
-          # Its own servers, because what it tests is what the server holds:
-          # nothing at all, and a key the browser was never given.
+          # Starts its own servers: what it tests is what the server holds.
           node tools/e2e/keys.mjs
-          # And the sample trip a first visit opens on, which every other suite
-          # turns off so that it starts from an empty conversation.
           node tools/e2e/sample.mjs
         env:
           # Let Playwright use the browser it just installed.
           CHROMIUM_PATH: ''
 
-      # The component reference is generated from the catalog and the web
-      # app's /catalog/<Name> pages, so it goes stale the moment either
-      # changes — and a reference page that is quietly wrong is worse than no
-      # reference page. Here rather than
-      # beside the other `check:` steps because it needs the browser installed
-      # above. It compares the generated markdown and that every screenshot
-      # exists, not image bytes, so it does not flake on a font.
+      # docs/catalog.md is generated from the catalog and the web app's
+      # /catalog/<Name> pages. Here because it needs the browser installed
+      # above; it compares the markdown and that every screenshot exists, not
+      # image bytes.
       - name: The catalog reference is current
         run: npm run check:catalog-page
         env:
           CHROMIUM_PATH: ''
 
-  reference-parity:
+  newest-sdk:
     name: Against the newest A2UI SDK
     runs-on: ubuntu-latest
-    # The newest published SDK, in its own job because it pulls the whole ADK
-    # dependency tree: catalog pruning and macros against it, so an upstream
-    # change shows up here before a pin bump.
+    # The newest published SDK, unpinned: catalog pruning and macros against
+    # it, so an upstream change shows up here before a pin bump. Advisory.
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
 
       - run: npm ci
 
-      # The server package, then the SDK floated to whatever upstream has
-      # published: installing the server pins the SDK, so the upgrade after it
-      # is what compares the signature generator with the *latest* reference.
-      - name: Install the reference A2UI SDK
+      # The server package pins the SDK; the upgrade after it floats to the
+      # newest published release.
+      - name: Install the newest A2UI SDK
         run: |
           python3 -m pip install --quiet pytest -e ./apps/server
           python3 -m pip install --quiet --upgrade a2ui-agent-sdk
 
       - name: Pruning and macros hold on the newest SDK
-        run: python3 -m pytest tools/tests/test_sdk_parity.py -q
+        run: python3 -m pytest tools/tests/test_sdk_conformance.py -q
 
   quickstart:
     name: The quickstart site
@@ -210,9 +167,8 @@ jobs:
     # to tour this repository. A tour that names a file which has since moved
     # sends someone's agent hunting for it, so every path it names is checked.
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
@@ -254,23 +210,11 @@ jobs:
   flutter:
     name: The Flutter client
     runs-on: ubuntu-latest
-    # Its own job because it needs a 1.5GB SDK nothing else here wants, and
-    # because a failure should say "the Flutter client" rather than hide in a
-    # build log.
-    #
-    # It was not tested at all until the client was ported to A2UI 1.0, and the
-    # gap cost exactly what an untested renderer costs. `a2ui_core` 0.4 hands a
-    # resolved property back wrapped in a `ResolvedBinding`; every reader in
-    # `components.dart` took the wrapper for the value, so a Text drew the
-    # characters `ResolvedBinding(Madrid)`, `number()` returned null, every
-    # button fell through to its fallback caption, and every editor wrote the
-    # traveller's answer nowhere. None of it threw. `flutter build web` — the
-    # only Flutter step there was, and only in the image — compiled all of it
-    # without a word, because none of it is a type error.
+    # Its own job: it needs the Flutter SDK, and a failure should name the
+    # Flutter client.
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           # The version the image builds with. They have to agree, or this job
           # is green against an SDK the deployment does not use.
@@ -282,9 +226,7 @@ jobs:
         working-directory: renderers/flutter
         run: flutter pub get
 
-      # Analysis before tests: it is faster, and it catches the SDK bumps that
-      # rename an API outright, which is the other half of what a renderer
-      # against a moving protocol gets wrong.
+      # Analysis first: it is faster, and catches an SDK bump that renames an API.
       - name: Analyze
         working-directory: renderers/flutter
         run: flutter analyze
@@ -293,9 +235,7 @@ jobs:
         working-directory: renderers/flutter
         run: flutter test
 
-      # What the image actually does with this package. Kept so a change that
-      # passes the tests but cannot be compiled for the web fails here rather
-      # than in a deployment.
+      # What the image does with this package.
       - name: Build for the web
         working-directory: renderers/flutter
         # Under `/flutter/`, where the server mounts it and the browser test
@@ -306,13 +246,13 @@ jobs:
       # model: boot, the catalog fetch, a streamed turn, the rows filling in, a
       # press, and the trip opening as a cart. Phone-sized, and again on a
       # desktop where it draws inside a phone frame.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
 

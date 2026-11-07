@@ -50,7 +50,9 @@ const TRAVEL_FUNCTIONS: Record<string, (args: AnyRecord) => unknown> = { calcNig
  * or evaluate, because a catalog that offers the agent something the renderer
  * cannot show is the one mistake a catalog must not make.
  */
-export function createTravelCatalog(document: CatalogDocument): Catalog<ReactCatalogComponent, FunctionImplementation> {
+export function createTravelCatalog(
+  document: CatalogDocument,
+): Catalog<ReactCatalogComponent, FunctionImplementation> {
   const schemas: CatalogApi = Catalog.fromJson(document);
 
   const components: ReactCatalogComponent[] = [...schemas.components.entries()].map(([name, api]) => {

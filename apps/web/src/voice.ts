@@ -276,12 +276,8 @@ export async function instantiateLive(options: {
           finish(null, { model: message.model, contract: message.contract });
         }
       });
-      socket.addEventListener('error', () =>
-        finish(new Error('Could not reach the voice service.')),
-      );
-      socket.addEventListener('close', () =>
-        finish(new Error('The voice service closed the connection.')),
-      );
+      socket.addEventListener('error', () => finish(new Error('Could not reach the voice service.')));
+      socket.addEventListener('close', () => finish(new Error('The voice service closed the connection.')));
     });
   } finally {
     try {
@@ -333,8 +329,7 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
    * `hush` resets `playHead` to zero, which is also how an interruption lets
    * the traveller straight back in.
    */
-  const echoing = () =>
-    playHead > 0 && playback.currentTime < playHead + ECHO_TAIL_MS / 1000;
+  const echoing = () => playHead > 0 && playback.currentTime < playHead + ECHO_TAIL_MS / 1000;
 
   // Everything scheduled and not yet finished, so an interruption can stop it.
   // Chunks arrive faster than they play, so at the moment the traveller speaks
@@ -372,11 +367,9 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
 
   await new Promise<void>((resolve, reject) => {
     socket.addEventListener('open', () => resolve(), { once: true });
-    socket.addEventListener(
-      'error',
-      () => reject(new Error('Could not reach the voice service.')),
-      { once: true },
-    );
+    socket.addEventListener('error', () => reject(new Error('Could not reach the voice service.')), {
+      once: true,
+    });
   });
 
   // What a typed turn sends: the day, the surfaces on screen, the capabilities.

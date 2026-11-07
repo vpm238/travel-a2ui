@@ -13,6 +13,12 @@ test.
 
 from __future__ import annotations
 
+import datetime as _dt
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..providers.types import TravelProvider
+
 import json
 import os
 from dataclasses import dataclass
@@ -22,9 +28,7 @@ from ... import ROOT
 from .. import trip as model
 
 _ROOT = ROOT
-TOOLS: list[dict[str, Any]] = json.loads(
-    (_ROOT / "data" / "tools.json").read_text("utf-8")
-)["tools"]
+TOOLS: list[dict[str, Any]] = json.loads((_ROOT / "data" / "tools.json").read_text("utf-8"))["tools"]
 
 #: Fields a surface may not quietly change, even by pressing a button.
 #:

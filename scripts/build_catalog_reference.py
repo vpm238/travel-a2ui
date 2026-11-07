@@ -18,10 +18,7 @@ import json
 import pathlib
 import re
 import sys
-import warnings
 from typing import Any
-
-warnings.filterwarnings("ignore")
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "apps" / "web" / "src" / "generated" / "catalog-reference.json"
@@ -39,8 +36,7 @@ SPECIAL: dict[str, str] = {
     'kind="origin", placeholder="City or airport")',
     "List": '$/items/0/label = "Passport"\n$/items/1/label = "Adapter"\nrow = Text($label)\n'
     "root = List(_template($/items, row))",
-    "Column": 'a = Text("#### Outbound")\nb = Text("JFK → MAD · Sun 12 Apr")\n'
-    'root = Column([a, b], align="stretch")',
+    "Column": 'a = Text("#### Outbound")\nb = Text("JFK → MAD · Sun 12 Apr")\nroot = Column([a, b], align="stretch")',
     "Row": 'a = Text("Total")\nb = Text("$1,236")\nroot = Row([a, b], justify="spaceBetween")',
     "Card": 'inner = Text("Anything can go in a card.")\nroot = Card(inner)',
     "Tabs": 'one = Text("Prado at opening, then lunch at Sobrino.")\n'
@@ -73,7 +69,7 @@ SPECIAL: dict[str, str] = {
     "Slider": '$/trip/budget = 2400\nroot = Slider("Budget, all in", 500, 6000, $/trip/budget)',
     "Button": 'face = Text("Search flights")\nroot = Button(face, action=Event("search_flights"), variant="primary")',
     "DateTimeInput": '$/trip/startDate = "2027-04-12"\n'
-    'root = DateTimeInput("Departure", $/trip/startDate, enableDate=true)',
+    'root = DateTimeInput($/trip/startDate, label="Departure", enableDate=true)',
     "TravelerCounter": '$/trip/travelers = 2\nroot = TravelerCounter("Travelers", $/trip/travelers, min=1, max=9, '
     'caption="Adults on this leg")',
     "DateRangePicker": '$/trip/startDate = "2027-04-12"\n$/trip/endDate = "2027-04-19"\n'
@@ -318,15 +314,19 @@ def main() -> int:
     if args.check:
         current = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
         if current != text:
-            print("The catalog reference is stale. Regenerate: python3 scripts/build_catalog_reference.py",
-                  file=sys.stderr)
+            print(
+                "The catalog reference is stale. Regenerate: python3 scripts/build_catalog_reference.py",
+                file=sys.stderr,
+            )
             return 1
         print(f"The catalog reference is current: {len(reference['components'])} components.")
         return 0
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(text, encoding="utf-8")
-    print(f"Wrote {OUT.relative_to(ROOT)}: {len(reference['components'])} components, "
-          f"{len(reference['functions'])} functions.")
+    print(
+        f"Wrote {OUT.relative_to(ROOT)}: {len(reference['components'])} components, "
+        f"{len(reference['functions'])} functions."
+    )
     return 0
 
 

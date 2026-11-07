@@ -29,17 +29,6 @@ schema, and a retyped description is a different agent.
 
 from __future__ import annotations
 
-from .contracts import (  # noqa: F401 — re-exported: this package is one module to its callers
-    DATA_TOOL_NAMES,
-    GROUNDING,
-    REFUSABLE,
-    TOOLS,
-    ToolContext,
-    gemini_tools,
-    grounding_tools,
-    is_data_tool,
-    _ROOT,
-)
 from .answers import (  # noqa: F401 — re-exported: this package is one module to its callers
     _SYMBOLS,
     _cannot,
@@ -55,11 +44,22 @@ from .answers import (  # noqa: F401 — re-exported: this package is one module
     _str,
     _trip_currency,
 )
+from .contracts import (  # noqa: F401 — re-exported: this package is one module to its callers
+    _ROOT,
+    DATA_TOOL_NAMES,
+    GROUNDING,
+    REFUSABLE,
+    TOOLS,
+    ToolContext,
+    gemini_tools,
+    grounding_tools,
+    is_data_tool,
+)
+from .run import (  # noqa: F401 — re-exported: this package is one module to its callers
+    _run,
+    run_tool,
+)
 from .share import (  # noqa: F401 — re-exported: this package is one module to its callers
     FIXTURE_NOTE,
     _share_page,
-)
-from .run import (  # noqa: F401 — re-exported: this package is one module to its callers
-    run_tool,
-    _run,
 )

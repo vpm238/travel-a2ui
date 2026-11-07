@@ -15,12 +15,12 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from test_live import FakeClient, transcript_frame, turn_complete_frame  # noqa: E402
+
 from travel_a2ui.brain import data
 from travel_a2ui.brain.providers.fixture import FixtureProvider
 from travel_a2ui.brain.ui import Canvas, Drawing
 from travel_a2ui.doors.live import VoiceSession, relay
-
-from test_live import FakeClient, transcript_frame, turn_complete_frame  # noqa: E402
 
 TRIP = {
     "origin": "JFK",
@@ -206,9 +206,7 @@ class TestTheFirstPanelIsDrawnOnce:
                 SlowClient.active -= 1
                 return await super().create(**body)
 
-        client = SlowClient(
-            [[turn_complete_frame()], [turn_complete_frame()]], interactions=[block, block]
-        )
+        client = SlowClient([[turn_complete_frame()], [turn_complete_frame()]], interactions=[block, block])
         call([OUTBOUND, {"type": "text", "text": "and then"}], canvas=Canvas(), client=client, linger=0.5)
         assert SlowClient.most == 1, "two panel draws ran at once"
         assert len(client.interaction_bodies) == 1, "a panel that exists is not drawn again"

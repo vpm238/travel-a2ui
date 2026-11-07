@@ -19,9 +19,6 @@ import asyncio
 import json
 import pathlib
 import sys
-import warnings
-
-warnings.filterwarnings("ignore")
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))

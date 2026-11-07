@@ -1,22 +1,20 @@
 name: travel-a2ui Cloud Run
 
-# Deploys the Python server — which also serves the built React client, the
+# Deploys the Python server — which also serves the built React client and the
 # Flutter client — to a single Cloud Run service.
 #
-# One service, not two. Splitting the front end from the API would buy nothing
-# here (no independent scaling, no separate release cadence, no second team)
-# while costing a CORS configuration, a second deployment to keep in step, and
-# a class of bug where the two halves are different versions of the same app.
+# One service, not two: splitting the front end from the API would buy no
+# independent scaling or release cadence, and would cost a CORS configuration
+# and a class of bug where the two halves are different versions of the app.
 #
-# Every push to `main` deploys. This was manual while the Cloudflare Worker was
-# the thing on the public URL — two deploys racing to serve the same users is
-# how a demo becomes unexplainable — and with Cloud Run as the only deployment
-# that reason is gone.
+# It deploys only what CI passed: it runs when "travel-a2ui CI" completes
+# successfully on `main`, and builds the commit that CI tested.
 
 on:
-  push:
+  workflow_run:
+    workflows: ['travel-a2ui CI']
+    types: [completed]
     branches: [main]
-    paths: ['**']
   workflow_dispatch:
     inputs:
       service:
@@ -40,10 +38,16 @@ concurrency:
 jobs:
   deploy:
     name: Build and deploy
+    # A CI run that failed, or ran for a push to another branch, deploys nothing.
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    env:
+      # The commit CI tested, not whatever `main` points at by now.
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
-      - uses: actions/checkout@v5
-
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
       - name: Check the deployment is configured
         run: |
           missing=()
@@ -64,13 +68,12 @@ jobs:
           WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
           WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/setup-gcloud@v2
-
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
       - name: Build and push the image
         run: |
           set -euo pipefail
@@ -93,11 +96,11 @@ jobs:
           DOCKER_BUILDKIT=1 docker build \
             --cache-from "${image}:latest" \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
-            -t "${image}:${GITHUB_SHA}" -t "${image}:latest" .
-          docker push "${image}:${GITHUB_SHA}"
+            -t "${image}:${DEPLOY_SHA}" -t "${image}:latest" .
+          docker push "${image}:${DEPLOY_SHA}"
           docker push "${image}:latest"
 
-          echo "IMAGE=${image}:${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "IMAGE=${image}:${DEPLOY_SHA}" >> "$GITHUB_ENV"
 
       - name: Deploy
         env:
@@ -106,23 +109,34 @@ jobs:
           # HTTP referrer rather than kept secret — the browser is what loads
           # the library — so it is served to the page from `/api/meta`.
           MAPS_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          # The identity the service runs as. A dedicated account with no
+          # project roles is what it should be; without one, Cloud Run uses the
+          # default compute account (see docs/deploying.md).
+          RUNTIME_SERVICE_ACCOUNT: ${{ vars.RUNTIME_SERVICE_ACCOUNT }}
         run: |
           set -euo pipefail
 
-          # One `--set-env-vars`, built up here. Passing the flag twice does not
-          # add to the environment, it replaces it, so a second flag would have
-          # quietly dropped PUBLIC_NAME.
+          # `--update-env-vars`, not `--set-env-vars`: set replaces the service's
+          # whole environment, which would drop a GEMINI_API_KEY or
+          # ALLOWED_ORIGINS set on the service by hand.
           env_vars="PUBLIC_NAME=Travel A2UI"
           if [ -n "${MAPS_KEY:-}" ]; then
             env_vars="${env_vars},GOOGLE_MAPS_API_KEY=${MAPS_KEY}"
           fi
 
+          identity=()
+          if [ -n "${RUNTIME_SERVICE_ACCOUNT:-}" ]; then
+            identity=(--service-account "${RUNTIME_SERVICE_ACCOUNT}")
+          else
+            echo "::warning::RUNTIME_SERVICE_ACCOUNT is not set; the service runs as the default compute account."
+          fi
+
           gcloud run deploy "${{ inputs.service || 'travel-a2ui' }}" \
+            "${identity[@]}" \
             --image "${IMAGE}" \
             --region "${{ vars.GCP_REGION }}" \
             --project "${{ vars.GCP_PROJECT_ID }}" \
             --platform managed \
-            --allow-unauthenticated \
             --port 8080 \
             --cpu 1 \
             --memory 1Gi \
@@ -130,7 +144,7 @@ jobs:
             --concurrency 40 \
             --min-instances 0 \
             --max-instances 1 \
-            --set-env-vars "${env_vars}"
+            --update-env-vars "${env_vars}"
 
           # `--max-instances 1` is not a cost control, it is a correctness one.
           # Sessions live in this process's memory (see `sessions.py`), so a

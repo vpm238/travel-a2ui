@@ -32,8 +32,7 @@ class TestTheReceiptComesBeforeThePanels:
 
         assert "__result__" in kinds, "nothing was ever handed back"
         assert kinds.index("__result__") < kinds.index("done"), (
-            "the receipt lands after the turn is finished, so a press that "
-            "interrupts the tail loses the trip"
+            "the receipt lands after the turn is finished, so a press that interrupts the tail loses the trip"
         )
 
     def test_and_it_carries_the_trip(self) -> None:
@@ -69,4 +68,4 @@ class TestTheSessionIsWrittenAsTheTripMoves:
         source = inspect.getsource(http)
         relay = source[source.index("async for event in run_turn(turn):") :]
         assert 'if event["type"] == "trip"' in relay
-        assert "sessions.save(session_id, trip=event[\"trip\"])" in relay
+        assert 'sessions.save(session_id, trip=event["trip"])' in relay

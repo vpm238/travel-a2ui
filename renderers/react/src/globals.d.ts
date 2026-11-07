@@ -1,9 +1,8 @@
 /**
  * What the page may put on `window` for the travel views.
  *
- * `google.maps` is the Maps JavaScript API once its script has loaded, and
- * `__A2UI_MAPS_KEY` is the deployment's (public, referrer-restricted) Maps key,
- * set by the app from `/api/meta`.
+ * `google.maps` is the Maps JavaScript API once its script has loaded. The
+ * key it is loaded with comes from `MapsKeyContext`, not from `window`.
  */
 export {};
 
@@ -16,6 +15,5 @@ interface MapsLibraryLoader {
 declare global {
   interface Window {
     google?: { maps?: MapsLibraryLoader };
-    __A2UI_MAPS_KEY?: string;
   }
 }

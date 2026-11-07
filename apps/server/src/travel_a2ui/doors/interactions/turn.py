@@ -172,9 +172,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                     out.extend(ui_events(event[2], done=not drawing.stream.is_in_block))
                 elif kind == "rejected":
                     rejected = rejected or (event[1], event[2])
-                    out.append(
-                        {"type": "ui_error", "message": event[1], "express": event[2], "source": "stream"}
-                    )
+                    out.append({"type": "ui_error", "message": event[1], "express": event[2], "source": "stream"})
                 elif kind == "advice":
                     advice.append(event[1])
             return out
@@ -251,13 +249,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
                 + "\n".join(f"- {note}" for note in advice)
                 + "\n\nFix it with an update to that surface. Only the <a2ui> block."
             )
-        if (
-            not result.tool_calls
-            and not corrections
-            and not drew
-            and promised(spoken)
-            and not told["promise"]
-        ):
+        if not result.tool_calls and not corrections and not drew and promised(spoken) and not told["promise"]:
             told["promise"] = True
             yield {"type": "retry", "reason": "the turn promised and drew nothing"}
             corrections.append(TYPED_NUDGE)
@@ -343,9 +335,7 @@ async def run_turn(request: TurnRequest) -> AsyncIterator[dict[str, Any]]:
     yield {"type": "trip", "trip": dict(trip)}
     # Handed over before anything else, so a traveller who presses something
     # now (which cancels the rest of this stream) keeps the trip.
-    receipt = TurnResult(
-        interaction_id=last_interaction_id, trip=trip, stop_reason=stop_reason, setup=setup
-    )
+    receipt = TurnResult(interaction_id=last_interaction_id, trip=trip, stop_reason=stop_reason, setup=setup)
     yield {"type": "__result__", "result": receipt}
     mark("answered")
     yield {"type": "done", "stopReason": stop_reason}

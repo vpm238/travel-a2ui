@@ -155,7 +155,11 @@ try {
         { timeout: 15000 },
       )
       .catch(() => {});
-    const warmth = (await page.locator('.warmth').textContent().catch(() => '')) ?? '';
+    const warmth =
+      (await page
+        .locator('.warmth')
+        .textContent()
+        .catch(() => '')) ?? '';
     ok('setting up opens a conversation', /ready|getting ready/i.test(warmth), `warmth: "${warmth}"`);
 
     const composer = page.locator('.composer textarea');

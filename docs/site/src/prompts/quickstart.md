@@ -402,6 +402,27 @@ Offer one, help them make it, then `git checkout .`:
 Tests: `npm test` for the clients, `cd apps/server && python -m pytest -q` for
 the server.
 
+## Part 9b: What is new in A2UI 1.0 (if they ask, or know 0.9)
+
+Point at what this app uses, with the file:
+
+- **Renderer capabilities** (`a2uiRendererCapabilities`): sent on every request
+  by `apps/web/src/surfaces.ts`; negotiated in
+  `apps/server/src/travel_a2ui/brain/catalog.py` with the SDK's
+  `resolve_catalogs`.
+- **Data model metadata** (`a2uiRendererDataModel`, on surfaces created with
+  `sendDataModel`): how a form's answers reach the agent
+  (`apps/server/src/travel_a2ui/brain/inbound.py`, `Canvas.edits`).
+- **Renderer-to-agent `action` and `error` messages**, each with a `version`,
+  validated with the SDK's v1.0 models.
+- **Functions**: renderer-side catalog functions (`formatCurrency`,
+  `calcNights`); 1.0 also lets an agent call a renderer function
+  (`callRendererFunction`), which this app does not use.
+
+Say plainly that the SSE and WebSocket envelope is this app's own
+(`docs/transport.md`); A2UI's standard transports are A2A (`a2ui-a2a`) and ADK
+(`a2ui-adk`).
+
 ## Part 10: Wrap up
 
 Recap the five outcomes in a short table: outcome, one-line answer, where they

@@ -276,7 +276,7 @@ class TestAFlightPerHop:
         assert not any("a ticket" in hop["wants"] for hop in model.journey(trip))
 
     def test_a_hop_they_drive_wants_no_ticket(self):
-        """"We'll drive down to Lisbon" is a hop, not a flight."""
+        """ "We'll drive down to Lisbon" is a hop, not a flight."""
         trip = {
             **self.OUT_AND_BACK,
             "legs": [{**self.OUT_AND_BACK["legs"][0], "mode": "car"}],
@@ -286,7 +286,7 @@ class TestAFlightPerHop:
         assert "a ticket" not in hops[1]["wants"]
 
     def test_a_stay_answered_no_stops_being_wanted(self):
-        """"Not there, I'm at my sister's" has to be recordable."""
+        """ "Not there, I'm at my sister's" has to be recordable."""
         trip = {
             **self.OUT_AND_BACK,
             "legs": [{**self.OUT_AND_BACK["legs"][0], "needsStay": False}],
@@ -337,7 +337,7 @@ class TestNightsDecideWhatAHopNeeds:
         assert not [want for want in home["wants"] if "stay" in want or "things" in want]
 
     def test_a_stay_they_already_have_still_wants_the_days(self) -> None:
-        """"I'm at my sister's" answers the bed, not what they do all week."""
+        """ "I'm at my sister's" answers the bed, not what they do all week."""
         trip = {**self.TRIP, "selectedHotel": None, "needsStay": False}
         chicago = self.hops(trip)[0]
         assert "somewhere to stay" not in chicago["wants"]
@@ -350,12 +350,7 @@ class TestNightsDecideWhatAHopNeeds:
 
     def test_every_hop_carries_its_own_party_as_its_own_decision(self) -> None:
         """Addressed per hop, so changing one does not undo another."""
-        keys = [
-            row["key"]
-            for hop in self.hops()
-            for row in hop["decisions"]
-            if row["label"].startswith("who")
-        ]
+        keys = [row["key"] for hop in self.hops() for row in hop["decisions"] if row["label"].startswith("who")]
         assert keys == ["travelers", "legs/0/travelers", "legs/1/travelers"]
         assert [hop["travelers"] for hop in self.hops()] == [1, 3, 1]
 

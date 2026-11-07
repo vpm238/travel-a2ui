@@ -11,7 +11,6 @@ hit it.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from .. import trip as model
@@ -29,9 +28,8 @@ from .answers import (
 from .contracts import ToolContext
 from .share import FIXTURE_NOTE, _share_page
 
-async def run_tool(
-    name: str, args: dict[str, Any], context: ToolContext
-) -> tuple[Any, bool]:
+
+async def run_tool(name: str, args: dict[str, Any], context: ToolContext) -> tuple[Any, bool]:
     """Runs one tool call. Never raises: a thrown tool is a dead turn."""
     try:
         return await _run(name, args, context)
@@ -283,9 +281,7 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
         # trip's party size because they changed their mind about one leg is
         # how a correction undoes an answer nobody was correcting.
         asked = [
-            str(key)
-            for key in (args.get("fields") or [])
-            if model.is_trip_key(str(key)) or model.is_hop_key(str(key))
+            str(key) for key in (args.get("fields") or []) if model.is_trip_key(str(key)) or model.is_hop_key(str(key))
         ]
         stages = [str(stage) for stage in (args.get("stages") or [])]
 

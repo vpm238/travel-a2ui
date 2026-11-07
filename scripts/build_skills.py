@@ -17,9 +17,6 @@ import argparse
 import pathlib
 import sys
 import tempfile
-import warnings
-
-warnings.filterwarnings("ignore")
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
@@ -73,10 +70,7 @@ def main() -> int:
         with tempfile.TemporaryDirectory() as scratch:
             probe = pathlib.Path(scratch)
             generated = {path.relative_to(probe) for path in build(probe)}
-            on_disk = {
-                path.relative_to(SKILLS)
-                for path in (SKILLS / VARIANT).rglob("SKILL.md")
-            }
+            on_disk = {path.relative_to(SKILLS) for path in (SKILLS / VARIANT).rglob("SKILL.md")}
             stale = sorted(
                 str(path)
                 for path in generated | on_disk

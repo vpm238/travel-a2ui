@@ -23,9 +23,7 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
-import warnings
 
-warnings.filterwarnings("ignore")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "apps" / "server" / "src"))
 
 from travel_a2ui.brain import data  # noqa: E402

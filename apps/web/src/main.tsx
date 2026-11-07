@@ -14,6 +14,4 @@ if (!container) throw new Error('No #root element to mount into.');
 // which opens on the Catalog view at `/catalog`.
 const specimen = /^\/catalog\/([A-Za-z][A-Za-z0-9]*)\/?$/.exec(window.location.pathname)?.[1];
 
-createRoot(container).render(
-  <StrictMode>{specimen ? <Specimen name={specimen} /> : <App />}</StrictMode>,
-);
+createRoot(container).render(<StrictMode>{specimen ? <Specimen name={specimen} /> : <App />}</StrictMode>);

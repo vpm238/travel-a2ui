@@ -193,6 +193,25 @@ check(`all three flight options render (${flights})`, flights === 3);
 const badge = await page.locator('.tv-badge').first().textContent();
 check(`badges render (${badge?.trim()})`, Boolean(badge?.trim()));
 
+// Every card in the list shows its own fare, and says whether it is chosen.
+const fares = await page.locator('.tv-fare').evaluateAll((cards) =>
+  cards.map((card) => ({
+    price: card.querySelector('.tv-money')?.textContent?.trim() ?? '',
+    airline: card.querySelector('.tv-fare__airline strong')?.textContent?.trim() ?? '',
+    pressed: card.getAttribute('aria-pressed'),
+  })),
+);
+check(
+  'every fare card shows its airline and price',
+  fares.every((fare) => fare.airline && /\d/.test(fare.price)),
+  JSON.stringify(fares),
+);
+check(
+  'and says whether it is the chosen one',
+  fares.every((fare) => fare.pressed === 'true' || fare.pressed === 'false'),
+  JSON.stringify(fares.map((fare) => fare.pressed)),
+);
+
 // What a screen reader is told about the first fare.
 //
 // Checked here because this is the only probe that drives the real renderer
@@ -242,10 +261,11 @@ check(
 
 // The panel is A2UI now — there is no React list of trip keys to read, so the
 // check is that the chosen flight reached the drawn surface.
-await page.waitForFunction(
-  () => (document.querySelector('.sidebar')?.textContent ?? '').includes('IB6250'),
-  { timeout: 20000 },
-).catch(() => {});
+await page
+  .waitForFunction(() => (document.querySelector('.sidebar')?.textContent ?? '').includes('IB6250'), {
+    timeout: 20000,
+  })
+  .catch(() => {});
 const decided = (await page.locator('.sidebar').textContent()) ?? '';
 check('trip state reaches the sidebar', decided.includes('IB6250'), decided.slice(0, 80));
 

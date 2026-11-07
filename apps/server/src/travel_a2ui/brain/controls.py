@@ -22,9 +22,7 @@ from typing import Any, Iterable
 
 from .. import ROOT
 
-_ROWS: list[dict[str, Any]] = json.loads((ROOT / "data" / "controls.json").read_text("utf-8"))[
-    "controls"
-]
+_ROWS: list[dict[str, Any]] = json.loads((ROOT / "data" / "controls.json").read_text("utf-8"))["controls"]
 
 #: Which controls may be bound to which trip field, by the field's name.
 BY_FIELD: dict[str, tuple[str, ...]] = {row["field"]: tuple(row["allow"]) for row in _ROWS}
@@ -81,9 +79,7 @@ def unsent(components: Iterable[dict[str, Any]], sends_data_model: bool) -> list
     """A surface that asks for record fields and never sends them."""
     if sends_data_model:
         return []
-    asked = sorted(
-        {path for component in components for path in _asked(component) if path.startswith("/trip/")}
-    )
+    asked = sorted({path for component in components for path in _asked(component) if path.startswith("/trip/")})
     if not asked:
         return []
     return [

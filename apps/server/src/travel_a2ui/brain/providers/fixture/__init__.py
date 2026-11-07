@@ -21,31 +21,7 @@ the tools reach for `_money`.
 
 from __future__ import annotations
 
-from .tables import (  # noqa: F401 — re-exported: this package is one module to its callers
-    FIXTURE_PROVENANCE,
-    _AIRLINES,
-    _AMENITIES,
-    _BY_ALIAS,
-    _BY_CODE,
-    _CONNECTIONS,
-    _CURRENCY_SYMBOL,
-    _DATA,
-    _DESTINATIONS,
-    _DESTINATION_LIST,
-    _HOTELS,
-    _HOTEL_NAMES,
-    _HOTEL_WORDS,
-    _HUBS,
-    _LODGING,
-    _ORIGINS,
-    _ORIGIN_CODES,
-    _PLACE,
-    _ROOT,
-    _fold,
-    _rows,
-)
 from .numbers import (  # noqa: F401 — re-exported: this package is one module to its callers
-    code_for_seed,
     _MASK,
     _clock,
     _duration_minutes,
@@ -55,12 +31,7 @@ from .numbers import (  # noqa: F401 — re-exported: this package is one module
     _rng,
     _seed,
     _to_fixed,
-)
-from .routes import (  # noqa: F401 — re-exported: this package is one module to its callers
-    _carriers_for,
-    _connection,
-    _distance_km,
-    _hubs_on_the_way,
+    code_for_seed,
 )
 from .places import (  # noqa: F401 — re-exported: this package is one module to its callers
     _INVENTED_AREAS,
@@ -75,4 +46,33 @@ from .places import (  # noqa: F401 — re-exported: this package is one module 
 from .provider import (  # noqa: F401 — re-exported: this package is one module to its callers
     FixtureProvider,
     _relax_until_non_empty,
+)
+from .routes import (  # noqa: F401 — re-exported: this package is one module to its callers
+    _carriers_for,
+    _connection,
+    _distance_km,
+    _hubs_on_the_way,
+)
+from .tables import (  # noqa: F401 — re-exported: this package is one module to its callers
+    _AIRLINES,
+    _AMENITIES,
+    _BY_ALIAS,
+    _BY_CODE,
+    _CONNECTIONS,
+    _CURRENCY_SYMBOL,
+    _DATA,
+    _DESTINATION_LIST,
+    _DESTINATIONS,
+    _HOTEL_NAMES,
+    _HOTEL_WORDS,
+    _HOTELS,
+    _HUBS,
+    _LODGING,
+    _ORIGIN_CODES,
+    _ORIGINS,
+    _PLACE,
+    _ROOT,
+    FIXTURE_PROVENANCE,
+    _fold,
+    _rows,
 )

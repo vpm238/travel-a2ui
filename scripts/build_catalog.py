@@ -53,58 +53,28 @@ CATALOG_DESCRIPTION = (
     " itineraries, price breakdowns, and trip dashboards."
 )
 
+#: Composition rules the schema enforces (v1.0 `allowedChildren`) rather than
+#: a description asks for.
+ALLOWED_CHILDREN: dict[str, list[str]] = {"ItineraryDay": ["ActivityItem"]}
+
 CATALOG_INSTRUCTIONS = """\
-You are composing travel UI. A few house rules that matter more than anything else:
+Travel components carry meaning the layout primitives do not:
 
-- Prefer a travel component over hand-assembling one out of Row/Column/Text. If
-  you are showing a flight, use FlightOption. If you are showing a night's stay,
-  use HotelCard. The host styles these natively and they carry semantics the
-  plain layout primitives do not.
-- **A list of results is one call: `Flights()` or `Stays()`.** `search_flights`
-  files its rows at `/flights` and `search_hotels` at `/hotels`, and those two
-  read them — bound, labelled, pressable, however many arrive. Never write a
-  fare card per result: re-typing what a lookup just handed you is the largest
-  thing a turn says and the only part of it that can be wrong.
-
-      fares = Flights("Outbound · JFK → MAD", "/trip/selectedFlight")
-
-  Pass the heading, the path your choice is recorded at, and the hop when it is
-  not the first. The macro draws that heading itself, so do not also write a
-  `Text` with the same words above it: the traveller reads the line twice.
-- **Draw it before you call the lookup.** The shape of the answer is known the
-  moment you decide to look something up, and `Flights()` is nine characters —
-  so put it on screen, then call the tool, and the traveller watches it fill in
-  instead of waiting at a blank space.
-- **A planning turn draws `Highlights()` first.** `get_destination` files what
-  a city is worth going for at `/highlights`, and that is the one thing on a
-  planning turn whose shape is known early. Writing the days into `save_trip`
-  is the longest thing you say and nothing about the plan exists until it is
-  written, so draw the highlights while you write it. Without this the
-  traveller waits at an empty space for the whole plan.
-- **Then draw the plan with `Itinerary("Four days in Berlin")`.** It binds
-  `/days`, which the host fills the moment `save_trip({days: […]})` lands, so
-  draw it in the same reply as the write and end the turn with one sentence.
-- Every option the user could plausibly act on needs an `action`. A flight the
-  user cannot select is a screenshot, not an interface.
-- And every one of them needs a name. A card is read aloud in the order it is
-  written — "Iberia IB6250 18:40 JFK 08:15 +1 MAD 7h 35m Nonstop $412", every
-  fact and no sentence — so write the sentence:
-  `accessibility={label: "Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412"}`.
-  Name every fare, every stay, every tile anyone can press. It replaces the
-  card's own text rather than adding to it, so say the whole thing.
-- Money is always a preformatted display string ("$412", "€1,180 total"). Do not
-  emit bare numbers and hope the host formats them.
-- Times are display strings in the traveler's local time ("07:15", "Tue 14 Apr").
-  The one exception is DateRangePicker, whose bound values are calendar dates
-  ("2026-04-12"): a trip day is a day, not an instant in some time zone.
-- When you present a set of options, bind the user's current choice into the data
-  model so a later turn can read it back — e.g. `$/trip/selectedFlight`.
-- Keep a surface to one job. An inline card answers the message it is attached
-  to; the sidebar is the read-only record of what is settled; the home surface
-  summarizes.
-- `accessibility` also carries `live: "polite"` for a value that re-reckons
-  itself and `hidden: true` for decoration. Leave the block off anything whose
-  own text already reads as a sentence.\
+- Prefer a travel component to one assembled from Row, Column and Text: a
+  flight is a FlightOption, a night's stay a HotelCard.
+- Every option someone could act on has an action. An option that cannot be
+  chosen is a picture of one.
+- Give every pressable card an accessibility label that reads as a sentence
+  ("Iberia IB6250, 18:40 JFK to 08:15 next day MAD, nonstop, $412"): it
+  replaces the card's own text for a screen reader, so say all of it. Use
+  live: "polite" for a value that updates itself and hidden: true for
+  decoration.
+- Money is a preformatted display string ("$412", "€1,180 total"), and so are
+  times ("07:15", "Tue 14 Apr"). DateRangePicker's values are calendar dates
+  ("2026-04-12").
+- Bind the current choice of a set of options into the data model so it can
+  be read back and marked selected.
+- One job per surface.\
 """
 
 
@@ -258,8 +228,7 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
             "destination": dyn_str("Destination airport code, e.g. 'MAD'."),
             "price": dyn_str("Preformatted price including currency, e.g. '$412'."),
             "action": action(
-                "Fired when the traveler selects this flight. Required — an"
-                " unselectable option is not an interface."
+                "Fired when the traveler selects this flight. Required — an unselectable option is not an interface."
             ),
             "duration": dyn_str("Total travel time as a display string, e.g. '7h 25m'."),
             "stops": dyn_str("Stop summary, e.g. 'Nonstop' or '1 stop · LIS'."),
@@ -290,8 +259,7 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
     ),
     "HotelCard": component(
         "HotelCard",
-        "A place to stay, presented as a rich card with imagery, rating and"
-        " nightly price.",
+        "A place to stay, presented as a rich card with imagery, rating and nightly price.",
         {
             "name": dyn_str("Property name."),
             "price": dyn_str("Preformatted nightly or total price, e.g. '$186 / night'."),
@@ -316,24 +284,20 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
     ),
     "ItineraryDay": component(
         "ItineraryDay",
-        "One day of a trip. Its children are the day's ActivityItem components,"
-        " in chronological order.",
+        "One day of a trip. Its children are the day's ActivityItem components, in chronological order.",
         {
             "title": dyn_str("Day heading, e.g. 'Day 3 — Toledo'."),
             "children": child_list("The day's activities, earliest first."),
             "date": dyn_str("Date as a display string, e.g. 'Tue 14 Apr'."),
             "summary": dyn_str("One-line character of the day, e.g. 'Old town, slow pace'."),
             "action": action("Fired when the traveler opens or edits the whole day."),
-            "onAdd": action(
-                "Fired when the traveler wants something else in this day."
-            ),
+            "onAdd": action("Fired when the traveler wants something else in this day."),
         },
         required=["title", "children"],
     ),
     "ActivityItem": component(
         "ActivityItem",
-        "A single scheduled thing inside an ItineraryDay — a meal, a museum, a"
-        " transfer, a check-in.",
+        "A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.",
         {
             "title": dyn_str("What it is, e.g. 'Prado Museum'."),
             "time": dyn_str("Start time as a display string, e.g. '10:00'."),
@@ -353,8 +317,7 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
             # somebody pushes around — drop the museum, move the lunch — and a
             # list you cannot remove from is a list you argue with in prose.
             "onRemove": action(
-                "Fired when the traveler drops this activity. Give every activity"
-                " one: a day plan is theirs to edit."
+                "Fired when the traveler drops this activity. Give every activity one: a day plan is theirs to edit."
             ),
         },
         required=["title"],
@@ -370,8 +333,7 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
         {
             "center": _lat_lng("Where the map is centred."),
             "zoom": dyn_num(
-                "How close in. 4 spans a continent, 11 a city, 14 a"
-                " neighbourhood, 16 a street. Above 16 is clamped."
+                "How close in. 4 spans a continent, 11 a city, 14 a neighbourhood, 16 a street. Above 16 is clamped."
             ),
             "tilt": dyn_num("Degrees of tilt. Only has an effect in satellite mode."),
             "heading": dyn_num("Compass heading, in degrees."),
@@ -417,8 +379,7 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
         " orients the traveler and is safe to render offline.",
         {
             "markers": static_list_of(
-                "Places to pin. Static values only — the host lays them out"
-                " relative to each other.",
+                "Places to pin. Static values only — the host lays them out relative to each other.",
                 {
                     "label": "Short place name shown next to the pin.",
                     "kind": "One of 'stay', 'sight', 'food', 'transit'.",
@@ -465,10 +426,7 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
         " for an origin or a destination; never a ChoicePicker of airports.",
         {
             "label": dyn_str("The question, e.g. 'Where from?'."),
-            "value": dyn_str(
-                "Bound path the chosen option's `value` is written to, e.g."
-                " `$/trip/origin`."
-            ),
+            "value": dyn_str("Bound path the chosen option's `value` is written to, e.g. `$/trip/origin`."),
             # Bindable, so a form the model composes can offer the places the
             # host publishes at `/places/origins` and `/places/destinations`
             # instead of the model typing twenty airports out.
@@ -521,8 +479,7 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
     ),
     "TravelerCounter": component(
         "TravelerCounter",
-        "A stepper for party size. Bind `value` so the count survives a"
-        " re-render and later turns can read it.",
+        "A stepper for party size. Bind `value` so the count survives a re-render and later turns can read it.",
         {
             "label": dyn_str("What is being counted, e.g. 'Adults'."),
             "value": dyn_num("Bound path holding the current count."),
@@ -618,8 +575,7 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
                 " dates do."
             ),
             "end": dyn_str(
-                "Last travel day as yyyy-MM-dd. Omit for a single day; the band"
-                " runs from `start` to here inclusive."
+                "Last travel day as yyyy-MM-dd. Omit for a single day; the band runs from `start` to here inclusive."
             ),
             "marks": static_list_of(
                 "Days worth a glyph, in date order. Static values only — a"
@@ -740,64 +696,6 @@ def _own_properties_lead(component: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def _label_leads(component: dict[str, Any]) -> dict[str, Any]:
-    """Moves `label` to the front of a component's properties, and requires it.
-
-    Declaration order *is* the positional argument order the model is taught —
-    the module docstring says so — and `DateTimeInput` arrives from the basic
-    catalog ordered `(value, enableDate, enableTime, min, max, label)`. Every
-    other input in this catalog is label-first: `TextField(label, value)`,
-    `TravelerCounter(label, value)`, `DateRangePicker(label, start, end)`,
-    `CheckBox(label, value)`.
-
-    So a model that has learned the pattern from all of those writes
-    `DateTimeInput("Departure", $/trip/startDate)` — and the label lands on
-    `value`, the binding lands on `enableDate`, and `enableDate` is static, so
-    the surface does not compile. The one component that breaks the pattern is
-    the one every date question needs, which is why "it almost always fails on
-    date input" was a fair description.
-
-    Reordering is safe on both sides: renderers read properties by name, and the
-    compiler emits them by name. The only thing that changes is the order the
-    model is taught to pass them in.
-
-    The `required` half is not optional, and leaving it out was its own bug. A
-    leading argument that may be omitted makes the *rest* of the positions
-    ambiguous, and nothing downstream can tell which reading was meant:
-
-        DateTimeInput($/trip/startDate)
-
-    is the natural way to write the one required property, and it compiled —
-    silently — to a component whose binding had landed on `label` and which had
-    no `value` at all. The compiler had no complaint, so the first objection
-    came from the whole-message validator at the end of the turn, as a schema
-    dump naming no component and no property. `validate` covers every message,
-    so the surface died entire: one date field, and nothing on the screen.
-
-    Every other label-first input in this catalog already requires its label —
-    `TextField`, `TravelerCounter`, `CheckBox`, `DateRangePicker` — which is
-    exactly why none of them has this hole. `DateTimeInput` was the one that led
-    with an optional argument. Requiring the label closes it, and a model that
-    omits it now gets a compile error that names the component and the property,
-    in time for the repair turn to fix it.
-    """
-    out = json.loads(json.dumps(component))
-    for sub in out.get("allOf", []):
-        props = sub.get("properties")
-        if not isinstance(props, dict) or "label" not in props:
-            continue
-        sub["properties"] = {
-            "component": props["component"],
-            "label": props["label"],
-            **{k: v for k, v in props.items() if k not in ("component", "label")},
-        }
-        required = sub.get("required")
-        if isinstance(required, list) and "label" not in required:
-            # After `component`, so the order still reads as the signature does.
-            sub["required"] = [required[0], "label", *required[1:]]
-    return out
-
-
 #: What 1.0 says a component may carry for assistive technology.
 #:
 #: Copied rather than `$ref`-ed at the spec, because the catalog is read by the
@@ -807,10 +705,7 @@ def _label_leads(component: dict[str, Any]) -> dict[str, Any]:
 #: a screen reader should skip.
 ACCESSIBILITY = {
     "type": "object",
-    "description": (
-        "Attributes to enhance accessibility when using assistive technologies "
-        "like screen readers."
-    ),
+    "description": ("Attributes to enhance accessibility when using assistive technologies like screen readers."),
     "properties": {
         "label": {
             "$ref": f"{COMMON}/DynamicString",
@@ -822,8 +717,7 @@ ACCESSIBILITY = {
         "description": {
             "$ref": f"{COMMON}/DynamicString",
             "description": (
-                "More, where the label is not enough: instructions, a format, or "
-                "what pressing this will do."
+                "More, where the label is not enough: instructions, a format, or what pressing this will do."
             ),
         },
         "live": {
@@ -860,7 +754,7 @@ def _at_declared_version(node: Any) -> Any:
     if isinstance(node, dict):
         return {
             key: (
-                COMMON + value[len(SDK_COMMON):]
+                COMMON + value[len(SDK_COMMON) :]
                 if key == "$ref" and isinstance(value, str) and value.startswith(SDK_COMMON)
                 else _at_declared_version(value)
             )
@@ -907,23 +801,20 @@ def build() -> dict[str, Any]:
     ones, and writes the `anyComponent` and `anyFunction` unions to match, so
     nothing here patches a union by hand. What is added after is this
     catalog's own: its document fields, the shared accessibility definition,
-    and the order the model is taught positional arguments in.
+    unchanged basic components.
     """
-    import warnings
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        from a2ui.core.basic_catalog import BasicCatalog
-        from a2ui.core.catalog import ComponentApi, FunctionApi
+    from a2ui.core.basic_catalog import BasicCatalog
+    from a2ui.core.catalog import ComponentApi, FunctionApi
 
     basic = BasicCatalog(PROTOCOL_VERSION)
-    date_time_input = _label_leads(basic.to_json()["components"]["DateTimeInput"])
     derived = basic.derive(
         catalog_id=CATALOG_ID,
         components=[
             *basic.components,
-            ComponentApi("DateTimeInput", date_time_input, from_document=True),
-            *(ComponentApi(name, schema, from_document=True) for name, schema in TRAVEL_COMPONENTS.items()),
+            *(
+                ComponentApi(name, schema, allowed_children=ALLOWED_CHILDREN.get(name), from_document=True)
+                for name, schema in TRAVEL_COMPONENTS.items()
+            ),
         ],
         functions=[
             *basic.functions,
@@ -955,9 +846,7 @@ def build() -> dict[str, Any]:
         # Every component, ours and the basic catalog's alike. This decides the
         # positional argument order the model is taught, and leaving it to
         # `allOf` order as written made `weight` argument one.
-        "components": {
-            name: _own_properties_lead(schema) for name, schema in derived["components"].items()
-        },
+        "components": {name: _own_properties_lead(schema) for name, schema in derived["components"].items()},
         "functions": derived["functions"],
         "$defs": _defs_for_1_0(derived["$defs"]),
     }

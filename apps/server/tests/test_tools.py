@@ -19,8 +19,8 @@ import pathlib
 
 import pytest
 
-from travel_a2ui.brain.providers.fixture import FixtureProvider
 from travel_a2ui.brain import tools
+from travel_a2ui.brain.providers.fixture import FixtureProvider
 from travel_a2ui.brain.tools import ToolContext, run_tool
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -171,9 +171,7 @@ class TestATripWithStopsIsCostedStopByStop:
         from travel_a2ui.brain.tools import ToolContext, run_tool
 
         trip = model.normalize(self.TRIP)
-        context = ToolContext(
-            trip=trip, provider=FixtureProvider(), save=lambda patch: None, today="2027-03-01"
-        )
+        context = ToolContext(trip=trip, provider=FixtureProvider(), save=lambda patch: None, today="2027-03-01")
         out, is_error = asyncio.run(run_tool("estimate_cost", {}, context))
         assert not is_error
         return out
@@ -232,9 +230,7 @@ class TestATripWithStopsIsCostedStopByStop:
                 "nightlyPrice": 150,
             }
         )
-        context = ToolContext(
-            trip=trip, provider=FixtureProvider(), save=lambda patch: None, today="2027-03-01"
-        )
+        context = ToolContext(trip=trip, provider=FixtureProvider(), save=lambda patch: None, today="2027-03-01")
         out, _ = asyncio.run(run_tool("estimate_cost", {}, context))
         labels = [line["label"] for line in out["lines"]]
         assert labels[0].startswith("Flights ("), "still the simple shape"
@@ -264,9 +260,7 @@ class TestAPriceIsForTheWholeParty:
         from travel_a2ui.brain import tools as tool_module
         from travel_a2ui.brain.providers.fixture import FixtureProvider
 
-        context = tool_module.ToolContext(
-            trip=dict(trip or self.TRIP), provider=FixtureProvider(), today=TODAY
-        )
+        context = tool_module.ToolContext(trip=dict(trip or self.TRIP), provider=FixtureProvider(), today=TODAY)
         out, _ = asyncio.run(tool_module._run(tool, {"destination": "Madrid"}, context))
         return out
 
@@ -277,7 +271,7 @@ class TestAPriceIsForTheWholeParty:
         assert "each" in flight["priceLabel"] and "for 2" in flight["priceLabel"]
 
     def test_one_traveler_is_not_told_it_is_one(self) -> None:
-        """"$352 each · $352 for 1" is noise, so the label is just the fare."""
+        """ "$352 each · $352 for 1" is noise, so the label is just the fare."""
         flight = self.result("search_flights", {**self.TRIP, "travelers": 1})["flights"][0]
         assert flight["priceLabel"] == flight["price"]
 
@@ -327,6 +321,4 @@ class TestAForecastIsPinnedToTheTurnsDay:
 
     def test_an_explicit_date_still_wins(self) -> None:
         assert self.forecast("2027-03-01", "2027-04-12")[0]["day"] == "Mon"
-        assert self.forecast("2027-03-06", "2027-04-12") == self.forecast(
-            "2027-03-01", "2027-04-12"
-        )
+        assert self.forecast("2027-03-06", "2027-04-12") == self.forecast("2027-03-01", "2027-04-12")

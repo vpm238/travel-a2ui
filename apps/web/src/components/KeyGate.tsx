@@ -39,9 +39,9 @@ export function KeyGate({
       <form className="gate__panel" onSubmit={submit}>
         <h2 id="gate-title">Add your Gemini API key</h2>
         <p>
-          This app calls Gemini with <em>your</em> key, so nothing here is metered against anyone
-          else. It is stored in this browser and sent with each request — never written to the
-          server, never logged, never in a URL.
+          This app calls Gemini with <em>your</em> key, so nothing here is metered against anyone else. It is
+          stored in this browser and sent with each request — never written to the server, never logged, never
+          in a URL.
         </p>
 
         <label className="gate__field">
@@ -58,9 +58,7 @@ export function KeyGate({
           />
         </label>
 
-        {looksWrong ? (
-          <p className="gate__warn">That looks too short to be a full key.</p>
-        ) : null}
+        {looksWrong ? <p className="gate__warn">That looks too short to be a full key.</p> : null}
 
         <div className="gate__actions">
           <button type="submit" className="button button--primary" disabled={!trimmed}>

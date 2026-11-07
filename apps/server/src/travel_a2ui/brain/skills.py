@@ -216,7 +216,7 @@ def _on_screen(surfaces: Iterable[str], surface_id: str) -> str:
     if "sidebar" not in held:
         line += " There is no panel yet."
     if surface_id in held:
-        line += f" `{surface_id}` exists, so change it with `surface(\"{surface_id}\", update=true)`."
+        line += f' `{surface_id}` exists, so change it with `surface("{surface_id}", update=true)`.'
     return line
 
 

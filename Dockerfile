@@ -1,18 +1,13 @@
-# One image: the Python server, with both front ends built into it.
+# One image: the Python server, with both front ends and the quickstart built
+# into it. The build stages need Node and Flutter; the runtime needs neither.
 #
-# Two stages, because the build needs Node and the runtime does not. Shipping
-# the toolchain would roughly triple the image for nothing — Cloud Run pays for
-# the pull on every cold start, so the difference is startup latency, not just
-# registry space.
-#
-# The front ends are built here rather than committed. A `dist/` in git is a
-# second copy of the app that is right until someone forgets, and the way you
-# find out is a deploy serving last week's UI against this week's API.
+# Base images are pinned by digest, and the Flutter archive by checksum, so a
+# rebuild of the same commit is the same image. Bump them deliberately.
 
 # ---------------------------------------------------------------------------
 # Stage 1: build the React client
 # ---------------------------------------------------------------------------
-FROM node:22-slim AS web
+FROM node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d AS web
 
 WORKDIR /build
 
@@ -34,7 +29,7 @@ RUN npm run build -w @travel-a2ui/renderer \
 # `docs/site`, the A2UI quickstart, is a Starlight site with its own lockfile:
 # it is written to move into the A2UI documentation, so it is not a workspace
 # of this app. Built for `/docs`, where the server mounts it.
-FROM node:22-slim AS docs
+FROM node:22-slim@sha256:5ec23b7c622b00547753bc6ffd78085dd868a68aeb41c8e0a1418f033e13d96d AS docs
 
 WORKDIR /build
 
@@ -48,20 +43,13 @@ RUN npm run build
 # Stage 1b: build the Flutter client
 # ---------------------------------------------------------------------------
 #
-# The SDK from Google's own release archive, pinned to an exact version.
-#
-# Not a prebuilt community image, which would be the obvious choice: the ones
-# that exist lag stable by several releases, so pinning one means building the
-# client with an SDK nobody developed or tested it against. The download is the
-# price of building with the same toolchain the tests ran on.
-#
-# Bumping FLUTTER_VERSION is a deliberate act. It should match the SDK the
-# Flutter tests are run with, or `flutter build web` here can succeed on code
-# that was never analysed at that version — and the first sign of it is a
-# rendering difference in production.
-FROM debian:bookworm-slim AS flutter
+# The SDK from Flutter's release archive, at the version CI tests with
+# (`.github/workflows/ci.yml`), verified against its published SHA-256
+# (releases_linux.json). Bump both together.
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS flutter
 
 ARG FLUTTER_VERSION=3.47.9
+ARG FLUTTER_SHA256=25ed8c3c29d51a7353f2a944310b478af8214920639524b19c50a19e6c044c5a
 
 # `git` because the SDK is a git checkout and its tooling reads its own
 # revision; `xz-utils` to unpack the archive; `curl`/`ca-certificates` to fetch
@@ -73,6 +61,7 @@ RUN apt-get update \
 
 RUN curl -fsSL -o /tmp/flutter.tar.xz \
       "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+ && echo "${FLUTTER_SHA256}  /tmp/flutter.tar.xz" | sha256sum -c - \
  && tar -xJf /tmp/flutter.tar.xz -C /opt \
  && rm /tmp/flutter.tar.xz
 
@@ -100,7 +89,7 @@ RUN flutter build web --release --base-href=/flutter/
 # ---------------------------------------------------------------------------
 # Stage 2: the server
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 AS runtime
 
 # Unbuffered, or the logs arrive in chunks and a crash loses the line that
 # explains it. No .pyc for a container that runs its source once.
@@ -112,24 +101,16 @@ WORKDIR /app
 
 # The manifest first: this layer is the dependency resolution, and it should not
 # re-run because somebody edited a module.
-COPY apps/server/pyproject.toml apps/server/
+COPY apps/server/pyproject.toml apps/server/requirements.lock apps/server/
 
-# The stub is not a trick, it is the fix for a silent failure.
-#
-# Installing with no source present is the obvious way to write this and it
-# does not work: hatchling finds no package under `src/`, builds a wheel that
-# is metadata and nothing else, and pip reports success. Copying the real
-# source afterwards changes nothing, because the install already decided there
-# was no import path to record. The build stays green, the image builds, the
-# push succeeds — and the container dies at startup on `ModuleNotFoundError`
-# with nothing anywhere in the build log to explain it.
-#
-# So there is something for the editable install to point at. The path it
-# records is the directory, so the real modules copied over this stub below are
-# what actually gets imported.
+# An editable install needs the package directory to exist (hatchling builds
+# an empty wheel otherwise), so a stub stands in for the source copied below.
+# Editable because the server reads `catalogs/`, `skills/` and `prompts/` from
+# the repository layout.
 RUN mkdir -p apps/server/src/travel_a2ui \
  && touch apps/server/src/travel_a2ui/__init__.py \
- && pip install --no-cache-dir -e ./apps/server
+ && pip install --no-cache-dir -r apps/server/requirements.lock \
+ && pip install --no-cache-dir --no-deps -e ./apps/server
 
 # The data the server reads at runtime rather than at build time: the catalog
 # it compiles against, the generated skills the model is given, the prompt
@@ -145,20 +126,13 @@ COPY --from=web /build/apps/web/dist/ apps/web/dist/
 COPY --from=flutter /build/build/web/ renderers/flutter/build/web/
 COPY --from=docs /build/dist/ docs/site/dist/
 
-# Import the app at build time, so a broken image fails here rather than in
-# production.
-#
-# Everything above can succeed and still produce a container that cannot start:
-# a package that did not install, a module that reads a data file that was
-# never copied, a static mount pointing at a directory that is not there. Cloud
-# Run reports all of it the same way — "failed to start and listen on the port"
-# — several minutes after the build went green, and the reason is in a log the
-# deploy does not show you.
-#
-# This is the same import uvicorn does, so if it passes here the process will
-# start there. It costs a second and it is the difference between a build
-# failure that names the problem and a deploy failure that does not.
+# The import uvicorn does at startup, at build time: a missing file or package
+# fails the build with its name, not the deploy with "failed to listen".
 RUN python -c "import travel_a2ui.doors.http"
+
+# Not root. Nothing at runtime writes to /app.
+RUN useradd --system --uid 10001 --no-create-home app
+USER app
 
 # Cloud Run sends traffic to $PORT and does not ask.
 ENV PORT=8080

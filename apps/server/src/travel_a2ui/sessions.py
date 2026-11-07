@@ -57,7 +57,7 @@ MAX_SESSIONS = 500
 
 
 class _Unchanged:
-    """"Leave this as it was", which `None` cannot mean here — see `save`."""
+    """ "Leave this as it was", which `None` cannot mean here — see `save`."""
 
 
 UNCHANGED = _Unchanged()
@@ -150,11 +150,7 @@ class SessionStore:
 
     def _expire(self, now: float) -> None:
         """Drops what has aged out, then what does not fit. Caller holds the lock."""
-        for key in [
-            key
-            for key, session in self._sessions.items()
-            if now - session.updated_at > self._ttl
-        ]:
+        for key in [key for key, session in self._sessions.items() if now - session.updated_at > self._ttl]:
             del self._sessions[key]
 
         if len(self._sessions) > self._max:

@@ -38,7 +38,7 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
 
-from travel_a2ui.brain import trip as model# noqa: E402
+from travel_a2ui.brain import trip as model  # noqa: E402
 from travel_a2ui.doors.interactions import (  # noqa: E402
     DEFAULT_EFFORT,
     DEFAULT_MODEL,
@@ -76,8 +76,7 @@ SCRIPTS: dict[str, dict[str, Any]] = {
         "wants": {"home": True, "hops": 3},
     },
     "one-way": {
-        "say": "one way from JFK to Madrid on the 12th of April 2027, just me, "
-        "I'm staying on after",
+        "say": "one way from JFK to Madrid on the 12th of April 2027, just me, I'm staying on after",
         "steps": [{"say": "find me a flight"}],
         # Nothing should nag about a way home on a trip that said it is one-way.
         "wants": {"home": False, "hops": 1},
@@ -257,10 +256,7 @@ async def main() -> int:
         runs.append(await play(name, args.model, args.effort, not args.quiet))
 
     print()
-    header = (
-        f"{'script':12} {'hops':>8} {'home':>9} {'blank':>6} "
-        f"{'re-asked':>22} {'turns':>6} {'secs':>6}"
-    )
+    header = f"{'script':12} {'hops':>8} {'home':>9} {'blank':>6} {'re-asked':>22} {'turns':>6} {'secs':>6}"
     print(header)
     print("-" * len(header))
     for run in runs:

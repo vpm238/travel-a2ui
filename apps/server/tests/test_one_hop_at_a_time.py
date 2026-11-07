@@ -32,9 +32,7 @@ class TestOneHopPerCardIsTheBriefsJob:
     """
 
     def test_the_brief_says_one_hop_at_a_time(self):
-        brief = (
-            pathlib.Path(__file__).resolve().parents[3] / "prompts" / "journey.md"
-        ).read_text("utf-8")
+        brief = (pathlib.Path(__file__).resolve().parents[3] / "prompts" / "journey.md").read_text("utf-8")
         assert "### One hop at a time" in brief
         assert "only that hop" in brief
         # And how to go back, because that is the half that makes it safe.
@@ -48,9 +46,10 @@ class TestTheScheduleReadsLikeOne:
         return asyncio.run(FixtureProvider().search_flights(query)).items
 
     def test_copenhagen_to_berlin_is_flown_by_the_three_who_fly_it(self):
-        airlines = {flight["airline"] for flight in self.flights(
-            origin="CPH", destination="Berlin", date="2026-10-12", travelers=2
-        )}
+        airlines = {
+            flight["airline"]
+            for flight in self.flights(origin="CPH", destination="Berlin", date="2026-10-12", travelers=2)
+        }
         assert airlines <= {"SAS", "Norwegian", "Eurowings"}
         assert airlines
 
@@ -67,8 +66,7 @@ class TestTheScheduleReadsLikeOne:
     def test_a_connection_goes_through_the_carriers_own_hub(self):
         # Iberia via Paris and Delta via Lisbon are what pairing the hub and the
         # airline independently produced, for a quarter of every list.
-        hubs = {"TAP Air Portugal": "LIS", "Air France": "CDG", "Iberia": "MAD",
-                "Lufthansa": "FRA", "KLM": "AMS"}
+        hubs = {"TAP Air Portugal": "LIS", "Air France": "CDG", "Iberia": "MAD", "Lufthansa": "FRA", "KLM": "AMS"}
         for flight in self.flights(origin="JFK", destination="Madrid", date="2027-04-12"):
             if flight["stops"] == "Nonstop":
                 continue
@@ -107,8 +105,7 @@ class TestStaysWorthChoosingBetween:
         assert _fold("Kurfürstendamm") == _fold("kurfurstendamm")
         plain = self.stays(destination="Berlin", nights=3, neighborhood="kurfurstendamm")
         assert {hotel["name"] for hotel in plain} == {
-            hotel["name"]
-            for hotel in self.stays(destination="Berlin", nights=3, neighborhood="Kurfürstendamm")
+            hotel["name"] for hotel in self.stays(destination="Berlin", nights=3, neighborhood="Kurfürstendamm")
         }
 
     def test_a_city_nobody_wrote_down_keeps_the_generated_ones(self):
@@ -169,9 +166,7 @@ class TestOneCurrencyPerTrip:
         # Which is what every caller got before this existed.
         from travel_a2ui.brain.providers.fixture import FixtureProvider
 
-        outcome = asyncio.run(
-            FixtureProvider().search_flights({"origin": "CPH", "destination": "Berlin"})
-        )
+        outcome = asyncio.run(FixtureProvider().search_flights({"origin": "CPH", "destination": "Berlin"}))
         assert outcome.currency == "USD"
 
     def test_copenhagen_prices_in_kroner(self):
@@ -184,18 +179,16 @@ class TestOneCurrencyPerTrip:
         # return of a Berlin trip whose outbound and hotel were both in euros.
         trip = {
             **self.BERLIN,
-            "legs": [
-                {"destination": "CPH", "origin": "BER", "startDate": "2026-10-15", "travelers": 1}
-            ],
+            "legs": [{"destination": "CPH", "origin": "BER", "startDate": "2026-10-15", "travelers": 1}],
         }
         home = self.run(
             "search_flights",
             {"destination": "CPH", "origin": "BER", "date": "2026-10-15", "travelers": 1},
             trip,
         )["flights"]
-        assert all(
-            (fare.get("priceLabel") or fare["price"]).startswith("€") for fare in home
-        ), [fare.get("priceLabel") for fare in home]
+        assert all((fare.get("priceLabel") or fare["price"]).startswith("€") for fare in home), [
+            fare.get("priceLabel") for fare in home
+        ]
 
 
 class TestAHopHasToGoSomewhere:
@@ -233,9 +226,7 @@ class TestAHopHasToGoSomewhere:
 
     def test_it_is_a_problem(self) -> None:
         found = self._problems(self.NOWHERE)
-        assert any("has to go somewhere" in message for message in found), (
-            f"a JFK → JFK hop saved cleanly: {found}"
-        )
+        assert any("has to go somewhere" in message for message in found), f"a JFK → JFK hop saved cleanly: {found}"
 
     def test_and_the_save_is_turned_away_so_the_agent_asks(self) -> None:
         from travel_a2ui.brain import trip as model

@@ -1,11 +1,10 @@
 /**
  * The app's state: one conversation, several surfaces, one store.
  *
- * The surfaces all share a single `SurfaceStore` because they are views of one
- * trip, not separate apps. The sidebar's budget slider and the home screen's
- * budget meter read the same data model, so moving one moves the other without
- * a round trip — which is the behaviour you would expect from a native app and
- * almost never get from a chat UI.
+ * One `MessageProcessor` (`Surfaces`) holds every surface, and each surface has
+ * its own data model, as A2UI defines it. They are views of one trip because
+ * the server keeps the trip's values current on every surface that binds them
+ * (`updateDataModel`), not because they share a model.
  *
  * Interactions come back as A2UI events. An event is not a side channel: it is
  * the user's next turn, phrased in the interface instead of in prose. So it goes
@@ -48,15 +47,7 @@ import {
   type SurfaceAction,
   type SurfaceKind,
 } from './api.js';
-import type {
-  Prefs,
-  ToolCall,
-  Trip,
-  Turn,
-  TurnPart,
-  Usage,
-  Warmth,
-} from './conversation.js';
+import type { Prefs, ToolCall, Trip, Turn, TurnPart, Usage, Warmth } from './conversation.js';
 import {
   EMPTY_USAGE,
   STANDING,
@@ -80,15 +71,7 @@ import {
   type LiveRecord,
 } from './storage.js';
 
-export type {
-  Prefs,
-  ToolCall,
-  Trip,
-  Turn,
-  TurnPart,
-  Usage,
-  Warmth,
-} from './conversation.js';
+export type { Prefs, ToolCall, Trip, Turn, TurnPart, Usage, Warmth } from './conversation.js';
 export type { LiveStatus } from './storage.js';
 
 /** How a message is sent — which surface it answers, and whether it shows. */
@@ -102,26 +85,10 @@ interface SendOptions {
 export function useAgent() {
   const store = useMemo(() => new Surfaces(), []);
   /** What the transcript asks to name a press: the component, on its surface. */
-  const lookup = useCallback<ComponentLookup>(
-    (surfaceId, id) => store.component(surfaceId, id),
-    [store],
-  );
+  const lookup = useCallback<ComponentLookup>((surfaceId, id) => store.component(surfaceId, id), [store]);
 
   const [meta, setMeta] = useState<Meta | null>(null);
 
-  /*
-   * The Maps key, parked where the renderer can find it.
-   *
-   * On `window` rather than threaded through props, because the component that
-   * needs it is a leaf of a tree the *model* composed — there is no prop path
-   * from here to a `GoogleMap` the agent decided to draw three surfaces down,
-   * and inventing one would mean every catalog component that ever needs a
-   * deployment setting gets a new prop on every renderer.
-   */
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.__A2UI_MAPS_KEY = meta?.mapsApiKey ?? '';
-  }, [meta?.mapsApiKey]);
   const [metaError, setMetaError] = useState<string | null>(null);
   // A key in the URL wins over a stored one and is consumed on the first read,
   // before anything else can see it in `location`.
@@ -181,11 +148,11 @@ export function useAgent() {
     try {
       const stored = readStored(BACKEND_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as { id: BackendId | 'worker'; origin: string };
+        const parsed = JSON.parse(stored) as { id: string; origin: string };
         setApiOrigin(parsed.origin ?? '');
-        // An id stored under an older name reads as the Python runtime, so a
-        // chip never shows an id the server does not advertise.
-        const id: BackendId = parsed.id === 'worker' ? 'python' : parsed.id;
+        // An id this app does not know reads as the typed runtime, so a chip
+        // never shows an id the server does not advertise.
+        const id: BackendId = parsed.id === 'live' ? 'live' : 'python';
         return { ...parsed, id };
       }
     } catch {
@@ -241,9 +208,7 @@ export function useAgent() {
    * the key arrives. The composer has already cleared itself by then; without
    * this, saving a key would answer "what was I saying?" with nothing.
    */
-  const pendingRef = useRef<{ input: string | SurfaceAction; options: SendOptions } | null>(
-    null,
-  );
+  const pendingRef = useRef<{ input: string | SurfaceAction; options: SendOptions } | null>(null);
   const backendRef = useRef(backend.origin);
   backendRef.current = backend.origin;
 
@@ -283,9 +248,7 @@ export function useAgent() {
           skill: current.skill || loaded.defaultSkill,
         }));
       })
-      .catch((error: unknown) =>
-        setMetaError(error instanceof Error ? error.message : String(error)),
-      );
+      .catch((error: unknown) => setMetaError(error instanceof Error ? error.message : String(error)));
   }, []);
 
   const setApiKey = useCallback((value: string) => {
@@ -636,7 +599,6 @@ export function useAgent() {
     [send],
   );
 
-
   /**
    * Relays a press into a live call, when there is one. Returns whether it did.
    *
@@ -805,7 +767,15 @@ export function useAgent() {
             sample: true,
             ...(recorded.action ? { fromSurface: true } : {}),
           },
-          { id: assistantId, role: 'assistant', text: '', parts: [], tools: [], streaming: true, sample: true },
+          {
+            id: assistantId,
+            role: 'assistant',
+            text: '',
+            parts: [],
+            tools: [],
+            streaming: true,
+            sample: true,
+          },
         ]);
         const handle = handlerFor(assistantId, { replay: true });
         for (const event of recorded.events) handle(event);
@@ -848,9 +818,9 @@ export function useAgent() {
    * becomes six bubbles. A surface always opens a new one.
    */
   const appendVoiceTurn = useCallback(
-    (entry:
-      | { kind: 'text'; text: string; who: 'you' | 'agent' }
-      | { kind: 'surface'; surfaceId: string }) => {
+    (
+      entry: { kind: 'text'; text: string; who: 'you' | 'agent' } | { kind: 'surface'; surfaceId: string },
+    ) => {
       setTurns((current) => {
         const last = current[current.length - 1];
 

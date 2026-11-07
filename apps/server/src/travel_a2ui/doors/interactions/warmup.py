@@ -21,7 +21,6 @@ from ...brain.skills import build_prompt_parts
 from ...gemini import stream_interaction, supported_level
 from ..settings import DEFAULT_MODEL, FALLBACK_MODEL, _today
 
-
 #: What the warm-up says. Nothing is drawn and nothing is looked up.
 #:
 #: It does enter the conversation, because that is the entire point — the

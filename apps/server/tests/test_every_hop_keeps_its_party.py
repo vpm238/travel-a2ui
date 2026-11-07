@@ -28,8 +28,14 @@ FIVE_HOPS: dict[str, Any] = {
     "selectedFlight": "DL4766",
     "flightPrice": 167,
     "legs": [
-        {"origin": "ORD", "destination": "New York", "startDate": "2027-04-12", "endDate": "2027-04-15",
-         "selectedFlight": "UA1894", "flightPrice": 119},
+        {
+            "origin": "ORD",
+            "destination": "New York",
+            "startDate": "2027-04-12",
+            "endDate": "2027-04-15",
+            "selectedFlight": "UA1894",
+            "flightPrice": 119,
+        },
         {"origin": "JFK", "destination": "Boston", "startDate": "2027-04-15", "endDate": "2027-04-17"},
         {"origin": "BOS", "destination": "Miami", "startDate": "2027-04-17", "endDate": "2027-04-20"},
         {"origin": "MIA", "destination": "SFO", "startDate": "2027-04-20"},
@@ -141,7 +147,13 @@ class TestAHopKeepsItsTicket:
     TICKETED = {
         **FIVE_HOPS,
         "legs": [
-            {**FIVE_HOPS["legs"][0], "airline": "United", "flightNumber": "UA768", "departTime": "10:44", "arriveTime": "13:12"},
+            {
+                **FIVE_HOPS["legs"][0],
+                "airline": "United",
+                "flightNumber": "UA768",
+                "departTime": "10:44",
+                "arriveTime": "13:12",
+            },
             *FIVE_HOPS["legs"][1:],
         ],
     }
@@ -149,7 +161,10 @@ class TestAHopKeepsItsTicket:
     def test_normalising_keeps_a_hops_fare_details(self) -> None:
         leg = model.normalize(self.TICKETED)["legs"][0]
         assert (leg["airline"], leg["flightNumber"], leg["departTime"], leg["arriveTime"]) == (
-            "United", "UA768", "10:44", "13:12"
+            "United",
+            "UA768",
+            "10:44",
+            "13:12",
         )
 
     def test_releasing_the_first_flight_leaves_the_others_alone(self) -> None:

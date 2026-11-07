@@ -169,9 +169,8 @@ export function Chat({ agent }: { agent: Agent }) {
           <div className="chat__intro">
             <h2>Where are you going?</h2>
             <p>
-              Ask for a trip and the agent answers with an interface — flights you can pick, dates
-              you can set, an itinerary you can tap through. Everything on screen was generated for
-              this conversation.
+              Ask for a trip and the agent answers with an interface — flights you can pick, dates you can
+              set, an itinerary you can tap through. Everything on screen was generated for this conversation.
             </p>
             <ul className="chat__openers">
               {(agent.meta?.openers ?? []).map((opener) => (
@@ -198,8 +197,8 @@ export function Chat({ agent }: { agent: Agent }) {
             <div className="sample__text">
               <strong>Sample trip</strong>
               <span>
-                A recorded conversation with this agent, so you can see what it draws. Change
-                anything below to carry on from it, or start your own.
+                A recorded conversation with this agent, so you can see what it draws. Change anything below
+                to carry on from it, or start your own.
               </span>
             </div>
             <button type="button" className="sample__remove" onClick={() => void agent.removeSample()}>
@@ -229,25 +228,16 @@ export function Chat({ agent }: { agent: Agent }) {
                 // A failed bookkeeping call is still worth showing: it is the
                 // one case where "recorded what you chose" did not happen, and
                 // the traveler is about to be asked something they answered.
-                const shown = turn.tools.filter(
-                  (tool) => tool.isError || !SILENT_TOOLS.has(tool.name),
-                );
+                const shown = turn.tools.filter((tool) => tool.isError || !SILENT_TOOLS.has(tool.name));
                 if (shown.length === 0) return null;
                 return (
                   <ul className="turn__tools">
                     {shown.map((tool, index) => (
-                      <li
-                        key={`${tool.name}-${index}`}
-                        className={tool.isError ? 'is-error' : undefined}
-                      >
+                      <li key={`${tool.name}-${index}`} className={tool.isError ? 'is-error' : undefined}>
                         <span className="turn__toolName">
                           {TOOL_LABELS[tool.name] ?? tool.name.replace(/_/g, ' ')}
                         </span>
-                        {tool.result === undefined ? (
-                          <Spinner />
-                        ) : (
-                          <span className="turn__tick">done</span>
-                        )}
+                        {tool.result === undefined ? <Spinner /> : <span className="turn__tick">done</span>}
                       </li>
                     ))}
                   </ul>

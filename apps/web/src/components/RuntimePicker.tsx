@@ -141,9 +141,8 @@ export function RuntimePicker({
                 {busy ? 'Checking…' : 'Connect'}
               </button>
               <p>
-                A runtime somewhere other than this Worker. Both of the built-in
-                ones are served from here, so this is only for a backend you are
-                running yourself.
+                A runtime somewhere other than this server. Both of the built-in ones are served from here, so
+                this is only for a backend you are running yourself.
               </p>
             </div>
           ) : null}
@@ -151,7 +150,8 @@ export function RuntimePicker({
           {error ? <p className="runtime__error">{error}</p> : null}
           {!error && draft && draftId === current.id ? (
             <p className="runtime__note">
-              Your key goes to whichever runtime is selected. Both call Gemini with it directly, and neither stores it.
+              Your key goes to whichever runtime is selected. Both call Gemini with it directly, and neither
+              stores it.
             </p>
           ) : null}
         </div>

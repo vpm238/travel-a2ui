@@ -31,7 +31,7 @@ root = ActivityItem("Prado Museum", "10:00", category="sight", location="Paseo d
 | --- | --- | --- | --- |
 | `title` | bindable string | **required** | What it is, e.g. 'Prado Museum'. |
 | `time` | bindable string |  | Start time as a display string, e.g. '10:00'. |
-| `category` | `food` \\| `sight` \\| `transit` \\| `stay` \\| `outdoors` \\| `shopping` \\| `event` \\| `free` |  | Drives the icon and colour the host uses. |
+| `category` | bindable string |  | Drives the icon and colour: one of 'food', 'sight', 'transit', 'stay', 'outdoors', 'shopping', 'event', 'free'. Defaults to 'sight'. |
 | `location` | bindable string |  | Where it happens, e.g. 'Paseo del Prado 23'. |
 | `duration` | bindable string |  | How long to budget, e.g. '2h'. |
 | `note` | bindable string |  | One short practical note, e.g. 'Book the timed entry'. |
@@ -55,7 +55,7 @@ root = AirportPicker("Where from?", $/trip/origin, [{value: "JFK", label: "New Y
 | --- | --- | --- | --- |
 | `label` | bindable string | **required** | The question, e.g. 'Where from?'. |
 | `value` | bindable string | **required** | Bound path the chosen option's `value` is written to, e.g. `$/trip/origin`. |
-| `options` | array | **required** | Every place that may be chosen. Static values only. |
+| `options` | any | **required** | Every place that may be chosen: a list of {value, label, code?, detail?}, or a binding to one, e.g. $/places/origins. `value` is what is stored when chosen ('JFK', 'Madrid'); `label` is the place as a person names it. |
 | `kind` | `origin` \\| `destination` |  | Which end of the trip this is; sets the icon. |
 | `placeholder` | bindable string |  | Hint in the empty field, e.g. 'City or airport'. |
 
@@ -170,17 +170,17 @@ root = DateRangePicker("Trip dates", $/trip/startDate, $/trip/endDate, nightsLab
 
 ```
 $/trip/startDate = "2027-04-12"
-root = DateTimeInput("Departure", $/trip/startDate, enableDate=true)
+root = DateTimeInput($/trip/startDate, label="Departure", enableDate=true)
 ```
 
 | prop | type | | what it is |
 | --- | --- | --- | --- |
-| `label` | bindable string | **required** | The text label for the input field. |
 | `value` | bindable string | **required** | The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string. |
 | `enableDate` | boolean |  | If true, allows the user to select a date. |
 | `enableTime` | boolean |  | If true, allows the user to select a time. |
 | `min` | any |  | The minimum allowed date/time in ISO 8601 format. |
 | `max` | any |  | The maximum allowed date/time in ISO 8601 format. |
+| `label` | bindable string |  | The text label for the input field. |
 | `weight` | weight |  |  |
 
 ## ExpenseSplit

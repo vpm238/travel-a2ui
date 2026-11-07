@@ -99,9 +99,7 @@ await page.addInitScript(
         this.addEventListener('message', (event) => {
           try {
             const frame = JSON.parse(String(event.data));
-            window.__frames.push(
-              frame.type === 'audio' ? { type: 'audio' } : frame,
-            );
+            window.__frames.push(frame.type === 'audio' ? { type: 'audio' } : frame);
           } catch {
             window.__frames.push({ type: 'unparseable' });
           }
@@ -135,9 +133,7 @@ console.log('\n--- tapping the microphone ---');
 await mic.click();
 
 // The tap opens the microphone and instantiates the session behind it.
-await page
-  .waitForFunction(() => (window.__contexts ?? []).length >= 2, { timeout: 30000 })
-  .catch(() => {});
+await page.waitForFunction(() => (window.__contexts ?? []).length >= 2, { timeout: 30000 }).catch(() => {});
 
 const states = await page.evaluate(() => (window.__contexts ?? []).map((c) => c.state));
 console.log(`  audio contexts: ${JSON.stringify(states)}`);
@@ -221,12 +217,9 @@ if (drew) {
     // a tap that did nothing, whatever the agent does next.
     let said = true;
     await page
-      .waitForFunction(
-        (before) =>
-          document.querySelectorAll('.bubble--user').length > before,
-        linesBefore,
-        { timeout: 30000 },
-      )
+      .waitForFunction((before) => document.querySelectorAll('.bubble--user').length > before, linesBefore, {
+        timeout: 30000,
+      })
       .catch(() => {
         said = false;
       });
@@ -273,18 +266,31 @@ if (process.env.LIVE_DUMP) {
 if (process.env.LIVE_TRACE) {
   let audio = 0;
   for (const frame of settled.frames) {
-    if (frame.type === 'audio') { audio += 1; continue; }
-    if (audio) { console.log(`    [${audio} audio]`); audio = 0; }
+    if (frame.type === 'audio') {
+      audio += 1;
+      continue;
+    }
+    if (audio) {
+      console.log(`    [${audio} audio]`);
+      audio = 0;
+    }
     console.log(`    ${JSON.stringify(frame).slice(0, 260)}`);
   }
 }
-const sentences = agentSaid.split(/(?<=[.!?])\s*/).map((one) => one.trim()).filter((one) => one.length > 12);
+const sentences = agentSaid
+  .split(/(?<=[.!?])\s*/)
+  .map((one) => one.trim())
+  .filter((one) => one.length > 12);
 const repeated = sentences.filter((one, index) => sentences.indexOf(one) !== index);
 ok('the agent says each sentence once', repeated.length === 0, `repeated: ${JSON.stringify(repeated)}`);
 const trips = settled.frames.filter((frame) => frame.type === 'trip');
 const last = trips.at(-1)?.trip ?? {};
 if (last.airline) {
-  ok('the trip panel shows the chosen flight', settled.sidebar.includes(last.airline), `no "${last.airline}" in the panel`);
+  ok(
+    'the trip panel shows the chosen flight',
+    settled.sidebar.includes(last.airline),
+    `no "${last.airline}" in the panel`,
+  );
 }
 
 if (pageErrors.length) {

@@ -18,35 +18,38 @@ with it; a deployment may carry its own, and then the UI stops asking.
 
 from __future__ import annotations
 
-from .. import ROOT
-
 import json
 import os
-import pathlib
 from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from .interactions import (
-    CATALOG_ID,
-    PROTOCOL_VERSION,
-    CATALOG_JSON,
-    DEFAULT_EFFORT as AGENT_DEFAULT_EFFORT,
-    DEFAULT_MODEL as AGENT_DEFAULT_MODEL,
-    TurnRequest,
-    WarmRequest,
-    run_turn,
-    warm,
-)
-from .interactions.turn import places_and_currency, ui_events
+from .. import ROOT
 from ..brain import data, host_actions, inbound
 from ..brain import trip as model
 from ..brain.providers.fixture import FixtureProvider
 from ..brain.skills import describe_all_skills
 from ..brain.ui import STANDING_SURFACES
 from ..sessions import SessionStore
+from . import guard
+from .interactions import (
+    CATALOG_ID,
+    CATALOG_JSON,
+    PROTOCOL_VERSION,
+    TurnRequest,
+    WarmRequest,
+    run_turn,
+    warm,
+)
+from .interactions import (
+    DEFAULT_EFFORT as AGENT_DEFAULT_EFFORT,
+)
+from .interactions import (
+    DEFAULT_MODEL as AGENT_DEFAULT_MODEL,
+)
+from .interactions.turn import places_and_currency, ui_events
 from .live import INSTANTIATION_MAX_AGE_MS, VoiceSession, contract_stamp, relay
 
 _ROOT = ROOT
@@ -103,6 +106,18 @@ provider = FixtureProvider()
 DEFAULT_EFFORT = os.environ.get("DEFAULT_EFFORT", AGENT_DEFAULT_EFFORT)
 
 
+def _model(requested: Any) -> str:
+    return guard.chosen_model(requested, (entry["id"] for entry in MODELS), AGENT_DEFAULT_MODEL)
+
+
+def _shared_key_refused(request: Any, own_key: str) -> bool:
+    """True when this request would run on the server's key past its limit."""
+    if own_key.strip() or not guard.server_key():
+        return False
+    address = guard.client_address(request.headers, request.client.host if request.client else None)
+    return not guard.SHARED_KEY_LIMIT.allow(address)
+
+
 app = FastAPI(title="Travel A2UI", docs_url=None, redoc_url=None)
 
 
@@ -111,9 +126,7 @@ def _no_store(payload: Any, status: int = 200) -> JSONResponse:
 
 
 @app.post("/api/warm")
-async def warm_up(
-    request: Request, x_goog_api_key: str = Header(default="")
-) -> JSONResponse:
+async def warm_up(request: Request, x_goog_api_key: str = Header(default="")) -> JSONResponse:
     """Start the conversation before the traveller has typed anything.
 
     The client calls this once, when somebody first touches the composer — which
@@ -131,15 +144,15 @@ async def warm_up(
     except Exception:  # noqa: BLE001 - an empty body is a valid warm-up
         body = {}
 
-    api_key = (x_goog_api_key or os.environ.get("GEMINI_API_KEY", "")).strip()
+    api_key = (x_goog_api_key or guard.server_key()).strip()
     if not api_key:
         # Not an error. A visitor with no key has nothing to warm, and saying so
         # with a 400 would put a red line in their console on page load.
         return _no_store({"interactionId": None, "setup": None, "skipped": "no key"})
+    if _shared_key_refused(request, x_goog_api_key):
+        return _no_store({"interactionId": None, "setup": None, "skipped": "limited"})
 
-    return _no_store(
-        await warm(WarmRequest(api_key=api_key, model=str(body.get("model") or AGENT_DEFAULT_MODEL)))
-    )
+    return _no_store(await warm(WarmRequest(api_key=api_key, model=_model(body.get("model")))))
 
 
 OPENERS = [
@@ -295,12 +308,14 @@ async def _json_body(request: Request) -> dict[str, Any]:
 async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> StreamingResponse:
     """One turn, as server-sent events. The request and events are `docs/transport.md`."""
     body = await _json_body(request)
-    api_key = (x_goog_api_key or os.environ.get("GEMINI_API_KEY", "")).strip()
+    api_key = (x_goog_api_key or guard.server_key()).strip()
     if not api_key:
         raise HTTPException(
             status_code=401,
             detail="A Gemini API key is required. Send it as the x-goog-api-key header.",
         )
+    if _shared_key_refused(request, x_goog_api_key):
+        raise HTTPException(status_code=429, detail=guard.LIMITED)
 
     session_id = str(body.get("sessionId") or sessions.new_id())
     session = sessions.get(session_id)
@@ -330,7 +345,7 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
 
     turn = TurnRequest(
         api_key=api_key,
-        model=str(body.get("model") or AGENT_DEFAULT_MODEL),
+        model=_model(body.get("model")),
         message=str(body.get("message") or ""),
         action=renderer.action,
         errors=renderer.errors,
@@ -340,7 +355,7 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
         trip=_resumed(body, "trip") or dict(session.trip),
         surface=requested_surface,
         surface_id=drawn_surface_id,
-        effort=str(body.get("effort") or DEFAULT_EFFORT),
+        effort=guard.chosen_effort(body.get("effort"), DEFAULT_EFFORT),
         setup=_resumed(body, "setup") or session.setup,
         client_hints=body.get("client") if isinstance(body.get("client"), dict) else None,
         canvas=canvas,
@@ -445,6 +460,9 @@ async def voice(socket: WebSocket) -> None:
 
     The key arrives in the opening frame and is never stored.
     """
+    if not guard.origin_allowed(socket.headers.get("origin"), socket.headers.get("host")):
+        await socket.close(code=1008)
+        return
     await socket.accept()
 
     try:
@@ -454,25 +472,28 @@ async def voice(socket: WebSocket) -> None:
         return
 
     if opening.get("type") != "start":
-        await socket.send_json(
-            {"type": "error", "message": "The first frame must be a start."}
-        )
+        await socket.send_json({"type": "error", "message": "The first frame must be a start."})
         await socket.close()
         return
 
-    api_key = str(opening.get("apiKey") or os.environ.get("GEMINI_API_KEY", "")).strip()
+    own_key = str(opening.get("apiKey") or "").strip()
+    api_key = own_key or guard.server_key()
     if not api_key:
         await socket.send_json({"type": "error", "message": "A Gemini API key is required."})
         await socket.close()
         return
+    if not own_key:
+        address = guard.client_address(socket.headers, socket.client.host if socket.client else None)
+        if not guard.SHARED_KEY_LIMIT.allow(address):
+            await socket.send_json({"type": "error", "message": guard.LIMITED})
+            await socket.close()
+            return
 
     # The query string first, because that is where the client puts it
     # (`voice.ts` sets `?sessionId=`). A call is the same conversation as the
     # typed one: same trip, same panel, and the Live resumption handle kept
     # where the next connection will look. The opening frame is also accepted.
-    session_id = str(
-        socket.query_params.get("sessionId") or opening.get("sessionId") or sessions.new_id()
-    )
+    session_id = str(socket.query_params.get("sessionId") or opening.get("sessionId") or sessions.new_id())
     stored = sessions.get(session_id)
 
     renderer = inbound.read(opening)
@@ -504,7 +525,8 @@ async def voice(socket: WebSocket) -> None:
         trip=dict(stored.trip),
         provider=provider,
         contract=contract_stamp(),
-        model=str(opening.get("model") or ""),
+        # The Live model is the server's choice (`VOICE_MODEL`), not the client's.
+        model="",
         voice=opening.get("voice"),
         # The trip a call changes is the trip the typed conversation reads.
         # Same session, one store — say "make it three of us" out loud and the
@@ -519,6 +541,7 @@ async def voice(socket: WebSocket) -> None:
         on_resume=lambda handle: sessions.set_live_handle(session_id, handle),
         # The same mirror of the renderer the typed door keeps.
         canvas=canvas,
+        held=list(renderer.surfaces or []),
         # Same reading of "today" as the typed path: a call plans dates too.
         client_hints=opening.get("client") if isinstance(opening.get("client"), dict) else None,
     )

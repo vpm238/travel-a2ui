@@ -542,7 +542,25 @@
   padding: 8px 6px;
   border-radius: 10px;
 }
-.tv-activity[role='button']:hover { background: var(--tv-surface-2); }
+/* The row's own control spans the time, the dot and the text; Remove sits
+   beside it in the last column, a sibling rather than a child. */
+.tv-activity__main {
+  grid-column: 1 / 4;
+  display: grid;
+  grid-template-columns: 56px 34px 1fr;
+  align-items: start;
+  gap: 8px 10px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+button.tv-activity__main { cursor: pointer; border-radius: 8px; }
+.tv-activity:has(> button.tv-activity__main:hover) { background: var(--tv-surface-2); }
+button.tv-activity__main:focus-visible { outline: none; box-shadow: var(--tv-ring); }
 .tv-activity.is-done { opacity: 0.55; }
 .tv-activity.is-done strong { text-decoration: line-through; }
 .tv-activity__time {
@@ -691,7 +709,9 @@
  * ------------------------------------------------------------------ */
 .tv-field { display: grid; gap: 8px; }
 .tv-field__label { font-size: 0.82rem; font-weight: 650; color: var(--tv-ink); }
+.tv-field__errors { display: grid; gap: 2px; }
 .tv-field__error { font-size: 0.78rem; color: var(--tv-critical); }
+.tv-day__edit { align-self: start; margin-left: auto; }
 
 .tv-dates {
   display: grid;

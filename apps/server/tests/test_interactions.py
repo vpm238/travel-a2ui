@@ -66,9 +66,13 @@ class TestTheStream:
         assert kinds.index("ui") < kinds.index("done")
 
     def test_a_macro_reaches_the_renderer_expanded(self) -> None:
-        events = events_of(base(message="hi", trip=dict(SETTLED), client=FakeModel([([FLIGHTS], [])]), canvas=a_panel()))
+        events = events_of(
+            base(message="hi", trip=dict(SETTLED), client=FakeModel([([FLIGHTS], [])]), canvas=a_panel())
+        )
         components = {
-            c["component"] for m in messages_of(events, "inline-1") for c in (m.get("createSurface") or {}).get("components", [])
+            c["component"]
+            for m in messages_of(events, "inline-1")
+            for c in (m.get("createSurface") or {}).get("components", [])
         }
         assert "Flights" not in components and {"List", "FlightOption"} <= components
 
@@ -131,7 +135,13 @@ class TestWhatTheTravellerDid:
         action = SurfaceAction(name="find_flights", surface_id="inline-1")
         reported = {"inline-1": {"trip": {"startDate": "2027-05-01", "endDate": "2027-05-08", "travelers": 3}}}
         events = events_of(
-            base(action=action, data_model=reported, trip={"destination": "Madrid"}, client=FakeModel([([""], [])]), canvas=canvas)
+            base(
+                action=action,
+                data_model=reported,
+                trip={"destination": "Madrid"},
+                client=FakeModel([([""], [])]),
+                canvas=canvas,
+            )
         )
         trip = next(event for event in events if event["type"] == "__result__")["result"].trip
         assert (trip["startDate"], trip["endDate"], trip["travelers"]) == ("2027-05-01", "2027-05-08", 3)
@@ -143,13 +153,20 @@ class TestWhatTheTravellerDid:
         values = lambda _s: data.session_values({}, None)  # noqa: E731
         Drawing(canvas, "inline-1", values).feed(ASKING)
         events_of(
-            base(action=SurfaceAction(name="find_flights", surface_id="inline-1"), data_model=reported, client=model, canvas=canvas)
+            base(
+                action=SurfaceAction(name="find_flights", surface_id="inline-1"),
+                data_model=reported,
+                client=model,
+                canvas=canvas,
+            )
         )
         assert "Refused" in said_to_model(model, 0)
 
     def test_a_renderer_error_reaches_the_model(self) -> None:
         model = FakeModel([(["Sorry."], [])])
-        error = RendererError(code="VALIDATION_FAILED", message="bad child", surface_id="inline-1", path="/components/0")
+        error = RendererError(
+            code="VALIDATION_FAILED", message="bad child", surface_id="inline-1", path="/components/0"
+        )
         events_of(base(message="hi", errors=[error], client=model, canvas=a_panel()))
         assert "VALIDATION_FAILED" in said_to_model(model, 0)
 
@@ -172,7 +189,10 @@ class TestHandedBackOnce:
         assert len(model.bodies) == 2
 
     def test_a_surface_that_cannot_be_answered_is_reported(self) -> None:
-        bad = '<a2ui>\nsurface("inline-1", sendDataModel=true)\nd = TextField("When?", $/trip/startDate)\nroot = Column([d])\n</a2ui>'
+        bad = (
+            '<a2ui>\nsurface("inline-1", sendDataModel=true)\n'
+            'd = TextField("When?", $/trip/startDate)\nroot = Column([d])\n</a2ui>'
+        )
         model = FakeModel([([bad], []), ([""], [])])
         events_of(base(message="hi", client=model, canvas=a_panel()))
         assert len(model.bodies) == 2

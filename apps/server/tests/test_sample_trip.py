@@ -15,12 +15,8 @@ file.
 from __future__ import annotations
 
 import json
-import warnings
 
 import pytest
-
-warnings.filterwarnings("ignore")
-
 from a2ui.utils.renderer_state import RendererState  # noqa: E402
 
 from travel_a2ui import ROOT  # noqa: E402
@@ -53,7 +49,9 @@ def test_every_recorded_surface_still_validates() -> None:
     failures = []
     for number, _, messages in _surface_events():
         for message in messages:
-            body = message.get("createSurface") or message.get("updateComponents") or message.get("updateDataModel") or {}
+            body = (
+                message.get("createSurface") or message.get("updateComponents") or message.get("updateDataModel") or {}
+            )
             target = body.get("surfaceId")
             if "createSurface" in message:
                 mirrors[target] = RendererState([CATALOG])

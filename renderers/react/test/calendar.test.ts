@@ -93,7 +93,10 @@ describe('the grid', () => {
 
   it('bands the range with both ends inside it', () => {
     const [april] = monthsFor(start, end, 1);
-    const banded = april!.weeks.flat().filter((cell) => cell?.inRange).map((cell) => cell!.iso);
+    const banded = april!.weeks
+      .flat()
+      .filter((cell) => cell?.inRange)
+      .map((cell) => cell!.iso);
     expect(banded).toEqual([
       '2027-04-12',
       '2027-04-13',

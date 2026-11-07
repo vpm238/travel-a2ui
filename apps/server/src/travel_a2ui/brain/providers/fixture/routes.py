@@ -10,11 +10,11 @@ airports.
 from __future__ import annotations
 
 import math
-
 from typing import Any, Callable
 
 from .numbers import _pick
 from .tables import _AIRLINES, _CONNECTIONS, _HUBS, _PLACE
+
 
 def _distance_km(origin: str, destination: str) -> float | None:
     """Great-circle kilometres between two airports we know.
@@ -27,10 +27,7 @@ def _distance_km(origin: str, destination: str) -> float | None:
     if not a or not b:
         return None
     lat1, lon1, lat2, lon2 = map(math.radians, (a["lat"], a["lon"], b["lat"], b["lon"]))
-    haversine = (
-        math.sin((lat2 - lat1) / 2) ** 2
-        + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
-    )
+    haversine = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
     return 6371.0 * 2 * math.asin(min(1.0, math.sqrt(haversine)))
 
 
@@ -44,12 +41,7 @@ def _hubs_on_the_way(origin: str, destination: str) -> list[str]:
     where their aircraft are.
     """
     direct = _distance_km(origin, destination)
-    candidates = [
-        hub
-        for hubs in _HUBS.values()
-        for hub in hubs
-        if hub not in (origin, destination) and hub in _PLACE
-    ]
+    candidates = [hub for hubs in _HUBS.values() for hub in hubs if hub not in (origin, destination) and hub in _PLACE]
     if not direct:
         pool = sorted(hub for hub in candidates if hub not in (origin, destination))
         return pool or sorted(_CONNECTIONS)

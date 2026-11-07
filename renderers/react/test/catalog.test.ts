@@ -62,7 +62,10 @@ describe('the catalog the app renders with', () => {
     const union = document.$defs.anyComponent;
     const broken = {
       ...document,
-      components: { ...document.components, Teleporter: { type: 'object', properties: { component: { const: 'Teleporter' } } } },
+      components: {
+        ...document.components,
+        Teleporter: { type: 'object', properties: { component: { const: 'Teleporter' } } },
+      },
       $defs: {
         ...document.$defs,
         anyComponent: { ...union, oneOf: [...union.oneOf, { $ref: '#/components/Teleporter' }] },
@@ -131,13 +134,18 @@ describe('the travel views read the catalog', () => {
           }
         }
       }
-      const isSetter = (key: string) => /^set[A-Z]/.test(key) && declared.has(key[3]!.toLowerCase() + key.slice(4));
+      const isSetter = (key: string) =>
+        /^set[A-Z]/.test(key) && declared.has(key[3]!.toLowerCase() + key.slice(4));
       const top = [...body.matchAll(/props\['(\w+)'\]/g)].map((m) => m[1]!);
-      const itemReads = [...body.matchAll(/\b(\w+)\['(\w+)'\]/g)].filter((m) => m[1] !== 'props').map((m) => m[2]!);
+      const itemReads = [...body.matchAll(/\b(\w+)\['(\w+)'\]/g)]
+        .filter((m) => m[1] !== 'props')
+        .map((m) => m[2]!);
       const undeclared = top.filter((key) => !declared.has(key) && !common.has(key) && !isSetter(key));
       const undeclaredItems = itemReads.filter((key) => !items.has(key) && !declared.has(key));
       if (undeclared.length || undeclaredItems.length) {
-        problems.push(`${component} reads ${[...new Set(undeclared)]} (items ${[...new Set(undeclaredItems)]})`);
+        problems.push(
+          `${component} reads ${[...new Set(undeclared)]} (items ${[...new Set(undeclaredItems)]})`,
+        );
       }
     }
     expect(scanned).toBe(Object.keys(document.components).length - basicCatalog.components.size);
@@ -147,7 +155,9 @@ describe('the travel views read the catalog', () => {
 
 describe('the accessibility block', () => {
   it('maps to ARIA by the rules the SDK basic components use', () => {
-    expect(ariaFrom({ label: 'Iberia IB6250, $412', description: 'Nonstop', live: 'polite', hidden: false })).toEqual({
+    expect(
+      ariaFrom({ label: 'Iberia IB6250, $412', description: 'Nonstop', live: 'polite', hidden: false }),
+    ).toEqual({
       'aria-label': 'Iberia IB6250, $412',
       'aria-description': 'Nonstop',
       'aria-live': 'polite',
@@ -160,9 +170,11 @@ describe('the accessibility block', () => {
     expect(ariaFrom({ hidden: 'yes' })).toEqual({});
   });
   it('reads the block as the binder hands it over, setters and all', () => {
-    expect(ariaFrom({ label: 'Iberia', setLabel: () => undefined, setDescription: () => undefined })).toEqual({
-      'aria-label': 'Iberia',
-    });
+    expect(ariaFrom({ label: 'Iberia', setLabel: () => undefined, setDescription: () => undefined })).toEqual(
+      {
+        'aria-label': 'Iberia',
+      },
+    );
   });
   it('reaches the drawn card', async () => {
     const processor = new MessageProcessor([createTravelCatalog(document)], () => undefined);

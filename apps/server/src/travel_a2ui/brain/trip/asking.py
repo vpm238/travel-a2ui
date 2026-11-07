@@ -16,9 +16,10 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
-from .fields import BY_KEY, FIELDS, REQUIREMENTS, Trip, _blank, _MONTHS
+from .fields import _MONTHS, BY_KEY, FIELDS, REQUIREMENTS, Trip, _blank
 from .problems import nights, problems
 from .route import _legs_of
+
 
 def missing_for(trip: Trip, goal: str) -> list[str]:
     """The fields a goal needs and does not have.

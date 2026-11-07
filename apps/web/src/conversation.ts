@@ -39,8 +39,7 @@ export interface ToolCall {
  */
 export type TurnPart =
   /** `round` is the tool round this prose came from — see `withText`. */
-  | { kind: 'text'; text: string; round: number }
-  | { kind: 'surface'; surfaceId: string };
+  { kind: 'text'; text: string; round: number } | { kind: 'surface'; surfaceId: string };
 
 export interface Turn {
   id: string;
@@ -324,4 +323,3 @@ export function actionFrom(press: SurfacePress, dataModel: Record<string, unknow
     dataModel,
   };
 }
-

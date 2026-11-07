@@ -669,14 +669,8 @@
   {
    "name": "DateTimeInput",
    "travel": false,
-   "args": "label, value, enableDate?, enableTime?, min?, max?, weight?, checks?",
+   "args": "value, enableDate?, enableTime?, min?, max?, label?, weight?, checks?",
    "props": [
-    {
-     "name": "label",
-     "required": true,
-     "static": false,
-     "description": "The text label for the input field."
-    },
     {
      "name": "value",
      "required": true,
@@ -708,6 +702,12 @@
      "description": "The maximum allowed date/time in ISO 8601 format."
     },
     {
+     "name": "label",
+     "required": false,
+     "static": false,
+     "description": "The text label for the input field."
+    },
+    {
      "name": "weight",
      "required": false,
      "static": true,
@@ -719,7 +719,7 @@
      "static": true
     }
    ],
-   "express": "$/trip/startDate = \"2027-04-12\"\nroot = DateTimeInput(\"Departure\", $/trip/startDate, enableDate=true)",
+   "express": "$/trip/startDate = \"2027-04-12\"\nroot = DateTimeInput($/trip/startDate, label=\"Departure\", enableDate=true)",
    "messages": [
     {
      "version": "1.0",
@@ -730,10 +730,10 @@
        {
         "id": "root",
         "component": "DateTimeInput",
-        "label": "Departure",
         "value": {
          "@path": "/trip/startDate"
         },
+        "label": "Departure",
         "enableDate": true
        }
       ],

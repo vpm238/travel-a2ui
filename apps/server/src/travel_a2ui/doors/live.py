@@ -15,17 +15,17 @@ are sent.
 
 from __future__ import annotations
 
-from .. import ROOT
-
 import os
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from .. import ROOT
 from ..brain import data, inbound
 from ..brain import trip as model
 from ..brain.presses import describe_action, record_press
-from ..brain.promises import SPOKEN_NUDGE as _NUDGE, promised as _promised
+from ..brain.promises import SPOKEN_NUDGE as _NUDGE
+from ..brain.promises import promised as _promised
 from ..brain.skills import build_system_prompt
 from ..brain.tools import ToolContext, gemini_tools, run_tool
 from ..brain.ui import Canvas, Drawing
@@ -73,9 +73,7 @@ RENDER_TOOL: dict[str, Any] = {
     ),
     "parameters": {
         "type": "object",
-        "properties": {
-            "express": {"type": "string", "description": "The A2UI Express block."}
-        },
+        "properties": {"express": {"type": "string", "description": "The A2UI Express block."}},
         "required": ["express"],
     },
 }
@@ -227,9 +225,7 @@ def setup_config(
     return config
 
 
-def render(
-    express: str, canvas: Canvas, surface_id: str, values: Any
-) -> tuple[list[tuple], list[str]]:
+def render(express: str, canvas: Canvas, surface_id: str, values: Any) -> tuple[list[tuple], list[str]]:
     """Draws one block through the processor; the events, and what went wrong."""
     text = express if "<a2ui>" in express else f"<a2ui>\n{express.strip()}\n</a2ui>"
     # The model names its own cards in a call; a block with no surface line
@@ -245,6 +241,11 @@ def render(
 #: A turn ends with `turn_complete`. If one never arrives, a queue that waited
 #: for it forever would swallow everything the traveller said after it.
 _WAIT_FOR_TURN_SECONDS = 20.0
+
+
+def cards_drawn(surfaces: Any) -> int:
+    """The highest `voice-N` in use, so the next card is `voice-{N + 1}`."""
+    return max([0, *(int(s[6:]) for s in surfaces if s.startswith("voice-") and s[6:].isdigit())])
 
 
 @dataclass
@@ -269,6 +270,9 @@ class VoiceSession:
     on_resume: Any = None
     #: The mirror of the renderer, shared with the typed door.
     canvas: Canvas = field(default_factory=Canvas)
+    #: The surface ids the renderer said it holds when the call opened, so a
+    #: new card never reuses one, even after the server lost the session.
+    held: list[str] = field(default_factory=list)
     #: Injectable so a test can drive a whole call from a scripted session.
     client: Any = None
 
@@ -325,7 +329,7 @@ async def relay(
         return out
 
     #: How many cards this call has drawn, so each gets its own id.
-    drawings = len([s for s in canvas.surfaces if s.startswith("voice-")])
+    drawings = cards_drawn({*canvas.surfaces, *session.held})
 
     def next_card() -> str:
         return f"voice-{drawings + 1}"
@@ -366,9 +370,7 @@ async def relay(
         async with panel_lock:
             if "sidebar" in canvas.surfaces:
                 return
-            async for event in draw_panel(
-                session.api_key, session.client, canvas, trip, today, values
-            ):
+            async for event in draw_panel(session.api_key, session.client, canvas, trip, today, values):
                 await announce(event)
 
     try:
@@ -510,9 +512,7 @@ async def relay(
                             await announce({"type": "tool", "name": function.name, "input": args})
                             if function.name == RENDER_TOOL["name"]:
                                 card = next_card()
-                                events, problems = render(
-                                    str(args.get("express") or ""), canvas, card, values
-                                )
+                                events, problems = render(str(args.get("express") or ""), canvas, card, values)
                                 drew = sorted({event[1] for event in events if event[0] == "ui"})
                                 if card in drew:
                                     drawings += 1
@@ -529,9 +529,7 @@ async def relay(
                                 before = dict(trip)
                                 result, is_error = await run_tool(function.name, args, context)
                                 landed = (
-                                    data.file_rows(lookups, function.name, args, result, trip)
-                                    if not is_error
-                                    else None
+                                    data.file_rows(lookups, function.name, args, result, trip) if not is_error else None
                                 )
                                 changed = changed or landed is not None or trip != before
                                 response = (

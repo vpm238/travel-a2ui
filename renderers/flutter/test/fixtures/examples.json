@@ -1,0 +1,1105 @@
+[
+  {
+    "example": "10-opening-form",
+    "surfaceId": "inline-1",
+    "messages": [
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "inline-1",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+          "sendDataModel": true,
+          "components": [
+            {
+              "id": "title",
+              "component": "Text",
+              "text": "### Madrid in April — two travellers"
+            },
+            {
+              "id": "from",
+              "component": "AirportPicker",
+              "label": "Where from?",
+              "value": {
+                "@path": "/trip/origin"
+              },
+              "options": {
+                "@path": "/places/origins"
+              },
+              "kind": "origin",
+              "placeholder": "City or airport"
+            },
+            {
+              "id": "dates",
+              "component": "DateRangePicker",
+              "label": "Travel dates",
+              "start": {
+                "@path": "/trip/startDate"
+              },
+              "end": {
+                "@path": "/trip/endDate"
+              },
+              "nightsLabel": {
+                "@call": "formatString",
+                "args": {
+                  "value": "${calcNights(start: ${/trip/startDate}, end: ${/trip/endDate})} nights"
+                }
+              }
+            },
+            {
+              "id": "who",
+              "component": "TravelerCounter",
+              "label": "Travellers",
+              "value": {
+                "@path": "/trip/travelers"
+              },
+              "min": 1,
+              "max": 8
+            },
+            {
+              "id": "go_label",
+              "component": "Text",
+              "text": "Find flights"
+            },
+            {
+              "id": "go",
+              "component": "Button",
+              "child": "go_label",
+              "variant": "primary",
+              "action": {
+                "event": {
+                  "name": "find_flights",
+                  "userMessage": "Find flights for these dates"
+                }
+              }
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "title",
+                "from",
+                "dates",
+                "who",
+                "go"
+              ],
+              "align": "stretch"
+            }
+          ]
+        }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "inline-1",
+          "path": "/trip/origin",
+          "value": "JFK"
+        }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "inline-1",
+          "path": "/trip/startDate",
+          "value": "2027-04-12"
+        }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "inline-1",
+          "path": "/trip/endDate",
+          "value": "2027-04-19"
+        }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "inline-1",
+          "path": "/trip/travelers",
+          "value": 2
+        }
+      }
+    ]
+  },
+  {
+    "example": "20-flight-options",
+    "surfaceId": "inline-2",
+    "messages": [
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "inline-2",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+          "components": [
+            {
+              "component": "Text",
+              "id": "fares__text_1",
+              "text": "### Outbound · JFK → MAD · Sun 12 Apr",
+              "variant": "body"
+            },
+            {
+              "component": "FlightOption",
+              "id": "fares__flightoption_1",
+              "accessibility": {
+                "label": {
+                  "@call": "formatString",
+                  "args": {
+                    "value": "${airline} ${flightNumber}, ${departTime} ${origin} to ${arriveTime} ${destination}, ${stops}, ${price} ${total}"
+                  }
+                }
+              },
+              "airline": {
+                "@path": "airline"
+              },
+              "departTime": {
+                "@path": "departTime"
+              },
+              "arriveTime": {
+                "@path": "arriveTime"
+              },
+              "origin": {
+                "@path": "origin"
+              },
+              "destination": {
+                "@path": "destination"
+              },
+              "price": {
+                "@path": "price"
+              },
+              "action": {
+                "event": {
+                  "name": "select_flight",
+                  "context": {
+                    "id": {
+                      "@path": "id"
+                    },
+                    "price": {
+                      "@path": "price"
+                    },
+                    "airline": {
+                      "@path": "airline"
+                    },
+                    "flightNumber": {
+                      "@path": "flightNumber"
+                    },
+                    "departTime": {
+                      "@path": "departTime"
+                    },
+                    "arriveTime": {
+                      "@path": "arriveTime"
+                    },
+                    "from": {
+                      "@path": "origin"
+                    },
+                    "to": {
+                      "@path": "destination"
+                    }
+                  },
+                  "userMessage": {
+                    "@call": "formatString",
+                    "args": {
+                      "value": "Chose ${airline} ${flightNumber}, ${departTime} → ${arriveTime}, ${price}"
+                    }
+                  }
+                }
+              },
+              "duration": {
+                "@path": "duration"
+              },
+              "stops": {
+                "@path": "stops"
+              },
+              "flightNumber": {
+                "@path": "flightNumber"
+              },
+              "total": {
+                "@path": "total"
+              },
+              "badge": {
+                "@path": "badge"
+              },
+              "selected": {
+                "@call": "equals",
+                "args": {
+                  "a": {
+                    "@path": "id"
+                  },
+                  "b": {
+                    "@path": "/trip/selectedFlight"
+                  }
+                }
+              }
+            },
+            {
+              "component": "List",
+              "id": "fares__list_1",
+              "children": {
+                "path": "/flights",
+                "componentId": "fares__flightoption_1"
+              },
+              "direction": "vertical",
+              "align": "stretch"
+            },
+            {
+              "component": "Column",
+              "id": "fares",
+              "children": [
+                "fares__text_1",
+                "fares__list_1"
+              ],
+              "justify": "start",
+              "align": "stretch"
+            },
+            {
+              "id": "note",
+              "component": "Text",
+              "text": "Prices are per traveler, round trip."
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "fares",
+                "note"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "inline-2",
+          "path": "/flights",
+          "value": [
+            {
+              "id": "TP2077",
+              "airline": "TAP Air Portugal",
+              "flightNumber": "TP787",
+              "origin": "JFK",
+              "destination": "MAD",
+              "departTime": "11:00",
+              "arriveTime": "21:44",
+              "duration": "10h 44m",
+              "stops": "1 stop · LIS",
+              "price": "€292",
+              "priceValue": 292,
+              "cabin": "economy",
+              "badge": "Cheapest",
+              "perUnit": "€292",
+              "units": 2,
+              "total": "€584",
+              "totalValue": 584,
+              "priceLabel": "€292 each · €584 for 2"
+            },
+            {
+              "id": "AF2635",
+              "airline": "Air France",
+              "flightNumber": "AF109",
+              "origin": "JFK",
+              "destination": "MAD",
+              "departTime": "16:09",
+              "arriveTime": "03:04 +1",
+              "duration": "10h 55m",
+              "stops": "1 stop · CDG",
+              "price": "€346",
+              "priceValue": 346,
+              "cabin": "economy",
+              "perUnit": "€346",
+              "units": 2,
+              "total": "€692",
+              "totalValue": 692,
+              "priceLabel": "€346 each · €692 for 2"
+            },
+            {
+              "id": "AA2236",
+              "airline": "American",
+              "flightNumber": "AA645",
+              "origin": "JFK",
+              "destination": "MAD",
+              "departTime": "10:10",
+              "arriveTime": "18:01",
+              "duration": "7h 51m",
+              "stops": "Nonstop",
+              "price": "€353",
+              "priceValue": 353,
+              "cabin": "economy",
+              "perUnit": "€353",
+              "units": 2,
+              "total": "€706",
+              "totalValue": 706,
+              "priceLabel": "€353 each · €706 for 2"
+            },
+            {
+              "id": "IB2118",
+              "airline": "Iberia",
+              "flightNumber": "IB772",
+              "origin": "JFK",
+              "destination": "MAD",
+              "departTime": "18:04",
+              "arriveTime": "01:47 +1",
+              "duration": "7h 43m",
+              "stops": "Nonstop",
+              "price": "€358",
+              "priceValue": 358,
+              "cabin": "economy",
+              "badge": "Fastest",
+              "perUnit": "€358",
+              "units": 2,
+              "total": "€716",
+              "totalValue": 716,
+              "priceLabel": "€358 each · €716 for 2"
+            }
+          ]
+        }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "inline-2",
+          "path": "/trip/selectedFlight",
+          "value": "IB6250"
+        }
+      }
+    ]
+  },
+  {
+    "example": "30-refine-search",
+    "surfaceId": "inline-3",
+    "messages": [
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "inline-3",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+          "sendDataModel": true,
+          "components": [
+            {
+              "id": "title",
+              "component": "Text",
+              "text": "### Refine"
+            },
+            {
+              "id": "dates",
+              "component": "DateRangePicker",
+              "label": "Travel dates",
+              "start": {
+                "@path": "/filters/start"
+              },
+              "end": {
+                "@path": "/filters/end"
+              },
+              "action": {
+                "event": {
+                  "name": "dates_changed"
+                }
+              },
+              "nightsLabel": "6 nights"
+            },
+            {
+              "id": "who",
+              "component": "TravelerCounter",
+              "label": "Adults",
+              "value": {
+                "@path": "/filters/adults"
+              },
+              "min": 1,
+              "max": 8
+            },
+            {
+              "id": "budget",
+              "component": "Slider",
+              "label": "Max fare",
+              "min": 150,
+              "max": 1500,
+              "value": {
+                "@path": "/filters/maxPrice"
+              }
+            },
+            {
+              "id": "stops",
+              "component": "ChoicePicker",
+              "label": "Stops",
+              "variant": "mutuallyExclusive",
+              "options": [
+                {
+                  "label": "Any",
+                  "value": "any"
+                },
+                {
+                  "label": "Nonstop only",
+                  "value": "nonstop"
+                }
+              ],
+              "value": {
+                "@path": "/filters/stops"
+              }
+            },
+            {
+              "id": "apply",
+              "component": "Button",
+              "child": "apply_child",
+              "variant": "primary",
+              "action": {
+                "event": {
+                  "name": "apply_filters",
+                  "context": {
+                    "maxPrice": {
+                      "@path": "/filters/maxPrice"
+                    },
+                    "adults": {
+                      "@path": "/filters/adults"
+                    },
+                    "stops": {
+                      "@path": "/filters/stops"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "id": "apply_child",
+              "component": "Text",
+              "text": "Apply"
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "title",
+                "dates",
+                "who",
+                "budget",
+                "stops",
+                "apply"
+              ],
+              "align": "stretch"
+            }
+          ],
+          "dataModel": {
+            "filters": {
+              "adults": 2,
+              "maxPrice": 600
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "example": "40-trip-panel",
+    "surfaceId": "sidebar",
+    "messages": [
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "sidebar",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+          "components": [
+            {
+              "component": "Text",
+              "id": "panel__text_1",
+              "text": "### Your trip to Madrid",
+              "variant": "body"
+            },
+            {
+              "component": "Text",
+              "id": "panel__text_2",
+              "text": {
+                "@path": "text"
+              },
+              "variant": "body"
+            },
+            {
+              "component": "List",
+              "id": "panel__list_1",
+              "children": {
+                "path": "/panel/notice",
+                "componentId": "panel__text_2"
+              },
+              "direction": "vertical",
+              "align": "stretch"
+            },
+            {
+              "component": "Text",
+              "id": "panel__text_3",
+              "text": {
+                "@call": "formatString",
+                "args": {
+                  "value": "#### ${title}"
+                }
+              },
+              "variant": "body"
+            },
+            {
+              "component": "Text",
+              "id": "panel__text_4",
+              "text": {
+                "@path": "when"
+              },
+              "variant": "caption"
+            },
+            {
+              "component": "FlightOption",
+              "id": "panel__flightoption_1",
+              "accessibility": {
+                "label": {
+                  "@call": "formatString",
+                  "args": {
+                    "value": "${airline} ${flightNumber}, ${price}"
+                  }
+                }
+              },
+              "airline": {
+                "@path": "airline"
+              },
+              "departTime": {
+                "@path": "departTime"
+              },
+              "arriveTime": {
+                "@path": "arriveTime"
+              },
+              "origin": {
+                "@path": "origin"
+              },
+              "destination": {
+                "@path": "destination"
+              },
+              "price": {
+                "@path": "price"
+              },
+              "action": {
+                "event": {
+                  "name": "change",
+                  "context": {
+                    "what": "flight",
+                    "hop": {
+                      "@path": "hop"
+                    }
+                  }
+                }
+              },
+              "flightNumber": {
+                "@path": "flightNumber"
+              },
+              "selected": true
+            },
+            {
+              "component": "List",
+              "id": "panel__list_3",
+              "children": {
+                "path": "flights",
+                "componentId": "panel__flightoption_1"
+              },
+              "direction": "vertical",
+              "align": "stretch"
+            },
+            {
+              "component": "HotelCard",
+              "id": "panel__hotelcard_1",
+              "name": {
+                "@path": "name"
+              },
+              "price": {
+                "@path": "price"
+              },
+              "action": {
+                "event": {
+                  "name": "change",
+                  "context": {
+                    "what": "stay",
+                    "hop": {
+                      "@path": "hop"
+                    }
+                  }
+                }
+              },
+              "selected": true
+            },
+            {
+              "component": "List",
+              "id": "panel__list_4",
+              "children": {
+                "path": "stays",
+                "componentId": "panel__hotelcard_1"
+              },
+              "direction": "vertical",
+              "align": "stretch"
+            },
+            {
+              "component": "Column",
+              "id": "panel__column_1",
+              "children": [
+                "panel__text_3",
+                "panel__text_4",
+                "panel__list_3",
+                "panel__list_4"
+              ],
+              "justify": "start",
+              "align": "stretch"
+            },
+            {
+              "component": "List",
+              "id": "panel__list_2",
+              "children": {
+                "path": "/panel/hops",
+                "componentId": "panel__column_1"
+              },
+              "direction": "vertical",
+              "align": "stretch"
+            },
+            {
+              "component": "StatTile",
+              "id": "panel__stattile_1",
+              "label": {
+                "@path": "label"
+              },
+              "value": {
+                "@path": "value"
+              }
+            },
+            {
+              "component": "List",
+              "id": "panel__list_5",
+              "children": {
+                "path": "/panel/figures",
+                "componentId": "panel__stattile_1"
+              },
+              "direction": "vertical",
+              "align": "stretch"
+            },
+            {
+              "component": "Column",
+              "id": "panel",
+              "children": [
+                "panel__text_1",
+                "panel__list_1",
+                "panel__list_2",
+                "panel__list_5"
+              ],
+              "justify": "start",
+              "align": "stretch"
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "panel"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "sidebar",
+          "path": "/panel",
+          "value": {
+            "hops": [
+              {
+                "hop": 1,
+                "title": "JFK → Madrid",
+                "when": "12 Apr – 19 Apr · 2 travelling",
+                "flights": [
+                  {
+                    "hop": 1,
+                    "route": "JFK → Madrid",
+                    "airline": "Iberia",
+                    "flightNumber": "IB6250",
+                    "departTime": "18:40",
+                    "arriveTime": "08:15 +1",
+                    "origin": "JFK",
+                    "destination": "Madrid",
+                    "price": "$412"
+                  }
+                ],
+                "stays": []
+              }
+            ],
+            "figures": [
+              {
+                "label": "Committed so far",
+                "value": "$824"
+              }
+            ],
+            "notice": []
+          }
+        }
+      }
+    ]
+  },
+  {
+    "example": "50-itinerary-day",
+    "surfaceId": "inline-4",
+    "messages": [
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "inline-4",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+          "components": [
+            {
+              "id": "a1",
+              "component": "ActivityItem",
+              "title": "Prado Museum",
+              "time": "10:00",
+              "category": "sight",
+              "location": "Paseo del Prado 23",
+              "duration": "2h",
+              "note": "Book the timed entry",
+              "action": {
+                "event": {
+                  "name": "open_activity",
+                  "context": {
+                    "id": "prado"
+                  }
+                }
+              }
+            },
+            {
+              "id": "a2",
+              "component": "ActivityItem",
+              "title": "Lunch at Sobrino",
+              "time": "13:30",
+              "category": "food",
+              "location": "Calle de Cuchilleros 17",
+              "duration": "1h 30m"
+            },
+            {
+              "id": "a3",
+              "component": "ActivityItem",
+              "title": "Retiro Park",
+              "time": "16:00",
+              "category": "outdoors",
+              "duration": "1h 30m",
+              "note": "Rowboats until 19:00"
+            },
+            {
+              "id": "day2",
+              "component": "ItineraryDay",
+              "title": "Day 2 — Old Madrid",
+              "children": [
+                "a1",
+                "a2",
+                "a3"
+              ],
+              "date": "Mon 13 Apr",
+              "summary": "Art in the morning, a long lunch, green afternoon"
+            },
+            {
+              "id": "packingRow",
+              "component": "CheckBox",
+              "label": {
+                "@path": "item"
+              },
+              "value": {
+                "@path": "done"
+              }
+            },
+            {
+              "id": "packing",
+              "component": "List",
+              "children": {
+                "path": "/packing",
+                "componentId": "packingRow"
+              }
+            },
+            {
+              "id": "packingTitle",
+              "component": "Text",
+              "text": "#### Packing"
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "day2",
+                "packingTitle",
+                "packing"
+              ]
+            }
+          ],
+          "dataModel": {
+            "packing": [
+              {
+                "item": "Passport",
+                "done": true
+              },
+              {
+                "item": "Adapter",
+                "done": false
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "example": "60-home-dashboard",
+    "surfaceId": "home",
+    "messages": [
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "home",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+          "components": [
+            {
+              "id": "hello",
+              "component": "Text",
+              "text": "# 17 days to Madrid"
+            },
+            {
+              "id": "t1",
+              "component": "StatTile",
+              "label": "Booked",
+              "value": "3 of 5",
+              "caption": "flights, hotel, transfer",
+              "tone": "positive"
+            },
+            {
+              "id": "t2",
+              "component": "StatTile",
+              "label": "Budget left",
+              "value": "$680",
+              "caption": "of $2,000",
+              "tone": "caution"
+            },
+            {
+              "id": "t3",
+              "component": "StatTile",
+              "label": "Next up",
+              "value": "Pick dinner",
+              "caption": "Sat 11 Apr",
+              "tone": "accent",
+              "action": {
+                "event": {
+                  "name": "open_task",
+                  "context": {
+                    "id": "dinner"
+                  }
+                }
+              }
+            },
+            {
+              "id": "tiles",
+              "component": "Row",
+              "children": [
+                "t1",
+                "t2",
+                "t3"
+              ]
+            },
+            {
+              "id": "budget",
+              "component": "ProgressMeter",
+              "label": "Budget used",
+              "value": 1320,
+              "max": 2000,
+              "caption": "$1,320 of $2,000",
+              "tone": "caution"
+            },
+            {
+              "id": "when",
+              "component": "TripCalendar",
+              "start": {
+                "@path": "/trip/startDate"
+              },
+              "end": {
+                "@path": "/trip/endDate"
+              },
+              "marks": [
+                {
+                  "date": "2027-04-12",
+                  "icon": "plane",
+                  "label": "Fly out"
+                },
+                {
+                  "date": "2027-04-18",
+                  "icon": "plane",
+                  "label": "Fly home"
+                }
+              ],
+              "title": "Madrid",
+              "caption": "6 nights"
+            },
+            {
+              "id": "weather",
+              "component": "WeatherStrip",
+              "days": [
+                {
+                  "day": "Sun",
+                  "high": "21°",
+                  "low": "9°",
+                  "condition": "sun"
+                },
+                {
+                  "day": "Mon",
+                  "high": "19°",
+                  "low": "8°",
+                  "condition": "sun"
+                },
+                {
+                  "day": "Tue",
+                  "high": "16°",
+                  "low": "7°",
+                  "condition": "rain"
+                }
+              ],
+              "place": "Madrid",
+              "caption": "Pack a light jacket for Tuesday"
+            },
+            {
+              "id": "map",
+              "component": "MapPreview",
+              "markers": [
+                {
+                  "label": "Hotel",
+                  "kind": "stay"
+                },
+                {
+                  "label": "Prado",
+                  "kind": "sight",
+                  "day": "2"
+                },
+                {
+                  "label": "Sobrino",
+                  "kind": "food",
+                  "day": "2"
+                }
+              ],
+              "caption": "Everything on day 2 is walkable"
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "hello",
+                "tiles",
+                "budget",
+                "when",
+                "weather",
+                "map"
+              ],
+              "align": "stretch"
+            }
+          ]
+        }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "home",
+          "path": "/trip/startDate",
+          "value": "2027-04-12"
+        }
+      },
+      {
+        "version": "1.0",
+        "updateDataModel": {
+          "surfaceId": "home",
+          "path": "/trip/endDate",
+          "value": "2027-04-19"
+        }
+      }
+    ]
+  },
+  {
+    "example": "70-traveler-form",
+    "surfaceId": "inline-5",
+    "messages": [
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "inline-5",
+          "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+          "sendDataModel": true,
+          "components": [
+            {
+              "id": "title",
+              "component": "Text",
+              "text": "### Who is travelling?"
+            },
+            {
+              "id": "name",
+              "component": "TextField",
+              "label": "Full name (as on passport)",
+              "value": {
+                "@path": "/traveler/name"
+              }
+            },
+            {
+              "id": "email",
+              "component": "TextField",
+              "label": "Email",
+              "value": {
+                "@path": "/traveler/email"
+              },
+              "placeholder": "shortText"
+            },
+            {
+              "id": "seat",
+              "component": "ChoicePicker",
+              "label": "Seat",
+              "variant": "mutuallyExclusive",
+              "options": [
+                {
+                  "label": "Window",
+                  "value": "window"
+                },
+                {
+                  "label": "Aisle",
+                  "value": "aisle"
+                }
+              ],
+              "value": {
+                "@path": "/traveler/seat"
+              }
+            },
+            {
+              "id": "save",
+              "component": "Button",
+              "child": "save_child",
+              "variant": "primary",
+              "action": {
+                "event": {
+                  "name": "save_traveler",
+                  "context": {
+                    "name": {
+                      "@path": "/traveler/name"
+                    },
+                    "email": {
+                      "@path": "/traveler/email"
+                    },
+                    "seat": {
+                      "@path": "/traveler/seat"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "id": "save_child",
+              "component": "Text",
+              "text": "Save traveller"
+            },
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "title",
+                "name",
+                "email",
+                "seat",
+                "save"
+              ],
+              "align": "stretch"
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

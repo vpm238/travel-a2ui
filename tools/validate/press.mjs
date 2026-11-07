@@ -95,9 +95,7 @@ console.log('fare cards on the live card:', await fares.count());
 async function spokenCards() {
   const cards = page.locator(`${FEED} [class*="tv-flight" i], ${FEED} [class*="tv-hotel" i]`);
   return cards.evaluateAll((nodes) =>
-    nodes
-      .map((node) => node.getAttribute('aria-label'))
-      .filter((label) => label && label.trim()),
+    nodes.map((node) => node.getAttribute('aria-label')).filter((label) => label && label.trim()),
   );
 }
 
@@ -121,7 +119,11 @@ async function spokenCards() {
 
 // The panel *before* anything is pressed. "Why does the sidebar not start to
 // build until I select the first flight" is this line coming back empty.
-const before = await page.locator('aside, [class*="sidebar" i]').first().innerText().catch(() => '');
+const before = await page
+  .locator('aside, [class*="sidebar" i]')
+  .first()
+  .innerText()
+  .catch(() => '');
 console.log('\n=== the panel, before the press ===');
 console.log(before.slice(0, 260) || '(nothing)');
 // A turn that drew no fares is a finding, not a crash.
@@ -304,9 +306,7 @@ if (process.env.THROUGH_TO_HOTEL) {
   // never would: "nonstop, €69 each, €138 for 2, cheapest".
   {
     const labels = await spokenCards();
-    const total = await page
-      .locator(`${FEED} [class*="tv-flight" i], ${FEED} [class*="tv-hotel" i]`)
-      .count();
+    const total = await page.locator(`${FEED} [class*="tv-flight" i], ${FEED} [class*="tv-hotel" i]`).count();
     console.log(`\n=== what a screen reader is told, once settled ===`);
     console.log(`${labels.length} named, of ${total} card elements on screen`);
     for (const label of labels.slice(0, 6)) console.log(`   "${label}"`);
@@ -329,9 +329,7 @@ if (process.env.THROUGH_TO_HOTEL) {
   console.log(
     // Every way the panel has been seen to say "not yet", because the check is
     // only as good as its vocabulary: it read "selection pending" as caught up.
-    /awaiting selection|selecting hotel|selection pending|not booked|needs ticket/i.test(
-      settledPanel,
-    )
+    /awaiting selection|selecting hotel|selection pending|not booked|needs ticket/i.test(settledPanel)
       ? 'FAIL — the panel still says a decision is outstanding that was made'
       : 'ok — the panel has caught up with both choices',
   );
@@ -339,7 +337,9 @@ if (process.env.THROUGH_TO_HOTEL) {
 
 console.log('\n=== what the browser sent ===');
 for (const [index, body] of sent.entries()) {
-  const kind = body.action ? `press ${body.action.name}` : `say ${JSON.stringify(body.message ?? '').slice(0, 60)}`;
+  const kind = body.action
+    ? `press ${body.action.name}`
+    : `say ${JSON.stringify(body.message ?? '').slice(0, 60)}`;
   console.log(`\n-- POST ${index + 1}: ${kind}`);
   console.log('   sessionId      :', body.sessionId);
   console.log('   surfaceId      :', body.surfaceId ?? '(server picks)');
@@ -357,18 +357,29 @@ const text = await page.locator('body').innerText();
 console.log('\n=== the turn after the press, as text ===');
 console.log(text.split('FROM THE INTERFACE').pop()?.slice(0, 700));
 // Is there a panel beside the conversation, and does it know the trip?
-const panel = await page.locator('aside, [class*="sidebar" i]').first().innerText().catch(() => '');
+const panel = await page
+  .locator('aside, [class*="sidebar" i]')
+  .first()
+  .innerText()
+  .catch(() => '');
 console.log('\n=== the panel, right after the press ===');
 console.log(panel.slice(0, 420) || '(nothing)');
 
 // Only the conversation column. The panel's calendar is the *record* of the
 // dates — read-only, and the right thing to show — so looking at the whole page
 // reports a question wherever the trip has dates at all.
-const said = await page.locator('.turn, [class*="turn" i]').allInnerTexts().catch(() => []);
+const said = await page
+  .locator('.turn, [class*="turn" i]')
+  .allInnerTexts()
+  .catch(() => []);
 const conversation = said.join('\n');
 const asking = /mm\/dd\/yyyy|Trip dates|Travel dates|Set trip details/i.test(conversation);
 console.log('\n=== does the conversation ask for dates again? ===');
-console.log(asking ? 'FAIL — a date control is in the conversation after the press' : 'ok — no date control after the press');
+console.log(
+  asking
+    ? 'FAIL — a date control is in the conversation after the press'
+    : 'ok — no date control after the press',
+);
 process.exitCode = asking ? 1 : 0;
 
 await browser.close();

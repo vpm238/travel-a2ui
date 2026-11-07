@@ -8,12 +8,7 @@ macros, every one is a payload a renderer of the whole catalog accepts.
 
 from __future__ import annotations
 
-import warnings
-
 import pytest
-
-warnings.filterwarnings("ignore")
-
 from a2ui.inference_formats import to_message_models  # noqa: E402
 from a2ui.parser import to_message_dicts  # noqa: E402
 from a2ui.utils import validate_payload  # noqa: E402

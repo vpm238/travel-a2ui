@@ -299,6 +299,22 @@ uses a `MessageProcessor` to apply messages and send actions and errors back.
 
 <LinkCard title="A2UI renderers" href={A2UI.renderers} />
 
+## What's new in A2UI 1.0, and what this app uses
+
+| 1.0 feature | What it is | Here |
+| --- | --- | --- |
+| **Renderer capabilities** | The renderer says which catalogs it can draw (`a2uiRendererCapabilities`); the agent negotiates | sent on every request; the server negotiates with the SDK's `resolve_catalogs` |
+| **Data model metadata** | A surface created with `sendDataModel` reports its data model with every message (`a2uiRendererDataModel`) | how answers reach the agent: there is no special "submit" payload |
+| **Renderer-to-agent messages** | A press is an `action`, a refused message an `error`, both with a `version` | validated with the SDK's v1.0 models; errors are told to the model |
+| **Functions** | Catalog functions the renderer evaluates (`formatCurrency`, this catalog's `calcNights`), and an agent may call a renderer function (`callRendererFunction`) | renderer-side functions only |
+| **One `createSurface`** | Components and an initial data model in a single message | every surface |
+
+**The transport here is this app's own**: server-sent events for a typed turn and
+a WebSocket for voice, carrying v1.0 messages in both directions
+([`docs/transport.md`](https://github.com/vpm238/travel-a2ui/blob/main/docs/transport.md)).
+A2UI also has standard transports, A2A (`a2ui-a2a`) and ADK (`a2ui-adk`); an
+agent built on either gets the envelope from the SDK instead.
+
 ## Keep going
 
 You have now seen A2UI from the inside. Next, see what teams have built with

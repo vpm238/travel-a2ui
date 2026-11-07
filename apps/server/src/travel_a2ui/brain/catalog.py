@@ -19,19 +19,16 @@ the macros are expanded, the result is validated again against `CATALOG` by a
 from __future__ import annotations
 
 import json
-import warnings
 from typing import Any
 
-warnings.filterwarnings("ignore")
+from a2ui.catalog_transformers import ComponentPruningTransformer, FunctionPruningTransformer
+from a2ui.core import to_protocol_version
+from a2ui.inference_formats import ExpressFormatFactory, to_message_models
+from a2ui.processor import A2uiRequestProcessor, CatalogConfig
+from a2ui.utils import RendererState, resolve_catalogs
 
-from a2ui.catalog_transformers import ComponentPruningTransformer, FunctionPruningTransformer  # noqa: E402
-from a2ui.core.schema.v1_0.constants import PROTOCOL_VERSION as WIRE_VERSION  # noqa: E402
-from a2ui.inference_formats import ExpressFormatFactory, to_message_models  # noqa: E402
-from a2ui.processor import A2uiRequestProcessor, CatalogConfig  # noqa: E402
-from a2ui.utils import RendererState, resolve_catalogs  # noqa: E402
-
-from .. import ROOT  # noqa: E402
-from .macros import with_macros  # noqa: E402
+from .. import ROOT
+from .macros import with_macros
 
 CATALOG_DIR = ROOT / "catalogs" / "a2ui-travel"
 CATALOG_PATH = CATALOG_DIR / "catalog.json"
@@ -39,7 +36,7 @@ CATALOG_JSON: dict[str, Any] = json.loads(CATALOG_PATH.read_text("utf-8"))
 CATALOG_ID: str = CATALOG_JSON["catalogId"]
 
 #: The protocol version this catalog declares, as the `version` field spells it.
-PROTOCOL_VERSION: str = str(WIRE_VERSION)
+PROTOCOL_VERSION: str = to_protocol_version("1.0").value
 assert str(CATALOG_JSON["protocolVersion"]).startswith(PROTOCOL_VERSION), (
     f"the catalog declares {CATALOG_JSON['protocolVersion']}, the SDK speaks {PROTOCOL_VERSION}"
 )

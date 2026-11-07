@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { MapsKeyContext } from '@travel-a2ui/renderer';
 
 import { Catalog } from './components/Catalog.js';
 import { Chat } from './components/Chat.js';
@@ -47,7 +48,10 @@ const WARMTH: Record<Warmth, { label: string; hint: string }> = {
     hint: 'Open a conversation now so your first message is answered quickly. Typing without it works too — the first reply just takes longer.',
   },
   warming: { label: 'Getting ready…', hint: 'Opening a conversation with the agent.' },
-  ready: { label: 'Ready', hint: 'A conversation is open. Your first message will be answered at full speed.' },
+  ready: {
+    label: 'Ready',
+    hint: 'A conversation is open. Your first message will be answered at full speed.',
+  },
   failed: {
     label: 'Try again',
     hint: 'Could not open a conversation. You can still type — the first reply will just be slower.',
@@ -93,50 +97,52 @@ export default function App() {
   const activeSkill = agent.meta?.skills.find((skill) => skill.variant === agent.prefs.skill);
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="topbar__brand">
-          <span className="topbar__mark" aria-hidden>
-            {/* A route between two stops: what every surface here is about. */}
-            <svg viewBox="0 0 32 32" width="32" height="32">
-              <rect width="32" height="32" rx="9" />
-              <path d="M8.5 22.5c3-10 12-13 15-13" />
-              <circle cx="8.5" cy="22.5" r="2.6" />
-              <circle cx="23.5" cy="9.5" r="2.6" />
-            </svg>
-          </span>
-          <div>
-            <strong>{agent.meta?.name ?? 'Travel A2UI'}</strong>
-            <span>an agent that answers in interfaces</span>
+    // The Maps key reaches every `GoogleMap` the agent draws, however deep.
+    <MapsKeyContext.Provider value={agent.meta?.mapsApiKey ?? ''}>
+      <div className="app">
+        <header className="topbar">
+          <div className="topbar__brand">
+            <span className="topbar__mark" aria-hidden>
+              {/* A route between two stops: what every surface here is about. */}
+              <svg viewBox="0 0 32 32" width="32" height="32">
+                <rect width="32" height="32" rx="9" />
+                <path d="M8.5 22.5c3-10 12-13 15-13" />
+                <circle cx="8.5" cy="22.5" r="2.6" />
+                <circle cx="23.5" cy="9.5" r="2.6" />
+              </svg>
+            </span>
+            <div>
+              <strong>{agent.meta?.name ?? 'Travel A2UI'}</strong>
+              <span>an agent that answers in interfaces</span>
+            </div>
           </div>
-        </div>
 
-        <nav className="topbar__views" aria-label="Views">
-          {VIEWS.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              title={entry.hint}
-              aria-current={view === entry.id}
-              className={view === entry.id ? 'is-active' : undefined}
-              onClick={() => setView(entry.id)}
-            >
-              {entry.label}
-            </button>
-          ))}
-        </nav>
+          <nav className="topbar__views" aria-label="Views">
+            {VIEWS.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                title={entry.hint}
+                aria-current={view === entry.id}
+                className={view === entry.id ? 'is-active' : undefined}
+                onClick={() => setView(entry.id)}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </nav>
 
-        <div className="topbar__controls">
-          {agent.meta?.backends ? (
-            <RuntimePicker
-              backends={agent.meta.backends}
-              current={agent.backend}
-              error={agent.backendError}
-              onChange={agent.setBackend}
-            />
-          ) : null}
+          <div className="topbar__controls">
+            {agent.meta?.backends ? (
+              <RuntimePicker
+                backends={agent.meta.backends}
+                current={agent.backend}
+                error={agent.backendError}
+                onChange={agent.setBackend}
+              />
+            ) : null}
 
-          {/*
+            {/*
             Whether the agent has a conversation open, and a way to open one.
 
             A first message costs about eight times as long to draw as every one
@@ -153,27 +159,27 @@ export default function App() {
             one that made the microphone unusable, and it is not being rebuilt
             here.
           */}
-          {agent.warmth === 'ready' || agent.warmth === 'warming' ? (
-            <span className={`warmth warmth--${agent.warmth}`} title={WARMTH[agent.warmth].hint}>
-              <span className="warmth__dot" aria-hidden />
-              {WARMTH[agent.warmth].label}
-            </span>
-          ) : (agent.apiKey || agent.meta?.keyProvided) ? (
-            // Cold or failed: the same pill, as the button that fixes it. A
-            // first reply without it takes about twenty seconds instead of three;
-            // typing still works either way.
-            <button
-              type="button"
-              className={`warmth warmth--${agent.warmth} warmth--action`}
-              title={WARMTH[agent.warmth].hint}
-              onClick={() => void agent.warm()}
-            >
-              <span className="warmth__dot" aria-hidden />
-              {WARMTH[agent.warmth].label}
-            </button>
-          ) : null}
+            {agent.warmth === 'ready' || agent.warmth === 'warming' ? (
+              <span className={`warmth warmth--${agent.warmth}`} title={WARMTH[agent.warmth].hint}>
+                <span className="warmth__dot" aria-hidden />
+                {WARMTH[agent.warmth].label}
+              </span>
+            ) : agent.apiKey || agent.meta?.keyProvided ? (
+              // Cold or failed: the same pill, as the button that fixes it. A
+              // first reply without it takes about twenty seconds instead of three;
+              // typing still works either way.
+              <button
+                type="button"
+                className={`warmth warmth--${agent.warmth} warmth--action`}
+                title={WARMTH[agent.warmth].hint}
+                onClick={() => void agent.warm()}
+              >
+                <span className="warmth__dot" aria-hidden />
+                {WARMTH[agent.warmth].label}
+              </button>
+            ) : null}
 
-          {/*
+            {/*
             No model picker, and no effort picker.
 
             It was here to make "switch models mid-trip and watch the same
@@ -190,114 +196,113 @@ export default function App() {
             looking at when you judge it. One model, chosen server-side, named
             in `/api/meta` for anyone who wants to know which.
           */}
-          <button
-            type="button"
-            className="iconButton"
-            title={`Theme: ${theme}`}
-            aria-label="Change theme"
-            onClick={() => setTheme(theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system')}
-          >
-            <span className="material-icons" aria-hidden>
-              {theme === 'dark' ? 'dark_mode' : theme === 'light' ? 'light_mode' : 'contrast'}
-            </span>
-          </button>
+            <button
+              type="button"
+              className="iconButton"
+              title={`Theme: ${theme}`}
+              aria-label="Change theme"
+              onClick={() => setTheme(theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system')}
+            >
+              <span className="material-icons" aria-hidden>
+                {theme === 'dark' ? 'dark_mode' : theme === 'light' ? 'light_mode' : 'contrast'}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            className="iconButton"
-            title={agent.apiKey ? 'API key: set in this browser' : 'API key'}
-            aria-label="API key"
-            onClick={() => setShowGate(true)}
-          >
-            <span className="material-icons" aria-hidden>
-              {agent.apiKey || agent.meta?.keyProvided ? 'key' : 'key_off'}
-            </span>
-          </button>
+            <button
+              type="button"
+              className="iconButton"
+              title={agent.apiKey ? 'API key: set in this browser' : 'API key'}
+              aria-label="API key"
+              onClick={() => setShowGate(true)}
+            >
+              <span className="material-icons" aria-hidden>
+                {agent.apiKey || agent.meta?.keyProvided ? 'key' : 'key_off'}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            className="iconButton"
-            title="Start over"
-            aria-label="Start over"
-            onClick={() => void agent.reset()}
-          >
-            <span className="material-icons" aria-hidden>
-              restart_alt
-            </span>
-          </button>
-        </div>
-      </header>
+            <button
+              type="button"
+              className="iconButton"
+              title="Start over"
+              aria-label="Start over"
+              onClick={() => void agent.reset()}
+            >
+              <span className="material-icons" aria-hidden>
+                restart_alt
+              </span>
+            </button>
+          </div>
+        </header>
 
-      {agent.metaError ? (
-        <div className="banner banner--error">
-          Could not reach the backend: {agent.metaError}
-        </div>
-      ) : null}
-
-      {agent.keyWasExposed ? (
-        <div className="banner banner--warn">
-          That key arrived in the query string, so the server saw it and it is probably in a log.
-          It has been removed from the address bar and saved here — but treat it as compromised and
-          rotate it. Next time use <code>#key=…</code>, which never leaves the browser.
-        </div>
-      ) : null}
-
-      <main className={`main main--${view}`}>
-        {view === 'chat' ? (
-          <>
-            <Chat agent={agent} />
-            <Sidebar agent={agent} />
-          </>
+        {agent.metaError ? (
+          <div className="banner banner--error">Could not reach the backend: {agent.metaError}</div>
         ) : null}
-        {view === 'home' ? <Home agent={agent} /> : null}
-        {view === 'catalog' ? <Catalog /> : null}
-        {view === 'protocol' ? <Protocol agent={agent} /> : null}
-      </main>
 
-      <footer className="statusbar">
-        <span>
-          {activeSkill
-            ? `${activeSkill.skills.join(' + ')} · ${activeSkill.inferenceFormat} · A2UI ${activeSkill.protocolVersion}`
-            : 'loading…'}
-        </span>
-        <span>
-          {agent.usage.turns > 0
-            ? `${agent.usage.turns} turn${agent.usage.turns > 1 ? 's' : ''} · ` +
-              `${agent.usage.inputTokens.toLocaleString()} in / ${agent.usage.outputTokens.toLocaleString()} out` +
-              // Thinking, which is most of what a turn costs in *time* and was
-              // the one number this line did not carry. `useAgent` has tracked
-              // it all along; a turn asked for `low` has been measured
-              // spending 3,316 thought tokens deciding how to draw a form it
-              // draws every turn, and nothing on screen said so.
-              (agent.usage.thoughtTokens > 0
-                ? ` · ${agent.usage.thoughtTokens.toLocaleString()} thinking`
-                : '') +
-              (agent.usage.cacheReadTokens > 0
-                ? ` · ${agent.usage.cacheReadTokens.toLocaleString()} cached`
-                : '')
-            : 'no turns yet'}
-        </span>
-      </footer>
+        {agent.keyWasExposed ? (
+          <div className="banner banner--warn">
+            That key arrived in the query string, so the server saw it and it is probably in a log. It has
+            been removed from the address bar and saved here — but treat it as compromised and rotate it. Next
+            time use <code>#key=…</code>, which never leaves the browser.
+          </div>
+        ) : null}
 
-      {/*
+        <main className={`main main--${view}`}>
+          {view === 'chat' ? (
+            <>
+              <Chat agent={agent} />
+              <Sidebar agent={agent} />
+            </>
+          ) : null}
+          {view === 'home' ? <Home agent={agent} /> : null}
+          {view === 'catalog' ? <Catalog /> : null}
+          {view === 'protocol' ? <Protocol agent={agent} /> : null}
+        </main>
+
+        <footer className="statusbar">
+          <span>
+            {activeSkill
+              ? `${activeSkill.skills.join(' + ')} · ${activeSkill.inferenceFormat} · A2UI ${activeSkill.protocolVersion}`
+              : 'loading…'}
+          </span>
+          <span>
+            {agent.usage.turns > 0
+              ? `${agent.usage.turns} turn${agent.usage.turns > 1 ? 's' : ''} · ` +
+                `${agent.usage.inputTokens.toLocaleString()} in / ${agent.usage.outputTokens.toLocaleString()} out` +
+                // Thinking, which is most of what a turn costs in *time* and was
+                // the one number this line did not carry. `useAgent` has tracked
+                // it all along; a turn asked for `low` has been measured
+                // spending 3,316 thought tokens deciding how to draw a form it
+                // draws every turn, and nothing on screen said so.
+                (agent.usage.thoughtTokens > 0
+                  ? ` · ${agent.usage.thoughtTokens.toLocaleString()} thinking`
+                  : '') +
+                (agent.usage.cacheReadTokens > 0
+                  ? ` · ${agent.usage.cacheReadTokens.toLocaleString()} cached`
+                  : '')
+              : 'no turns yet'}
+          </span>
+        </footer>
+
+        {/*
         Asked for, not imposed: the Catalog and Wire tabs run no model and need
         no key, so the form never covers them. It opens when somebody tries to run a model without
         one (`agent.keyRequested`) or asks for it from the header, and it can
         always be dismissed.
       */}
-      {agent.keyRequested || showGate ? (
-        <KeyGate
-          existing={agent.apiKey}
-          onSave={(key) => {
-            agent.setApiKey(key);
-            setShowGate(false);
-          }}
-          onDismiss={() => {
-            setShowGate(false);
-            agent.dismissKeyRequest();
-          }}
-        />
-      ) : null}
-    </div>
+        {agent.keyRequested || showGate ? (
+          <KeyGate
+            existing={agent.apiKey}
+            onSave={(key) => {
+              agent.setApiKey(key);
+              setShowGate(false);
+            }}
+            onDismiss={() => {
+              setShowGate(false);
+              agent.dismissKeyRequest();
+            }}
+          />
+        ) : null}
+      </div>
+    </MapsKeyContext.Provider>
   );
 }

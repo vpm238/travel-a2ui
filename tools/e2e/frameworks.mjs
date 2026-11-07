@@ -50,9 +50,7 @@ await page.waitForSelector('.composer', { timeout: 20000 });
 
 const mics = () => page.locator('.composer__mic').count();
 const chosen = async () =>
-  (await page.locator('button:has-text("RUNTIME")').first().innerText())
-    .replace(/\s+/g, ' ')
-    .trim();
+  (await page.locator('button:has-text("RUNTIME")').first().innerText()).replace(/\s+/g, ' ').trim();
 
 /**
  * Waits for the app to be settled on a framework.
@@ -82,7 +80,11 @@ await page.waitForSelector('text=Gemini Live', { timeout: 10000 });
 await page.locator('button', { hasText: 'Gemini Live' }).first().click();
 await settledOn('Gemini Live');
 
-check('switches to Live from the same origin, with no address to type', await chosen(), 'RUNTIME Gemini Live ▾');
+check(
+  'switches to Live from the same origin, with no address to type',
+  await chosen(),
+  'RUNTIME Gemini Live ▾',
+);
 check('which does have a microphone', await mics(), 1);
 check(
   'and says you can still type',
@@ -109,10 +111,9 @@ check(
 );
 
 await page
-  .waitForFunction(
-    () => !document.querySelector('.composer__live')?.className.includes('is-instantiating'),
-    { timeout: 30000 },
-  )
+  .waitForFunction(() => !document.querySelector('.composer__live')?.className.includes('is-instantiating'), {
+    timeout: 30000,
+  })
   .catch(() => {});
 
 check(
@@ -121,13 +122,17 @@ check(
   null,
 );
 
-check('and the choice survived the reload', await page.evaluate(() => {
-  try {
-    return JSON.parse(localStorage.getItem('travel-a2ui:backend') ?? '{}').id;
-  } catch {
-    return null;
-  }
-}), 'live');
+check(
+  'and the choice survived the reload',
+  await page.evaluate(() => {
+    try {
+      return JSON.parse(localStorage.getItem('travel-a2ui:backend') ?? '{}').id;
+    } catch {
+      return null;
+    }
+  }),
+  'live',
+);
 check('starting over, with nothing said yet', await page.locator('.turn').count(), 0);
 check(
   'and the key kept, because losing that on every switch would be its own annoyance',

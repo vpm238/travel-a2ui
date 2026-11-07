@@ -24,8 +24,8 @@ from typing import Any
 import pytest
 
 from travel_a2ui.brain import trip as trip_model  # noqa: F401
-from travel_a2ui.brain.skills import build_system_prompt
 from travel_a2ui.brain.providers.fixture import FixtureProvider
+from travel_a2ui.brain.skills import build_system_prompt
 from travel_a2ui.brain.ui import Canvas
 from travel_a2ui.doors.live import VoiceSession, relay, setup_config, voice_tools
 
@@ -252,9 +252,7 @@ class TestOpeningTheSession:
 
     def test_the_setup_carries_every_tool_a_call_may_use(self) -> None:
         _, client, _ = run_call([])
-        declared = {
-            tool["name"] for tool in client.config["tools"][0]["function_declarations"]
-        }
+        declared = {tool["name"] for tool in client.config["tools"][0]["function_declarations"]}
         assert {"render_a2ui_express", "search_flights", "save_trip"} <= declared
         assert not any(name.startswith("show_") for name in declared)
 
@@ -266,10 +264,7 @@ class TestOpeningTheSession:
         that a result arrives inside the turn that asked for it. Left to the
         new default, none of that accounting holds."""
         _, client, _ = run_call([])
-        behaviors = {
-            tool["name"]: tool.get("behavior")
-            for tool in client.config["tools"][0]["function_declarations"]
-        }
+        behaviors = {tool["name"]: tool.get("behavior") for tool in client.config["tools"][0]["function_declarations"]}
         assert behaviors and set(behaviors.values()) == {"BLOCKING"}, behaviors
 
     def test_the_schemas_are_cleaned_or_the_whole_setup_is_refused(self) -> None:
@@ -308,9 +303,7 @@ class TestOpeningTheSession:
         """`speech_config` carries both; setting one never drops the other."""
         config = setup_config("SYSTEM", voice="Puck")
         assert config["speech_config"]["language_code"] == "en-US"
-        assert config["speech_config"]["voice_config"] == {
-            "prebuilt_voice_config": {"voice_name": "Puck"}
-        }
+        assert config["speech_config"]["voice_config"] == {"prebuilt_voice_config": {"voice_name": "Puck"}}
 
     def test_the_voice_brief_is_appended_and_does_not_replace_the_prompt(self) -> None:
         config = setup_config("THE ORDINARY PROMPT")
@@ -334,9 +327,7 @@ class TestCarryingTheCall:
         assert audio and audio[0]["data"] == "QUJD"
 
     def test_both_sides_of_the_transcript_reach_the_browser(self) -> None:
-        seen, _, _ = run_call(
-            [transcript_frame("four fares up", "agent"), transcript_frame("madrid", "you")]
-        )
+        seen, _, _ = run_call([transcript_frame("four fares up", "agent"), transcript_frame("madrid", "you")])
         said = {(e["who"], e["text"]) for e in seen if e["type"] == "transcript"}
         assert ("agent", "four fares up") in said
         assert ("you", "madrid") in said
@@ -393,7 +384,7 @@ class TestCarryingTheCall:
         assert kinds.index("turn_end") > kinds.index("transcript", 1)
 
     def test_a_cut_off_promise_is_not_nudged(self) -> None:
-        """"Let me find some flights" with nothing called is handed back once —
+        """ "Let me find some flights" with nothing called is handed back once —
         unless the traveller is the one who ended it. Then prodding the model
         to finish would have it talk over the person who just interrupted it."""
         seen, client, _ = run_call(
@@ -444,9 +435,7 @@ class TestDrawing:
         assert response["shown"] is False and response["problems"]
 
     def test_each_block_is_a_new_card(self) -> None:
-        seen, _, _ = run_call(
-            [render_frame('root = Text("one")', "r1"), render_frame('root = Text("two")', "r2")]
-        )
+        seen, _, _ = run_call([render_frame('root = Text("one")', "r1"), render_frame('root = Text("two")', "r2")])
         created = [m["createSurface"]["surfaceId"] for m in drawn(seen) if "createSurface" in m]
         assert created == ["voice-1", "voice-2"]
 
@@ -486,7 +475,9 @@ class TestThePanel:
         from travel_a2ui.brain.ui import Drawing
 
         values = lambda _s: data.session_values(MADRID, None)  # noqa: E731
-        Drawing(canvas, "sidebar", values).feed('<a2ui>\nsurface("sidebar")\npanel = Trip()\nroot = Column([panel])\n</a2ui>')
+        Drawing(canvas, "sidebar", values).feed(
+            '<a2ui>\nsurface("sidebar")\npanel = Trip()\nroot = Column([panel])\n</a2ui>'
+        )
         canvas.provide(values)
         seen, client, saved = run_call(
             [tool_frame("save_trip", {"travelers": 3}), turn_complete_frame()],
@@ -546,9 +537,7 @@ class TestFailures:
             if False:
                 yield {}
 
-        session = VoiceSession(
-            api_key="bad", trip={}, provider=FixtureProvider(), contract="c", client=Refusing([])
-        )
+        session = VoiceSession(api_key="bad", trip={}, provider=FixtureProvider(), contract="c", client=Refusing([]))
         asyncio.run(relay(session, send, nothing()))
         errors = [e["message"] for e in seen if e["type"] == "error"]
         assert errors and "rejected" in errors[0]
@@ -657,3 +646,10 @@ class TestMarkupNeverReachesTheEar:
         ):
             assert _without_markup(line) == line
 
+
+def test_a_new_call_never_reuses_a_card_id_the_renderer_holds() -> None:
+    """After a lost session the server's mirror is empty; the renderer's list is not."""
+    from travel_a2ui.doors.live import cards_drawn
+
+    assert cards_drawn({"voice-1", "voice-4", "sidebar", "inline-9"}) == 4
+    assert cards_drawn(set()) == 0

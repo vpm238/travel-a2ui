@@ -8,6 +8,7 @@ from typing import Any
 
 from travel_a2ui.brain import data
 from travel_a2ui.brain.ui import Canvas, Drawing
+from travel_a2ui.gemini import ToolCall
 
 
 class FakeModel:

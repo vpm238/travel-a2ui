@@ -54,7 +54,6 @@ Needs a key and spends tokens, so it is not part of the end-to-end suite.
     python3 tools/eval/controls.py "$GEMINI_API_KEY" 12
 """
 
-
 import asyncio
 import pathlib
 import sys
@@ -89,8 +88,7 @@ CASES = [
     {
         "name": "multi-city, party grows in Chicago",
         "message": (
-            "I want to fly SFO to Chicago, then on to New York, then home — "
-            "and my partner joins me in Chicago"
+            "I want to fly SFO to Chicago, then on to New York, then home — and my partner joins me in Chicago"
         ),
         # A hop's date is a date, not a range: four cities is four departure
         # dates. Either control counts as having asked.
@@ -147,6 +145,7 @@ async def once(case: dict, n: int) -> dict:
     )
     if drew:
         from collections import Counter
+
         print(f"         drew: {dict(Counter(kinds))}")
     else:
         print(f"         > {prose.strip()[:150]}")

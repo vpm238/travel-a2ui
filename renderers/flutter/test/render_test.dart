@@ -2,8 +2,10 @@
 //
 // The messages here are not hand-written where it matters: the flight list is
 // `test/fixtures/flights.json`, the bytes the server sends when the model draws
-// `Flights()` and the lookup returns (`scripts/build_fixtures.py`), and every
-// component's example is
+// `Flights()` and the lookup returns (`scripts/build_fixtures.py`); every
+// catalog example is `test/fixtures/examples.json`, each one as the server
+// sends it, macros expanded and data filled
+// (`tool/build_example_fixtures.py`); and every component's example is
 // `apps/web/src/generated/catalog-reference.json`, which the build compiles
 // with the A2UI Python SDK and validates before writing. The catalog is
 // `catalogs/a2ui-travel/catalog.json`, read by `Catalog.fromJson`.
@@ -21,6 +23,7 @@ import 'package:a2ui_flutter/basic_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:travel_a2ui_flutter/catalog.dart';
+import 'package:travel_a2ui_flutter/chat.dart' show TravelSurface;
 import 'package:travel_a2ui_flutter/components.dart';
 
 final String _wire = A2uiProtocolVersion.v1_0.jsonValue;
@@ -53,7 +56,8 @@ class _Run {
   SurfaceModel<ComponentImplementation> surface(String id) => processor.model.getSurface(id)!;
 }
 
-Future<void> _pump(WidgetTester tester, SurfaceModel<ComponentImplementation> surface) async {
+Future<void> _pump(WidgetTester tester, SurfaceModel<ComponentImplementation> surface,
+    {bool markdown = false}) async {
   // Wide enough for a fare card, tall enough for a list.
   tester.view.physicalSize = const Size(1400, 3000);
   tester.view.devicePixelRatio = 1.0;
@@ -63,7 +67,9 @@ Future<void> _pump(WidgetTester tester, SurfaceModel<ComponentImplementation> su
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        body: SingleChildScrollView(child: A2uiSurface(surface: surface)),
+        body: SingleChildScrollView(
+          child: markdown ? TravelSurface(surface: surface) : A2uiSurface(surface: surface),
+        ),
       ),
     ),
   );
@@ -149,6 +155,57 @@ void main() {
         expect(run.errors, isEmpty);
       });
     }
+  });
+
+  group('every catalog example, as the server sends it', () {
+    final examples = (jsonDecode(File('${_root.path}/renderers/flutter/test/fixtures/examples.json').readAsStringSync())
+            as List)
+        .cast<Map<String, dynamic>>();
+
+    // What each example must put on screen: the words a traveller reads.
+    const shows = <String, List<String>>{
+      '10-opening-form': ['Madrid in April — two travellers', 'Where from?', 'Travel dates', 'Travellers', 'Find flights'],
+      '20-flight-options': ['Outbound · JFK → MAD · Sun 12 Apr', 'Prices are per traveler, round trip.'],
+      '30-refine-search': ['Refine', 'Travel dates', 'Adults', 'Max fare', 'Stops', 'Apply'],
+      '40-trip-panel': ['Your trip to Madrid', 'JFK → Madrid', '12 Apr – 19 Apr · 2 travelling', 'Iberia', 'IB6250'],
+      '50-itinerary-day': ['Day 2 — Old Madrid', 'Prado Museum', 'Lunch at Sobrino', 'Retiro Park', 'Packing'],
+      '60-home-dashboard': ['17 days to Madrid', 'Booked', 'Budget left', 'Next up', 'Budget used', 'April 2027'],
+      '70-traveler-form': ['Who is travelling?', 'Full name (as on passport)', 'Email', 'Seat', 'Save traveller'],
+    };
+
+    test('covers every example', () {
+      expect(examples.map((example) => example['example']).toSet(), shows.keys.toSet());
+    });
+
+    for (final example in examples) {
+      final name = example['example'] as String;
+      testWidgets('$name draws what it says', (tester) async {
+        final run = _Run();
+        expect(run.apply((example['messages'] as List).cast<Object?>()), isEmpty);
+        await _pump(tester, run.surface(example['surfaceId'] as String), markdown: true);
+        expect(tester.takeException(), isNull);
+        expect(run.errors, isEmpty);
+        for (final words in shows[name] ?? const <String>[]) {
+          expect(find.textContaining(words, findRichText: true), findsWidgets, reason: '$name: "$words"');
+        }
+        // Headings are rendered as headings, not shown with their markers.
+        expect(find.textContaining('### ', findRichText: true), findsNothing, reason: name);
+      });
+    }
+
+    testWidgets('the fares example draws a card for every row it was sent', (tester) async {
+      final example = examples.firstWhere((example) => example['example'] == '20-flight-options');
+      final messages = (example['messages'] as List).cast<Map<String, dynamic>>();
+      final rows = messages
+          .map((message) => message['updateDataModel'] as Map?)
+          .firstWhere((update) => update?['path'] == '/flights')!['value'] as List;
+      final run = _Run();
+      run.apply(messages);
+      await _pump(tester, run.surface('inline-2'), markdown: true);
+      for (final row in rows.cast<Map>()) {
+        expect(find.text(row['flightNumber'] as String), findsOneWidget);
+      }
+    });
   });
 
   group('a flight list, as the server sends it', () {
@@ -493,8 +550,7 @@ void main() {
     // Every property a view reads must be one the catalog declares for that
     // component, or an item property of one of its arrays. A view reading a
     // name the catalog never mentions draws nothing for a field the agent
-    // filled in: ItineraryDay once read `activities` where the catalog says
-    // `children`, and showed no activities at all.
+    // filled in.
     test('reads only properties its catalog entry declares', () {
       final source = File('lib/components.dart').readAsStringSync();
       final map = source.substring(source.indexOf('travelViews'));
@@ -542,6 +598,232 @@ void main() {
         }
       }
       expect(problems, isEmpty);
+    });
+
+    // The other direction: a property the catalog offers the agent and the
+    // view never reads is a field the agent fills in for nothing.
+    test('reads every property its catalog entry declares', () {
+      final source = File('lib/components.dart').readAsStringSync();
+      final map = source.substring(source.indexOf('travelViews'));
+      final views = {
+        for (final match in RegExp(r"'(\w+)':\s*(_\w+),").allMatches(map)) match.group(1)!: match.group(2)!,
+      };
+      // Read by the SDK or by `_accessible`, for every component alike.
+      const common = {'component', 'weight', 'accessibility', 'id', 'checks', 'metadata'};
+      // Only a drawn map has a camera to point: these place it, and this
+      // client lists a map's places instead of drawing one.
+      const cannotBeDrawn = {
+        'GoogleMap': {'zoom', 'heading', 'tilt'},
+      };
+      final problems = <String>[];
+      for (final MapEntry(key: component, value: function) in views.entries) {
+        final start = source.indexOf('Widget $function(BuildContext context, TravelProps build) {');
+        final rest = source.substring(start + 1);
+        final end = RegExp(r'\n(Widget |class |final |const |typedef |String |DateTime|bool |///|// -)').firstMatch(rest);
+        final body = end == null ? rest : rest.substring(0, end.start);
+        final read = {
+          ...RegExp(r"build\.(?:string|number|flag|pending|absent|has|fire|write|children|value)\('(\w+)'")
+              .allMatches(body)
+              .map((m) => m.group(1)!),
+          ...RegExp(r"build\['(\w+)'\]").allMatches(body).map((m) => m.group(1)!),
+          ...RegExp(r"_\w+\(build, '(\w+)'").allMatches(body).map((m) => m.group(1)!),
+          if (body.contains('build.hasAction') || RegExp(r'build\.fire\b(?!\()').hasMatch(body)) 'action',
+          // Passed by name to a local helper, as FlightOption's `end('departTime', 'origin', …)`.
+          ...RegExp(r"\b[a-z]\w*\('(\w+)', '(\w+)'").allMatches(body).expand((m) => [m.group(1)!, m.group(2)!]),
+        };
+        final declared = <String>{};
+        final schema = (_document['components'] as Map)[component] as Map;
+        for (final part in (schema['allOf'] as List? ?? [schema])) {
+          declared.addAll((((part as Map)['properties'] as Map?) ?? {}).keys.map((key) => '$key'));
+        }
+        final unread = declared.difference(read).difference(common).difference(cannotBeDrawn[component] ?? const {});
+        if (unread.isNotEmpty) problems.add('$component never reads $unread');
+      }
+      expect(problems, isEmpty);
+    });
+
+    testWidgets('a HotelCard shows its badge, and when it is the one chosen', (tester) async {
+      final run = _Run();
+      run.apply([
+        _surface('hotel', [
+          {
+            'id': 'root',
+            'component': 'HotelCard',
+            'name': 'Hotel Urban',
+            'price': r'$180',
+            'badge': 'Walkable',
+            'selected': true,
+            'action': {
+              'event': {'name': 'select_hotel'},
+            },
+          },
+        ]),
+      ]);
+      await _pump(tester, run.surface('hotel'));
+      expect(find.text('WALKABLE'), findsOneWidget);
+      // No `imageUrl`: the generated placeholder, not an empty space.
+      expect(find.byIcon(Icons.hotel_outlined), findsOneWidget);
+      final card = tester.widget<AnimatedContainer>(find.byType(AnimatedContainer));
+      expect(((card.decoration as BoxDecoration).border as Border).top.width, 2);
+    });
+
+    testWidgets('a FlightOption says which cabin it is priced in', (tester) async {
+      final run = _Run();
+      run.apply([
+        _surface('fare', [
+          {
+            'id': 'root',
+            'component': 'FlightOption',
+            'airline': 'Iberia',
+            'departTime': '18:40',
+            'arriveTime': '08:15 +1',
+            'origin': 'JFK',
+            'destination': 'MAD',
+            'price': r'$1,900',
+            'flightNumber': 'IB6250',
+            'cabin': 'business',
+            'action': {
+              'event': {'name': 'select_flight'},
+            },
+          },
+        ]),
+      ]);
+      await _pump(tester, run.surface('fare'));
+      expect(find.text(' · Business'), findsOneWidget);
+    });
+
+    testWidgets('an accessibility label is what a screen reader hears', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final run = _Run();
+      run.apply([
+        _surface('fare', [
+          {
+            'id': 'root',
+            'component': 'FlightOption',
+            'airline': 'Iberia',
+            'departTime': '18:40',
+            'arriveTime': '08:15 +1',
+            'origin': 'JFK',
+            'destination': 'MAD',
+            'price': r'$412',
+            'action': {
+              'event': {'name': 'select_flight'},
+            },
+            'accessibility': {'label': r'Iberia IB6250, nonstop, $412'},
+          },
+        ]),
+      ]);
+      await _pump(tester, run.surface('fare'));
+      expect(find.bySemanticsLabel(r'Iberia IB6250, nonstop, $412'), findsWidgets);
+      // The label replaces the card's own text: the parts are not read separately.
+      expect(find.bySemanticsLabel('Iberia'), findsNothing);
+      semantics.dispose();
+    });
+
+    testWidgets('the money, the tiles and the map are pressable when they have an action', (tester) async {
+      final run = _Run();
+      final refused = run.apply([
+        _surface('money', [
+          {'id': 'root', 'component': 'Column', 'children': ['sum', 'tile', 'map']},
+          {
+            'id': 'sum',
+            'component': 'PriceSummary',
+            'lines': [
+              {'label': 'Flights', 'amount': r'$824'},
+            ],
+            'total': r'$824',
+            'actionLabel': 'Hold for 24h',
+            'action': {
+              'event': {'name': 'hold'},
+            },
+          },
+          {
+            'id': 'tile',
+            'component': 'StatTile',
+            'label': 'Budget left',
+            'value': r'$1,176',
+            'action': {
+              'event': {'name': 'open_budget'},
+            },
+          },
+          {
+            'id': 'map',
+            'component': 'MapPreview',
+            'markers': [
+              {'label': 'Sol', 'kind': 'stay', 'day': '2'},
+            ],
+            'action': {
+              'event': {'name': 'open_map'},
+            },
+          },
+        ]),
+      ]);
+      expect(refused.map((e) => e.error.message), isEmpty);
+      await _pump(tester, run.surface('money'));
+      await tester.tap(find.text('Hold for 24h'));
+      await tester.tap(find.text('Budget left'));
+      await tester.tap(find.text('Day 2 · Sol'));
+      await tester.pump();
+      expect(run.actions.map((action) => action.name), ['hold', 'open_budget', 'open_map']);
+    });
+
+    testWidgets('an ActivityItem shows where, how long, and whether it is done', (tester) async {
+      final run = _Run();
+      run.apply([
+        _surface('stop', [
+          {
+            'id': 'root',
+            'component': 'ActivityItem',
+            'title': 'Prado Museum',
+            'time': '10:00',
+            'category': 'sight',
+            'location': 'Paseo del Prado 23',
+            'duration': '2h',
+            'done': true,
+            'action': {
+              'event': {'name': 'open_activity'},
+            },
+          },
+        ]),
+      ]);
+      await _pump(tester, run.surface('stop'));
+      expect(find.text('Paseo del Prado 23 · 2h'), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      await tester.tap(find.text('Prado Museum'));
+      await tester.pump();
+      expect(run.actions.single.name, 'open_activity');
+    });
+
+    testWidgets('a TravelerCounter shows its caption', (tester) async {
+      final run = _Run();
+      run.apply([
+        _surface('who', [
+          {'id': 'root', 'component': 'TravelerCounter', 'label': 'Adults', 'caption': 'Age 12+', 'value': 2},
+        ]),
+      ]);
+      await _pump(tester, run.surface('who'));
+      expect(find.text('Age 12+'), findsOneWidget);
+    });
+
+    testWidgets('a GoogleMap lists its centre, its single route and how it is travelled', (tester) async {
+      final run = _Run();
+      final refused = run.apply([
+        _surface('map', [
+          {
+            'id': 'root',
+            'component': 'GoogleMap',
+            'center': {'lat': 40.4161, 'lng': -3.6912},
+            'zoom': 14,
+            'origin': {'lat': 40.4169, 'lng': -3.7035},
+            'destination': {'lat': 40.4153, 'lng': -3.6845},
+            'travelMode': 'walking',
+          },
+        ]),
+      ]);
+      expect(refused.map((e) => e.error.message), isEmpty);
+      await _pump(tester, run.surface('map'));
+      expect(find.text('40.42, -3.70 → 40.42, -3.68 on foot'), findsOneWidget);
+      expect(find.text('Around 40.42, -3.69'), findsOneWidget);
     });
 
     testWidgets('an ItineraryDay draws its activities, which are its children', (tester) async {

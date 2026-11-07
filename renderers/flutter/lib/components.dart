@@ -165,6 +165,36 @@ String _initials(String name) {
   return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
 
+/// `premium` → `Premium economy`: a cabin as a traveller reads it.
+String _cabinName(String cabin) => switch (cabin) {
+      'economy' => 'Economy',
+      'premium' => 'Premium economy',
+      'business' => 'Business',
+      'first' => 'First',
+      _ => cabin,
+    };
+
+/// A small editorial tag: "Cheapest", "Walkable".
+Widget _badge(BuildContext context, String badge) {
+  final scheme = Theme.of(context).colorScheme;
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+    decoration: BoxDecoration(
+      color: scheme.tertiaryContainer,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Text(
+      badge.toUpperCase(),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: scheme.onTertiaryContainer,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+            fontSize: 10,
+          ),
+    ),
+  );
+}
+
 Widget _flightOption(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
@@ -228,7 +258,15 @@ Widget _flightOption(BuildContext context, TravelProps build) {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _bound(build, 'airline', text.titleSmall?.copyWith(fontWeight: FontWeight.w700), width: 96),
-                    _bound(build, 'flightNumber', muted, width: 44, waiting: waiting),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _bound(build, 'flightNumber', muted, width: 44, waiting: waiting),
+                        // The cabin the price is for, when the card says.
+                        if ((build.string('cabin') ?? '').isNotEmpty)
+                          Text(' · ${_cabinName(build.string('cabin')!)}', style: muted),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -237,23 +275,7 @@ Widget _flightOption(BuildContext context, TravelProps build) {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (badge != null && badge.isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: scheme.tertiaryContainer,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        badge.toUpperCase(),
-                        style: text.labelSmall?.copyWith(
-                          color: scheme.onTertiaryContainer,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.6,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
+                    Padding(padding: const EdgeInsets.only(bottom: 4), child: _badge(context, badge)),
                   _bound(build, 'price', text.titleLarge?.copyWith(fontWeight: FontWeight.w800), width: 56),
                   // What the whole party pays, when the leg carries more than
                   // one person: `price` is per traveller.
@@ -300,23 +322,41 @@ Widget _flightOption(BuildContext context, TravelProps build) {
   );
 }
 
+/// A hotel's picture: `imageUrl`, or a placeholder drawn from its name when
+/// there is none or it does not load.
+Widget _hotelImage(BuildContext context, String name, String url) {
+  final scheme = Theme.of(context).colorScheme;
+  final placeholder = Container(
+    height: 96,
+    alignment: Alignment.center,
+    color: _hueFor(name, Theme.of(context).brightness).withValues(alpha: 0.14),
+    child: Icon(Icons.hotel_outlined, size: 32, color: scheme.onSurfaceVariant),
+  );
+  if (url.isEmpty) return placeholder;
+  return Image.network(
+    url,
+    height: 96,
+    width: double.infinity,
+    fit: BoxFit.cover,
+    semanticLabel: name.isEmpty ? null : name,
+    errorBuilder: (_, _, _) => placeholder,
+  );
+}
+
 Widget _hotelCard(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
   final amenities = build['amenities'];
+  final chosen = build.flag('selected');
+  final badge = build.string('badge') ?? '';
 
-  return _tappable(
-    onTap: build.hasAction ? build.fire : null,
-    child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
+  final details = Padding(
+    padding: const EdgeInsets.all(14),
+    child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (badge.isNotEmpty) Padding(padding: const EdgeInsets.only(bottom: 6), child: _badge(context, badge)),
           Row(
             children: [
               Expanded(child: _bound(build, 'name', text.titleMedium, width: 120)),
@@ -349,6 +389,23 @@ Widget _hotelCard(BuildContext context, TravelProps build) {
             ),
           ],
         ],
+    ),
+  );
+
+  return _tappable(
+    onTap: build.hasAction ? build.fire : null,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: chosen ? scheme.primaryContainer.withValues(alpha: 0.35) : null,
+        border: Border.all(color: chosen ? scheme.primary : scheme.outlineVariant, width: chosen ? 2 : 1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [_hotelImage(context, build.string('name') ?? '', build.string('imageUrl') ?? ''), details],
       ),
     ),
   );
@@ -365,7 +422,7 @@ Widget _statTile(BuildContext context, TravelProps build) {
     'caution' => scheme.secondary,
     _ => scheme.onSurface,
   };
-  return Container(
+  final tile = Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: scheme.surfaceContainerHighest,
@@ -383,6 +440,7 @@ Widget _statTile(BuildContext context, TravelProps build) {
       ],
     ),
   );
+  return _tappable(onTap: build.hasAction ? build.fire : null, child: tile);
 }
 
 Widget _progressMeter(BuildContext context, TravelProps build) {
@@ -449,6 +507,15 @@ Widget _priceSummary(BuildContext context, TravelProps build) {
       ),
       if (!build.pending('caption'))
         Text(build.string('caption') ?? '', style: text.bodySmall),
+      // The money action — hold, book — with the label the agent gave it.
+      if (build.hasAction)
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: FilledButton(
+            onPressed: build.fire,
+            child: Text(build.string('actionLabel') ?? 'Continue'),
+          ),
+        ),
     ],
   );
 }
@@ -466,12 +533,16 @@ Widget _itineraryDay(BuildContext context, TravelProps build) {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          children: [
-            Expanded(child: Text(build.string('title') ?? '', style: text.titleMedium)),
-            if (!build.pending('date'))
-              Text(build.string('date') ?? '', style: text.bodySmall),
-          ],
+        // The day's heading opens the whole day, when the day has an action.
+        _tappable(
+          onTap: build.hasAction ? build.fire : null,
+          child: Row(
+            children: [
+              Expanded(child: Text(build.string('title') ?? '', style: text.titleMedium)),
+              if (!build.pending('date'))
+                Text(build.string('date') ?? '', style: text.bodySmall),
+            ],
+          ),
         ),
         if (!build.pending('summary'))
           Padding(
@@ -494,8 +565,28 @@ Widget _itineraryDay(BuildContext context, TravelProps build) {
   );
 }
 
+/// The icon each `category` is drawn with; `sight` when unsaid.
+const Map<String, IconData> _categoryIcons = {
+  'food': Icons.restaurant_outlined,
+  'sight': Icons.museum_outlined,
+  'transit': Icons.train_outlined,
+  'stay': Icons.hotel_outlined,
+  'outdoors': Icons.park_outlined,
+  'shopping': Icons.shopping_bag_outlined,
+  'event': Icons.event_outlined,
+  'free': Icons.free_breakfast_outlined,
+};
+
 Widget _activityItem(BuildContext context, TravelProps build) {
+  final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
+  final done = build.flag('done');
+  final icon = _categoryIcons[build.string('category') ?? 'sight'] ?? Icons.museum_outlined;
+  // Where and for how long, on one line under the title.
+  final detail = [build.string('location') ?? '', build.string('duration') ?? '']
+      .where((part) => part.isNotEmpty)
+      .join(' · ');
+  final strike = done ? const TextStyle(decoration: TextDecoration.lineThrough) : null;
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(
@@ -505,15 +596,28 @@ Widget _activityItem(BuildContext context, TravelProps build) {
           width: 52,
           child: _bound(build, 'time', text.bodySmall, width: 40),
         ),
+        Padding(
+          padding: const EdgeInsets.only(right: 8, top: 1),
+          child: Icon(
+            done ? Icons.check_circle : icon,
+            size: 18,
+            color: done ? scheme.primary : scheme.onSurfaceVariant,
+          ),
+        ),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _bound(build, 'title', text.bodyMedium, width: 110),
-              if (!build.pending('note'))
-                Text(build.string('note') ?? '', style: text.bodySmall),
-            ],
+          child: _tappable(
+            onTap: build.hasAction ? build.fire : null,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _bound(build, 'title', text.bodyMedium?.merge(strike), width: 110),
+                if (detail.isNotEmpty)
+                  Text(detail, style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                if (!build.pending('note'))
+                  Text(build.string('note') ?? '', style: text.bodySmall),
+              ],
+            ),
           ),
         ),
         // Always visible here, unlike the web's hover-revealed control: there
@@ -578,10 +682,8 @@ Widget _weatherStrip(BuildContext context, TravelProps build) {
 /// rather than to draw a grey rectangle where one would be: what the component
 /// carries is places and legs, and those are readable as a list.
 ///
-/// It is a named difference rather than a gap to be fixed quietly — see
-/// `TestNothingIsPromisedThatCannotBeDrawn`. A real map here means a web view
-/// factory over the same element, which needs the Flutter SDK to build and
-/// verify, so it is not something to write blind.
+/// What only a drawn map can show — `zoom`, `heading` and `tilt`, which place
+/// the camera — has nothing to place here; `render_test.dart` names them.
 Widget _googleMap(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
@@ -605,14 +707,36 @@ Widget _googleMap(BuildContext context, TravelProps build) {
         if (labelOf(marker).isNotEmpty) labelOf(marker),
   ];
 
+  // How a route is travelled, said after it: "by car", "on foot".
+  final travelMode = switch (build.string('travelMode')) {
+    'driving' => ' by car',
+    'walking' => ' on foot',
+    'bicycling' => ' by bike',
+    'transit' => ' by transit',
+    _ => '',
+  };
+  // A pin with a name reads as the name; one with only coordinates, as them.
+  String whereIs(Object? pin) {
+    final label = labelOf(pin);
+    if (label.isNotEmpty || pin is! Map) return label;
+    final lat = pin['lat'], lng = pin['lng'];
+    return lat is num && lng is num ? '${lat.toStringAsFixed(2)}, ${lng.toStringAsFixed(2)}' : '';
+  }
+
+  String leg(Object? from, Object? to) => '${whereIs(from)} → ${whereIs(to)}$travelMode';
   final legs = <String>[
+    // A single route, given as `origin` and `destination`.
+    if (whereIs(build['origin']).isNotEmpty && whereIs(build['destination']).isNotEmpty)
+      leg(build['origin'], build['destination']),
     if (routes is List)
       for (final route in routes)
         if (route is Map &&
             labelOf(route['origin']).isNotEmpty &&
             labelOf(route['destination']).isNotEmpty)
-          '${labelOf(route['origin'])} → ${labelOf(route['destination'])}',
+          leg(route['origin'], route['destination']),
   ];
+  final centre = whereIs(build['center']);
+  final satellite = build.string('mode') == 'satellite';
 
   return Container(
     padding: const EdgeInsets.all(12),
@@ -629,7 +753,9 @@ Widget _googleMap(BuildContext context, TravelProps build) {
           children: [
             Icon(Icons.map_outlined, size: 16, color: scheme.onSurfaceVariant),
             const SizedBox(width: 6),
-            Text('Places on this map', style: text.labelMedium),
+            Text(centre.isEmpty ? 'Places on this map' : 'Around $centre', style: text.labelMedium),
+            if (satellite)
+              Text('  · satellite', style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
           ],
         ),
         if (legs.isNotEmpty)
@@ -663,15 +789,20 @@ Widget _googleMap(BuildContext context, TravelProps build) {
   );
 }
 
+/// A MapPreview marker's `kind`, as an icon.
+const Map<String, IconData> _markerIcons = {
+  'stay': Icons.hotel_outlined,
+  'sight': Icons.museum_outlined,
+  'food': Icons.restaurant_outlined,
+  'transit': Icons.train_outlined,
+};
+
 Widget _mapPreview(BuildContext context, TravelProps build) {
   final scheme = Theme.of(context).colorScheme;
   final text = Theme.of(context).textTheme;
-  // `markers`, which is what the catalog calls them. This read `places` and
-  // so found nothing, every time: the chips below have never drawn. Nothing
-  // failed, because a missing prop is an empty map and an empty map is an
-  // empty row of chips.
+  // `markers`, as the catalog calls them.
   final places = build['markers'];
-  return Container(
+  final preview = Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: scheme.surfaceContainerHighest,
@@ -689,8 +820,12 @@ Widget _mapPreview(BuildContext context, TravelProps build) {
               for (final place in places)
                 if (place is Map)
                   Chip(
-                    avatar: const Icon(Icons.place_outlined, size: 16),
-                    label: Text(place['label']?.toString() ?? '', style: text.labelSmall),
+                    // The marker's `kind`, and its `day` when it belongs to one.
+                    avatar: Icon(_markerIcons[place['kind']] ?? Icons.place_outlined, size: 16),
+                    label: Text(
+                      place['day'] == null ? '${place['label'] ?? ''}' : 'Day ${place['day']} · ${place['label'] ?? ''}',
+                      style: text.labelSmall,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
           ],
@@ -703,6 +838,7 @@ Widget _mapPreview(BuildContext context, TravelProps build) {
       ],
     ),
   );
+  return _tappable(onTap: build.hasAction ? build.fire : null, child: preview);
 }
 
 /// A place this deployment flies, as an `AirportPicker` option.
@@ -904,9 +1040,19 @@ Widget _travelerCounter(BuildContext context, TravelProps build) {
   final value = build.number('value')?.toInt() ?? 1;
   final min = build.number('min')?.toInt() ?? 1;
   final max = build.number('max')?.toInt() ?? 9;
+  final caption = build.string('caption') ?? '';
   return Row(
     children: [
-      Expanded(child: Text(build.string('label') ?? 'Travellers')),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(build.string('label') ?? 'Travellers'),
+            if (caption.isNotEmpty) Text(caption, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
       IconButton(
         onPressed: value > min ? () => build.write('value', value - 1) : null,
         icon: const Icon(Icons.remove_circle_outline),
@@ -941,6 +1087,8 @@ Widget _dateRangePicker(BuildContext context, TravelProps build) {
     if (range == null) return;
     build.write('start', _calendarDate(range.start));
     build.write('end', _calendarDate(range.end));
+    // A committed range is the moment the catalog's `action` is for.
+    if (build.hasAction) build.fire();
   }
 
   return _tappable(
@@ -1322,11 +1470,40 @@ const Map<String, TravelView> travelViews = {
   'WeatherStrip': _weatherStrip,
 };
 
+/// The standard `accessibility` block, applied to a travel view.
+///
+/// The same rules the SDK's basic widgets follow: `label` is what assistive
+/// technology reads instead of the view's own text, `description` is read
+/// after it, `live` announces changes, and `hidden` takes the view out of the
+/// accessibility tree. A pressable view stays a button under its label.
+Widget _accessible(TravelProps build, Widget child) {
+  final block = build['accessibility'];
+  if (block is! Map) return child;
+  if (block['hidden'] == true) return ExcludeSemantics(child: child);
+  final label = block['label']?.toString() ?? '';
+  final description = block['description']?.toString() ?? '';
+  final live = block['live'] == 'polite' || block['live'] == 'assertive';
+  if (label.isEmpty && description.isEmpty && !live) return child;
+  return Semantics(
+    container: true,
+    label: label.isEmpty ? null : label,
+    hint: description.isEmpty ? null : description,
+    liveRegion: live,
+    button: build.hasAction ? true : null,
+    onTap: build.hasAction ? build.fire : null,
+    excludeSemantics: label.isNotEmpty,
+    child: child,
+  );
+}
+
 /// A travel view as an `a2ui_flutter` component, against the catalog's schema.
 ComponentImplementation travelComponent(ComponentApi api, TravelView view) => ComponentImplementation(
       name: api.name,
       schema: api.schema,
       allowedParents: api.allowedParents,
       allowedChildren: api.allowedChildren,
-      builder: (context, node, props, buildChild) => view(context, TravelProps(props, buildChild)),
+      builder: (context, node, props, buildChild) {
+        final build = TravelProps(props, buildChild);
+        return _accessible(build, view(context, build));
+      },
     );

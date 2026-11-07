@@ -16,7 +16,12 @@ on that surface and keeps it current, as `updateDataModel`:
 | `$/flights`, `$/hotels`, `$/highlights` | the rows the last `search_flights`, `search_hotels` or `get_destination` returned, on the surface you are drawing (earlier cards keep the rows they were drawn with) |
 | `$/fares/N`, `$/rooms/N` | hop N's own rows (counted from one), from the search made with `hop: N`; `Flights(hop=N)` and `Stays(hop=N)` read them |
 
-So never type out a value the host already has: bind it. A control bound to
+So never type out a value the host already has: bind it. A list of results is
+one macro call, `Flights()` or `Stays()`, which binds the rows `search_flights`
+and `search_hotels` file; draw it before you call the lookup, so it fills in
+as the rows land. A planning turn draws `Highlights()` while the city is looked
+up, and `Itinerary("…")` in the same reply as the `save_trip({days: […]})` that
+records the plan. A control bound to
 `$/trip/startDate` shows the recorded date, and what the traveller sets there
 comes back to you when they press a button on a surface created with
 `sendDataModel=true`. You may give a surface starting values of your own

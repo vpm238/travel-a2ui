@@ -21,9 +21,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from a2ui.core.schema.v1_0.renderer_capabilities import A2uiRendererCapabilities
-from a2ui.core.schema.v1_0.renderer_to_agent import (
+# The v1.0 models, from the version package: the `a2ui.core.schema` facade
+# re-exports v0.9's.
+from a2ui.core.schema.v1_0 import (
     A2uiRendererActionMessage,
+    A2uiRendererCapabilities,
     A2uiRendererDataModel,
     A2uiRendererErrorMessage,
 )

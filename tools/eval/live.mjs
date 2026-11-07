@@ -168,8 +168,7 @@ const text = (turn) =>
  * single digit, and a pattern demanding two in a row misses every four-figure
  * price — which is most of them.
  */
-const quotesAPrice = (turn) =>
-  /\$\s?\d[\d,.]*\d/.test(turn.prose) || has(turn, 'FlightOption');
+const quotesAPrice = (turn) => /\$\s?\d[\d,.]*\d/.test(turn.prose) || has(turn, 'FlightOption');
 
 // ------------------------------------------------------------- scenarios
 
@@ -184,7 +183,10 @@ const SCENARIOS = [
       [
         'and everything else missing, in the same surface',
         (t) => editors(t).length >= 2,
-        (t) => `${editors(t).length} editors: ${editors(t).map((c) => c.component).join(', ')}`,
+        (t) =>
+          `${editors(t).length} editors: ${editors(t)
+            .map((c) => c.component)
+            .join(', ')}`,
       ],
       [
         'with exactly one button to send it',
@@ -194,14 +196,15 @@ const SCENARIOS = [
       [
         'and no editor sends on its own',
         (t) => editors(t).every((c) => !c.action),
-        (t) => editors(t).filter((c) => c.action).map((c) => c.component).join(', '),
+        (t) =>
+          editors(t)
+            .filter((c) => c.action)
+            .map((c) => c.component)
+            .join(', '),
       ],
       [
         'binding trip facts where the host pre-fills them',
-        (t) =>
-          editors(t).some((c) =>
-            JSON.stringify(c).includes('"/trip/'),
-          ),
+        (t) => editors(t).some((c) => JSON.stringify(c).includes('"/trip/')),
         (t) => JSON.stringify(editors(t)[0] ?? {}).slice(0, 120),
       ],
     ],
@@ -247,7 +250,13 @@ const SCENARIOS = [
     id: 'prices-with-basis',
     why: 'A fare with no route, date or party size beside it reads as untrustworthy.',
     message: 'Show me the flights.',
-    trip: { destination: 'Madrid', origin: 'SFO', startDate: '2027-04-12', endDate: '2027-04-19', travelers: 2 },
+    trip: {
+      destination: 'Madrid',
+      origin: 'SFO',
+      startDate: '2027-04-12',
+      endDate: '2027-04-19',
+      travelers: 2,
+    },
     checks: [
       ['it shows flights now that it can', (t) => has(t, 'FlightOption')],
       [
@@ -269,7 +278,13 @@ const SCENARIOS = [
     message:
       'Show me the three cheapest flights with all the details — airline, times, duration, ' +
       'stops, flight number, cabin and a badge on the best one.',
-    trip: { destination: 'Madrid', origin: 'SFO', startDate: '2027-04-12', endDate: '2027-04-19', travelers: 2 },
+    trip: {
+      destination: 'Madrid',
+      origin: 'SFO',
+      startDate: '2027-04-12',
+      endDate: '2027-04-19',
+      travelers: 2,
+    },
     checks: [
       [
         'the surface compiled',
@@ -304,7 +319,10 @@ const SCENARIOS = [
       [
         'with no editors at all',
         (t) => editors(t).length === 0,
-        (t) => editors(t).map((c) => c.component).join(', '),
+        (t) =>
+          editors(t)
+            .map((c) => c.component)
+            .join(', '),
       ],
       [
         'and a Change on the decisions',
@@ -317,8 +335,7 @@ const SCENARIOS = [
           t.components.some(
             (c) => c.component === 'Button' && JSON.stringify(c.action ?? {}).includes('field'),
           ),
-        (t) =>
-          JSON.stringify(t.components.find((c) => c.component === 'Button')?.action ?? {}).slice(0, 140),
+        (t) => JSON.stringify(t.components.find((c) => c.component === 'Button')?.action ?? {}).slice(0, 140),
       ],
       [
         'and every button here is a Change, not a question',
@@ -348,10 +365,7 @@ const SCENARIOS = [
         (t) => (t.trip.legs ?? []).some((leg) => leg.travelers === 2),
         (t) => JSON.stringify(t.trip.legs ?? []).slice(0, 200),
       ],
-      [
-        'and it does not lose the wedding',
-        (t) => /wedding/i.test(JSON.stringify(t.trip)),
-      ],
+      ['and it does not lose the wedding', (t) => /wedding/i.test(JSON.stringify(t.trip))],
       ['it still will not price without dates', (t) => !has(t, 'FlightOption')],
     ],
   },
@@ -360,7 +374,13 @@ const SCENARIOS = [
     id: 'rules-a-stage-out',
     why: 'A planner that keeps asking about a hotel you declined is a form.',
     message: "We're driving, no flights needed. And we're staying with my sister, so no hotel either.",
-    trip: { destination: 'Monterey', origin: 'SFO', startDate: '2027-04-12', endDate: '2027-04-14', travelers: 2 },
+    trip: {
+      destination: 'Monterey',
+      origin: 'SFO',
+      startDate: '2027-04-12',
+      endDate: '2027-04-14',
+      travelers: 2,
+    },
     checks: [
       [
         'it records that flights do not apply',
@@ -470,7 +490,13 @@ for (const scenario of wanted) {
     } catch (error) {
       ok = false;
     }
-    const note = ok ? '' : detail ? ` — ${String(detail(observed) ?? '').replace(/\s+/g, ' ').slice(0, 150)}` : '';
+    const note = ok
+      ? ''
+      : detail
+        ? ` — ${String(detail(observed) ?? '')
+            .replace(/\s+/g, ' ')
+            .slice(0, 150)}`
+        : '';
     console.log(`  ${ok ? '✓' : '✗'} ${label}${note}`);
     results.push({ label, ok });
     if (ok) passed += 1;

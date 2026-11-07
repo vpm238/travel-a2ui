@@ -79,10 +79,9 @@ async function converse(page, attempt = 1) {
   // is the difference between photographing the product and photographing a
   // half-painted one.
   await page
-    .waitForFunction(
-      () => (document.querySelector('.sidebar')?.textContent ?? '').includes('Change'),
-      { timeout: 60000 },
-    )
+    .waitForFunction(() => (document.querySelector('.sidebar')?.textContent ?? '').includes('Change'), {
+      timeout: 60000,
+    })
     .catch(() => console.warn('  (the panel had no Change buttons in time)'));
   await page.waitForTimeout(1200);
 }

@@ -41,9 +41,7 @@ except ImportError:  # pragma: no cover - the SDK brings it, but say so clearly
 
 
 _POINTER = re.compile(r"^/\S+$")
-_CIVIL = re.compile(
-    r"^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$"
-)
+_CIVIL = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$")
 _MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
 
 
@@ -205,7 +203,9 @@ def surface_with(messages: list[dict[str, Any]], kind: str) -> str | None:
         for key in ("createSurface", "updateComponents"):
             body = message.get(key)
             if isinstance(body, dict) and is_card(body.get("surfaceId")):
-                if any(isinstance(node, dict) and node.get("component") == kind for node in body.get("components") or []):
+                if any(
+                    isinstance(node, dict) and node.get("component") == kind for node in body.get("components") or []
+                ):
                     found = body["surfaceId"]
     return found
 
@@ -298,8 +298,10 @@ async def call(base: str, key: str, steps: list[dict[str, Any]], quiet: bool) ->
                 elif kind == "tool":
                     tools.append(frame.get("name"))
                     if not quiet:
-                        print(f"  tool  {frame.get('name')}("
-                              f"{json.dumps(frame.get('input') or {}, ensure_ascii=False)[:180]})")
+                        print(
+                            f"  tool  {frame.get('name')}("
+                            f"{json.dumps(frame.get('input') or {}, ensure_ascii=False)[:180]})"
+                        )
                 elif kind == "transcript" and frame.get("who") == "agent":
                     transcript.append(frame.get("text") or "")
                 elif kind == "error":
@@ -439,9 +441,7 @@ async def main() -> int:
     run = await call(args.base, key, SCRIPT, args.quiet)
     trip = run["trip"]
     drew = [turn for turn in run["turns"] if turn.get("components")]
-    cards = [
-        node for turn in run["turns"] for node in host_cards(turn.get("drawn") or [])
-    ]
+    cards = [node for turn in run["turns"] for node in host_cards(turn.get("drawn") or [])]
 
     checks = [
         (len(run["turns"]) == len(SCRIPT), "every step in the call was answered"),
@@ -455,23 +455,15 @@ async def main() -> int:
             "what was said out loud reached the trip",
         ),
         (
-            bool(trip.get("selectedFlight") or any(
-                leg.get("selectedFlight") for leg in (trip.get("legs") or [])
-            )),
+            bool(trip.get("selectedFlight") or any(leg.get("selectedFlight") for leg in (trip.get("legs") or []))),
             "the flight that was pressed is recorded",
         ),
         (
-            bool(trip.get("selectedHotel") or any(
-                leg.get("selectedHotel") for leg in (trip.get("legs") or [])
-            )),
+            bool(trip.get("selectedHotel") or any(leg.get("selectedHotel") for leg in (trip.get("legs") or []))),
             "the stay that was pressed is recorded",
         ),
         (
-            bool(cards)
-            and all(
-                str((node.get("accessibility") or {}).get("label") or "").strip()
-                for node in cards
-            ),
+            bool(cards) and all(str((node.get("accessibility") or {}).get("label") or "").strip() for node in cards),
             f"all {len(cards)} cards on the call carry a label for a screen reader",
         ),
     ]

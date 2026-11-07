@@ -136,9 +136,7 @@ class TravelProvider(Protocol):
 
     async def search_hotels(self, query: dict[str, Any]) -> Outcome: ...
 
-    async def get_weather(
-        self, destination: str, start_date: str | None = None, days: int = 5
-    ) -> Outcome:
+    async def get_weather(self, destination: str, start_date: str | None = None, days: int = 5) -> Outcome:
         """The forecast from `start_date`, which the caller is expected to fill in.
 
         It is optional in the signature and should not be in practice. Every

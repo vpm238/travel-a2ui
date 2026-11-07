@@ -62,9 +62,13 @@ export class Surfaces {
   private unsent: RendererErrorMessage[] = [];
 
   constructor() {
-    this.processor = new MessageProcessor<ReactCatalogComponent>([travelCatalog()], (action) => this.pressListener?.(action), {
-      errorHandler: (error) => this.report(error),
-    });
+    this.processor = new MessageProcessor<ReactCatalogComponent>(
+      [travelCatalog()],
+      (action) => this.pressListener?.(action),
+      {
+        errorHandler: (error) => this.report(error),
+      },
+    );
     this.processor.onSurfaceCreated(() => this.bump());
     this.processor.onSurfaceDeleted(() => this.bump());
   }
@@ -137,7 +141,8 @@ export class Surfaces {
   }
 
   clear(): void {
-    for (const id of this.ids()) this.processor.processMessages([{ version: '1.0', deleteSurface: { surfaceId: id } }]);
+    for (const id of this.ids())
+      this.processor.processMessages([{ version: '1.0', deleteSurface: { surfaceId: id } }]);
     this.bump();
   }
 
@@ -157,7 +162,11 @@ export class Surfaces {
     if (this.unsent.includes(error)) return;
     this.unsent.push(error);
     if (this.unsent.length > 20) this.unsent.shift();
-    this.rejected.push({ at: new Date().toISOString(), surfaceId: error.error.surfaceId, message: error.error.message });
+    this.rejected.push({
+      at: new Date().toISOString(),
+      surfaceId: error.error.surfaceId,
+      message: error.error.message,
+    });
     if (this.rejected.length > 50) this.rejected.shift();
     console.warn('[a2ui] rejected a message:', error.error.message);
   }

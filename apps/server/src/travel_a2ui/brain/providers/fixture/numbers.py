@@ -23,6 +23,7 @@ from typing import Any, Callable, Sequence
 
 from .tables import _CURRENCY_SYMBOL, _DESTINATIONS
 
+
 def code_for_seed(query: str) -> str:
     """A destination as the airport code the seed is built from.
 

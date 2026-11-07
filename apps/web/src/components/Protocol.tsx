@@ -55,24 +55,21 @@ export function Protocol({ agent }: { agent: Agent }) {
   }, [json]); // eslint-disable-line react-hooks/exhaustive-deps
   const current = express && express.for === json ? express : null;
 
-  const ratio =
-    json && current?.text ? Math.round((1 - current.text.length / json.length) * 100) : null;
+  const ratio = json && current?.text ? Math.round((1 - current.text.length / json.length) * 100) : null;
 
   return (
     <section className="protocol" aria-label="Protocol inspector">
       <header className="protocol__head">
         <div>
           <h2>On the wire</h2>
-          <p>
-            What the agent wrote, and what the host received. Same surface, two representations.
-          </p>
+          <p>What the agent wrote, and what the host received. Same surface, two representations.</p>
         </div>
       </header>
 
       {ids.length === 0 ? (
         <Empty title="No surfaces yet">
-          Start a conversation, build the sidebar, or open the home screen — anything the agent
-          draws shows up here.
+          Start a conversation, build the sidebar, or open the home screen — anything the agent draws shows up
+          here.
         </Empty>
       ) : (
         <>

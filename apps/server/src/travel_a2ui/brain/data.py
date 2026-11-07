@@ -89,16 +89,10 @@ def trip_values(trip: dict[str, Any]) -> dict[str, Any]:
     `/trip/legs/3/travelers` has to show that party, not an empty count, so
     each leg is sent with the party it actually has.
     """
-    out = {
-        key: trip[key]
-        for key in model.TRIP_KEYS
-        if trip.get(key) is not None and trip.get(key) != ""
-    }
+    out = {key: trip[key] for key in model.TRIP_KEYS if trip.get(key) is not None and trip.get(key) != ""}
     legs = out.get("legs")
     if isinstance(legs, list):
-        party = {
-            hop.get("hop"): hop.get("travelers") for hop in model.journey(model.normalize(trip))
-        }
+        party = {hop.get("hop"): hop.get("travelers") for hop in model.journey(model.normalize(trip))}
         out["legs"] = [
             {**leg, "travelers": party[index + 1]}
             if isinstance(leg, dict) and leg.get("travelers") is None and party.get(index + 1) is not None
@@ -323,7 +317,12 @@ def places_rows(origins: Iterable[dict[str, Any]], destinations: Iterable[dict[s
         if isinstance(entry, dict) and entry.get("code"):
             code = str(entry["code"]).strip()
             origins_out.append(
-                {"value": code, "label": str(entry.get("city") or code), "code": code, "detail": detail(entry.get("region"))}
+                {
+                    "value": code,
+                    "label": str(entry.get("city") or code),
+                    "code": code,
+                    "detail": detail(entry.get("region")),
+                }
             )
     for entry in destinations:
         if isinstance(entry, dict) and (entry.get("city") or entry.get("airport")):
@@ -431,9 +430,7 @@ def turn_values(lookups: dict[str, Any], trip: dict[str, Any]) -> dict[str, Any]
 DRAWN_BY = {"flights": "Flights()", "hotels": "Stays()", "highlights": "Highlights()"}
 
 
-def without_the_rows(
-    tool: str, result: Any, surface_id: str, hop: int | None = None, shown: bool = False
-) -> Any:
+def without_the_rows(tool: str, result: Any, surface_id: str, hop: int | None = None, shown: bool = False) -> Any:
     """A lookup's result for the model, with the filed rows summarised.
 
     The rows are on the surface already, bound by path, so the model is told
@@ -452,8 +449,7 @@ def without_the_rows(
     else:
         said = f"Nothing on screen shows them yet: draw them with {DRAWN_BY.get(root, 'the macro')}."
     summary[LOOKUPS[tool][1]] = (
-        f"{len(rows)} rows, in the data model of surface {surface_id} at {where}. "
-        f"{said} Never write them out."
+        f"{len(rows)} rows, in the data model of surface {surface_id} at {where}. {said} Never write them out."
     )
     summary["sample"] = rows[:1]
     return summary

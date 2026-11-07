@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'api.dart';
 import 'catalog.dart';
 import 'chat.dart';
+import 'url_fragment.dart';
 
 void main() => runApp(const TravelApp());
 
@@ -160,7 +161,20 @@ class _BootState extends State<_Boot> {
   @override
   void initState() {
     super.initState();
+    _takeKeyFromUrl();
     _load();
+  }
+
+  /// A `#key=` fragment, honoured because people paste one — a fragment never
+  /// leaves the browser — and removed from the address bar as soon as it is
+  /// read, whether or not the deployment needs it, so it is not copied or
+  /// restored with the page.
+  void _takeKeyFromUrl() {
+    final fragment = Uri.base.fragment;
+    if (!fragment.startsWith('key=')) return;
+    final key = fragment.substring(4);
+    if (key.isNotEmpty) _api.apiKey = key;
+    clearUrlFragment();
   }
 
   Future<void> _load() async {
@@ -230,9 +244,8 @@ class _BootState extends State<_Boot> {
 
 /// Where the key comes from.
 ///
-/// Kept in this tab and sent with each request; never written anywhere and
-/// never put in a URL. A `#key=` fragment is also honoured because people paste
-/// one, and a fragment never leaves the browser.
+/// Kept in this tab and sent with each request; never written anywhere. A key
+/// in the URL's `#key=` fragment is taken at boot (`_takeKeyFromUrl`).
 class _AskForKey extends StatefulWidget {
   const _AskForKey({required this.onKey});
 
@@ -244,19 +257,6 @@ class _AskForKey extends StatefulWidget {
 
 class _AskForKeyState extends State<_AskForKey> {
   final _controller = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    final fragment = Uri.base.fragment;
-    if (fragment.startsWith('key=')) {
-      // Taken out of the URL before anything else reads it.
-      final key = fragment.substring(4);
-      if (key.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => widget.onKey(key));
-      }
-    }
-  }
 
   @override
   void dispose() {

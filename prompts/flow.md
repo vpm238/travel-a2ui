@@ -29,7 +29,8 @@ For the dates, there are two controls and the route picks which:
   `$/trip/endDate`. Out on one date, home on another, and the nights between
   them are the stay.
 - **More than two hops** — one `DateTimeInput` per hop, labelled by hop, bound
-  to that hop's own date. Four cities is four departure dates, and a date is
+  to that hop's own date: `DateTimeInput($/trip/legs/0/startDate, label="Chicago → New York")`,
+  the value first. Four cities is four departure dates, and a date is
   not a range. Reaching for a range picker here is how a four-hop route ends up
   with two dates and no way to say when the middle two happen.
 

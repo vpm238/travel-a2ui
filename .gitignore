@@ -1,7 +1,5 @@
 node_modules/
 dist/
-.wrangler/
-.dev.vars
 *.tsbuildinfo
 __pycache__/
 .venv/
@@ -9,13 +7,8 @@ __pycache__/
 *.egg-info/
 .DS_Store
 
-# Provisioned managed-agent ids — per checkout, not per repo.
-backends/*/.agent.json
-
-
 # Flutter build output and local tool state. The web bundle is built in the
-# image, not committed — a `build/` in git is a second copy of the app that is
-# right until somebody forgets.
-apps/flutter_client/build/
-apps/flutter_client/.dart_tool/
-apps/flutter_client/.flutter-plugins*
+# image, not committed.
+renderers/flutter/build/
+renderers/flutter/.dart_tool/
+renderers/flutter/.flutter-plugins*

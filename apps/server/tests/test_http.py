@@ -57,9 +57,7 @@ class TestWhatTheClientsConfigureThemselvesFrom:
         assert provenance["label"]
         assert "not real" in provenance["detail"]
 
-    def test_the_catalog_id_is_what_the_wire_will_actually_carry(
-        self, client: TestClient
-    ) -> None:
+    def test_the_catalog_id_is_what_the_wire_will_actually_carry(self, client: TestClient) -> None:
         """The model is told this, and `createSurface` carries it. They must match.
 
         Read from `$id` because that is what the SDK's compiler puts on the
@@ -71,9 +69,7 @@ class TestWhatTheClientsConfigureThemselvesFrom:
 
         assert client.get("/api/meta").json()["catalogId"] == CATALOG_JSON["$id"]
 
-    def test_both_frameworks_are_offered_and_only_one_has_a_microphone(
-        self, client: TestClient
-    ) -> None:
+    def test_both_frameworks_are_offered_and_only_one_has_a_microphone(self, client: TestClient) -> None:
         backends = client.get("/api/meta").json()["backends"]
         assert [backend["voice"] for backend in backends] == [False, True]
 
@@ -97,9 +93,7 @@ class TestRefusals:
         assert "x-goog-api-key" in response.json()["detail"]
 
     def test_a_malformed_body_is_a_refusal_not_a_crash(self, client: TestClient) -> None:
-        response = client.post(
-            "/api/chat", content=b"{not json", headers={"content-type": "application/json"}
-        )
+        response = client.post("/api/chat", content=b"{not json", headers={"content-type": "application/json"})
         assert response.status_code == 401, "the missing key is reported, not a parse error"
 
     def test_an_unknown_api_route_stays_a_404(self, client: TestClient) -> None:
@@ -143,9 +137,7 @@ class TestTheStream:
             yield {"type": "done", "stopReason": "completed"}
 
         monkeypatch.setattr(http, "run_turn", fake_turn)
-        response = client.post(
-            "/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"}
-        )
+        response = client.post("/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"})
         events = self._events(response)
         assert events[0]["type"] == "session"
         assert events[0]["sessionId"]
@@ -157,15 +149,11 @@ class TestTheStream:
             yield {"type": "done", "stopReason": "completed"}
 
         monkeypatch.setattr(http, "run_turn", fake_turn)
-        response = client.post(
-            "/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"}
-        )
+        response = client.post("/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"})
         kinds = [event["type"] for event in self._events(response)]
         assert kinds == ["session", "text", "ui", "done"]
 
-    def test_the_internal_result_event_does_not_reach_the_client(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_the_internal_result_event_does_not_reach_the_client(self, client: TestClient, monkeypatch) -> None:
         """It carries the trip object the server keeps, not a wire message."""
         from travel_a2ui.doors.interactions import TurnResult
 
@@ -194,9 +182,7 @@ class TestTheStream:
         assert session.interaction_id == "int_7"
         assert session.trip == {"destination": "Lisbon"}
 
-    def test_the_continuation_goes_to_the_client(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_the_continuation_goes_to_the_client(self, client: TestClient, monkeypatch) -> None:
         """The receipt: where the conversation is, and what has been decided."""
         from travel_a2ui.doors.interactions import TurnResult
 
@@ -212,17 +198,13 @@ class TestTheStream:
             }
 
         monkeypatch.setattr(http, "run_turn", fake_turn)
-        response = client.post(
-            "/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"}
-        )
+        response = client.post("/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"})
         resume = [e for e in self._events(response) if e["type"] == "resume"]
         assert len(resume) == 1
         assert resume[0]["interactionId"] == "int_9"
         assert resume[0]["trip"] == {"destination": "Lisbon"}
 
-    def test_another_instance_answers_from_the_receipt(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_another_instance_answers_from_the_receipt(self, client: TestClient, monkeypatch) -> None:
         """The case this exists for, and the one nothing else covers.
 
         Cloud Run does not promise the next turn lands on the instance that
@@ -258,9 +240,7 @@ class TestTheStream:
         assert seen["interaction"] == "int_11"
         assert seen["trip"] == {"destination": "Lisbon"}
 
-    def test_a_junk_receipt_falls_back_rather_than_fails(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_a_junk_receipt_falls_back_rather_than_fails(self, client: TestClient, monkeypatch) -> None:
         """It is untrusted input: a client that garbles it gets this instance's
         own memory, not a 500."""
         seen: dict[str, Any] = {}
@@ -284,9 +264,7 @@ class TestTheStream:
         assert seen["interaction"] == "int_mine"
         assert seen["trip"] == {"destination": "Oslo"}
 
-    def test_the_stream_is_not_buffered_by_a_proxy(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_the_stream_is_not_buffered_by_a_proxy(self, client: TestClient, monkeypatch) -> None:
         """The header that stops a reverse proxy turning a stream into a wait.
 
         Cheap to assert and impossible to notice missing: everything works, the
@@ -298,16 +276,12 @@ class TestTheStream:
             yield {"type": "done", "stopReason": "completed"}
 
         monkeypatch.setattr(http, "run_turn", fake_turn)
-        response = client.post(
-            "/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"}
-        )
+        response = client.post("/api/chat", json={"message": "hi"}, headers={"x-goog-api-key": "k"})
         assert response.headers["content-type"].startswith("text/event-stream")
         assert response.headers["x-accel-buffering"] == "no"
         assert response.headers["cache-control"] == "no-store"
 
-    def test_a_key_on_the_request_is_used_and_not_stored(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_a_key_on_the_request_is_used_and_not_stored(self, client: TestClient, monkeypatch) -> None:
         seen: dict[str, Any] = {}
 
         async def fake_turn(request):  # noqa: ANN001, ANN202
@@ -320,9 +294,7 @@ class TestTheStream:
 
         # It arrived with the request and left with it: nothing about the
         # session mentions it.
-        assert "the-key" not in json.dumps(
-            [session.as_dict() for session in http.sessions._sessions.values()]
-        )
+        assert "the-key" not in json.dumps([session.as_dict() for session in http.sessions._sessions.values()])
 
     def test_an_action_is_read_as_a_v1_renderer_message(self, client: TestClient, monkeypatch) -> None:
         """`{version, action}` in `a2ui`, the data model in the metadata."""
@@ -469,9 +441,7 @@ class TestTheVoiceSocket:
             assert reply["type"] == "error"
             assert "API key" in reply["message"]
 
-    def test_a_call_reads_the_trip_the_typed_conversation_holds(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_a_call_reads_the_trip_the_typed_conversation_holds(self, client: TestClient, monkeypatch) -> None:
         """One store. Saying something out loud moves the panel beside it."""
         seen: dict[str, Any] = {}
 
@@ -495,9 +465,7 @@ class TestTheVoiceSocket:
         # And what the call changed is what the typed side reads back.
         assert http.sessions.get("voice-1").trip["travelers"] == 3
 
-    def test_the_opening_frame_can_still_name_the_session(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_the_opening_frame_can_still_name_the_session(self, client: TestClient, monkeypatch) -> None:
         """The query string is what clients use; the frame is still accepted."""
         seen: dict[str, Any] = {}
 
@@ -514,9 +482,7 @@ class TestTheVoiceSocket:
 
         assert seen["trip"]["destination"] == "Lisbon"
 
-    def test_a_reconnection_is_offered_the_conversation_it_left(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_a_reconnection_is_offered_the_conversation_it_left(self, client: TestClient, monkeypatch) -> None:
         """A Live session ends on Google's schedule, not the traveller's.
 
         When it reaches its own time limit the API says `go_away`, the relay
@@ -558,9 +524,7 @@ class TestTheVoiceSocket:
         assert http.sessions.get("voice-age").turns == before
         assert http.sessions.get("voice-age").live_handle == "h2"
 
-    def test_the_key_arrives_in_the_opening_frame_and_is_not_stored(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_the_key_arrives_in_the_opening_frame_and_is_not_stored(self, client: TestClient, monkeypatch) -> None:
         seen: dict[str, Any] = {}
 
         async def fake_relay(session, send, incoming):  # noqa: ANN001, ANN202
@@ -603,14 +567,8 @@ class TestEachInlineCardIsItsOwnSurface:
         payload = {"message": "flights to Madrid", **body}
         if session_id:
             payload["sessionId"] = session_id
-        response = client.post(
-            "/api/chat", json=payload, headers={"x-goog-api-key": "k"}
-        )
-        events = [
-            json.loads(line[6:])
-            for line in response.text.splitlines()
-            if line.startswith("data: ")
-        ]
+        response = client.post("/api/chat", json=payload, headers={"x-goog-api-key": "k"})
+        events = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith("data: ")]
         session = next(e["sessionId"] for e in events if e.get("type") == "session")
         return session, seen.get("surfaceId")
 
@@ -645,8 +603,8 @@ class TestWhereTheyAreFlyingFrom:
 
     def test_nothing_reads_the_browser_location(self) -> None:
         """No coordinates in, no coordinates anywhere."""
-        import travel_a2ui.doors.http as main_module
         import travel_a2ui.brain.providers.fixture as fixture_module
+        import travel_a2ui.doors.http as main_module
 
         assert not hasattr(main_module, "_origin_hint")
         assert not hasattr(fixture_module, "origins_near")
@@ -730,11 +688,7 @@ class TestPressesTheHostAnswersItself:
             },
             headers={"x-goog-api-key": "k"},
         )
-        events = [
-            json.loads(line[6:])
-            for line in response.text.splitlines()
-            if line.startswith("data: ")
-        ]
+        events = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith("data: ")]
         return called, events
 
     def test_the_model_is_not_woken(self, client: TestClient, monkeypatch) -> None:
@@ -748,13 +702,9 @@ class TestPressesTheHostAnswersItself:
         assert [a["title"] for a in trip["days"][0]["activities"]] == ["Lunch at Sobrino"]
         assert [a["title"] for a in trip["days"][1]["activities"]] == ["Toledo"]
         # And it is what the next turn will read.
-        assert http.sessions.get("plan-1").trip["days"][0]["activities"][0]["title"] == (
-            "Lunch at Sobrino"
-        )
+        assert http.sessions.get("plan-1").trip["days"][0]["activities"][0]["title"] == ("Lunch at Sobrino")
 
-    def test_the_plan_on_screen_hears_about_it_the_usual_way(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_the_plan_on_screen_hears_about_it_the_usual_way(self, client: TestClient, monkeypatch) -> None:
         """`updateDataModel` for `/days`, which `Itinerary()` binds."""
         _, events = self._drop(client, monkeypatch, 0, 0, drawn=("inline-3", "sidebar"))
         updates = [
@@ -775,9 +725,7 @@ class TestPressesTheHostAnswersItself:
         assert trip["days"][1]["activities"] == []
         assert trip["days"][1]["date"] == "2027-04-13"
 
-    def test_a_press_that_does_not_resolve_goes_to_the_model(
-        self, client: TestClient, monkeypatch
-    ) -> None:
+    def test_a_press_that_does_not_resolve_goes_to_the_model(self, client: TestClient, monkeypatch) -> None:
         """Removing the wrong activity is worse than removing none."""
         called, _ = self._drop(client, monkeypatch, 9, 9)
         assert called["model"] is True
@@ -798,9 +746,7 @@ class TestTheConversationStartsBeforeAnybodyTypes:
     This pays that cost against a throwaway turn while somebody is still typing.
     """
 
-    def test_it_hands_back_a_receipt_the_next_turn_can_resume(
-        self, client: TestClient
-    ) -> None:
+    def test_it_hands_back_a_receipt_the_next_turn_can_resume(self, client: TestClient) -> None:
         from travel_a2ui.doors import http as http_module
 
         calls: list[dict] = []
@@ -862,9 +808,7 @@ class TestTheConversationStartsBeforeAnybodyTypes:
         from travel_a2ui.brain.skills import build_prompt_parts
 
         common = dict(variant="express-modular")
-        empty, _ = build_prompt_parts(
-            surface="inline", surface_id="inline-1", trip={}, today="2027-03-01", **common
-        )
+        empty, _ = build_prompt_parts(surface="inline", surface_id="inline-1", trip={}, today="2027-03-01", **common)
         busy, _ = build_prompt_parts(
             surface="home",
             surface_id="home",

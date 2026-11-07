@@ -116,19 +116,14 @@ class GeminiError(Exception):
 def _describe(status: int, detail: str) -> GeminiError:
     if status in (401, 403):
         return GeminiError(
-            "That API key was rejected. Check it is a Gemini key with the "
-            "Interactions API enabled.",
+            "That API key was rejected. Check it is a Gemini key with the Interactions API enabled.",
             status,
             False,
         )
     if status == 429:
-        return GeminiError(
-            "That key has hit its rate limit. Wait a moment and try again.", status, True
-        )
+        return GeminiError("That key has hit its rate limit. Wait a moment and try again.", status, True)
     if status == 404:
-        return GeminiError(
-            "That model is not available to this key. Try another model.", status, False
-        )
+        return GeminiError("That model is not available to this key. Try another model.", status, False)
     if status >= 500:
         # Google's own words, kept. "Gemini had a problem" was all this said,
         # and a turn that dies with a sentence carrying no information is a bug
@@ -340,9 +335,7 @@ async def stream_interaction(
                 elif kind == "step.delta":
                     delta = _as_dict(raw.get("delta"))
                     delta_type = str(delta.get("type") or "")
-                    if delta_type == "thought_signature" and isinstance(
-                        delta.get("signature"), str
-                    ):
+                    if delta_type == "thought_signature" and isinstance(delta.get("signature"), str):
                         # Arrives on the *thought* step, not on the call — but
                         # in the unstreamed response the same signature is on
                         # both, and the API takes it on a replayed call. One
@@ -357,9 +350,7 @@ async def stream_interaction(
                         if chunk is None:
                             chunk = delta.get("partial_arguments")
                         if isinstance(chunk, str):
-                            step = open_steps.setdefault(
-                                index, {"id": f"call_{index}", "name": "", "args": ""}
-                            )
+                            step = open_steps.setdefault(index, {"id": f"call_{index}", "name": "", "args": ""})
                             step["args"] += chunk
 
                 elif kind == "step.stop":
@@ -552,9 +543,7 @@ def _standby(
     return standby
 
 
-async def _open(
-    genai: Any, body: dict[str, Any], model: str, fallback_model: str | None
-) -> tuple[Any, str | None]:
+async def _open(genai: Any, body: dict[str, Any], model: str, fallback_model: str | None) -> tuple[Any, str | None]:
     """The stream, from the model asked for or from one that is actually up.
 
     A demo dies differently from a product. A product can return 503 and let the

@@ -20,7 +20,7 @@ in that moment**, not chosen from screens somebody designed in advance.
 
 > **A sample application, not an official Google project.** A2UI — the protocol,
 > the specification and the catalogs it builds on — is [the A2UI
-> project's](https://github.com/google/a2ui) work. This repository is an
+> project's](https://github.com/a2ui-project/a2ui) work. This repository is an
 > independent app built on top of it, not affiliated with or endorsed by Google
 > LLC. Treat it as a worked example of building and deploying a generative-UI
 > application, not as a reference implementation of the protocol.
@@ -1086,7 +1086,7 @@ interface (`TravelProvider` in `providers/types.py`).
 Apache-2.0. See [NOTICE](NOTICE).
 
 Built on [A2UI](https://a2ui.org) by Google and its official SDKs from
-[google/a2ui](https://github.com/google/a2ui) (Apache-2.0): `a2ui-agent-sdk` on
+[a2ui-project/a2ui](https://github.com/a2ui-project/a2ui) (Apache-2.0): `a2ui-agent-sdk` on
 the server, `@a2ui/react` and `@a2ui/web_core` in the browser, and
 `a2ui_flutter` and `a2ui_core` in Flutter. The basic component catalog is the
 SDK's v1.0 catalog.

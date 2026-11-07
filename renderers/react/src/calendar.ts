@@ -90,10 +90,10 @@ export function weekStartFor(locale: string | undefined): 0 | 1 {
   // Sunday for everybody the browser did not identify.
   if (!locale) return 1;
   try {
-    const info = (new Intl.Locale(locale) as unknown as {
+    const info = new Intl.Locale(locale) as unknown as {
       getWeekInfo?: () => { firstDay: number };
       weekInfo?: { firstDay: number };
-    });
+    };
     const firstDay = info.getWeekInfo?.().firstDay ?? info.weekInfo?.firstDay;
     if (firstDay === 7) return 0;
     if (firstDay === 1) return 1;

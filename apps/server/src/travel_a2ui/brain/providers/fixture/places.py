@@ -13,7 +13,8 @@ from typing import Any
 
 from ..types import not_found
 from .numbers import _pick, _rng, _seed
-from .tables import FIXTURE_PROVENANCE, _BY_ALIAS, _BY_CODE, _DESTINATION_LIST
+from .tables import _BY_ALIAS, _BY_CODE, _DESTINATION_LIST, FIXTURE_PROVENANCE
+
 
 def _resolve(query: str) -> dict[str, Any] | None:
     """The destination this names, invented if nobody wrote it down.
@@ -96,9 +97,7 @@ def _invent_destination(name: str) -> dict[str, Any]:
     cleaned = " ".join(word.capitalize() for word in name.split())[:60]
     random = _rng(_seed(f"destination-{cleaned.lower()}"))
     areas = _pick(_INVENTED_AREAS, random)
-    highlights = [
-        {"name": item[0], "category": item[1], "note": item[2]} for item in _INVENTED_HIGHLIGHTS
-    ]
+    highlights = [{"name": item[0], "category": item[1], "note": item[2]} for item in _INVENTED_HIGHLIGHTS]
 
     # A three-letter code from the name rather than a real IATA lookup: it is
     # only ever used to seed prices and to show beside the city, and inventing a

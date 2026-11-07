@@ -105,16 +105,15 @@ export function Catalog() {
     );
   });
 
-  
   return (
     <section className="catalog" aria-label="Component catalog">
       <header className="catalog__head">
         <div>
           <h2>The catalog</h2>
           <p>
-            Everything the agent can draw. It cannot invent a component, and nothing is here that
-            this host cannot render. These signatures are generated from the schema in declaration
-            order — the same crawl the skill generator does, so this is what the model reads.
+            Everything the agent can draw. It cannot invent a component, and nothing is here that this host
+            cannot render. These signatures are generated from the schema in declaration order — the same
+            crawl the skill generator does, so this is what the model reads.
           </p>
         </div>
         <div className="catalog__meta">
@@ -125,7 +124,7 @@ export function Catalog() {
         </div>
       </header>
 
-      {(
+      {
         <>
           <div className="catalog__controls">
             <input
@@ -202,7 +201,9 @@ export function Catalog() {
                                 {prop.name}
                                 {prop.required ? <em title="required">required</em> : null}
                                 {prop.static ? (
-                                  <em className="is-static" title="literal values only">static</em>
+                                  <em className="is-static" title="literal values only">
+                                    static
+                                  </em>
                                 ) : null}
                               </dt>
                               <dd>
@@ -229,8 +230,8 @@ export function Catalog() {
           <section className="catalog__functions">
             <h3>Functions</h3>
             <p>
-              Used in validation rules (<code>?required</code>) and dynamic values
-              (<code>formatCurrency($/total, "EUR")</code>).
+              Used in validation rules (<code>?required</code>) and dynamic values (
+              <code>formatCurrency($/total, "EUR")</code>).
             </p>
             <ul>
               {functions.map((fn) => (
@@ -244,7 +245,7 @@ export function Catalog() {
             </ul>
           </section>
         </>
-      )}
+      }
     </section>
   );
 }

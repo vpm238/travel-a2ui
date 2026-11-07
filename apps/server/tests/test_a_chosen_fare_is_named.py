@@ -14,8 +14,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from travel_a2ui.brain.providers.fixture import FixtureProvider
 from travel_a2ui.brain.presses import complete_chosen_flights
+from travel_a2ui.brain.providers.fixture import FixtureProvider
 from travel_a2ui.brain.tools import ToolContext, run_tool
 
 TRIP = {

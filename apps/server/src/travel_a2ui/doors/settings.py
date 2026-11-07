@@ -25,10 +25,7 @@ MAX_TOOL_ROUNDS = 6
 #: and what it may contain. This only has to name the macro. `Trip()` is bound
 #: to `/trip` and `/panel`, so once drawn the panel stays current by data alone:
 #: a pressed fare reaches it in one `updateDataModel`, not a further turn.
-PANEL_REQUEST = (
-    "Draw this surface with `Trip()` — bound, so it stays current by itself. "
-    "Only the surface — no prose."
-)
+PANEL_REQUEST = "Draw this surface with `Trip()` — bound, so it stays current by itself. Only the surface — no prose."
 
 
 #: The model that answers when nobody picks one, and the panel's own model.
