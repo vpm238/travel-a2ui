@@ -177,7 +177,7 @@ jobs:
       - name: Every path the tour names exists
         run: |
           missing=0
-          for file in docs/site/src/prompts/quickstart.md docs/site/src/content/docs/quickstart.mdx; do
+          for file in docs/site/src/prompts/quickstart.md docs/site/src/content/docs/quickstart.mdx docs/site/src/content/docs/quickstart/step-by-step.mdx; do
             for path in $(grep -oE '`[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]*`' "$file" | tr -d '`' | sort -u); do
               case "$path" in *...*|*\**) continue ;; esac
               # The page abbreviates server paths, and says so under the table.
