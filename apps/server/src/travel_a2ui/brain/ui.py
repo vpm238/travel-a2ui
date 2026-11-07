@@ -472,13 +472,20 @@ class Drawing:
         except Exception as error:  # noqa: BLE001 - refused here, told to the model
             return self._refuse(surface_id, new, str(error))
 
-        self._touched.add(surface_id)
-        self.drawn.add(surface_id)
-        if surface_id not in STANDING_SURFACES:
-            self.canvas.this_turn.add(surface_id)
+        # A block may draw more than one surface (the panel and a card): each
+        # is drawn this turn, gets its own data, and goes out as its own event.
+        drawn = list(dict.fromkeys(surface_of(message) or surface_id for message in expanded))
+        for each in drawn:
+            self._touched.add(each)
+            self.drawn.add(each)
+            if each not in STANDING_SURFACES:
+                self.canvas.this_turn.add(each)
         gained = self.canvas.observe(expanded)
         data = self.canvas.provide(self.values, gained) if gained else []
-        return [("ui", surface_id, [*expanded, *data])]
+        by_surface: dict[str, list[dict[str, Any]]] = {each: [] for each in drawn}
+        for message in [*expanded, *data]:
+            by_surface.setdefault(surface_of(message) or surface_id, []).append(message)
+        return [("ui", each, messages) for each, messages in by_surface.items() if messages]
 
     def _refuse(self, surface_id: str, created: list[str], reason: str) -> list[tuple]:
         """A block the wire refused after the draft accepted it.

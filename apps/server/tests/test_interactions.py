@@ -268,3 +268,59 @@ class TestARefusedBlockLeavesNothingBehind:
         events = [*again.feed('<a2ui>\nsurface("sidebar")\np = Trip()\nroot = Column([p])\n</a2ui>'), *again.close()]
         assert not [event for event in events if event[0] == "rejected"], events
         assert canvas.wire.get_surface("sidebar") is not None
+
+
+class TestTheStreamAsTheModelSendsIt:
+    """Model output arrives in small chunks; the SDK stream must read it as one block."""
+
+    @staticmethod
+    def _chunked(text: str, size: int = 7) -> list[tuple]:
+        drawing = Drawing(Canvas(), "inline-1", lambda _s: data.session_values({}, None))
+        events: list[tuple] = []
+        for start in range(0, len(text), size):
+            events += drawing.feed(text[start : start + size])
+        return events + drawing.close()
+
+    def test_a_root_first_block_is_accepted(self) -> None:
+        events = self._chunked('<a2ui>\nroot = Column([a, b])\na = Text("### One")\nb = Text("Two")\n</a2ui>')
+        assert not [event for event in events if event[0] == "rejected"]
+        sent = [message for event in events if event[0] == "ui" for message in event[2]]
+        ids = {
+            c["id"]
+            for m in sent
+            for key in ("createSurface", "updateComponents")
+            for c in (m.get(key) or {}).get("components", [])
+        }
+        assert {"root", "a", "b"} <= ids
+
+    def test_a_mid_stream_error_says_what_was_wrong(self) -> None:
+        events = self._chunked('<a2ui>\nroot = Column([a])\na = Text("x", bogus="y")\n</a2ui>')
+        reasons = [event[1] for event in events if event[0] == "rejected"]
+        assert reasons and "bogus" in reasons[0] and "Text" in reasons[0]
+
+
+class TestABlockThatDrawsTwoSurfaces:
+    def test_each_surface_gets_its_own_event_and_its_own_rows(self) -> None:
+        trip = dict(SETTLED)
+        canvas = Canvas()
+        data.file_rows(canvas.lookups, "search_flights", {"hop": 1}, {"flights": [{"id": "TP1"}]}, trip)
+
+        def values(surface_id: str) -> dict[str, Any]:
+            out = data.session_values(trip, None)
+            if surface_id in canvas.this_turn:
+                out.update(data.turn_values(canvas.lookups, trip))
+            return out
+
+        both = (
+            '<a2ui>\nsurface("sidebar")\npanel = Trip()\nroot = Column([panel])\n\n'
+            'surface("voice-1")\nfares = Flights("Out", "/trip/selectedFlight", hop=1)\n'
+            "root = Column([fares])\n</a2ui>"
+        )
+        drawing = Drawing(canvas, "voice-1", values)
+        events = [*drawing.feed(both), *drawing.close()]
+        by_surface = {event[1]: event[2] for event in events if event[0] == "ui"}
+        assert set(by_surface) == {"sidebar", "voice-1"}
+        for surface, messages in by_surface.items():
+            assert all(next(iter(m[k] for k in m if k != "version"))["surfaceId"] == surface for m in messages)
+        paths = [m["updateDataModel"]["path"] for m in by_surface["voice-1"] if "updateDataModel" in m]
+        assert "/fares" in paths

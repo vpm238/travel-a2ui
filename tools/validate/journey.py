@@ -420,6 +420,7 @@ async def play(name: str, model_id: str, effort: str, quiet: bool) -> dict[str, 
                 # What this turn put in front of the traveller: its words, and
                 # the data of every card it drew, as the renderer holds it.
                 "seen": "".join(said)
+                + json.dumps(drawn, ensure_ascii=False)
                 + json.dumps(
                     [
                         canvas.data_of(surface)

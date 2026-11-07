@@ -66,7 +66,11 @@ STEPS: list[dict[str, str]] = [
     {"press": "FlightOption"},
     {"press": "FlightOption"},
     {"say": "and somewhere to stay near Sol"},
+    # Two turns the model has to compose rather than fill in with a macro: a
+    # side-by-side comparison, and the cost of the whole trip.
+    {"say": "compare the two closest to Sol side by side before I choose"},
     {"press": "HotelCard"},
+    {"say": "what does the whole trip come to?"},
 ]
 
 #: What a browser keeps. Everything else is about the recording.
