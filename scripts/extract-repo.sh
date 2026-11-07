@@ -90,8 +90,10 @@ Done. Next:
   git init && git add -A && git commit -m "Initial commit"
   gh repo create <name> --private --source=. --push
 
-Then set two repository secrets so the deploy workflow can run:
+Then set what the Cloud Run deploy workflow (.github/workflows/cloudrun.yml)
+reads:
 
-  CLOUDFLARE_API_TOKEN    an "Edit Cloudflare Workers" token
-  CLOUDFLARE_ACCOUNT_ID   from the Workers dashboard sidebar
+  variables  GCP_PROJECT_ID, GCP_REGION
+  secrets    WIF_PROVIDER, WIF_SERVICE_ACCOUNT (Workload Identity Federation),
+             GOOGLE_MAPS_API_KEY (optional)
 DONE

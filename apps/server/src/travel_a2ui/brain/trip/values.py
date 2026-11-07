@@ -202,8 +202,7 @@ def _to_leg(value: Any) -> Leg | None:
     fare = _to_number(raw.get("flightPrice"))
     nightly = _to_number(raw.get("nightlyPrice"))
 
-    # Key order mirrors the TypeScript object literal, because the golden
-    # compares serialised JSON.
+    # Key order is fixed, because the golden compares serialised JSON.
     leg: Leg = {"destination": destination[:120]}
     start = _to_date(raw.get("startDate"))
     end = _to_date(raw.get("endDate"))
@@ -221,8 +220,16 @@ def _to_leg(value: Any) -> Leg | None:
         leg["selectedFlight"] = text("selectedFlight")
     if fare is not None:
         leg["flightPrice"] = _js_round(fare)
+    # What the panel shows about a chosen fare, kept with the fare: a hop's
+    # ticket is its own, and normalising the trip must not leave a return with
+    # a fare id and no airline.
+    for detail in ("airline", "flightNumber", "departTime", "arriveTime"):
+        if text(detail):
+            leg[detail] = text(detail)
     if text("selectedHotel"):
         leg["selectedHotel"] = text("selectedHotel")
+    if text("hotelName"):
+        leg["hotelName"] = text("hotelName")
     if nightly is not None:
         leg["nightlyPrice"] = _js_round(nightly)
     # How they get there. Not every hop is flown: "we'll drive to Lisbon" and

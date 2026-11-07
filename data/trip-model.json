@@ -3,13 +3,9 @@
     "What a trip is made of: the fields, the stages they belong to, and what",
     "each goal cannot be done without.",
     "",
-    "Data rather than code because two implementations read it. It was a literal",
-    "inside the TypeScript model, which was fine while there was one; a second",
-    "copy in Python would have been a table that drifts silently, and the drift",
-    "would show up as an agent that asks for something it already has.",
-    "",
-    "Generated from the TypeScript model's golden the first time; the golden",
-    "keeps them equal after that."
+    "Data rather than code, because the prompt, the tools and the trip model all",
+    "read it: a second copy would drift, and the drift would show up as an agent",
+    "that asks for something it already has."
   ],
   "fields": [
     {
@@ -198,7 +194,7 @@
       "kind": "flag",
       "label": "whether the journey comes back",
       "stage": "route",
-      "note": "True when it does not: one way, staying on, sorting the way home later. The route then ends where it ends, and nothing should go looking for the missing hop. The brief used to say to record this as `skip: ['return']`, which was not a stage and was dropped on the way in — so the agent read the route again on the next turn, found it landing somewhere other than home, and asked about the way back it had just been told not to ask about."
+      "note": "True when it does not: one way, staying on, sorting the way home later. The route then ends where it ends, and nothing should go looking for the missing hop. Record it here, not as `skip: ['return']`: \"return\" is not a stage, so that is dropped and the way home gets asked about again."
     },
     {
       "key": "skip",

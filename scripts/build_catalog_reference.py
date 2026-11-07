@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 """Builds what the Catalog view shows: every component's signature and a working example.
 
-The Catalog view used to do this in the browser with `packages/express` — a
-TypeScript port of the A2UI Express compiler — so a page that only *displays*
-the vocabulary shipped a compiler, a schema crawler and an example generator,
-and every one of them had to agree with the SDK the server actually compiles
-with. Twenty-one parity goldens existed to check that they did.
-
-It is build-time work, so it uses the reference: the A2UI SDK's own
-`CatalogSchemaHelper` for the signatures (the crawl the skill generator and the
-parser use, so the order shown is the order the model is taught) and the SDK's
-`ExpressParser` for the examples. The browser receives JSON and renders it with
-`@a2ui/web_core`, which is the whole of what a renderer should have to do.
+It is build-time work: the signatures are read off the catalog document in
+declaration order (the order the model is taught), and each example is parsed
+by an A2UI SDK processor over the whole catalog (`wire_processor`) and
+validated as a renderer validates it. The browser receives JSON and renders it
+with `@a2ui/web_core`, which is the whole of what a renderer should have to do.
 
     python3 scripts/build_catalog_reference.py            # write
     python3 scripts/build_catalog_reference.py --check    # fail if stale
@@ -138,23 +132,83 @@ def _value_for(prop: str, schema: dict[str, Any] | None, enum: list[str] | None)
     return _quote(prop)
 
 
-def example(helper: Any, name: str) -> str:
+class Vocabulary:
+    """The catalog document, read for signatures: properties in declaration order."""
+
+    def __init__(self, document: dict[str, Any]) -> None:
+        self.document = document
+        self.components = list(document["components"])
+        self.functions = list(document.get("functions") or {})
+
+    def _parts(self, entry: dict[str, Any]) -> list[dict[str, Any]]:
+        parts: list[dict[str, Any]] = []
+        for part in entry.get("allOf") or [entry]:
+            ref = part.get("$ref", "")
+            if ref.startswith("#/$defs/"):
+                parts.extend(self._parts(self.document["$defs"][ref.rsplit("/", 1)[-1]]))
+            elif ref.endswith("/Checkable"):
+                # The spec's mixin for inputs: it adds `checks`.
+                parts.append({"properties": {"checks": {"type": "array"}}})
+            else:
+                parts.append(part)
+        return parts
+
+    def resolved(self, schema: dict[str, Any]) -> dict[str, Any]:
+        """A property schema with a local `$ref` folded in, for its description."""
+        ref = schema.get("$ref", "")
+        if ref.startswith("#/$defs/"):
+            return {**self.document["$defs"][ref.rsplit("/", 1)[-1]], **schema}
+        return schema
+
+    def component(self, name: str) -> tuple[dict[str, Any], set[str], str | None]:
+        properties: dict[str, Any] = {}
+        required: set[str] = set()
+        description = None
+        for part in self._parts(self.document["components"][name]):
+            properties.update(part.get("properties") or {})
+            required.update(part.get("required") or [])
+            description = description or part.get("description")
+        return properties, required, description
+
+    def function(self, name: str) -> tuple[dict[str, Any], set[str], str | None]:
+        entry = self.document["functions"][name]
+        args = (entry.get("properties") or {}).get("args") or {}
+        return dict(args.get("properties") or {}), set(args.get("required") or []), entry.get("description")
+
+
+def _enum(schema: dict[str, Any]) -> list[str] | None:
+    """The literal choices a property offers, wherever the schema keeps them."""
+    if isinstance(schema.get("enum"), list):
+        return list(schema["enum"])
+    for key in ("oneOf", "anyOf"):
+        for variant in schema.get(key) or []:
+            found = _enum(variant) if isinstance(variant, dict) else None
+            if found:
+                return found
+    return None
+
+
+def _kind(schema: dict[str, Any]) -> str | None:
+    ref = schema.get("$ref", "")
+    return ref.rsplit("/", 1)[-1] if ref else schema.get("type")
+
+
+def example(vocabulary: Vocabulary, name: str) -> str:
     """Express that draws one component: required properties, plus any with an enum."""
     if name in SPECIAL:
         return SPECIAL[name]
-    required = set(helper.get_component_required(name))
+    properties, required, _ = vocabulary.component(name)
     parts: list[str] = []
     lines: list[str] = []
     named = False  # once one is skipped, everything after must be named
-    for prop in helper.get_component_properties(name):
+    for prop, schema in properties.items():
         if prop in ("component", "id"):
             continue
-        schema = helper.get_property_schema(name, prop)
-        enum = helper.get_property_enum(name, prop)
+        enum = _enum(schema)
         if prop not in required and not enum:
             named = True
             continue
-        kind = helper.get_property_type(name, prop)
+        kind = _kind(schema)
 
         def emit(literal: str) -> None:
             nonlocal named
@@ -175,27 +229,21 @@ def example(helper: Any, name: str) -> str:
     return "\n".join(lines)
 
 
-def _props(helper: Any, name: str, *, function: bool = False) -> list[dict[str, Any]]:
-    names = helper.get_function_properties(name) if function else helper.get_component_properties(name)
-    required = set(helper.get_function_required(name) if function else helper.get_component_required(name))
+def _props(vocabulary: Vocabulary, name: str, *, function: bool = False) -> list[dict[str, Any]]:
+    properties, required, _ = vocabulary.function(name) if function else vocabulary.component(name)
     out = []
-    for prop in names:
-        if prop in ("component", "id", "call", "returnType"):
+    for prop, schema in properties.items():
+        if prop in ("component", "id", "call", "returnType", "@call"):
             continue
-        schema = (
-            helper.get_function_property_schema(name, prop)
-            if function
-            else helper.get_property_schema(name, prop)
-        ) or {}
         ref = json.dumps(schema)
+        schema = vocabulary.resolved(schema)
         entry: dict[str, Any] = {
             "name": prop,
             "required": prop in required,
             "static": not re.search(r"DataBinding|Dynamic|ChildList|ComponentId", ref),
         }
-        enum = None if function else helper.get_property_enum(name, prop)
-        if enum:
-            entry["enum"] = list(enum)
+        if _enum(schema) and not function:
+            entry["enum"] = _enum(schema)
         if isinstance(schema.get("description"), str):
             entry["description"] = schema["description"]
         out.append(entry)
@@ -203,18 +251,18 @@ def _props(helper: Any, name: str, *, function: bool = False) -> list[dict[str, 
 
 
 def build() -> dict[str, Any]:
-    from a2ui.inference_formats._shared.schema_helper import CatalogSchemaHelper
+    from a2ui.parser import A2uiPart, to_message_dicts
+    from a2ui.utils import validate_payload
 
-    from a2ui.utils.renderer_state import validate_payload
+    from travel_a2ui.brain.catalog import CATALOG, CATALOG_ID, CATALOG_JSON, wire_processor
 
-    from travel_a2ui.brain.catalog import CATALOG, CATALOG_ID, CATALOG_VERSION, parser_for
-    from travel_a2ui.brain.express import as_wire
-
-    helper = CatalogSchemaHelper(CATALOG)
+    vocabulary = Vocabulary(CATALOG.to_json())
+    processor = wire_processor()
     components = []
-    for name in sorted(helper.components):
-        props = _props(helper, name)
-        source = example(helper, name)
+    for name in sorted(vocabulary.components):
+        props = _props(vocabulary, name)
+        source = example(vocabulary, name)
+        _, _, description = vocabulary.component(name)
         entry: dict[str, Any] = {
             "name": name,
             "travel": name not in BASIC,
@@ -222,14 +270,11 @@ def build() -> dict[str, Any]:
             "props": props,
             "express": source,
         }
-        description = helper.get_component_description(name)
         if description:
             entry["description"] = description
         try:
-            messages = as_wire(parser_for(f"preview_{name}").compile(source, is_final=True))
-            # And validated, as a renderer validates it. The compiler let a
-            # `WeatherStrip` day carry numbers where the catalog says strings;
-            # `@a2ui/web_core` refused the surface and the page drew nothing.
+            parts = processor.parse_response(f'<a2ui>\nsurface("preview_{name}")\n{source}\n</a2ui>')
+            messages = [m for part in parts if isinstance(part, A2uiPart) for m in to_message_dicts(part.a2ui)]
             validate_payload([CATALOG], messages)
             entry["messages"] = messages
         except Exception as error:  # noqa: BLE001 - shown on the page, and fails --check
@@ -237,21 +282,21 @@ def build() -> dict[str, Any]:
         components.append(entry)
 
     functions = []
-    for name in sorted(helper.functions):
-        props = _props(helper, name, function=True)
+    for name in sorted(vocabulary.functions):
+        props = _props(vocabulary, name, function=True)
+        _, _, description = vocabulary.function(name)
         entry = {
             "name": name,
             "args": ", ".join(f"{p['name']}{'' if p['required'] else '?'}" for p in props),
             "props": props,
         }
-        description = helper.get_function_description(name)
         if description:
             entry["description"] = description
         functions.append(entry)
 
     return {
         "catalogId": CATALOG_ID,
-        "version": CATALOG_VERSION,
+        "version": CATALOG_JSON.get("version") or CATALOG_JSON.get("protocolVersion"),
         "components": components,
         "functions": functions,
     }

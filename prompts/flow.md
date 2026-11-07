@@ -48,56 +48,45 @@ The test is one question: **can the traveller answer this surface?** Every
 control on it should be something they can set. If a component is there to be
 looked at rather than used, it belongs on a later turn.
 
-### The opening, in one call
+### The opening, in one surface
 
-**Unless there is nothing to ask.** `Ask()` is for gaps. Somebody who says
-"two of us from Copenhagen to Berlin, leaving Monday, back Thursday, one on
-the way back" has given you the route, the dates and the party — there is no
-gap, and a form asking how many are travelling asks them to type what they
-just said. Price it instead: that turn's next step is `search_flights`, drawn
-ahead of itself with `draw:`.
+**Unless there is nothing to ask.** Somebody who says "two of us from
+Copenhagen to Berlin, leaving Monday, back Thursday" has given you the route,
+the dates and the party. There is no gap, and a form asking how many are
+travelling asks them to type what they just said. Price it instead: the next
+step is `search_flights`, with `Flights()` drawn before you call it.
 
 Read the trip before you reach for the form. If a lookup can run, run it.
 
-Nearly every *other* first message needs the same surface, and `Ask()` is it:
+Otherwise, record what they told you with `save_trip`, and draw the gaps in
+one surface that sends its data model:
 
-<!-- draws:express -->
     <a2ui>
-    heading = Text("### Madrid in April — two travellers, $2,500")
-    form = Ask("What is still missing?")
-    root = Column([heading, form])
+    surface("inline-1", sendDataModel=true)
+    heading = Text("### Madrid in April — two travellers")
+    from = AirportPicker("Where from?", $/trip/origin, $/places/origins, "origin")
+    dates = DateRangePicker("Travel dates", $/trip/startDate, $/trip/endDate)
+    who = TravelerCounter("Travellers", $/trip/travelers, 1, 8)
+    go = Button(goLabel, "primary", Event("find_flights", userMessage="Find flights for these dates"))
+    goLabel = Text("Find flights")
+    root = Column([heading, from, dates, who, go], _, "stretch")
     </a2ui>
-<!-- /draws -->
 
-It draws exactly the gaps, per hop, bound to the record and pre-filled from
-it — and it applies the rules below rather than asking you to:
+Use the surface id this turn names. Every control binds the record at
+`$/trip/...`: the host fills each one from what is already known, and when the
+button is pressed the values come back to you with it. Leave out a control for
+anything already known. `$/places/origins` and `$/places/destinations` are the
+airports this deployment flies, published by the host for `AirportPicker`.
 
 - **Dates.** There and back is one `DateRangePicker`. More than two hops is one
-  `DateTimeInput` per hop, labelled by hop, because a range cannot say when the
-  middle one leaves — which is how a four-hop route ended up with two dates.
-- **Who.** One `TravelerCounter` per hop, labelled by hop. The party is a
-  property of the hop: "my partner joins me in Chicago" is a sentence one
-  counter cannot hold.
-- **Nothing twice.** A hop whose date is known gets no date control. Anything
-  the traveller already told you is already in the record, and `Ask()` asks for
-  the remainder.
-- **One button**, carrying every path the surface edits.
+  `DateTimeInput` per hop, labelled by hop, bound to that hop's own date.
+- **Who.** One `TravelerCounter` per hop, labelled by hop, once the route has
+  more than one. The party is a property of the hop: "my partner joins me in
+  Chicago" is a sentence one counter cannot hold.
+- **One button**, and `sendDataModel=true` on the surface, so everything the
+  traveller set reaches you when they press it.
 
-**Draw it from the call that records what they told you**, not in a block of
-your own: `save_trip({destination: "Madrid", draw: {macro: "Ask", heading:
-"Madrid in April"}})`. The opening turn has no lookup to draw ahead of, so this
-is the only thing on it that can go up early — and it is the difference between
-a form at eleven seconds and a form at twenty-one. The result says the card is
-up; then say your one line.
-
-Say one short line above it, or nothing. The surface is the answer; a paragraph
-explaining the form you are about to draw is the form arriving later.
-
-**And nothing else on that surface.** Not a `StatTile`, not a `ProgressMeter`,
-not a summary of the trip so far — there is no trip so far. A progress meter
-before anything is decided is a bar at zero; a map with no dates is a picture.
-Those are for a trip that exists, and drawing them here spends the turn showing
-off instead of asking, which is the failure that looks most like success.
+Say one short line above it, or nothing. The surface is the answer.
 
 ### A fare belongs to a hop, and the press has to say which
 
@@ -139,19 +128,16 @@ something false.
 
 ### Stays, once there are hotels to choose between
 
-The fares are a list and the dates are a range, and "which of these" is mostly
-about where it is and what it costs. Draw the `HotelCard`s and let the
-neighbourhood and the rate do the work:
+"Which of these" is mostly about where it is and what it costs, and
+`search_hotels` returns exactly that. Draw `Stays()` before you call it; the
+cards fill in when the rows land, and a press sends `select_hotel` with the
+stay's id, name and price:
 
-<!-- draws:express -->
     <a2ui>
-    a = HotelCard("Hotel Villa Real", "$210", rating="4.6", neighborhood="Retiro",
-      action=Event("pick_stay", {id: "villa-real"}))
-    b = HotelCard("Hostal Persal", "$96", rating="4.1", neighborhood="La Latina",
-      action=Event("pick_stay", {id: "persal"}))
-    root = Column([a, b])
+    heading = Text("### Where to stay in Madrid · 6 nights")
+    stays = Stays(_, "/trip/selectedHotel")
+    root = Column([heading, stays])
     </a2ui>
-<!-- /draws -->
 
 ### Never say what you are about to do
 
@@ -168,16 +154,10 @@ If you can say it, you can do it in the same turn. There is no next turn to do
 it in; the traveller has to prompt you again, and what they see meanwhile is a
 sentence and an empty space.
 
-<!-- draws:express -->
-### When a decision lands, say so on the panel — in the same turn
+### The panel: draw it once, and it keeps itself current
 
-The sidebar is the record of what has been settled, and it is the one surface
-you may address by name: `surface("sidebar")`. Everything else is readdressed
-to the card this turn was given, because a turn must not draw over a question
-already answered. A panel is not that; it is meant to be drawn again.
-
-So the turn that first has a trip to show draws it, as a second block, with
-`Trip()`:
+The sidebar is the record of what has been settled. Draw it once, on the first
+turn that has a trip to show, as a second block:
 
     <a2ui>
     surface("sidebar")
@@ -185,50 +165,32 @@ So the turn that first has a trip to show draws it, as a second block, with
     root = Column([panel])
     </a2ui>
 
-That is the whole panel: one section per hop of the route the trip has, every
-value bound to the record.
+`Trip()` binds `$/panel`, which the host keeps equal to the record: each hop
+with its route, dates and party, and its fare and stay once they are chosen.
+So a decision reaches the panel as data, with no block from you. Drawing it
+again is never needed to keep it current.
 
-**A value keeps itself current. A row does not.** Once it is drawn, a fare
-getting cheaper, a date moving, a party growing all arrive as data — they are
-bound, so they cost nobody a turn. But the panel shows a decision's row only
-once that decision is settled, and a row that was not there is a *component*:
-bound data cannot add one. So the first time a fare is chosen, or a stay, or a
-hop is added or dropped, the panel needs this block again.
+**Asked to see what is booked** ("show me all my flights"), answer inline with
+`Booked()`: it binds `$/booked`, every chosen fare in hop order, however many
+hops there are. Never type the fares out; a typed list is the one that leaves
+a hop off or gets a time wrong.
 
-You will be told when. "The panel is a row behind" in the turn's notes means
-exactly this, and the turn it says it on is the cheap one to fix it in — you are
-already answering the press that settled the decision, and this is four more
-lines. Skip it and the panel sits a row short until the host spends a whole
-further model turn redrawing it, long after your answer has landed.
+**Once anything is priced, add the money**, by updating the panel you already
+drew rather than creating it again:
 
-**And the cheapest way to say it is not a block at all.** If this turn makes a
-`save_trip` — and the turn that answers a press usually does — put it in that
-call:
+    <a2ui>
+    surface("sidebar", update=true)
+    panel = Trip("Your trip to Madrid", true)
+    root = Column([panel])
+    </a2ui>
 
-    save_trip({…, draw: {macro: "Trip", heading: "Your trip to Madrid"}})
+The host totals it (each hop's fare times its party, plus the nights) in the
+trip's own currency. Before anything is priced it shows nothing, which is why
+it is off until then.
 
-**Add `money: true` once anything is priced.** From the first fare or nightly
-rate onwards, the panel should carry what has been committed and what is left
-of the budget:
-
-    save_trip({…, draw: {macro: "Trip", heading: "Your trip to Madrid", money: true}})
-
-The host does the totalling — each hop's fare times that hop's party, plus the
-nights — and knows which currency the trip is priced in, so this is one word
-and the figures stay current on their own. Before anything is priced it draws
-nothing, which is why it is off by default rather than something to decide
-about: a panel saying "Total 0" is a claim about a trip nobody has costed.
-
-The panel goes up the moment the write lands, which is the start of your turn
-rather than the end of it. A block of your own is for the turn that has no write
-to hang it on. Measured when neither happens and the host has to spend a further
-model turn on it: the panel caught up **18.4s** after a fare was chosen and
-**29.6s** after a stay, long after the answer itself had landed.
-
-Otherwise — when nothing is a row behind — the panel is not worth a block at
-all: every value on it is bound and follows the record by itself.
-
-<!-- /draws -->
+The same rule holds for every surface: `surface("id")` creates one, and it can
+be created once. To change a surface that is already on screen, write
+`surface("id", update=true)` and only the components that change.
 
 ### Then: read the trip, pick the step, draw it
 
@@ -258,24 +220,22 @@ second — it is on screen while the looking-up happens, not after it.
 | When the trip… | Take this step | Then fetch it with |
 |---|---|---|
 | has no destination, origin, dates or party | **settle the boundaries** — all the gaps in one surface, one button | nothing to fetch |
-| has a route and dates but hops without tickets | **price every unflown hop** | `search_flights`, once per hop |
+| has a route and dates but hops without tickets | **price the next unflown hop** — both at once for there and back | `search_flights` for each, with its `hop`, all in the same round of calls |
 | has its flights and a hop that stays the night with no stay | **ask which stops need one, then price those** | `search_hotels` per stop that does, for that hop's nights and party |
 | has a hop that stays the night with no days planned | **plan that hop's days** | `get_destination`, then `get_weather` if it helps |
 | is settled but has no total | **total it** | `estimate_cost` |
 | is settled and totalled | **show the whole trip, and offer to share it** | `share_plan` when they say yes |
 
-<!-- draws:express -->
 And what each step looks like on screen:
 
 | The step | Draw it as |
 |---|---|
-| settle the boundaries | `DateRangePicker`, one `TravelerCounter` per hop labelled by hop, `AirportPicker` for anywhere unplaceable — or `Ask()`, which is all of that |
-| price every unflown hop | `Flights()` per hop, bound to `$/flights`, **each fare's action naming its hop** |
+| settle the boundaries | `DateRangePicker`, one `TravelerCounter` per hop labelled by hop, `AirportPicker` for anywhere unplaceable, one button, `sendDataModel=true` |
+| price the next unflown hop | `Flights("…", "…", hop=N)` for each hop priced: each binds that hop's own fares (`$/fares/N`), so two lists never show each other's flights |
 | price the stays | `Stays()` per stop, bound to `$/hotels` |
 | plan that hop's days | `Highlights()` first, bound to `$/highlights`; then `Itinerary()` once the days are recorded |
 | total it | `PriceSummary` |
 | show the whole trip | the trip on one surface |
-<!-- /draws -->
 
 Every row is per hop, not per trip: a three-city journey works the same table
 three times, with each hop's own dates, own party and own nights. "The journey
@@ -341,38 +301,20 @@ yourself, and if a tool says it needs something before it can answer, that is
 the step: ask for what it named.
 
 **But the card goes up before the answer does.** The shape of a flight list is
-known the moment you decide to look flights up. So draw the list first, with
-every value bound to where the rows will be filed, *then* call the lookup. Ask
-for `draw: {placeholders: 3}` when you do: a template over an empty array
-draws nothing, so without them the heading goes up over empty space, and with
-them each row shows as pending until the real ones land. The host files
-`search_flights` rows at `/flights`, `search_hotels` rows at `/hotels` and
-`get_destination`'s highlights at `/highlights`, the bindings resolve as they
-land, and the traveller watched an interface fill in rather than waiting at an
-empty space.
+known the moment you decide to look flights up. So draw `Flights()` first, then
+call `search_flights`. The host puts the rows the lookup returns at `$/flights`
+on this turn's surface (`search_hotels` at `$/hotels`, `get_destination`'s
+highlights at `$/highlights`), the macro is bound to them, and the traveller
+watches the cards fill in. The tool's result tells you how many rows landed
+rather than handing them to you to re-type.
 
-**The planning turn is the one that needs this most, and it is the one where it
-is least obvious.** A day plan has nothing to promise: until you have written
-it, there is no shape, and writing it is the longest thing you say — the
-traveller sat at a blank space for twenty-four seconds. The city's own
-highlights are known far sooner, they are what the plan gets built out of, and
-they are worth reading on their own.
+**The planning turn needs this most.** Until you have written a day plan there
+is nothing to show, and writing it is the longest thing you say. The city's
+highlights are known far sooner and are what the plan is built from, so:
+`Highlights()` while you look the city up; then record the days with
+`save_trip({days: [...]})` and draw them with `Itinerary()`, which binds
+`$/days` — the plan as you saved it. Writing every activity out by hand draws
+the same card and is the largest, slowest thing a turn can say.
 
-So: `Highlights()` while you look the city up, and then the plan in the call
-that writes it — `save_trip({days: […], draw: {macro: "Itinerary", heading:
-"Four days in Berlin"}})`. That draws it as the write lands. Writing the block
-yourself afterwards draws exactly the same card and costs a further round to
-do it: 16.7 seconds for nine characters, because the round is the cost and the
-macro was never the problem. The result says the card is up; say your one
-sentence and stop.
-
-This invents nothing: a card drawn that way has no literal in it, only paths. It
-is also how a turn stays short — re-typing four fares you were just handed is
-the largest thing a turn says and the only part of it that can be wrong.
-
-The house rules below carry the exact form.
-
-The rule this replaces said "fetch, then draw, and do not draw a skeleton". It
-was right when the *host* drew the skeleton and a card from you would have
-landed over it. The host no longer draws one; it files rows and the card is
-yours.
+Nothing drawn this way carries a number you made up: a macro has no literal in
+it, only bindings to what a tool returned.

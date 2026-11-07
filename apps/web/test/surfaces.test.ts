@@ -14,7 +14,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { Surfaces, type SurfacePress } from '../src/surfaces.js';
+import { Surfaces, actionMessage, type SurfacePress } from '../src/surfaces.js';
 
 const sample = JSON.parse(readFileSync(join(__dirname, '..', 'public', 'sample-trip.json'), 'utf8')) as {
   turns: Array<{ events: Array<{ type: string; messages?: unknown[] }> }>;
@@ -50,8 +50,11 @@ describe('a whole recorded conversation', () => {
     expect(surfaces.has('sidebar')).toBe(true);
   });
 
-  it("keeps the lookup's rows when the agent's card replaces the placeholder", () => {
-    const flights = surfaces.data('sample-inline-1')['flights'];
+  it('fills the first card with the fares its search returned', () => {
+    // At `/flights`, or at the hop's own `/fares/N` when the card names its hop.
+    const model = surfaces.data('sample-inline-1');
+    const byHop = model['fares'] as Record<string, unknown> | undefined;
+    const flights = model['flights'] ?? (byHop ? Object.values(byHop)[0] : undefined);
     expect(Array.isArray(flights) && flights.length > 0).toBe(true);
     expect((flights as Array<Record<string, unknown>>)[0]!['airline']).toBeTruthy();
   });
@@ -109,7 +112,7 @@ describe('the adapter', () => {
     expect(surfaces.get('inline-1')!.sendDataModel).toBe(true);
   });
 
-  it('forwards a press with the surface it came from and its values', async () => {
+  it('forwards a press with the surface it came from', async () => {
     let pressed: SurfacePress | null = null;
     surfaces.onPress((press) => (pressed = press));
     await surfaces
@@ -120,15 +123,32 @@ describe('the adapter', () => {
       surfaceId: 'inline-1',
       sourceComponentId: 'go',
       context: { origin: 'JFK' },
-      dataModel: { trip: { origin: 'JFK', travelers: 2 } },
+    });
+    expect(actionMessage(pressed!)).toMatchObject({
+      version: '1.0',
+      action: { name: 'commit_surface', surfaceId: 'inline-1', sourceComponentId: 'go' },
     });
   });
 
-  it('sends the values only when the surface asked for them (sendDataModel)', async () => {
-    let pressed: SurfacePress | null = null;
-    surfaces.onPress((press) => (pressed = press));
-    await surfaces.get('inline-2')!.dispatchAction({ event: { name: 'go' } }, 'go');
-    expect(pressed!.dataModel).toEqual({});
+  it('reports its capabilities and the data model of surfaces that send one', () => {
+    const metadata = surfaces.metadata() as {
+      a2uiRendererCapabilities: Record<string, { supportedCatalogIds: string[] }>;
+      a2uiRendererDataModel: { version: string; surfaces: Record<string, unknown> };
+    };
+    expect(metadata.a2uiRendererCapabilities['1.0']!.supportedCatalogIds).toContain(CATALOG);
+    expect(metadata.a2uiRendererDataModel.version).toBe('1.0');
+    expect(metadata.a2uiRendererDataModel.surfaces['inline-1']).toEqual({ trip: { origin: 'JFK', travelers: 2 } });
+    // A surface that did not ask (sendDataModel) is not reported.
+    expect(metadata.a2uiRendererDataModel.surfaces['inline-2']).toBeUndefined();
+  });
+
+  it('forwards a refused message to the agent once, as a v1.0 error', () => {
+    surfaces.takeErrors();
+    surfaces.apply([{ version: '1.0', updateDataModel: { surfaceId: 'nowhere', path: '/a', value: 1 } }]);
+    const errors = surfaces.takeErrors();
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({ version: '1.0', error: { code: expect.any(String) } });
+    expect(surfaces.takeErrors()).toEqual([]);
   });
 
   it('keeps a refused message for the Wire view instead of throwing', () => {

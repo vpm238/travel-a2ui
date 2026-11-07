@@ -27,7 +27,7 @@
  * a claim about the agent's behaviour.
  */
 
-const BASE = (process.env.BASE_URL ?? 'http://127.0.0.1:8787').replace(/\/$/, '');
+const BASE = (process.env.BASE_URL ?? 'http://127.0.0.1:8080').replace(/\/$/, '');
 const KEY = process.env.GEMINI_API_KEY ?? '';
 const arg = (flag) => {
   const index = process.argv.indexOf(flag);
@@ -61,12 +61,11 @@ const DECIDERS = new Set(['Button', 'FlightOption', 'HotelCard', 'ActivityItem',
 /**
  * Sends one turn and collects everything observable about it.
  *
- * `trip` is delivered inside an A2UI action's `dataModel`, which is the same
- * path a committed surface takes: the Worker merges it into the trip before it
- * builds the prompt. It is how a scenario starts from a half-planned trip
- * without paying for the turns that would have planned it.
+ * `trip` is delivered as `resume.trip`, the record a client carries back from
+ * its last turn (`docs/transport.md`). It is how a scenario starts from a
+ * half-planned trip without paying for the turns that would have planned it.
  */
-async function turn({ message, surface = 'inline', surfaceId, trip, session }) {
+async function turn({ message, surface = 'inline', trip, session }) {
   const response = await fetch(`${BASE}/api/chat`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': KEY },
@@ -74,20 +73,10 @@ async function turn({ message, surface = 'inline', surfaceId, trip, session }) {
       sessionId: session,
       message,
       surface,
-      surfaceId: surfaceId ?? (surface === 'inline' ? 'inline-1' : surface),
       model: MODEL,
       effort: 'medium',
       client: { timeZone: 'America/Los_Angeles', locale: 'en-US' },
-      ...(trip
-        ? {
-            action: {
-              name: 'commit_surface',
-              surfaceId: surfaceId ?? (surface === 'inline' ? 'inline-1' : surface),
-              context: {},
-              dataModel: { trip },
-            },
-          }
-        : {}),
+      ...(trip ? { resume: { trip } } : {}),
     }),
   });
 
@@ -220,7 +209,7 @@ const SCENARIOS = [
 
   {
     id: 'suggests-origin',
-    why: 'Every trip used to depart from JFK, because that was the default.',
+    why: 'A trip must not quietly depart from a default airport.',
     message: 'I want to go to Madrid next month.',
     checks: [
       [

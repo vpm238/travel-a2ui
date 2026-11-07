@@ -123,14 +123,12 @@ Hops are tickets; nights are stays. Count the nights on each hop — its
 - **Record the days, then draw them from the record** — `save_trip({days:
   [...]})` carries the plan itself, not just `planned: true`. Write the plan
   once.
-<!-- draws:express -->
   `Itinerary()` draws what you just recorded. Writing every `ItineraryDay` and
   `ActivityItem` out again as components is the same data in a second notation
   and about seven hundred tokens the traveler waits through.
   `Itinerary("Four days in Berlin")` puts a heading of your own above it. The
   components are still there for a day plan that wants something this does
   not do.
-<!-- /draws -->
   A day plan that lives
   only on the card it was drawn on cannot be shared, cannot be edited, and is
   gone next turn: the shared page prints the days off the trip, dropping an

@@ -4,13 +4,31 @@
  * One `MessageProcessor` from `@a2ui/web_core` for the whole conversation —
  * every inline card, the panel and the home dashboard — so pressing something
  * in one is answered in another. This file is the one place the app talks to
- * it, and it is deliberately thin: applying messages, listing surfaces, reading
- * a component for the transcript, and telling React when the set of surfaces
- * changed. Everything a surface *does* — binding, functions, checks, two-way
- * input, actions — is the SDK's.
+ * it, and it is deliberately thin: applying messages, listing surfaces, and
+ * speaking A2UI v1.0 back to the agent. Everything a surface *does* (binding,
+ * functions, checks, two-way input, actions) is the SDK's.
+ *
+ * What goes back to the agent with every request, all of it the SDK's own:
+ *
+ *   - `{version: "1.0", action}` for a press;
+ *   - `{version: "1.0", error}` for every message the processor refused;
+ *   - `a2uiRendererCapabilities`, from `getRendererCapabilities`, so the agent
+ *     knows which catalogs this renderer draws;
+ *   - `a2uiRendererDataModel`, from `getRendererDataModel`, the data model of
+ *     every surface that asked to send one.
  */
 
-import { MessageProcessor, peekValue, type ActionPayload, type SurfaceModel } from '@a2ui/web_core/v1_0';
+import {
+  MessageProcessor,
+  peekValue,
+  type ActionPayload,
+  type RendererErrorMessage,
+  type SurfaceModel,
+} from '@a2ui/web_core/v1_0';
+import type { ReactCatalogComponent } from '@a2ui/react';
+import type { RendererMetadata } from './api.js';
+
+export { actionMessage } from './api.js';
 import { createTravelCatalog, type CatalogDocument } from '@travel-a2ui/renderer';
 
 import catalogDocument from '../../../catalogs/a2ui-travel/catalog.json';
@@ -20,14 +38,12 @@ type Json = Record<string, unknown>;
 /** One catalog for the app: built once, shared by every processor. */
 let catalog: ReturnType<typeof createTravelCatalog> | null = null;
 export function travelCatalog() {
-  catalog ??= createTravelCatalog(catalogDocument as unknown as CatalogDocument);
+  catalog ??= createTravelCatalog(catalogDocument as CatalogDocument);
   return catalog;
 }
 
-/** A press, as the app forwards it: the SDK's action plus the surface's values. */
-export interface SurfacePress extends ActionPayload {
-  dataModel: Json;
-}
+/** A press, as the SDK reports it. */
+export type SurfacePress = ActionPayload;
 
 /** What the processor refused, kept for the Wire view rather than thrown. */
 export interface RejectedMessage {
@@ -37,14 +53,18 @@ export interface RejectedMessage {
 }
 
 export class Surfaces {
-  readonly processor: MessageProcessor;
+  readonly processor: MessageProcessor<ReactCatalogComponent>;
   private listeners = new Set<() => void>();
   private pressListener: ((press: SurfacePress) => void) | null = null;
   private version = 0;
   readonly rejected: RejectedMessage[] = [];
+  /** Errors not yet sent to the agent, as v1.0 renderer messages. */
+  private unsent: RendererErrorMessage[] = [];
 
   constructor() {
-    this.processor = new MessageProcessor([travelCatalog()], (action) => this.pressed(action));
+    this.processor = new MessageProcessor<ReactCatalogComponent>([travelCatalog()], (action) => this.pressListener?.(action), {
+      errorHandler: (error) => this.report(error),
+    });
     this.processor.onSurfaceCreated(() => this.bump());
     this.processor.onSurfaceDeleted(() => this.bump());
   }
@@ -52,26 +72,33 @@ export class Surfaces {
   /** Applies a batch, one message at a time, so one bad message costs only itself. */
   apply(messages: unknown[]): void {
     for (const message of messages) {
-      for (const error of this.processor.processMessagesWithErrors([message])) {
-        const detail = (error as { error?: { message?: string; surfaceId?: string } }).error;
-        this.rejected.push({
-          at: new Date().toISOString(),
-          surfaceId: detail?.surfaceId,
-          message: detail?.message ?? JSON.stringify(error),
-        });
-        if (this.rejected.length > 50) this.rejected.shift();
-        console.warn('[a2ui] rejected a message:', detail?.message ?? error);
-      }
+      for (const error of this.processor.processMessagesWithErrors([message])) this.report(error);
     }
     this.bump();
+  }
+
+  /** Everything the agent should hear about this renderer, for the next request. */
+  metadata(): RendererMetadata {
+    const dataModel = this.processor.getRendererDataModel('1.0');
+    return {
+      a2uiRendererCapabilities: this.processor.getRendererCapabilities({ versions: ['1.0'] }),
+      ...(dataModel ? { a2uiRendererDataModel: dataModel } : {}),
+    };
+  }
+
+  /** The errors to forward, once each. */
+  takeErrors(): RendererErrorMessage[] {
+    const out = this.unsent;
+    this.unsent = [];
+    return out;
   }
 
   ids(): string[] {
     return [...this.processor.getSurfaces().keys()];
   }
 
-  get(id: string): SurfaceModel | undefined {
-    return this.processor.getSurface(id) as SurfaceModel | undefined;
+  get(id: string): SurfaceModel<ReactCatalogComponent> | undefined {
+    return this.processor.getSurface(id);
   }
 
   has(id: string): boolean {
@@ -126,16 +153,13 @@ export class Surfaces {
 
   getVersion = (): number => this.version;
 
-  /**
-   * A press, with the surface's values when the surface asked for them.
-   *
-   * `createSurface.sendDataModel` is how an agent asks for every value on a
-   * surface with each action; the server sets it on every surface, and reads
-   * the trip from it. A surface that did not ask is sent only the action.
-   */
-  private pressed(action: ActionPayload): void {
-    const wants = this.get(action.surfaceId)?.sendDataModel === true;
-    this.pressListener?.({ ...action, dataModel: wants ? this.data(action.surfaceId) : {} });
+  private report(error: RendererErrorMessage): void {
+    if (this.unsent.includes(error)) return;
+    this.unsent.push(error);
+    if (this.unsent.length > 20) this.unsent.shift();
+    this.rejected.push({ at: new Date().toISOString(), surfaceId: error.error.surfaceId, message: error.error.message });
+    if (this.rejected.length > 50) this.rejected.shift();
+    console.warn('[a2ui] rejected a message:', error.error.message);
   }
 
   private bump(): void {

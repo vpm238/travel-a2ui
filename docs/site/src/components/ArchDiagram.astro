@@ -22,14 +22,14 @@
 
   <div class="arch__wire">
     <span>↓ A2UI messages over SSE</span>
-    <span>↑ actions</span>
+    <span>↑ actions, errors, data model</span>
   </div>
 
   <div class="arch__box arch__box--server">
     <span class="arch__tag">Backend</span>
     <strong>Python agent server</strong>
     <span>
-      The agent loop, tools and trip; macros; the A2UI agent SDK, which compiles and validates what
+      The agent loop, tools and trip; macros; the A2UI agent SDK, which parses and validates what
       the model writes
     </span>
     <code>apps/server/src/travel_a2ui/</code>

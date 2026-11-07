@@ -2,7 +2,7 @@
  * Inline SVG icons.
  *
  * Inline rather than an icon font or a package: the whole renderer has to work
- * inside a Cloudflare-hosted bundle with no network fetches beyond the API, and
+ * inside a bundle with no network fetches beyond the API, and
  * an icon that fails to load turns a travel card into a mystery. These are all
  * on a 24px grid with `currentColor` strokes, so they inherit text colour and
  * work in both themes without a second definition.

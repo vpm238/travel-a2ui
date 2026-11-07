@@ -1,9 +1,9 @@
 """What a trip is made of: the table, and the keys that address it.
 
-The table itself is not written here. It lives in `data/trip-model.json` and
-both this and the TypeScript model read it, because a second copy of a table is
-a table that drifts — and this particular drift shows up as an agent asking for
-something it already has.
+The table itself is not written here. It lives in `data/trip-model.json`, where
+the prompt, the tools and this module all read the same one: a second copy of
+a table drifts, and this drift shows up as an agent asking for something it
+already has.
 
 What is here besides the table is how a key is read: whether it names a field
 of the trip or of one hop (`legs/1/travelers`), what the data model calls it,
@@ -46,9 +46,8 @@ LIST_KINDS = frozenset({"stages", "legs", "fields", "days"})
 #: a ceiling on the nightly rate, a note — refines a decision already made: it
 #: reaches a standing surface live as `updateDataModel` and costs no model turn.
 #:
-#: Order is the order they are usually settled in, which is all that is left of
-#: what used to be a stage ladder: a list for reading, not a sequence anything
-#: is held to. Which one to settle next is the agent's judgement — see
+#: Order is the order they are usually settled in: a list for reading, not a
+#: sequence anything is held to. Which one to settle next is the agent's judgement — see
 #: `prompts/flow.md`.
 DECISIONS: tuple[str, ...] = (
     "destination",

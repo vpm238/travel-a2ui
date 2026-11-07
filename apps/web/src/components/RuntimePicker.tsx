@@ -3,13 +3,13 @@
  *
  * Two of them ship, and they are not the same program with a different flag:
  *
- *   Cloudflare Worker   Gemini Interactions API. A request/response loop this
- *                       Worker drives at the edge, on the traveller's own key,
- *                       calling the travel tools directly. Typed.
+ *   Python server       Gemini Interactions API. A request/response loop the
+ *                       server drives on the traveller's own key, calling the
+ *                       travel tools directly. Typed.
  *
  *   Gemini Live         Gemini Live API. A bidirectional audio session Google
- *                       drives, relayed through the same session Durable
- *                       Object. Speak or type; it answers out loud.
+ *                       drives, relayed through the same server session.
+ *                       Speak or type; it answers out loud.
  *
  * The claim this picker exists to test is that the interface layer is
  * independent of the runtime — one catalog, one set of components, one set of
@@ -61,11 +61,9 @@ export function RuntimePicker({
   /**
    * Where a framework lives, as the server advertises it. Empty is same-origin.
    *
-   * This used to be `id !== 'worker'` — written when the only second runtime
-   * was a managed agent at its own address. Gemini Live is served by this same
-   * Worker, so that test made choosing it wait forever for a URL it does not
-   * have: the entry highlighted, the picker stayed open, and nothing switched.
-   * The server knows the answer, so ask the server.
+   * The server knows which frameworks it serves itself, so the picker asks it
+   * rather than guessing from an id: Gemini Live is same-origin, and waiting
+   * for an address it does not have would leave the picker open forever.
    */
   const originOf = (id: BackendId) => backends.find((entry) => entry.id === id)?.origin ?? '';
   const needsOrigin = originOf(draftId) !== '';

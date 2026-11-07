@@ -21,9 +21,9 @@
  * arrival. Calling `start()` on arrival overlaps them into noise.
  */
 
-import { clientHints, type SurfaceAction } from './api.js';
+import { actionMessage, clientHints, type RendererMetadata, type SurfaceAction } from './api.js';
 
-/** What the relay sends down. Mirrors `ServerMessage` in the Worker. */
+/** What the relay sends down (`docs/transport.md`, voice frames). */
 export type VoiceEvent =
   | { type: 'ready'; model: string; contract: string }
   | { type: 'audio'; data: string }
@@ -172,8 +172,6 @@ export interface VoiceSession {
    *
    * The server records it onto the trip, as it does a typed press, so the
    * panel moves the moment it lands; then it tells the model what was chosen.
-   * It used to go as a sentence, and nothing was saved unless the model chose
-   * to call `save_trip`.
    */
   press(action: SurfaceAction): void;
   /** True while the agent is speaking. */
@@ -199,8 +197,10 @@ export interface VoiceOptions {
   sessionId: string;
   apiKey: string;
   onEvent: (event: VoiceEvent) => void;
-  /** The surfaces on screen when the call opens; see `clientHints`. */
+  /** The surfaces on screen when the call opens. */
   surfaces?: string[];
+  /** The renderer's `a2uiRendererCapabilities` and data model, read when needed. */
+  metadata?: () => RendererMetadata;
   onSpeakingChange?: (speaking: boolean) => void;
   /** The socket went away. Whoever holds this session should stop holding it. */
   onClosed?: () => void;
@@ -260,10 +260,7 @@ export async function instantiateLive(options: {
       };
 
       socket.addEventListener('open', () => {
-        // The same hints a typed turn sends. A call had none of them, so it asked
-  // people to say an airport code out loud — the exact question a
-  // suggestion exists to avoid.
-  socket.send(JSON.stringify({ type: 'start', apiKey: options.apiKey, client: clientHints() }));
+        socket.send(JSON.stringify({ type: 'start', apiKey: options.apiKey, client: clientHints() }));
       });
       socket.addEventListener('message', (event) => {
         let message: VoiceEvent;
@@ -382,11 +379,15 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
     );
   });
 
-  // The same hints a typed turn sends. A call had none of them, so it asked
-  // people to say an airport code out loud — the exact question a
-  // suggestion exists to avoid.
+  // What a typed turn sends: the day, the surfaces on screen, the capabilities.
   socket.send(
-    JSON.stringify({ type: 'start', apiKey: options.apiKey, client: clientHints(options.surfaces) }),
+    JSON.stringify({
+      type: 'start',
+      apiKey: options.apiKey,
+      client: clientHints(),
+      surfaces: options.surfaces ?? [],
+      ...(options.metadata ? { metadata: options.metadata() } : {}),
+    }),
   );
 
   socket.addEventListener('message', (event) => {
@@ -517,7 +518,14 @@ export async function startVoice(options: VoiceOptions): Promise<VoiceSession> {
     },
     press: (action: SurfaceAction) => {
       if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'press', action }));
+        // The same A2UI v1.0 messages a typed press sends.
+        socket.send(
+          JSON.stringify({
+            type: 'press',
+            a2ui: [actionMessage(action)],
+            ...(options.metadata ? { metadata: options.metadata() } : {}),
+          }),
+        );
       }
     },
     speaking: () => speaking,

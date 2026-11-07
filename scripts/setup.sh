@@ -40,15 +40,8 @@ echo "  $("$system_python" --version)"
 
 # Which Python the server is installed into, and every step below runs with.
 #
-# One interpreter for all of it, chosen once. This script used to run the
-# generators with whatever `python3` was on the path, *before* anything had
-# installed the server package they import — and one step hardcoded `python3`
-# where the rest used the chosen interpreter. On a fresh clone, step one of the
-# README failed:
-#
-#     build_examples.py → ImportError: travel_a2ui → "pip install a2ui-agent-sdk"
-#
-# which named the wrong package as well.
+# One interpreter for all of it, chosen once, and the server package installed
+# into it before any generator imports it.
 #
 # A virtualenv rather than the system interpreter, unless one is already
 # active: current Debian, Ubuntu and Homebrew Pythons refuse a bare
@@ -67,15 +60,16 @@ fi
 
 step "Installing dependencies"
 npm install --no-fund --no-audit
-# Before anything imports it. The examples compile with the server's own parser
-# and the skills are generated through the server's catalog loader.
+# Before anything imports it: the skills and the fixtures are generated through
+# the server's own A2UI processor.
 "$python_bin" -m pip install --quiet --upgrade pip
 "$python_bin" -m pip install --quiet -e ./apps/server pytest httpx
 
-step "Generating the catalog, the examples and the skills"
+step "Generating the catalog, the skills and the fixtures"
 "$python_bin" scripts/build_catalog.py
-"$python_bin" scripts/build_examples.py
 "$python_bin" scripts/build_skills.py
+"$python_bin" scripts/build_catalog_reference.py
+"$python_bin" scripts/build_fixtures.py
 
 step "Building"
 npm run --silent build

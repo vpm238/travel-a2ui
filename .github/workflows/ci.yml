@@ -79,20 +79,12 @@ jobs:
       - name: Test
         run: npm test
 
-      # Three artifacts in this repo are generated, and a stale one is a silent
-      # lie: a catalog the skills no longer describe, an example that no longer
-      # compiles, a skill missing a component the renderer supports. Each check
-      # regenerates and diffs rather than trusting the commit.
-      #
-      # One step each so a failure names the artifact that drifted, but the
-      # commands live in package.json. When they were spelled out here too the
-      # copies diverged, and CI checked the skills against an unpruned catalog
-      # and reported all three as stale.
+      # The generated artifacts, each regenerated and diffed rather than
+      # trusted: the catalog, the skills (from the server's own processor), the
+      # Catalog view's reference, and the renderer fixtures. One step each so a
+      # failure names what drifted; the commands live in package.json.
       - name: Catalog is current
         run: npm run check:catalog
-
-      - name: Examples compile and their JSON is current
-        run: npm run check:examples
 
       - name: Skills are current
         run: npm run check:skills
@@ -103,19 +95,10 @@ jobs:
       - name: The catalog reference is current
         run: npm run check:reference
 
-      # The prompt is assembled from markdown people edit on purpose, so its
-      # golden is the one that is *meant* to move — and the one most likely to
-      # be edited without being re-recorded. That is a failed build here rather
-      # than a mystery a week later.
-      - name: The prompt matches its golden
-        run: python3 tools/parity/capture.py --check
-
-      # The pre-draw the Flutter client's tests assert against, captured from
-      # the host's own macros. It is checked here and not beside the other
-      # `check:` steps because it needs the server package, which the step
-      # above installs.
-      - name: The host's skeleton golden is current
-        run: python3 tools/parity/skeleton.py --check
+      # What the Flutter client's tests render, produced by the server's own
+      # pipeline: a `Flights()` the model drew, and the rows a lookup returned.
+      - name: The renderer fixtures are current
+        run: npm run check:fixtures
 
       - name: Python tests
         run: |
@@ -150,7 +133,7 @@ jobs:
           # The real server with a scripted model in place of Gemini, so this
           # needs no API key and costs nothing to run — which is the only way an
           # end-to-end test actually gets run. Everything else in the process is
-          # the real thing: the real agent events, the real surface passes, the
+          # the real thing: the real agent events, the real SDK processor, the
           # real SSE transport, the real static mounts.
           pip install --quiet -e ./apps/server
           GEMINI_API_KEY=scripted python3 tools/e2e/scripted_server.py 8131 &
@@ -188,13 +171,11 @@ jobs:
           CHROMIUM_PATH: ''
 
   reference-parity:
-    name: Parity with google/a2ui
+    name: Against the newest A2UI SDK
     runs-on: ubuntu-latest
-    # The reference SDK pulls in the whole ADK dependency tree, so it runs in
-    # its own job rather than slowing every build. It keeps the Python
-    # signature generator honest against the latest reference. (There is no
-    # TypeScript compiler left to diff: the browser renders with @a2ui/web_core
-    # and every compile, at build time and at runtime, is the SDK's.)
+    # The newest published SDK, in its own job because it pulls the whole ADK
+    # dependency tree: catalog pruning and macros against it, so an upstream
+    # change shows up here before a pin bump.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v5
@@ -219,7 +200,7 @@ jobs:
           python3 -m pip install --quiet pytest -e ./apps/server
           python3 -m pip install --quiet --upgrade a2ui-agent-sdk
 
-      - name: Signature generation matches the reference
+      - name: Pruning and macros hold on the newest SDK
         run: python3 -m pytest tools/tests/test_sdk_parity.py -q
 
   quickstart:

@@ -6,8 +6,8 @@
  * values are values, `action` is a function to call, a bound field has a setter
  * beside it (`setValue`, `setStart`), and `checks` arrive as `isValid` and
  * `validationErrors`. Nothing here reads a data model, follows a pointer or
- * evaluates a function — that is `@a2ui/web_core`'s job, and doing it a second
- * time is what this package used to be.
+ * evaluates a function — that is `@a2ui/web_core`'s job, and this package does
+ * not do it a second time.
  *
  * What is left is the part only a travel app can do: decide what a fare, a stay
  * and a day look like.
@@ -17,6 +17,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode 
 
 import { monthLabel, monthsFor, parseCivil, toIso, weekStartFor, weekdayLetters } from '../calendar.js';
 import { Icon, hasIcon } from './icons.js';
+import { ariaFrom } from '../accessibility.js';
 
 // The binder's prop types are inferred from schemas loaded at runtime, so they
 // are `any` by construction. Reading them through these helpers keeps the
@@ -48,16 +49,9 @@ function Field({ value, width, waiting }: { value: unknown; width?: number; wait
   return <>{text(value)}</>;
 }
 
-/** What assistive technology is told, from the standard `accessibility` block. */
+/** What assistive technology is told: the standard `accessibility` block (`ariaFrom`). */
 function aria(props: Props, role?: string) {
-  const a11y = (props['accessibility'] ?? {}) as Props;
-  const out: Record<string, unknown> = {};
-  if (role) out['role'] = role;
-  if (a11y['label']) out['aria-label'] = text(a11y['label']);
-  if (a11y['description']) out['aria-description'] = text(a11y['description']);
-  if (a11y['live'] && a11y['live'] !== 'off') out['aria-live'] = a11y['live'];
-  if (a11y['hidden'] === true) out['aria-hidden'] = true;
-  return out;
+  return { ...(role ? { role } : {}), ...ariaFrom(props['accessibility']) };
 }
 
 /** Click and Enter/Space for a card that is itself the control. */
@@ -869,7 +863,7 @@ function loadMaps(apiKey: string): Promise<boolean> {
     script.onload = () => {
       const started = Date.now();
       const settle = () => {
-        const maps = (window as unknown as Props)['google']?.maps;
+        const maps = window.google?.maps;
         if (typeof maps?.importLibrary === 'function') return resolve(true);
         if (Date.now() - started > 15_000) return resolve(false);
         setTimeout(settle, 50);
@@ -883,7 +877,7 @@ function loadMaps(apiKey: string): Promise<boolean> {
 }
 
 const mapsKey = () =>
-  typeof window === 'undefined' ? '' : String((window as unknown as Props)['__A2UI_MAPS_KEY'] ?? '');
+  typeof window === 'undefined' ? '' : String(window.__A2UI_MAPS_KEY ?? '');
 
 export function GoogleMap({ props }: ViewProps) {
   const host = useRef<HTMLDivElement | null>(null);
@@ -915,7 +909,7 @@ export function GoogleMap({ props }: ViewProps) {
     const element = host.current;
     let cancelled = false;
     void (async () => {
-      const maps = (window as unknown as Props)['google']?.maps;
+      const maps = window.google?.maps;
       if (!maps?.importLibrary) return;
       const [{ Map, Polyline }, { LatLngBounds }, { Marker }] = await Promise.all([
         maps.importLibrary('maps'),

@@ -1,69 +1,37 @@
-"""What a Gemini Live session is given.
+"""A voice call: the traveller's socket on one side, Gemini Live on the other.
 
-Only the parts the rest of the server needs right now: the tool list, and the
-schema cleaning the Live API requires. The relay itself — `client.aio.live` —
-is the next piece, and it is deliberately separate, because what a session is
-*set up with* is what the contract stamp is computed over, and that has to be
-answerable without opening a socket.
+A Live session answers in audio, so the model cannot put an `<a2ui>` block in
+its reply: whatever it writes is spoken. It draws by calling one tool,
+`render_a2ui_express`, with the same Express block a typed turn would write.
+The block is read by the same A2UI processor against the same mirror of the
+renderer (`brain/ui.py`), so a call and a typed turn draw the same surfaces
+the same way. The data tools are the typed door's, and a lookup's rows land in
+the data model of the cards this turn drew, exactly as they do there.
 
-The Live API takes a subset of JSON Schema and rejects the whole setup rather
-than the offending key, so a schema that is perfectly good for the Interactions
-API has to be cleaned before it can be sent here. That asymmetry is the reason
-this function exists at all.
+The Live API takes a subset of JSON Schema and rejects the whole setup over one
+unsupported keyword, so tool schemas are cleaned (`live_schema`) before they
+are sent.
 """
 
 from __future__ import annotations
 
 from .. import ROOT
 
-import json
 import os
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from ..brain import data, inbound
 from ..brain import trip as model
-from ..brain.catalog import (
-    CATALOG_ID,
-    COMPONENT_NAMES,
-    PROTOCOL_VERSION,
-    REQUIRED_PROPERTIES,
-    VALIDATOR,
-    parser_for,
-)
-from ..brain.express import ExpressStream, Ui
-from ..brain.express import as_wire
-from ..brain.macros import (
-    airport_choices,
-    closing_express,
-    currency_for,
-    expand as expand_macros,
-    composition_for,
-    replay,
-    without_the_rows,
-)
 from ..brain.presses import describe_action, record_press
 from ..brain.promises import SPOKEN_NUDGE as _NUDGE, promised as _promised
-from ..brain.skills import _read, build_system_prompt
-from ..brain.finishing import REBUILT_IN_A_TURN, finish, on_its_own_surface, panel_events
-from ..brain.builders import build_surface, compile_surface
+from ..brain.skills import build_system_prompt
 from ..brain.tools import ToolContext, gemini_tools, run_tool
-from ..gemini import stream_interaction
-from .settings import PANEL_EFFORT, PANEL_MODEL, PANEL_REQUEST, _today
-
-_ROOT = ROOT
-
-#: The six layouts a session can ask for by name, with their argument schemas.
-#:
-#: These were written as MCP tool declarations and outlived MCP. A spoken
-#: session cannot write Express — its replies are audio, so a notation in one is
-#: read aloud rather than compiled — which leaves calling a tool as the only way
-#: it can reach the screen at all. That is what these are for now, and the file
-#: is named for that rather than for the protocol they were first written in.
-SURFACE_TOOLS: list[dict[str, Any]] = json.loads(
-    (_ROOT / "data" / "surface-tools.json").read_text("utf-8")
-)["tools"]
-
+from ..brain.ui import Canvas, Drawing
+from .interactions.panels import draw_panel
+from .interactions.turn import places_and_currency, ui_events
+from .settings import _today
 
 #: The model a Live session runs on.
 #:
@@ -72,13 +40,10 @@ SURFACE_TOOLS: list[dict[str, Any]] = json.loads(
 #: only touch each other inside functions — right up until an unrelated edit
 #: moves one of those calls to import time.
 VOICE_MODEL = os.environ.get("VOICE_MODEL", "gemini-3.8-live")
-#: Gemini 3.8 Live is the first Live model on a stable channel, and the named
-#: replacement for every preview this used to point at: the 09-2025 native-audio
-#: build was withdrawn, 12-2025 succeeded it, and `gemini-3.1-flash-live-preview`
-#: sat beside both. Each withdrawal answered a connect with NOT_FOUND, which
-#: reads like a bug in this app rather than like a model that no longer exists —
-#: which is why the name stayed a setting even now that the default should not
-#: rot. The audio format, the transcription config and the tool schemas all
+#: Gemini 3.8 Live is the first Live model on a stable channel. The name stays
+#: a setting because a withdrawn Live model answers a connect with NOT_FOUND,
+#: which reads like a bug in this app; a deployment can move off one without a
+#: release. The audio format, the transcription config and the tool schemas all
 #: carry over; what 3.8 changes is the *default* for function calling, which is
 #: why `setup_config` names one. See there.
 #:
@@ -94,37 +59,63 @@ VOICE_MODEL = os.environ.get("VOICE_MODEL", "gemini-3.8-live")
 #: Appended to the ordinary system prompt rather than replacing it: the agent is
 #: the same agent, with the same catalog and the same refusals, talking instead
 #: of typing. Everything specific to *speaking* is here.
-VOICE_BRIEF = _read("prompts", "live.md").strip()
+VOICE_BRIEF = (ROOT / "prompts" / "live.md").read_text("utf-8").strip()
+
+#: The one tool that draws.
+RENDER_TOOL: dict[str, Any] = {
+    "name": "render_a2ui_express",
+    "description": (
+        "Draws an interface on the traveller's screen. Pass one A2UI Express block, "
+        "written exactly as the instructions describe, with or without the <a2ui> "
+        "tags. A block with no surface(...) line becomes a new card in the "
+        "conversation. The result says what was drawn, or what was wrong with the "
+        "block so you can call again with it fixed."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "express": {"type": "string", "description": "The A2UI Express block."}
+        },
+        "required": ["express"],
+    },
+}
+
+
+#: How long a stored instantiation is good for, stamp unchanged.
+INSTANTIATION_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
+
+def contract_stamp() -> str:
+    """A fingerprint of what a Live session is set up with right now.
+
+    The Live API has no agent object on the server: a session is set up from
+    what is sent at connect time. A client keeps the stamp it instantiated
+    under, and when the catalog, the A2UI instructions, the tools or the model
+    change, the stamp moves and the client instantiates again.
+    """
+    import hashlib
+    import json
+
+    from ..brain.catalog import CATALOG_JSON, PROCESSOR
+
+    parts = [
+        json.dumps(CATALOG_JSON, sort_keys=True, ensure_ascii=False),
+        PROCESSOR.prompt_snippet,
+        json.dumps(voice_tools(), sort_keys=True, ensure_ascii=False),
+        VOICE_MODEL,
+    ]
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()[:16]
 
 
 def voice_tools() -> list[dict[str, Any]]:
-    """Everything a Live session may call.
-
-    The `show_*` surface tools first, then the data tools. The overlap between
-    them — both can price a flight — was called intentional and cheap, and it is
-    neither: given a tool that returns fares and a tool that draws them, the
-    model takes the one that returns them and reads them out. The lookups stay,
-    because a voice agent that can answer "is there a nonstop" without redrawing
-    the screen is better at conversation, but their results no longer carry the
-    rows. See `without_the_rows`.
-    """
-    surfaces = [
-        {
-            "name": tool["name"],
-            "description": tool["description"],
-            "parameters": tool["inputSchema"],
-        }
-        for tool in SURFACE_TOOLS
+    """Everything a Live session may call: the drawing tool, then the data tools."""
+    return [
+        RENDER_TOOL,
+        *(
+            {"name": tool["name"], "description": tool["description"], "parameters": tool["parameters"]}
+            for tool in gemini_tools()
+        ),
     ]
-    data = [
-        {
-            "name": tool["name"],
-            "description": tool["description"],
-            "parameters": tool["parameters"],
-        }
-        for tool in gemini_tools()
-    ]
-    return [*surfaces, *data]
 
 
 def live_schema(schema: Any) -> Any:
@@ -193,8 +184,8 @@ def setup_config(
     its turn, and speaks again whenever the result lands. The relay's turn
     accounting — one promise-nudge per turn, "did this turn call anything", the
     panel refresh after a call — all assume the result arrives *inside* the turn
-    that asked for it, and the surface tools answer in milliseconds from a
-    fixture, so there is no silence for an async call to fill. Naming the old
+    that asked for it, and the tools answer in milliseconds from a fixture, so
+    there is no silence for an async call to fill. Naming the old
     behaviour keeps the relay honest; the setting is what 3.8 offers for exactly
     this case.
     """
@@ -216,8 +207,7 @@ def setup_config(
         ],
         # Naming the language *is* how auto-detection is turned off: the SDK
         # documents detection as the default "when language_codes is omitted",
-        # and the `language_auto` flag that used to say so is deprecated — and
-        # is a nested object rather than the boolean it reads like, so setting
+        # and the deprecated `language_auto` flag is a nested object rather than the boolean it reads like, so setting
         # it to False is rejected outright by the setup frame.
         "input_audio_transcription": {"language_codes": [language]},
         "output_audio_transcription": {},
@@ -237,92 +227,17 @@ def setup_config(
     return config
 
 
-async def run_voice_tool(
-    name: str,
-    args: dict[str, Any],
-    context: Any,
-) -> dict[str, Any]:
-    """Runs one function call and says what to do with the result.
-
-    A surface tool produces two things — a summary for the model to *say* and
-    A2UI for the browser to draw — and the split is the point. Sending the whole
-    surface back to the model would put a flight list in its context and invite
-    it to read the list out, which is the one thing this mode is for not doing.
-    """
-    if name.startswith("show_") or name == "render_a2ui_express":
-        try:
-            # The tools take the trip as arguments; the session holds it, so it
-            # goes under whatever the model chose to pass. Handed over *beside*
-            # the arguments rather than merged into them, because one surface
-            # needs to know the difference: the trip panel cannot otherwise tell
-            # a traveller changing their dates from a model drawing the form
-            # again over dates they already gave.
-            surface = await build_surface(
-                name, args, context.provider, context.day(), trip=dict(context.trip)
-            )
-            messages = compile_surface(surface)
-            return {
-                "response": {"shown": True, "summary": surface.summary},
-                "ui": {"surfaceId": surface.surface_id, "messages": messages},
-            }
-        except Exception as error:  # noqa: BLE001 - the model gets the sentence
-            # And the log gets the rest of it. The model is told a surface did
-            # not draw, in a sentence it can act on, which is right — and for a
-            # long time that was the *only* place it was said, so a surface
-            # that stopped drawing on this door looked from the outside like a
-            # model that had decided not to draw one.
-            print(f"voice surface {name} failed: {error!r}", flush=True)
-            return {"response": {"shown": False, "error": str(error)}}
-
-    result, is_error = await run_tool(name, args, context)
-    if is_error:
-        return {"response": {"error": result}}
-    drawer = _DRAWN_BY.get(name)
-    return {
-        "response": without_the_rows(
-            name,
-            result,
-            f"Call `{drawer}` to put them on screen." if drawer else "",
-        )
-    }
-
-
-#: Lookups whose answer is a list, and the tool that puts that list on screen.
-#:
-#: Both are offered in a call and the overlap was called intentional and cheap.
-#: It is neither. Given a tool that returns fares and a tool that draws them,
-#: the model takes the one that returns them — it is one call and it answers the
-#: question — and then does the only thing you can do with a list you are
-#: holding out loud, which is read it.
-#:
-#: That is not a hypothesis. A traveller asked for San Francisco to New York and
-#: got "options range from $249 to $306… the return starts at $460 and goes up
-#: to $632. You can see the options here for both legs", with nothing on screen
-#: at all. Four fares recited down a phone line, and a sentence that was not
-#: true.
-_DRAWN_BY = {
-    "search_flights": "show_flight_options",
-    "search_hotels": "show_hotel_options",
-}
-
-
-#: Withholding the rows themselves is `without_the_rows`, in `brain/macros.py`,
-#: beside the table that files them — because the two have to name the same key
-#: and this door's own copy did not. It looked for `result["items"]`, no tool
-#: here has ever returned that key, and so for as long as it existed every fare
-#: went to the model untouched: the four fares read down a phone line that the
-#: table above describes were never actually withheld. One function, keyed off
-#: the filing table, is how that stops being possible.
-
-
-@dataclass
-class _Pressed:
-    """A press relayed over the call's socket, in A2UI's action shape."""
-
-    name: str
-    surface_id: str
-    context: dict[str, Any] = field(default_factory=dict)
-    data_model: dict[str, Any] | None = None
+def render(
+    express: str, canvas: Canvas, surface_id: str, values: Any
+) -> tuple[list[tuple], list[str]]:
+    """Draws one block through the processor; the events, and what went wrong."""
+    text = express if "<a2ui>" in express else f"<a2ui>\n{express.strip()}\n</a2ui>"
+    # The model names its own cards in a call; a block with no surface line
+    # draws into `surface_id`, the next `voice-N`.
+    drawing = Drawing(canvas, surface_id, values, creatable="any")
+    events = [*drawing.feed(text), *drawing.close()]
+    problems = [event[1] for event in events if event[0] in ("rejected", "advice")]
+    return events, problems
 
 
 #: How long a message for the model waits on a turn that never says it ended.
@@ -334,56 +249,26 @@ _WAIT_FOR_TURN_SECONDS = 20.0
 
 @dataclass
 class VoiceSession:
-    """One call: the traveller's socket on one side, Gemini Live on the other.
-
-    The transport is injected rather than assumed — `send` is a coroutine taking
-    a dict, and `incoming` is an async iterator of dicts — so the relay does not
-    know whether it is talking to a FastAPI WebSocket or a test. That is not
-    only for testing: it is what stopped the Worker version being written around
-    one runtime's socket, which is where three of its bugs came from.
-    """
+    """One call. The transport is injected: `send` takes a dict, `incoming`
+    yields dicts, so the relay does not know a WebSocket from a test."""
 
     api_key: str
     trip: dict[str, Any]
     provider: Any
     contract: str
-    #: Called with the trip whenever a tool changes it, so the typed
-    #: conversation and the panels see the same trip this call is changing.
+    #: Called with the trip whenever it changes, so the typed conversation sees it.
     on_trip: Any = None
     model: str = ""
     voice: str | None = None
-    #: What the browser knows about when the traveller is. See `agent._today`.
+    #: What the browser knows about when the traveller is. See `_today`.
     client_hints: dict[str, Any] | None = None
-    skill: str = "express-modular"
-    #: Where to pick the conversation up from, if there is one to pick up.
-    #:
-    #: `None` starts a new one. Anything else is a handle the API gave us on a
-    #: previous connection, and opening with it means the model still knows what
-    #: was said before the microphone was last released.
+    #: Where to pick the conversation up from: a handle from a previous
+    #: connection, or None to start a new one.
     resume: str | None = None
     #: Called with each fresh handle, so the next connection has one to use.
     on_resume: Any = None
-    #: The decision shape the standing panels were last drawn for, from the
-    #: stored session rather than from the trip.
-    #:
-    #: It has to come from outside the call, and that is the whole point.
-    #: Derived from the trip instead — which is what this did — it claimed the
-    #: panel was already drawn for whatever decisions the trip happened to
-    #: hold, so a call opening on an existing trip never redrew the panel and a
-    #: call on a trip that had no panel never drew one at all.
-    shape: str | None = None
-    #: Called when a panel is drawn, so the next turn and the next call know.
-    on_shape: Any = None
-    #: The Express the agent composed each standing panel with, by surface.
-    #:
-    #: The same record the typed door keeps (`Session.panels`), for the same
-    #: reason: a panel's rows are conditional, so a fare chosen out loud needs
-    #: the panel *redrawn*, and re-rendering the agent's own composition against
-    #: the trip as it now stands costs no model call. Without it a call left the
-    #: panel saying "Nothing settled yet" beside a chosen flight.
-    panels: dict[str, str] = field(default_factory=dict)
-    #: Called with the compositions whenever one is learned.
-    on_panels: Any = None
+    #: The mirror of the renderer, shared with the typed door.
+    canvas: Canvas = field(default_factory=Canvas)
     #: Injectable so a test can drive a whole call from a scripted session.
     client: Any = None
 
@@ -395,10 +280,10 @@ async def relay(
 ) -> None:
     """Runs one call until either side hangs up.
 
-    The browser sends microphone bytes and receives audio plus A2UI — exactly
-    what the Flutter client sends and receives. It could open the
-    socket to Google itself; then every client would need the catalog, the
-    compiler, the tools and the trip, and "thin client" would stop being true.
+    The browser sends microphone bytes, typed lines and presses, and receives
+    audio, transcripts and A2UI. It could open the socket to Google itself;
+    then every client would need the catalog, the processor, the tools and the
+    trip.
     """
     import asyncio
 
@@ -406,8 +291,11 @@ async def relay(
 
     today = _today(session.client_hints)
     trip = dict(session.trip)
+    canvas = session.canvas
     voice_model = session.model or VOICE_MODEL
     loop = asyncio.get_running_loop()
+    places, currency = await places_and_currency(session.provider, trip)
+    trip["currency"] = currency
 
     async def announce(message: dict[str, Any]) -> None:
         try:
@@ -416,92 +304,81 @@ async def relay(
             pass
 
     def save(patch: dict[str, Any]) -> None:
-        nxt = model.merge(trip, patch)
+        merged = model.merge(trip, patch)
         trip.clear()
-        trip.update(nxt)
+        trip.update(merged)
         if session.on_trip:
             session.on_trip(dict(trip))
 
     context = ToolContext(trip=trip, provider=session.provider, save=save, today=today)
 
+    #: The cards this turn drew, and the rows its lookups returned for them.
+    this_turn: set[str] = set()
+    lookups = canvas.lookups
+    canvas.this_turn = set()
+
+    def values(surface_id: str) -> dict[str, Any]:
+        out = data.session_values(trip, places)
+        # This turn's lookup rows go to the cards this turn draws or updates.
+        if surface_id in canvas.this_turn or surface_id == next_card():
+            out.update(data.turn_values(lookups, trip))
+        return out
+
+    #: How many cards this call has drawn, so each gets its own id.
+    drawings = len([s for s in canvas.surfaces if s.startswith("voice-")])
+
+    def next_card() -> str:
+        return f"voice-{drawings + 1}"
+
     system = build_system_prompt(
-        variant=session.skill,
         surface="inline",
-        surface_id="voice-1",
-        catalog_id=CATALOG_ID,
+        surface_id="voice",
         trip=trip,
         today=today,
-        # Tools, not Express. This session answers in audio, so anything the
-        # model writes is *spoken* — and `voice_tools()` carries no compiler to
-        # send a notation to. Teaching it Express here made it emit
-        # `<a2ui> surface("voice-1") …` into its reply about one turn in three:
-        # read aloud, never drawn, and invisible in every log.
+        on_screen=canvas.surfaces,
         draws="tools",
     )
 
     genai = session.client or Client(api_key=session.api_key)
-    # The decision shape when the panels were last drawn. A voice call changes
-    # the trip like any other turn, and the panel beside it went on showing the
-    # trip as it was when the call started — which is the gap this closes.
-    #
-    # `session.shape`, not `decision_shape(trip)`. Initialising it from the
-    # trip claimed the panel was drawn for the decisions the trip already had,
-    # which is the same lie the typed door was telling: a call that opens on an
-    # existing trip then only ever redraws if the shape moves *past* where the
-    # call started, and a call on a trip with no panel at all never draws one.
-    # The session carries what was actually drawn, across calls, which is the
-    # only thing that can answer "is there a panel".
-    shape = session.shape
-    #: How many surfaces this call has drawn, so each gets its own id.
-    drawings = 0
-    #: Whether the turn in flight has already been handed back once.
-    #:
-    #: Out here rather than inside `_one_turn`, because the turn that *answers*
-    #: a nudge is a new `receive()`: the SDK breaks its loop on `turn_complete`,
-    #: nudge or no nudge. A flag that lived with the loop was reset with it, so
-    #: a model that answered "Let me look into that" with "Let me check on
-    #: that" was nudged again — and the once-only guard was a comment.
+    #: Whether the turn in flight has already been handed back once. Outside
+    #: the turn loop, because the turn that answers a nudge is a new receive().
     nudged = False
-    #: The agent's panel compositions, to replay when the decisions move.
-    panels: dict[str, str] = dict(session.panels)
-
-    def learned(composed: dict[str, str]) -> None:
-        """Keeps a composition the agent wrote for a standing panel."""
-        if not composed:
-            return
-        panels.update(composed)
-        if session.on_panels:
-            session.on_panels(dict(panels))
-
-    #: Messages for the model that arrived while it was mid-turn.
-    #:
-    #: A press or a typed line sent into a Live turn still in progress — still
-    #: calling tools, still speaking — was answered twice, sometimes three
-    #: times: once as the turn carried on, and again as the queued message's own
-    #: turn. Tapping a fare while the agent was finishing its sentence about the
-    #: fares was enough. So the model is handed one message per turn: anything
-    #: arriving mid-turn waits for `turn_complete`, then goes in order.
+    #: Messages for the model that arrived while it was mid-turn: one message
+    #: per turn, so a press during a turn is not answered twice.
     waiting: list[str] = []
-    #: When the turn in flight started, or None between turns.
     in_flight: float | None = None
-    #: One panel refresh at a time; see `refresh_panels`.
     panel_lock = asyncio.Lock()
+
+    async def keep_current() -> None:
+        """The trip, and every surface's bound data, after anything changed."""
+        nonlocal places, currency
+        if trip.get("destination"):
+            places, currency = await places_and_currency(session.provider, trip)
+            trip["currency"] = currency
+        await announce({"type": "trip", "trip": dict(trip)})
+        for event in ui_events(canvas.provide(values), done=True):
+            await announce(event)
+
+    async def panel_if_missing() -> None:
+        """The first panel, drawn through the Interactions API so it is not spoken."""
+        if "sidebar" in canvas.surfaces or not trip.get("destination"):
+            return
+        async with panel_lock:
+            if "sidebar" in canvas.surfaces:
+                return
+            async for event in draw_panel(
+                session.api_key, session.client, canvas, trip, today, values
+            ):
+                await announce(event)
 
     try:
         async with genai.aio.live.connect(
             model=voice_model,
             config=setup_config(system, session.voice, resume=session.resume),
         ) as live:
-            # `ready` is sent here and not a moment earlier. The Worker sent it
-            # as soon as the setup frame had been *written*, which is a
-            # different claim: a rejected key, a model that does not exist and a
-            # tool schema the API will not accept all get as far as the write.
-            # The client then believed it had a session and found out otherwise
-            # when somebody spoke — survivable while `ready` only unlocked a
-            # microphone, not survivable now that instantiating is recorded.
-            await announce(
-                {"type": "ready", "model": voice_model, "contract": session.contract}
-            )
+            # Sent once the session is really open, not when the setup frame
+            # was written: a rejected key or model gets that far.
+            await announce({"type": "ready", "model": voice_model, "contract": session.contract})
 
             async def tell_model(text: str) -> None:
                 """One user turn for the model, now or once its turn is over."""
@@ -516,131 +393,47 @@ async def relay(
                 )
 
             async def turn_over() -> None:
-                """The model finished a turn: hand it the next message, if any."""
                 nonlocal in_flight
                 in_flight = None
+                this_turn.clear()
+                canvas.this_turn.clear()
+                await panel_if_missing()
                 if waiting:
                     await tell_model(waiting.pop(0))
 
-            async def refresh_panels(drew_panel: bool) -> None:
-                """The trip, its panels' data, and a redraw if the decisions moved.
-
-                The redraw is the agent's own composition re-rendered against the
-                trip as it now stands (`replay`) — the same as the typed door, and
-                no model call. Only a call with no composition yet asks the panel
-                model to draw one, which it then keeps.
-
-                One at a time. A press can land while a turn's panel draw is still
-                with the model, and two draws at once let the older one — drawn
-                from the trip before the press — arrive last and put "Nothing
-                settled yet" back beside a chosen flight.
-                """
-                async with panel_lock:
-                    await _refresh_panels(drew_panel)
-
-            def replayed() -> list[dict[str, Any]]:
-                """Every kept composition, drawn from the trip as it stands."""
-                out: list[dict[str, Any]] = []
-                for surface, source in panels.items():
-                    drawn = finish(replay(source, trip, surface, PROTOCOL_VERSION), trip)
-                    if drawn:
-                        out.append({"type": "ui", "surfaceId": surface, "messages": drawn, "done": True})
-                return out
-
-            async def _refresh_panels(drew_panel: bool) -> None:
-                nonlocal shape
-                # Saying "make it three of us" out loud changed the trip, and the
-                # record beside the call went on saying two.
-                await announce({"type": "trip", "trip": dict(trip)})
-                for event in panel_events(trip):
-                    await announce(event)
-                moved = model.decision_shape(trip)
-                if moved == shape or not trip.get("destination"):
-                    return
-                # The money on the panel is in the trip's currency, as on the
-                # typed side; the record learns it the first time it is needed.
-                if not trip.get("currency"):
-                    try:
-                        trip["currency"] = currency_for(await session.provider.destinations(), trip)
-                    except Exception:  # noqa: BLE001 - dollars beat no panel
-                        pass
-                drawn = [] if drew_panel else replayed()
-                redrawn = drew_panel or bool(drawn)
-                if not redrawn:
-                    composed, drawn = await _redraw_panels(session, trip, today, genai)
-                    learned(composed)
-                    redrawn = bool(drawn)
-                    # The trip moved while the model was drawing: what it drew is
-                    # already out of date. Its composition is still the agent's,
-                    # so draw that from the trip as it is now instead.
-                    if model.decision_shape(trip) != moved and composed:
-                        moved = model.decision_shape(trip)
-                        drawn = replayed()
-                for event in drawn:
-                    await announce(event)
-                # Reported only when a panel really was drawn for it, as the typed
-                # door does: a failed draw is retried on the next change rather
-                # than recorded as current.
-                if redrawn:
-                    shape = moved
-                    if session.on_shape:
-                        session.on_shape(shape)
-
             async def handle_press(message: dict[str, Any]) -> None:
-                """A press during the call: recorded by the host, then told.
-
-                Recorded onto the trip first, onto the hop it belongs to, with the
-                same function the typed door uses — so the panel moves the moment
-                the traveller taps, whatever the model then says. It used to reach
-                the call only as a sentence, and the panel waited on the model
-                calling `save_trip`, which it sometimes announced and did not do.
-                """
-                body = message.get("action") if isinstance(message.get("action"), dict) else {}
-                action = _Pressed(
-                    name=str(body.get("name") or ""),
-                    surface_id=str(body.get("surfaceId") or ""),
-                    context=body.get("context") if isinstance(body.get("context"), dict) else {},
-                    data_model=body.get("dataModel") if isinstance(body.get("dataModel"), dict) else None,
-                )
-                if not action.name:
-                    return
-                recorded = await record_press(action, trip, session.provider, today)
-                trip.clear()
-                trip.update(recorded.trip)
+                """A press during the call, as v1.0 renderer messages: recorded, then told."""
+                renderer = inbound.read(message)
+                canvas.negotiate(renderer.capabilities)
+                action = renderer.action
+                edits = canvas.edits(renderer.data_model, action.surface_id if action else None)
+                lines = [f"[renderer] {error.describe()}" for error in renderer.errors]
+                if action is not None:
+                    recorded = await record_press(action, trip, session.provider, today, edits)
+                    trip.clear()
+                    trip.update(recorded.trip)
+                    lines.insert(0, describe_action(action, recorded.leg))
+                    if recorded.refused:
+                        lines.append("[interface] Refused, and not saved: " + " ".join(recorded.refused))
+                elif edits:
+                    save(model.screen_patch(trip, edits))
                 if session.on_trip:
                     session.on_trip(dict(trip))
-                await refresh_panels(False)
-                said = describe_action(action, recorded.leg)
-                if recorded.refused:
-                    said += " [interface] Refused, and not saved: " + " ".join(recorded.refused)
-                await tell_model(said)
+                await keep_current()
+                if lines:
+                    await tell_model("\n\n".join(lines))
 
             async def pump_client() -> None:
-                """Microphone bytes and typed text, upstream."""
+                """Microphone bytes, typed text and presses, upstream."""
                 async for message in incoming:
                     kind = message.get("type")
                     if kind == "audio":
                         await live.send_realtime_input(
-                            audio={
-                                "data": message["data"],
-                                "mime_type": "audio/pcm;rate=16000",
-                            }
+                            audio={"data": message["data"], "mime_type": "audio/pcm;rate=16000"}
                         )
                     elif kind == "audio_end":
-                        # The microphone stopped; let the model take its turn.
-                        #
-                        # This is the frame the whole feature was missing. The
-                        # model answers on voice activity detection, and VAD
-                        # decides somebody has stopped talking by *hearing* the
-                        # silence after them. A browser that stops sending the
-                        # moment the traveller stops speaking never sends that
-                        # silence, so the model waits for audio that is not
-                        # coming and nothing happens — which is exactly what it
-                        # looked like.
-                        #
-                        # Ending the audio stream says it explicitly. The
-                        # session stays open: this is not a hang-up, it is the
-                        # end of one thing said.
+                        # The microphone stopped. Without this the model waits
+                        # for the silence after speech that never arrives.
                         await live.send_realtime_input(audio_stream_end=True)
                     elif kind == "text" and message.get("text"):
                         await tell_model(str(message["text"]))
@@ -650,126 +443,54 @@ async def relay(
                         break
 
             async def pump_live() -> None:
-                nonlocal drawings
-                """Audio, transcripts, tool calls and surfaces, downstream.
-
-                `receive()` is **one turn**, not the session. The SDK's own loop
-                is `while result := await self._receive(): ... if complete:
-                break` — so an `async for` over it ends the moment the model
-                stops talking, and this function returned. `_race` then saw a
-                pump finish and tore the call down.
-
-                Every Live conversation in this app was therefore exactly one
-                turn long: the first answer arrived, the traveller replied, and
-                nothing ever came back. It looked like the model ignoring them,
-                which is why it read as "voice does not work" rather than as a
-                loop that had quietly ended.
-
-                So the turns are the outer loop and `receive()` is the inner
-                one, which is how the SDK's own examples read once you notice
-                they call it per turn.
-                """
-                nonlocal shape
-                # A turn that yielded nothing is a closed session, not a quiet
-                # one: that is how this ends when the socket goes away, rather
-                # than spinning on an exhausted stream.
+                # `receive()` is one turn, not the session, so turns are the
+                # outer loop. A turn that yields nothing is a closed session.
                 while await _one_turn():
                     pass
 
             async def _one_turn() -> bool:
-                """One model turn. False when the session has nothing left."""
-                nonlocal drawings
-                nonlocal shape
-                nonlocal nudged
+                nonlocal drawings, nudged, in_flight
                 alive = False
-                # Per turn, not per session: what this turn said and whether it
-                # did anything. Reset on every `turn_complete` below, because a
-                # turn that already earned its nudge must not spend the next
-                # turn's one too.
                 spoken_this_turn = ""
                 called_this_turn = False
                 cut_off = False
-                #: Whether this turn put a panel up, by whatever route.
-                drew_panel = False
-                nonlocal in_flight
                 async for frame in live.receive():
                     alive = True
-                    if in_flight is None:
-                        # Speech starts a turn too, and nothing tells us when;
-                        # the first frame of the answer is when it shows.
-                        in_flight = loop.time()
                     content = getattr(frame, "server_content", None)
+                    # Only the model's own output starts a turn. A setup or
+                    # resumption frame is not one, and marking it would queue
+                    # the traveller's first message behind a turn that never
+                    # comes.
+                    if in_flight is None and (content is not None or getattr(frame, "tool_call", None)):
+                        in_flight = loop.time()
                     if content is not None:
                         turn = getattr(content, "model_turn", None)
                         for part in getattr(turn, "parts", None) or []:
-                            inline = getattr(part, "inline_data", None)
-                            data = getattr(inline, "data", None)
-                            if data:
-                                # Already 24 kHz PCM. Straight through: decoding
-                                # it here would only be to re-encode it.
-                                await announce({"type": "audio", "data": _b64(data)})
+                            audio = getattr(getattr(part, "inline_data", None), "data", None)
+                            if audio:
+                                await announce({"type": "audio", "data": _b64(audio)})
                         spoken = getattr(content, "output_transcription", None)
                         if getattr(spoken, "text", None):
-                            # Belt and braces over the prompt. The instruction
-                            # says not to write interface code on this channel;
-                            # if a turn does it anyway, the traveller should not
-                            # have to *hear* it. Dropping it from the transcript
-                            # cannot unsay the audio, but it keeps the written
-                            # record readable and makes the mistake obvious in
-                            # a way that a wall of Express does not.
                             said = _without_markup(spoken.text)
                             spoken_this_turn += said
                             if said:
-                                await announce(
-                                    {"type": "transcript", "text": said, "who": "agent"}
-                                )
+                                await announce({"type": "transcript", "text": said, "who": "agent"})
                         heard = getattr(content, "input_transcription", None)
                         if getattr(heard, "text", None):
-                            await announce(
-                                {"type": "transcript", "text": heard.text, "who": "you"}
-                            )
+                            await announce({"type": "transcript", "text": heard.text, "who": "you"})
                         if getattr(content, "interrupted", False):
-                            # The traveller spoke over the answer. The model
-                            # has already stopped; the browser has not, because
-                            # it queues audio ahead of playback and would go on
-                            # saying a sentence nobody is listening to. Told,
-                            # it drops the queue.
-                            #
-                            # And a cut-off turn is not one that promised and
-                            # did nothing — it is one the traveller ended.
-                            # Prodding it would talk over the very person who
-                            # just asked it to stop.
+                            # They spoke over the answer: the browser drops its
+                            # queued audio, and a cut-off turn is not nudged.
                             cut_off = True
                             await announce({"type": "interrupted"})
                         if getattr(content, "turn_complete", False):
-                            # A turn that promised and did nothing is not over.
-                            #
-                            # Measured, not guessed: asked for flights six
-                            # times, this said "Let me find some flights for
-                            # you" and ended the turn five times — the exact
-                            # sentence the brief forbids by name, in a brief
-                            # that says drawing is not optional in bold. The
-                            # traveller hears a promise, watches an unchanged
-                            # screen, and concludes the app is broken.
-                            #
-                            # No amount of further wording fixes a 5-in-6
-                            # instruction-following gap, so the turn is handed
-                            # back once with what it actually did. Once, and
-                            # only when nothing was called and nothing drawn:
-                            # a nudge that can itself be ignored must not be
-                            # able to loop.
-                            if (
-                                _promised(spoken_this_turn)
-                                and not called_this_turn
-                                and not cut_off
-                            ):
+                            # A turn that promised and did nothing is handed
+                            # back once, with what it did.
+                            if _promised(spoken_this_turn) and not called_this_turn and not cut_off:
                                 if not nudged:
                                     nudged = True
                                     await live.send_client_content(
-                                        turns={
-                                            "role": "user",
-                                            "parts": [{"text": _NUDGE}],
-                                        },
+                                        turns={"role": "user", "parts": [{"text": _NUDGE}]},
                                         turn_complete=True,
                                     )
                                     continue
@@ -779,99 +500,66 @@ async def relay(
                             nudged = False
                             await turn_over()
 
-                    call = getattr(frame, "tool_call", None)
-                    calls = getattr(call, "function_calls", None) or []
+                    calls = getattr(getattr(frame, "tool_call", None), "function_calls", None) or []
                     if calls:
                         called_this_turn = True
                         responses = []
+                        changed = False
                         for function in calls:
                             args = dict(getattr(function, "args", None) or {})
-                            await announce(
-                                {"type": "tool", "name": function.name, "input": args}
-                            )
-                            # One surface per drawing, not one per tool.
-                            #
-                            # Surfaces were keyed by what they showed, so every
-                            # flight search in a call wrote to `mcp-flights`:
-                            # "flights to Madrid", then "what about Lisbon", and
-                            # the second replaced the first while the traveller
-                            # was still looking at it. The typed side had the
-                            # same bug under a different name and the same fix —
-                            # a call is a conversation, and a conversation is a
-                            # list of things asked, not one card rewritten.
-                            #
-                            # Only set when the model did not choose one itself,
-                            # so it can still redraw a surface on purpose.
-                            if function.name.startswith("show_") and not args.get("surfaceId"):
-                                drawings += 1
-                                args["surfaceId"] = f"voice-{drawings}"
-                            outcome = await run_voice_tool(function.name, args, context)
-                            drawn = outcome.get("ui")
-                            if drawn:
-                                await announce(
-                                    {
-                                        "type": "ui",
-                                        "surfaceId": drawn["surfaceId"],
-                                        "messages": finish(drawn["messages"], trip),
-                                        "done": True,
-                                    }
+                            await announce({"type": "tool", "name": function.name, "input": args})
+                            if function.name == RENDER_TOOL["name"]:
+                                card = next_card()
+                                events, problems = render(
+                                    str(args.get("express") or ""), canvas, card, values
                                 )
-                            # And the card the agent asked for on a write.
-                            #
-                            # `draw: {macro: "Ask"}` on `save_trip` is how the
-                            # opening form gets on screen — the date range, a
-                            # counter per hop, the airport picker — and how the
-                            # panel gets its first `Trip()`. The typed door has
-                            # honoured it since it was added. This door ran the
-                            # tool and dropped the argument on the floor.
-                            #
-                            # Measured: "I want to go to Madrid" produced
-                            # `save_trip(draw: {macro: "Ask", ...})` and no
-                            # surface at all, and the agent then asked for the
-                            # departure airport out loud with nothing on screen
-                            # to answer it with. Every spoken turn that needed
-                            # a control was a question with no controls — which
-                            # is the thing this mode's brief spends a section
-                            # telling it not to do.
-                            after, source = await _closing_draw(
-                                function.name, args, trip, context, drawings + 1
-                            )
-                            if after:
-                                drawings += 1
-                                for event in after:
-                                    await announce(event)
-                                    # The agent drew the panel itself, so the
-                                    # host has nothing to spend a model call
-                                    # on. `draw: {macro: "Trip"}` is routed to
-                                    # the sidebar by `DRAWS_ONTO`, which is how
-                                    # one card in a tool call becomes the
-                                    # panel.
-                                    if event["surfaceId"] in REBUILT_IN_A_TURN:
-                                        drew_panel = True
-                                        learned({event["surfaceId"]: source})
-
+                                drew = sorted({event[1] for event in events if event[0] == "ui"})
+                                if card in drew:
+                                    drawings += 1
+                                this_turn.update(drew)
+                                for event in events:
+                                    if event[0] == "ui":
+                                        await announce(
+                                            {"type": "ui", "surfaceId": event[1], "messages": event[2], "done": True}
+                                        )
+                                response: dict[str, Any] = {"shown": bool(drew), "surfaces": drew}
+                                if problems:
+                                    response["problems"] = problems
+                            else:
+                                before = dict(trip)
+                                result, is_error = await run_tool(function.name, args, context)
+                                landed = (
+                                    data.file_rows(lookups, function.name, args, result, trip)
+                                    if not is_error
+                                    else None
+                                )
+                                changed = changed or landed is not None or trip != before
+                                response = (
+                                    {"error": result}
+                                    if is_error
+                                    else data.without_the_rows(
+                                        function.name,
+                                        result,
+                                        next_card(),
+                                        landed[1],
+                                        shown=canvas.shows(landed[0]),
+                                    )
+                                    if landed
+                                    else result
+                                )
+                                if not isinstance(response, dict):
+                                    response = {"result": response}
                             responses.append(
-                                {
-                                    "id": getattr(function, "id", None),
-                                    "name": function.name,
-                                    "response": outcome["response"],
-                                }
+                                {"id": getattr(function, "id", None), "name": function.name, "response": response}
                             )
-                        # The turn is paused until this lands, so it goes back in
-                        # one frame rather than one per call.
+                        # The turn is paused until these land, so they go in one frame.
                         await live.send_tool_response(function_responses=responses)
+                        if changed:
+                            if session.on_trip:
+                                session.on_trip(dict(trip))
+                            await keep_current()
 
-                        # The panels, which a voice call used to leave stale —
-                        # the same refresh, and the same replay, as a press.
-                        await refresh_panels(drew_panel)
-
-                    # A fresh handle, as the API issues them.
-                    #
-                    # Kept rather than announced: this is the server's business,
-                    # and a client that had to carry it would be a client that
-                    # could lose it. `resumable` is false while a turn is in
-                    # flight — a handle taken then would resume to a half-spoken
-                    # answer — so only a resumable one is worth keeping.
+                    # A fresh resumption handle, kept rather than announced.
                     update = getattr(frame, "session_resumption_update", None)
                     if update is not None and getattr(update, "resumable", False):
                         handle = getattr(update, "new_handle", None)
@@ -881,204 +569,25 @@ async def relay(
                                 session.on_resume(handle)
 
                     if getattr(frame, "go_away", None):
-                        # Google's session reached its own time limit. That is
-                        # not the traveller's conversation ending — it is a
-                        # connection ending — and the difference is the whole
-                        # reason the handle above is kept.
-                        #
-                        # Ending the turn loop here closes the browser's socket,
-                        # and the next microphone press opens a new session. With
-                        # a handle, that new session is the same conversation
-                        # picked up where it stopped; without one it is a
-                        # stranger who has never heard of the trip, which is
-                        # what made releasing the microphone feel like a reset.
+                        # Google's session reached its time limit. With a
+                        # handle, the next connection picks the conversation up.
                         if not session.resume:
                             await announce(
                                 {
                                     "type": "error",
-                                    "message": "The Live session is closing — start "
-                                    "another when ready.",
+                                    "message": "The Live session is closing — start another when ready.",
                                 }
                             )
                         return False
-
                 return alive
 
-            # Both directions at once, and either ending ends the call: a
-            # browser that closed should not leave a Live session running, and a
-            # Live session that closed has nothing left to send.
+            # Either side ending ends the call.
             await _race(asyncio, pump_client(), pump_live())
 
     except Exception as error:  # noqa: BLE001 - every failure reaches the caller
         await announce({"type": "error", "message": _describe_live_error(error)})
     finally:
         await announce({"type": "turn_end"})
-
-
-async def _closing_draw(
-    tool: str,
-    args: dict[str, Any],
-    trip: dict[str, Any],
-    context: Any,
-    number: int,
-) -> tuple[list[dict[str, Any]], str]:
-    """The card a write asked for, as `ui` events, and the Express it came from.
-
-    The source comes back so a panel drawn this way (`draw: {macro: "Trip"}`)
-    can be kept and replayed when the trip moves. See `closing_express`.
-
-    The same macro expansion the typed door does, from the same table, so a
-    spoken `save_trip(draw: {macro: "Ask"})` draws the form a typed one draws.
-    It was not here at all, which is why a call could ask for a departure
-    airport and put no picker up to answer with.
-
-    `airports` and `currency` are fetched because the form is useless without
-    them: `Ask()` builds its origin picker from the airports the provider
-    actually flies, and `ChoicePicker.options` is static in the schema, so the
-    choices have to be in hand at the moment the macro expands. An empty list
-    draws a picker with nothing in it, which is worse than the question.
-
-    Failures are silent, as they are on the other door: a bad `draw` must not
-    cost the traveller a turn they are in the middle of saying.
-    """
-    surface_id = f"voice-{number}"
-    closing = closing_express(tool, args.get("draw"), surface_id)
-    if not closing:
-        return [], ""
-    try:
-        where_to = await context.provider.destinations()
-        airports = airport_choices(await context.provider.origins(), where_to)
-        currency = currency_for(where_to, trip)
-        # On the record for the same reason as the typed door: the finishing
-        # passes total in numbers and file the code beside them.
-        if currency:
-            trip["currency"] = currency
-    except Exception:  # noqa: BLE001 - a picker nobody can fill is not a dead turn
-        airports, currency = {}, "USD"
-    try:
-        drawn = finish(
-            as_wire(
-                expand_macros(
-                    parser_for(surface_id).compile(closing, is_final=True),
-                    trip,
-                    airports,
-                    currency,
-                )
-            ),
-            trip,
-        )
-    except Exception as why:  # noqa: BLE001 - reported, never raised at a caller
-        print(f"voice draw failed after {tool}: {why!r}", flush=True)
-        return [], ""
-    # Grouped by the surface each message addresses, because a `Trip()` goes to
-    # the panel rather than to this turn's card — see `DRAWS_ONTO`.
-    out: list[dict[str, Any]] = []
-    for message in drawn:
-        body = (
-            message.get("createSurface")
-            or message.get("updateComponents")
-            or message.get("updateDataModel")
-            or {}
-        )
-        out.append(
-            {
-                "type": "ui",
-                "surfaceId": body.get("surfaceId") or surface_id,
-                "messages": [message],
-                "done": True,
-            }
-        )
-    return out, closing
-
-
-async def _redraw_panels(
-    session: VoiceSession,
-    trip: dict[str, Any],
-    today: str,
-    genai: Any,
-) -> tuple[dict[str, str], list[dict[str, Any]]]:
-    """A model-composed panel, for a trip a voice call changed, and its source.
-
-    Returned rather than announced, with the source: the caller checks the trip
-    has not moved while this was drawing before showing it, and keeps the
-    source so the next change is a replay rather than another model call.
-
-    Drawn through the Interactions API rather than the Live session, because
-    asking the Live model for a panel would make it *say* the panel. The same
-    server, the same catalog, the same skill; a different mouth.
-
-    Failures are silent on purpose: the traveller is mid-conversation and their
-    answer already arrived. A panel one turn stale is a much smaller problem
-    than an error over a call that is going fine.
-    """
-    composed: dict[str, str] = {}
-    events: list[dict[str, Any]] = []
-    for surface_id in REBUILT_IN_A_TURN:
-        system = build_system_prompt(
-            variant=session.skill,
-            surface=surface_id,
-            surface_id=surface_id,
-            catalog_id=CATALOG_ID,
-            trip=trip,
-            today=today,
-        )
-        stream = ExpressStream(
-            parser=parser_for(surface_id),
-            components=COMPONENT_NAMES,
-            validator=VALIDATOR,
-            required=REQUIRED_PROPERTIES,
-            trip=trip,
-            # The trip's currency, or `Trip()` draws its money in dollars.
-            currency=str(trip.get("currency") or "USD"),
-        )
-        drawn: list[dict[str, Any]] = []
-        said: list[str] = []
-        try:
-            async for event in stream_interaction(
-                api_key=session.api_key,
-                # The same model and effort the typed door uses, from the same
-                # constants. These were `DEFAULT_MODEL`/`low` here and
-                # `FALLBACK_MODEL`/`minimal` there, off byte-identical prompts —
-                # so the sidebar changed character when you switched runtime,
-                # for no reason anybody chose.
-                model=PANEL_MODEL,
-                input=[
-                    {"type": "user_input", "content": [{"type": "text", "text": PANEL_REQUEST}]}
-                ],
-                system_instruction=system,
-                thinking_level=PANEL_EFFORT,
-                client=session.client,
-            ):
-                if event["type"] == "text":
-                    said.append(event["delta"])
-                    drawn.extend(
-                        {
-                            "type": "ui",
-                            "surfaceId": surface_id,
-                            "messages": finish(on_its_own_surface(item.messages, surface_id), trip),
-                            "done": item.done,
-                        }
-                        for item in stream.push(event["delta"])
-                        if isinstance(item, Ui)
-                    )
-            drawn.extend(
-                {
-                    "type": "ui",
-                    "surfaceId": surface_id,
-                    "messages": finish(on_its_own_surface(item.messages, surface_id), trip),
-                    "done": item.done,
-                }
-                for item in stream.end()
-                if isinstance(item, Ui)
-            )
-        except Exception:  # noqa: BLE001 - a stale panel beats an error on a call
-            continue
-        if drawn:
-            events.extend(drawn)
-            source = composition_for("".join(said), surface_id)
-            if source:
-                composed[surface_id] = source
-    return composed, events
 
 
 async def _race(asyncio_module: Any, *coroutines: Any) -> None:
@@ -1100,15 +609,7 @@ async def _race(asyncio_module: Any, *coroutines: Any) -> None:
 #: well-formed block that will never be delivered in one piece.
 _MARKUP = re.compile(
     r"</?a2ui>|^\s*(?:surface\s*\(|\$/[\w/]+\s*=|\w+\s*=\s*[A-Z]\w*\s*\()"
-    # …or a component tag. The Express alternatives above were the whole list,
-    # and a Live turn said this out loud instead:
-    #
-    #     Let me pull the best JFK to Madrid fares for April.<List
-    #     variant="divided"><FlightOption id="IB8158" airline="Iberia" …
-    #
-    # `<` and a capital is enough, as in the typed gate: by the time those two
-    # characters are on the wire the turn has gone wrong, and waiting to see
-    # which component it is only decides how much of it gets spoken.
+    # …or a component tag.
     r"|<\s*[A-Z][A-Za-z0-9]*(?:\s|/?>)",
     re.MULTILINE,
 )
@@ -1122,19 +623,14 @@ def _without_markup(text: str) -> str:
     "less than a2ui greater than, surface, open paren, quote, voice dash one" —
     which is the worst thing this app can do to somebody who is listening.
 
-    The prompt is what stops it (see `SPOKEN_DRAWING`); this is what keeps the
-    written record clean when the prompt is not enough. It cannot unsay the
-    audio, and it deliberately does not try to *compile* what it finds: there is
-    no surface id to trust, no guarantee the fragment is whole, and drawing
-    something half-said is worse than drawing nothing.
+    The prompt is what stops it (see `SPOKEN_DRAWING`); this keeps the written
+    record clean when it does not. Nothing found here is drawn: a half-spoken
+    fragment is not a block.
     """
     found = _MARKUP.search(text)
     if not found:
         return text
-    # Truncated at the first tag rather than filtered line by line. The leak
-    # that prompted this put the sentence and the markup on one line — "…fares
-    # for April.<List variant=…" — so dropping whole lines threw away the one
-    # thing worth saying. Nothing after the first tag is speech.
+    # Truncated at the first tag: nothing after it is speech.
     return text[: found.start()].strip()
 
 

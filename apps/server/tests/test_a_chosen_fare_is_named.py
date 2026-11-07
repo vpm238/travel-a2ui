@@ -89,18 +89,10 @@ class TestTheRecordIsCompleted:
 
 class TestThePanelNamesIt:
     def test_the_return_card_binds_its_airline(self) -> None:
-        from travel_a2ui.brain.catalog import parser_for
-        from travel_a2ui.brain.express import as_wire
-        from travel_a2ui.brain.macros import expand
+        from travel_a2ui.brain import data
 
         trip = saved_by_the_agent({"destination": "JFK", "selectedFlight": "AF3760", "flightPrice": 316})
-        source = 'surface("sidebar")\nrows = Trip("Your trip")\nroot = Column([rows])'
-        wire = as_wire(expand(parser_for("sidebar").compile(source, is_final=True), trip))
-        cards = [
-            node
-            for message in wire
-            for node in (message.get("createSurface") or {}).get("components", [])
-            if node.get("component") == "FlightOption"
-        ]
-        assert len(cards) == 2
-        assert cards[1]["airline"] == {"@path": "/trip/legs/0/airline"}, "drawn with a blank"
+        hops = data.panel_rows(trip)["hops"]
+        fares = [fare for hop in hops for fare in hop["flights"]]
+        assert len(fares) == 2
+        assert fares[1]["airline"], "the return is drawn with a blank where its airline goes"

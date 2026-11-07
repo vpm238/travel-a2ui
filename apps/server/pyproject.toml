@@ -1,99 +1,23 @@
 [project]
 name = "travel-a2ui-server"
 version = "0.1.0"
-description = "The travel agent, server-side: A2UI out, React renderer in front."
+description = "The travel agent, server-side: A2UI v1.0 out, any A2UI renderer in front."
 requires-python = ">=3.11"
 
 dependencies = [
-  # The A2UI reference implementation. Compiling Express, pruning the catalog
-  # and generating the skills all go through it rather than through a port —
-  # which is the reason this server is Python: `agent_sdks/` upstream contains
-  # exactly one language, and it is this one.
+  # The A2UI Python SDK: the processor that writes the prompt snippet and
+  # reads what the model writes, the macro expander, the renderer state that
+  # validates every outbound message, and the skill generator.
   #
-  # Pinned exactly, both of them, and the second one is the point: `a2ui-core`
-  # is a *transitive* dependency, and it is the one that broke us.
-  #
-  # `>=0.6.0` was an open upper bound, so every image build resolved to
-  # whatever had shipped that morning. On 2026-09-28 at 17:39 UTC, agent-sdk
-  # 0.7.0 and core 0.2.0 went out in the same minute; core 0.2.0 removes
-  # `PayloadValidator.validate` — the whole-payload entry point — and splits it
-  # into `validate_component` and `validate_function`. Both `express.py` and
-  # `surfaces.py` call `.validate(messages)`, so every surface on the deployed
-  # service died with "'PayloadValidator' object has no attribute 'validate'"
-  # and the app drew nothing at all.
-  #
-  # Nothing caught it, and that is the more useful half of the story. A
-  # developer machine and a CI runner with a warm environment both keep the
-  # versions they already have; only a clean image build resolves afresh. So
-  # the tests passed, the checks passed, the deploy went green, and the thing
-  # that reached users was the only build that had ever installed 0.2.0.
-  #
-  # On 0.7.0/0.2.0, which is a much larger release than the number suggests:
-  # the v1.0 protocol schema, per-version processing adapters, the typed
-  # `a2ui.builder` tree, `a2ui.skill.SkillGenerator` published at last, an
-  # expression parser and an RPC handler. Sixty-one new modules.
-  #
-  # Two things had to move for it. `_VALIDATOR` in `doors/interactions.py`
-  # finds `validate(messages)` wherever this SDK keeps it — it was on
-  # `catalog.validator` and is now on the catalog. And `scripts/build_catalog.py`
-  # puts each component's own properties first in `allOf`, because core 0.2.0
-  # resolves the local `$ref` that 0.1.1 left alone, which silently made
-  # `weight` the first positional argument of every component in the catalog.
-  #
-  # Pinned exactly, both, because they are pre-1.0 and ship in the same minute
-  # as each other: an unbounded range makes every image build a silent upgrade
-  # nobody reviewed, which is exactly how the last outage happened.
-  # On 0.9.0/0.4.0, which is where A2UI 1.0 becomes reachable: `a2ui-core`
-  # 0.4.0 ships the 1.0 schema, the 1.0 basic catalog and a 1.0 processing
-  # adapter, and the agent SDK's Express compiler emits 1.0 envelopes — one
-  # `createSurface` carrying its own components *and* data model, where 0.9.1
-  # needed three messages for the same surface.
-  #
-  # Two things moved with it and are worth knowing before the next bump. The
-  # Express format graduated out of `inference_formats.experimental`. And the
-  # whole-payload validator is gone: `PayloadValidator` now checks one
-  # component at a time, so `whole_payload_validator` composes the old question
-  # out of the new answer — the third shape that API has had in three releases.
-  #
-  # The pin is load-bearing in a way it has not been before. This SDK stamps
-  # `"v1.0"` on an envelope; upstream has already merged the rename that makes
-  # it `"1.0"` (a2ui#3726) and it is sitting unreleased. An unbounded range
-  # would pick that up on the next image build and every message would be
-  # rejected by a renderer expecting the other spelling — the same shape of
-  # outage as 0.7.0/0.2.0, which is the story above.
-  #
-  # **What the next release is worth taking it for**, and what taking it costs,
-  # measured rather than guessed — upstream main installed into a scratch venv
-  # and fed this app's own catalog and macros:
-  #
-  #   - a2ui#3712 adds `ExpressResponseStream`, so `ExpressParser.open_stream`
-  #     compiles an `<a2ui>` block incrementally instead of buffering it to
-  #     `</a2ui>`. It emits `createSurface` the moment `root = ...` compiles,
-  #     then delta `updateComponents`, and heals an unclosed string under
-  #     `progressive_keys` (default `{"text"}`). Confirmed working on a real
-  #     block of ours: the surface arrived three chunks in.
-  #
-  #     That is `brain/express.py`'s hard half, done upstream and run against a
-  #     conformance suite. Adopting it would leave this app the parts that are
-  #     actually ours — the fence gate, the per-hop "half asked" check, macro
-  #     expansion, the repair path — and delete the statement splitting and the
-  #     string healing underneath them.
-  #
-  #   - The blocker is one string and it is not stageable. Upstream rejects
-  #     every message this app sends with `Input should be '1.0'`, and 0.9.0
-  #     rejects `"1.0"`, so the rename has to land in the same commit as the
-  #     bump: `PROTOCOL_VERSION` here, `ProtocolVersion` and the three
-  #     `=== 'v1.0'` tests in `packages/express/src` that decide `@path` and
-  #     `@call`, the default in `apps/web/src/components/Protocol.tsx`, and a
-  #     regeneration of the compiled examples and the goldens.
+  # Pinned exactly, both, because they are pre-1.0 and release together: an
+  # open range makes every image build an upgrade nobody reviewed, and
+  # `a2ui-core` is a transitive dependency that has changed public APIs
+  # between minor versions before. Bump them together, deliberately.
   "a2ui-agent-sdk==0.10.0",
   "a2ui-core==0.5.0",
   # Both Gemini surfaces this app uses: `client.interactions` for the typed
-  # loop, `client.aio.live` for voice. The voice half replaces a hand-rolled
-  # relay that had four bugs in it, three of them silent.
-  # Capped rather than pinned exactly. These keep compatibility across a minor,
-  # and holding them at one patch means never getting a security fix without a
-  # commit. Having a cap at all is what the A2UI pair above did not.
+  # loop, `client.aio.live` for voice. Capped rather than pinned: these keep
+  # compatibility across a minor, and a cap still takes security fixes.
   "google-genai>=2.25.0,<3",
   # Not 0.142, and the ceiling is load-bearing: FastAPI 0.142 wants
   # `opentelemetry-api>=1.44`, while `google-adk` — which arrives under

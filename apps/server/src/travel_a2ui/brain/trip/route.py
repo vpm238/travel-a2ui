@@ -186,14 +186,9 @@ def journey(trip: Trip) -> list[dict[str, Any]]:
         last = index == len(route) - 1
 
         wants: list[str] = []
-        # **A hop is dated by when it leaves.** It used to want an end date too,
-        # and the last hop of every route can never have one — so every trip
-        # ever recorded ended with a hop reporting, on every turn for the rest
-        # of the conversation, that it was still waiting for dates. Measured:
-        # the model was told a hop wanted dates, reached for the one tool that
-        # asks for dates, and drew the date picker again over the hotels
-        # somebody had just chosen. "It gets the dates thing again" is this
-        # line.
+        # **A hop is dated by when it leaves.** The last hop of a route never
+        # has an end date, so wanting one would leave every trip reporting a
+        # hop still waiting for dates, and the model asking for them again.
         if not leg.get("startDate"):
             wants.append("dates")
         if leg.get("travelers") is None:

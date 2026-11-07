@@ -2,9 +2,7 @@
  * One component, on its own, at `/catalog/<Name>`.
  *
  * What the component reference (`docs/catalog.md`) photographs, and a link
- * anyone can share to a single component. It used to be a second React app,
- * `apps/gallery`, duplicating the Catalog view to have somewhere to draw one
- * component at a time; the web app draws it now, from the same build-time
+ * anyone can share to a single component, drawn from the same build-time
  * reference and the same SDK renderer as everything else.
  */
 

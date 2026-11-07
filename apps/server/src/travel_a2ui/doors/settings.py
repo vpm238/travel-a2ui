@@ -1,15 +1,10 @@
 """The choices a door makes before the agent is asked anything.
 
 Which model answers, how hard it thinks, who answers when it is busy, which
-model draws the panels, and what a panel redraw asks for. None of it is about a
-particular door, and all of it has to be the same in every door — a traveller
-who switches from typing to talking should not get a different agent.
-
-They were in `interactions.py`, and the voice relay reached across for them with
-imports written inside its function bodies. Door importing door is how the two
-quietly end up on two models, which is exactly what happened once: the typed
-door drew panels with Flash Lite at `minimal` and the Live door drew them with
-Flash 3.8 at `low`, off byte-identical prompts.
+model draws the panel, and what a panel turn asks for. None of it is about a
+particular door, and all of it has to be the same in every door: a traveller
+who switches from typing to talking should not get a different agent, so both
+doors import these rather than naming their own.
 
 `_today` is here for the same reason: both doors are told what day it is by the
 client, and both have to read that the same sceptical way.
@@ -24,23 +19,12 @@ from typing import Any
 #: Tool loops need a ceiling: a model that keeps calling tools should stop, not bill.
 MAX_TOOL_ROUNDS = 6
 
-#: What a panel redraw asks for.
+#: What a panel turn asks for.
 #:
 #: Short, because the surface brief in the skill already says what a panel is
-#: and what it may contain. This only has to name the macro.
-#:
-#: Naming it is the whole point. The old wording — "redraw this surface for
-#: where the trip stands now" — got a panel written out by hand, every value a
-#: literal read off the trip it was handed. A panel like that is right once and
-#: then frozen: the host files a pressed fare at `/trip/selectedFlight` the
-#: instant it lands, before the model is even asked, and the literal on screen
-#: cannot hear it. So the traveller pressed a fare and watched the sidebar say
-#: nothing about it until a whole further turn had drawn a whole further panel —
-#: measured at 20.8s and 29.0s, which is this turn plus the one after it.
-#:
-#: `Trip()` is bound, so the same press moves it in the time a websocket frame
-#: takes, and this request is then needed once per route rather than once per
-#: decision.
+#: and what it may contain. This only has to name the macro. `Trip()` is bound
+#: to `/trip` and `/panel`, so once drawn the panel stays current by data alone:
+#: a pressed fare reaches it in one `updateDataModel`, not a further turn.
 PANEL_REQUEST = (
     "Draw this surface with `Trip()` — bound, so it stays current by itself. "
     "Only the surface — no prose."
@@ -49,43 +33,17 @@ PANEL_REQUEST = (
 
 #: The model that answers when nobody picks one, and the panel's own model.
 #:
-#: This was Flash Lite, picked on latency: fastest to a first surface, and for a
-#: turn that is mostly recall — the catalog is in the prompt, the job is to bind
-#: three components — that looked like the right trade.
+#: Flash 3.8 rather than Flash Lite. Lite is faster to a first surface, but on
+#: a round trip it reliably priced the outbound hop, said so, and moved on to
+#: hotels with the traveller still abroad; Flash 3.8, on the same prompt and
+#: tools, recorded the hop home and priced both. A fast wrong answer is not
+#: fast. Lite stays one keystroke away in the header.
 #:
-#: It was the wrong trade, and the thing that showed it was the way home. A
-#: round trip needs a ticket each way; the skills say so, the route facts say
-#: the journey does not come back, and the `search_flights` result says it again
-#: at the moment the fares arrive. Flash Lite read all three, answered "here are
-#: the *outbound* flights" — so it had understood — and moved on to hotels, with
-#: the traveller still in Madrid. Four attempts, at `minimal` and at `low`, all
-#: four the same. On Flash 3.8, the same prompt and the same tools, first try:
-#: it recorded the hop home as a leg, priced both hops, and had an opinion about
-#: each.
+#: The cost is availability: Flash 3.8 is sometimes busy ("high demand"), which
+#: is what `FALLBACK_MODEL` is for.
 #:
-#: So the ceiling was never the instructions. A demo that is fast at being wrong
-#: is not fast, and the seconds are worth an agent that finishes the journey.
-#: Flash Lite is still one keystroke away in the header for anyone who wants to
-#: watch the difference.
-#:
-#: The honest caveat, measured on the same eval, is availability. Of twelve
-#: turns on Flash 3.8, four came back with no surface at all — every one of them
-#: "currently experiencing high demand", a capacity spike rather than anything
-#: the model got wrong. Of the eight that ran, eight drew the right thing; Flash
-#: Lite, never once busy, drew it ten times in twelve. That is what
-#: `FALLBACK_MODEL` is for: the turn degrades to the model that is up rather
-#: than ending the conversation, and the traveller is told it happened.
-#:
-#: Lives here rather than in `main.py` because the voice relay redraws the
-#: standing panel with its own model call, and a second opinion about the
-#: default is how two doors quietly end up on two models.
-#:
-#: **Read from the environment here, and only here.** It used to be a literal
-#: while `http.py` read `os.environ` itself in three places — so setting
-#: `DEFAULT_MODEL` moved the conversation and left everything that imported
-#: this constant behind. The panel rebuild and the voice relay's panel both read
-#: it, and both went on calling the hardcoded model: a deployment that switched
-#: off a model because it was hanging still hung, on every panel.
+#: Read from the environment here and nowhere else, so setting `DEFAULT_MODEL`
+#: moves every door and every panel together.
 DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL", "gemini-3.8-flash")
 
 #: How hard that model thinks when nobody says. See `supported_level`, which
@@ -95,40 +53,19 @@ DEFAULT_EFFORT = "low"
 
 #: Who answers when the chosen model is busy. See `_open` in `gemini.py`.
 #:
-#: Measured on the eval that settled the default: twelve of thirty-six turns on
-#: Flash 3.8 came back with no surface at all, every one of them "currently
-#: experiencing high demand" — the model was not there, rather than wrong. A
-#: capacity spike on Google's side is not something a traveller halfway through
-#: planning a trip can do anything about, and "the model is busy" is a worse
-#: answer than a smaller model's surface. So the turn degrades instead of dying,
-#: and the client is told which model actually answered.
+#: A capacity spike on Google's side is not something a traveller halfway
+#: through planning can do anything about, and "the model is busy" is a worse
+#: answer than a smaller model's surface. So the turn degrades instead of
+#: failing, and the client is told which model actually answered.
 FALLBACK_MODEL = os.environ.get("FALLBACK_MODEL", "gemini-3.5-flash-lite")
 
 
-#: Which model draws the panels, and how hard it thinks — for **every** door.
+#: Which model draws the panel, and how hard it thinks, for every door.
 #:
-#: Named once because it used to be named twice, differently: the typed door
-#: drew panels with Flash Lite at `minimal` and the Live door drew them with
-#: Flash 3.8 at `low`, off byte-identical prompts. Same brain, same brief, two
-#: different answers, and a traveller who switched runtimes saw the sidebar
-#: change character for no reason they could act on.
-#:
-#: Chosen on numbers. `tools/eval/panels.py`, one fixed trip with two hops and
-#: two party sizes, two passes of four and five runs, after the sidebar brief
-#: stopped asking for Change buttons inside a template:
-#:
-#:     flash-lite/minimal   3/4 then 5/5 drew   ·  5.8 then 12.4 Change  ·  ~3.1s
-#:     flash-3.8/low        4/4 then 5/5 drew   ·  8.0 then  9.6 Change  ·  ~5.6s
-#:
-#: Both are good now, which is the actual finding: the bug was the brief, not
-#: the model — before the fix this cell was 0.0 to 3.3 Change buttons on a
-#: sidebar whose only interaction is Change. Flash 3.8 is 9/9 across the two
-#: passes against 8/9, and the panel is the record of what somebody decided, so
-#: the two and a half seconds buys the run that does not come back thin. Worth
-#: re-running when either model moves; the small one may well win it back.
-#:
-#: `PANEL_MODEL` on its own, or `DEFAULT_MODEL` if only that is set — a panel
-#: should follow the conversation off a model unless somebody says otherwise.
+#: The panel is the record of what somebody decided, so it gets the
+#: conversation's model rather than the cheapest one; and it is drawn once per
+#: conversation (data keeps it current after that), so the extra seconds are
+#: paid once. `PANEL_MODEL` on its own, or `DEFAULT_MODEL` if only that is set.
 PANEL_MODEL = os.environ.get("PANEL_MODEL", DEFAULT_MODEL)
 PANEL_EFFORT = "low"
 

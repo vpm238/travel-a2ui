@@ -1,21 +1,17 @@
 """The travel agent, server-side.
 
-Everything the traveller sees is composed here and sent as A2UI. The React app
-in front is a renderer and nothing else: it holds no travel logic, no catalog
-knowledge and no opinion about what a trip is — which is what makes the same
-surfaces draw in an MCP host, or a Flutter app, or a voice call.
-
-Python because the A2UI agent SDK is Python. `agent_sdks/` upstream contains
-exactly one language, and a TypeScript port of it was 2,943 lines kept in step
-with a reference implementation by a parity suite. That port now only has to
-exist for as long as this server does not.
+The model composes everything the traveller sees, in A2UI; this server reads
+what it writes with the A2UI Python SDK, validates it against a mirror of the
+renderer, and sends it. The React and Flutter apps in front are renderers and
+nothing else: they hold no travel logic and no opinion about what a trip is.
 
 Two packages, and the split is the architecture:
 
-  `brain`   what the agent knows and what it can do — skills, tools, the trip
-            record, the surface passes. Knows nothing about transports.
-  `doors`   the same brain reachable four ways: the Interactions API, the Live
-            API, MCP, and the HTTP app that mounts them.
+  `brain`   what the agent knows and what it can do: the prompt, the A2UI
+            processor and macros, the tools, the trip record, the data surfaces
+            bind. Knows nothing about transports.
+  `doors`   the same brain reachable three ways: a typed turn over SSE, a
+            voice call over a WebSocket, and the HTTP app that mounts them.
 
 The renderers are outside this package entirely — `renderers/react` and
 `renderers/flutter` — and neither holds any travel logic. They

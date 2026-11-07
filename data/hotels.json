@@ -17,9 +17,7 @@
     "`near` is what makes 'somewhere close to Kurfürstendamm' answerable. The",
     "neighbourhood asked for is matched against the hotel's own area *and* this",
     "list, so a hotel two streets off the avenue is a hit and one in Neukölln is",
-    "not. It used to be neither: the asked-for neighbourhood was written onto",
-    "every hotel that came back, so all five claimed to be exactly where you",
-    "asked, wherever they were."
+    "not. A hotel never claims the asked-for neighbourhood unless it is in it."
   ],
   "cities": {
     "BER": [

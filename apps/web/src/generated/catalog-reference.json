@@ -22,18 +22,8 @@
     {
      "name": "category",
      "required": false,
-     "static": true,
-     "enum": [
-      "food",
-      "sight",
-      "transit",
-      "stay",
-      "outdoors",
-      "shopping",
-      "event",
-      "free"
-     ],
-     "description": "Drives the icon and colour the host uses."
+     "static": false,
+     "description": "Drives the icon and colour: one of 'food', 'sight', 'transit', 'stay', 'outdoors', 'shopping', 'event', 'free'. Defaults to 'sight'."
     },
     {
      "name": "location",
@@ -128,8 +118,8 @@
     {
      "name": "options",
      "required": true,
-     "static": true,
-     "description": "Every place that may be chosen. Static values only."
+     "static": false,
+     "description": "Every place that may be chosen: a list of {value, label, code?, detail?}, or a binding to one, e.g. $/places/origins. `value` is what is stored when chosen ('JFK', 'Madrid'); `label` is the place as a person names it."
     },
     {
      "name": "kind",
@@ -477,7 +467,6 @@
     }
    ],
    "express": "root = ChoicePicker(\"Cabin\", \"mutuallyExclusive\", [{label: \"Economy\", value: \"economy\"}, {label: \"Premium\", value: \"premium\"}], $/cabin)",
-   "description": "A component that allows selecting one or more options from a list.",
    "messages": [
     {
      "version": "1.0",

@@ -13,11 +13,11 @@ metadata:
 ## Positional Component Signatures
 
 Use these exact positional signatures to instantiate components. Do not output property keys:
-• ActivityItem(title, time?, category? (static), location?, duration?, note?, action? (static), done?, onRemove? (static), weight? (static), accessibility? (static))
+• ActivityItem(title, time?, category?, location?, duration?, note?, action? (static), done?, onRemove? (static), weight? (static), accessibility? (static))
   - Description: A single scheduled thing inside an ItineraryDay — a meal, a museum, a transfer, a check-in.
   - title: What it is, e.g. 'Prado Museum'.
   - time: Start time as a display string, e.g. '10:00'.
-  - category: Drives the icon and colour the host uses. Must be one of: 'food', 'sight', 'transit', 'stay', 'outdoors', 'shopping', 'event', 'free'
+  - category: Drives the icon and colour: one of 'food', 'sight', 'transit', 'stay', 'outdoors', 'shopping', 'event', 'free'. Defaults to 'sight'.
   - location: Where it happens, e.g. 'Paseo del Prado 23'.
   - duration: How long to budget, e.g. '2h'.
   - note: One short practical note, e.g. 'Book the timed entry'.
@@ -26,29 +26,23 @@ Use these exact positional signatures to instantiate components. Do not output p
   - onRemove: Fired when the traveler drops this activity. Give every activity one: a day plan is theirs to edit.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
-• AirportPicker(label, value, options (static), kind? (static), placeholder?, weight? (static), accessibility? (static), checks? (static))
+• AirportPicker(label, value, options, kind? (static), placeholder?, weight? (static), accessibility? (static), checks? (static))
   - Description: A search field for one place — where the trip leaves from or goes to — with a type-ahead list of the places this deployment serves. Use it for an origin or a destination; never a ChoicePicker of airports.
   - label: The question, e.g. 'Where from?'.
   - value: Bound path the chosen option's `value` is written to, e.g. `$/trip/origin`.
-  - options: Every place that may be chosen. Static values only.
-    List of maps keys:
-    * value - What is stored when chosen, e.g. 'JFK' or 'Madrid'.
-    * label - The place as a person names it, e.g. 'New York'.
-    * code - Its airport code, e.g. 'JFK'.
-    * detail - A second line, e.g. 'Spain' or 'North America'.
+  - options: Every place that may be chosen: a list of {value, label, code?, detail?}, or a binding to one, e.g. $/places/origins. `value` is what is stored when chosen ('JFK', 'Madrid'); `label` is the place as a person names it.
   - kind: Which end of the trip this is; sets the icon. Must be one of: 'origin', 'destination'
   - placeholder: Hint in the empty field, e.g. 'City or airport'.
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
-• Ask(heading? (static), label? (static))
-  - Description: Everything the trip still needs, as one surface with one button.
+• Booked(heading? (static))
+  - Description: Every flight chosen on the route, in hop order: the answer to "show me
+    my flights".
     
-    The opening turn, and every turn that needs a gap filled: dates, who is
-    going, where they are flying from, per hop, bound to the record and
-    pre-filled from it. Only what is missing — a hop whose date is known gets
-    no date control, and nothing already settled is asked again.
-  - heading: The line at the top, e.g. 'Madrid in April — two travellers'.
-  - label: What the button says. Defaults to 'Find flights'.
+    Binds `/booked`, which the host keeps equal to the fares on the record, so
+    nothing is typed out and nothing is left off however many hops there are.
+    Each card shows its route and fare, with a `change` action for its hop.
+  - heading: Optional line above the list, e.g. 'Your five flights'.
 • Button(child (static), variant? (static), action (static), weight? (static), checks? (static))
   - child: The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button.
   - variant: A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link. Must be one of: 'default', 'primary', 'borderless'
@@ -124,27 +118,21 @@ Use these exact positional signatures to instantiate components. Do not output p
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
 • Flights(heading? (static), selected? (static), hop? (static))
-  - Description: The fares a lookup filed, as a list the traveller can press.
+  - Description: A pressable list of the fares `search_flights` returned.
     
-    Write this instead of a fare card per result. `search_flights` puts its rows
-    at `/flights` and this reads them, so it can go on screen *before* the
-    lookup — draw it, then call the tool, and it fills in as the rows land.
+    Binds the rows at `/flights`, so draw it before or after the lookup: it
+    fills in when the rows land. With `hop`, it binds that hop's own rows
+    (`/fares/N`), so several hops' lists drawn in one turn each keep their
+    fares; pass the same `hop` to `search_flights`. Each card says airline,
+    number, times, stops and price, and pressing one sends `select_flight`
+    with the fare's id, price, airline, number, times and airports.
   - heading: Optional line above the list, e.g. 'Outbound · JFK → MAD'.
-  - selected: Data path holding the current choice, e.g. '/trip/selectedOutbound', so the chosen card stays marked.
-  - hop: Which hop these fares are for, when it is not the first. Hop two is '/legs/0'; the press carries it so the fare lands on that leg.
+  - selected: Path holding the chosen fare, e.g. '/trip/selectedFlight', so the chosen card is marked.
+  - hop: Which hop these fares are for, counted from one (hop two is the trip's legs/0); the press carries it.
 • Highlights(heading? (static))
-  - Description: What a destination is worth going for, as the lookup filed it.
+  - Description: What a destination is worth going for, as `get_destination` returned it.
     
-    `get_destination` puts its highlights at `/highlights` and this reads them,
-    so it goes on screen *before* the lookup — draw it, then call the tool.
-    
-    This is the one card to draw on a planning turn, and the reason is the
-    clock. Writing a four-day plan into `save_trip` is the longest thing you
-    say, and nothing about the plan is known until it is written, so there is
-    nothing to promise: the traveller waited twenty-four seconds at a blank
-    space. The city's own highlights are known a great deal sooner, they are
-    what the plan is going to be built out of, and they are worth reading on
-    their own. Draw them, write the plan, then draw `Itinerary()`.
+    Binds the rows at `/highlights`; draw it before or after the lookup.
   - heading: Optional line above the list, e.g. 'Worth your time in Berlin'.
 • HotelCard(name, price, action (static), imageUrl?, neighborhood?, rating?, amenities?, selected?, badge?, weight? (static), accessibility? (static))
   - Description: A place to stay, presented as a rich card with imagery, rating and nightly price.
@@ -160,11 +148,12 @@ Use these exact positional signatures to instantiate components. Do not output p
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
 • Itinerary(heading? (static))
-  - Description: The day plan already recorded on this trip, drawn in full.
+  - Description: The day plan recorded on the trip, one card per day.
     
-    Write it once in `save_trip({days: [...]})` and then draw it with this,
-    rather than writing every day and every activity a second time as
-    components. Pass a heading to put a line of your own above it.
+    Binds `/days`, which the host keeps equal to the `days` you saved with
+    `save_trip`, so record the plan there and draw it with this rather than
+    writing every activity out. Each activity can be dropped (`drop_activity`
+    with its day and index) and each day can ask for more (`add_activity`).
   - heading: Optional line above the plan, e.g. 'Four days in Berlin'.
 • ItineraryDay(title, children, date?, summary?, action? (static), onAdd? (static), weight? (static), accessibility? (static))
   - Description: One day of a trip. Its children are the day's ActivityItem components, in chronological order.
@@ -238,13 +227,15 @@ Use these exact positional signatures to instantiate components. Do not output p
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
 • Stays(heading? (static), selected? (static), hop? (static))
-  - Description: The stays a lookup filed, as a list the traveller can press.
+  - Description: A pressable list of the stays `search_hotels` returned.
     
-    `search_hotels` puts its rows at `/hotels`. Same shape as `Flights()`: draw
-    it, then call the tool.
+    Binds the rows at `/hotels`; draw it before or after the lookup. With
+    `hop`, it binds that hop's own rows (`/rooms/N`); pass the same `hop` to
+    `search_hotels`. Pressing a card sends `select_hotel` with the stay's id,
+    name and price.
   - heading: Optional line above the list, e.g. 'Stays in Madrid'.
-  - selected: Data path holding the current choice, e.g. '/trip/selectedHotel'.
-  - hop: Which hop is staying the night, when it is not the first.
+  - selected: Path holding the chosen stay, e.g. '/trip/selectedHotel'.
+  - hop: Which hop stays the night, counted from one.
 • Text(text, variant? (static), weight? (static))
   - text: The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation.
   - variant: A hint for the base text style. Must be one of: 'caption', 'body'
@@ -265,14 +256,14 @@ Use these exact positional signatures to instantiate components. Do not output p
   - weight: The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
   - accessibility: Assistive technology: {label, description, live, hidden}.
 • Trip(heading? (static), money? (static))
-  - Description: The trip as it stands, as the standing panel draws it.
+  - Description: The trip so far, hop by hop: the standing panel.
     
-    One section per hop of the route the trip currently has, every value bound
-    to the record so that what the traveller settles next arrives without
-    another turn. Write it on the panel — `surface("sidebar")` — and nothing
-    needs to redraw it again.
+    Binds `/panel`, which the host keeps current, so it never needs drawing
+    again: each hop shows its route, its dates and party, and its fare and stay
+    once they are chosen, each with a `change` action naming what and which
+    hop. Draw it on the panel, `surface("sidebar")`.
   - heading: Optional line at the top, e.g. 'Your trip to Madrid'.
-  - money: Whether to show what has been committed and what is left of the budget. Off by default — a panel saying "Total 0" is a claim about a trip nobody has priced — and worth asking for the moment a fare or a nightly rate is chosen.
+  - money: True to add what has been committed so far and what is left of the budget, once something is priced.
 • TripCalendar(start, end?, marks? (static), title?, caption?, action? (static), weight? (static), accessibility? (static))
   - Description: The trip's dates on a month grid: the travel days drawn as one highlighted band, with a glyph on any day worth marking. Read-only — use it wherever a traveler should *see* when they are going (the panel, the home surface, beside a chosen flight), and DateRangePicker when they are still choosing.
   - start: First travel day as yyyy-MM-dd, e.g. '2027-04-12'. Bind it to the trip — `$/trip/startDate` — so the band moves when the dates do.
@@ -367,7 +358,7 @@ You are composing travel UI. A few house rules that matter more than anything el
   fare card per result: re-typing what a lookup just handed you is the largest
   thing a turn says and the only part of it that can be wrong.
 
-      fares = Flights("Outbound · JFK → MAD", "/trip/selectedOutbound")
+      fares = Flights("Outbound · JFK → MAD", "/trip/selectedFlight")
 
   Pass the heading, the path your choice is recorded at, and the hop when it is
   not the first. The macro draws that heading itself, so do not also write a
@@ -382,11 +373,9 @@ You are composing travel UI. A few house rules that matter more than anything el
   is the longest thing you say and nothing about the plan exists until it is
   written, so draw the highlights while you write it. Without this the
   traveller waits at an empty space for the whole plan.
-- **And then sends the plan's heading with it.** `save_trip({days: […], draw:
-  {heading: "Four days in Berlin"}})` draws `Itinerary()` the moment the write
-  lands. Saying `Itinerary()` in a block of your own afterwards is correct and
-  costs a whole further round for nine characters — measured at 16.7s. The
-  result tells you the card is up; say one sentence and end the turn.
+- **Then draw the plan with `Itinerary("Four days in Berlin")`.** It binds
+  `/days`, which the host fills the moment `save_trip({days: […]})` lands, so
+  draw it in the same reply as the write and end the turn with one sentence.
 - Every option the user could plausibly act on needs an `action`. A flight the
   user cannot select is a screenshot, not an interface.
 - And every one of them needs a name. A card is read aloud in the order it is
@@ -401,9 +390,10 @@ You are composing travel UI. A few house rules that matter more than anything el
   The one exception is DateRangePicker, whose bound values are calendar dates
   ("2026-04-12"): a trip day is a day, not an instant in some time zone.
 - When you present a set of options, bind the user's current choice into the data
-  model so a later turn can read it back — e.g. `$/trip/selectedOutbound`.
+  model so a later turn can read it back — e.g. `$/trip/selectedFlight`.
 - Keep a surface to one job. An inline card answers the message it is attached
-  to; the sidebar refines the trip in flight; the home surface summarizes.
+  to; the sidebar is the read-only record of what is settled; the home surface
+  summarizes.
 - `accessibility` also carries `live: "polite"` for a value that re-reckons
   itself and `hidden: true` for decoration. Leave the block off anything whose
   own text already reads as a sentence.
@@ -411,14 +401,25 @@ You are composing travel UI. A few house rules that matter more than anything el
 ### Examples:
 
 <a2ui>
-surface("inline-7")
-fares = Flights("Outbound · JFK → MAD · Sun 12 Apr", "/trip/selectedOutbound")
+surface("inline-1", sendDataModel=true)
+title = Text("### Madrid in April — two travellers")
+from = AirportPicker("Where from?", $/trip/origin, $/places/origins, "origin", "City or airport")
+dates = DateRangePicker("Travel dates", $/trip/startDate, $/trip/endDate, _, formatString("${calcNights(start: ${/trip/startDate}, end: ${/trip/endDate})} nights"))
+who = TravelerCounter("Travellers", $/trip/travelers, 1, 8)
+go_label = Text("Find flights")
+go = Button(go_label, "primary", Event("find_flights", userMessage="Find flights for these dates"))
+root = Column([title, from, dates, who, go], _, "stretch")
+</a2ui>
+
+<a2ui>
+surface("inline-2")
+fares = Flights("Outbound · JFK → MAD · Sun 12 Apr", "/trip/selectedFlight")
 note = Text("Prices are per traveler, round trip.")
 root = Column([fares, note])
 </a2ui>
 
 <a2ui>
-surface("sidebar")
+surface("inline-3", sendDataModel=true)
 $/filters/adults = 2
 $/filters/maxPrice = 600
 title = Text("### Refine")
@@ -429,6 +430,25 @@ stops = ChoicePicker("Stops", "mutuallyExclusive", [{label: "Any", value: "any"}
 apply = Button(apply_child, "primary", Event("apply_filters", {maxPrice: $/filters/maxPrice, adults: $/filters/adults, stops: $/filters/stops}))
 apply_child = Text("Apply")
 root = Column([title, dates, who, budget, stops, apply], _, "stretch")
+</a2ui>
+
+<a2ui>
+surface("sidebar")
+panel = Trip("Your trip to Madrid", true)
+root = Column([panel])
+</a2ui>
+
+<a2ui>
+surface("inline-4")
+$/packing = [{item: "Passport", done: true}, {item: "Adapter", done: false}]
+a1 = ActivityItem("Prado Museum", "10:00", "sight", "Paseo del Prado 23", "2h", "Book the timed entry", Event("open_activity", {id: "prado"}))
+a2 = ActivityItem("Lunch at Sobrino", "13:30", "food", "Calle de Cuchilleros 17", "1h 30m")
+a3 = ActivityItem("Retiro Park", "16:00", "outdoors", _, "1h 30m", "Rowboats until 19:00")
+day2 = ItineraryDay("Day 2 — Old Madrid", [a1, a2, a3], "Mon 13 Apr", "Art in the morning, a long lunch, green afternoon")
+packingRow = CheckBox($item, $done)
+packing = List(_template($/packing, packingRow))
+packingTitle = Text("#### Packing")
+root = Column([day2, packingTitle, packing])
 </a2ui>
 
 <a2ui>
@@ -446,20 +466,7 @@ root = Column([hello, tiles, budget, when, weather, map], _, "stretch")
 </a2ui>
 
 <a2ui>
-surface("itinerary")
-$/packing = [{item: "Passport", done: true}, {item: "Adapter", done: false}]
-a1 = ActivityItem("Prado Museum", "10:00", "sight", "Paseo del Prado 23", "2h", "Book the timed entry", Event("open_activity", {id: "prado"}))
-a2 = ActivityItem("Lunch at Sobrino", "13:30", "food", "Calle de Cuchilleros 17", "1h 30m")
-a3 = ActivityItem("Retiro Park", "16:00", "outdoors", _, "1h 30m", "Rowboats until 19:00")
-day2 = ItineraryDay("Day 2 — Old Madrid", [a1, a2, a3], "Mon 13 Apr", "Art in the morning, a long lunch, green afternoon")
-packingRow = CheckBox($item, $done)
-packing = List(_template($/packing, packingRow))
-packingTitle = Text("#### Packing")
-root = Column([day2, packingTitle, packing])
-</a2ui>
-
-<a2ui>
-surface("inline-traveler")
+surface("inline-5", sendDataModel=true)
 title = Text("### Who is travelling?")
 name = TextField("Full name (as on passport)", $/traveler/name)
 email = TextField("Email", $/traveler/email, "shortText")
@@ -467,11 +474,4 @@ seat = ChoicePicker("Seat", "mutuallyExclusive", [{label: "Window", value: "wind
 save = Button(save_child, "primary", Event("save_traveler", {name: $/traveler/name, email: $/traveler/email, seat: $/traveler/seat}))
 save_child = Text("Save traveller")
 root = Column([title, name, email, seat, save], _, "stretch")
-</a2ui>
-
-<a2ui>
-surface("home")
-$/home/budgetUsed = 1480
-surface("home")
-$/home/budgetCaption = "$1,480 of $2,000"
 </a2ui>

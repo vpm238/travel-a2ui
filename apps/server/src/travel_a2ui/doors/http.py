@@ -35,21 +35,19 @@ from .interactions import (
     CATALOG_JSON,
     DEFAULT_EFFORT as AGENT_DEFAULT_EFFORT,
     DEFAULT_MODEL as AGENT_DEFAULT_MODEL,
-    SurfaceAction,
     TurnRequest,
     WarmRequest,
     run_turn,
     warm,
 )
-from ..brain.contract import INSTANTIATION_MAX_AGE_MS, contract_stamp
-from ..brain.providers.fixture import FixtureProvider
-from ..sessions import SessionStore
-from ..brain import host_actions
+from .interactions.turn import places_and_currency, ui_events
+from ..brain import data, host_actions, inbound
 from ..brain import trip as model
-from ..brain.finishing import STANDING_SURFACES, panel_events, trip_updates
-from ..brain.finishing.lifecycle import SurfaceLifecycle, held_by_client
-from .live import VoiceSession, relay
-from ..brain.skills import SKILL_VARIANTS, describe_all_skills, is_skill_variant
+from ..brain.providers.fixture import FixtureProvider
+from ..brain.skills import describe_all_skills
+from ..brain.ui import STANDING_SURFACES
+from ..sessions import SessionStore
+from .live import INSTANTIATION_MAX_AGE_MS, VoiceSession, contract_stamp, relay
 
 _ROOT = ROOT
 
@@ -140,13 +138,7 @@ async def warm_up(
         return _no_store({"interactionId": None, "setup": None, "skipped": "no key"})
 
     return _no_store(
-        await warm(
-            WarmRequest(
-                api_key=api_key,
-                skill=str(body.get("skill") or "express-modular"),
-                model=str(body.get("model") or AGENT_DEFAULT_MODEL),
-            )
-        )
+        await warm(WarmRequest(api_key=api_key, model=str(body.get("model") or AGENT_DEFAULT_MODEL)))
     )
 
 
@@ -168,7 +160,7 @@ async def meta() -> JSONResponse:
             "catalogId": CATALOG_ID,
             "protocolVersion": PROTOCOL_VERSION,
             "defaultModel": AGENT_DEFAULT_MODEL,
-            "defaultSkill": os.environ.get("DEFAULT_SKILL", "express-modular"),
+            "defaultSkill": "express-modular",
             "models": MODELS,
             "surfaces": SURFACES,
             # The browser needs this one, unlike the Gemini key: the Maps
@@ -258,21 +250,16 @@ async def catalog() -> JSONResponse:
 async def express(request: Request) -> JSONResponse:
     """A surface's messages, as Express — by the A2UI SDK's decompiler.
 
-    For the Wire view. It used to run a TypeScript port of the decompiler in the
-    browser, which meant the page that shows the protocol also shipped a copy of
-    it to keep in step with the SDK. The server already holds the catalog and
-    the SDK, so it answers.
+    For the Wire view. The server holds the catalog and the SDK, so it answers.
     """
-    from a2ui.inference_formats.express.decompiler import ExpressDecompiler
-
-    from ..brain.catalog import CATALOG
+    from ..brain.catalog import decompile
 
     body = await _json_body(request)
     messages = body.get("messages")
     if not isinstance(messages, list) or not messages or len(messages) > 50:
         raise HTTPException(status_code=400, detail="messages must be a list of 1 to 50 A2UI messages")
     try:
-        text = ExpressDecompiler([CATALOG]).decompile(messages)
+        text = decompile(messages)
     except Exception as error:  # noqa: BLE001 - a surface that does not decompile is a 422, not a 500
         return JSONResponse({"error": f"{type(error).__name__}: {error}"}, status_code=422)
     return _no_store({"express": text})
@@ -306,13 +293,7 @@ async def _json_body(request: Request) -> dict[str, Any]:
 
 @app.post("/api/chat")
 async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> StreamingResponse:
-    """One turn, as server-sent events.
-
-    SSE rather than a WebSocket because the traffic is one-directional for the
-    length of a turn and SSE reconnects, proxies and debugs like ordinary HTTP.
-    The stream carries the same events the agent yields, so a second client
-    implements a renderer and not a protocol.
-    """
+    """One turn, as server-sent events. The request and events are `docs/transport.md`."""
     body = await _json_body(request)
     api_key = (x_goog_api_key or os.environ.get("GEMINI_API_KEY", "")).strip()
     if not api_key:
@@ -323,122 +304,67 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
 
     session_id = str(body.get("sessionId") or sessions.new_id())
     session = sessions.get(session_id)
+    renderer = inbound.read(body)
+    canvas = session.canvas
+    unrenderable = canvas.negotiate(renderer.capabilities)
+    if unrenderable is not None:
 
-    skill = body.get("skill")
-    if not is_skill_variant(skill):
-        skill = os.environ.get("DEFAULT_SKILL", SKILL_VARIANTS[0])
+        async def refused() -> AsyncIterator[bytes]:
+            yield _sse({"type": "session", "sessionId": session_id})
+            yield _sse({"type": "error", "message": unrenderable, "retryable": False})
+            yield _sse({"type": "done", "stopReason": "error"})
 
-    action_body = body.get("action")
-    action = None
-    if isinstance(action_body, dict) and action_body.get("name"):
-        action = SurfaceAction(
-            name=str(action_body["name"]),
-            surface_id=str(action_body.get("surfaceId") or "inline-1"),
-            context=action_body.get("context") or {},
-            data_model=action_body.get("dataModel"),
-            source_component_id=action_body.get("sourceComponentId"),
-        )
+        return StreamingResponse(refused(), media_type="text/event-stream")
+    held = renderer.surfaces
+    if held is not None and renderer.action is not None and renderer.action.surface_id not in held:
+        held = [*held, renderer.action.surface_id]
+    stale = canvas.reconcile(held)
 
-    # Where this turn draws.
-    #
-    # A standing surface has one id for the life of the conversation — there is
-    # one panel, and redrawing it is the point. An inline card is the opposite:
-    # it is a thing that was asked once, and the conversation is the list of
-    # them. So each one gets its own id.
-    #
-    # They used to share `inline-1`, and the renderer stores surfaces by id, so
-    # every card in the transcript was a view onto the *same* surface. Answering
-    # a question rewrote the question — and every earlier card with it — which
-    # looked like the interface refreshing itself at random. It also quietly
-    # disabled the finished-card treatment: a card is greyed and made inert once
-    # the turn that drew it is over, and that was working exactly as written
-    # against a card whose content had already been replaced.
-    #
-    # `surfaceId` in the body is still honoured, because a client re-attaching
-    # to a surface it already has is asking for that one by name.
+    # A standing surface keeps its id for the conversation; every inline card
+    # gets a new one, so answering a question never rewrites an earlier card.
     requested_surface = str(body.get("surface") or "inline")
     if requested_surface in STANDING_SURFACES:
         drawn_surface_id = requested_surface
     else:
-        drawn_surface_id = str(body.get("surfaceId") or session.next_inline_surface_id())
+        drawn_surface_id = session.next_inline_surface_id(held or ())
 
     turn = TurnRequest(
         api_key=api_key,
         model=str(body.get("model") or AGENT_DEFAULT_MODEL),
         message=str(body.get("message") or ""),
-        action=action,
-        # What the client carried beats what this instance remembers, because
-        # the client is the only party present for every turn of a conversation.
-        # A second instance has never heard of this session and would otherwise
-        # start a fresh conversation with an empty trip — mid-conversation, with
-        # nothing on screen to explain it.
+        action=renderer.action,
+        errors=renderer.errors,
+        data_model=renderer.data_model,
+        # The client's copy wins: it is the one party present for every turn.
         interaction_id=_resumed(body, "interactionId") or session.interaction_id,
         trip=_resumed(body, "trip") or dict(session.trip),
         surface=requested_surface,
         surface_id=drawn_surface_id,
-        skill=str(skill),
         effort=str(body.get("effort") or DEFAULT_EFFORT),
-        shape=_resumed(body, "shape") or session.shape,
         setup=_resumed(body, "setup") or session.setup,
-        # Server-side only, deliberately. How the agent composed the panel is
-        # not something a client should have to carry, and a client that made one
-        # up would be composing the panel. See `Session.panels`.
-        panels=dict(session.panels),
-        # What day it is where they are. The container is in UTC, and a trip is
-        # planned in the calendar the traveller is holding.
         client_hints=body.get("client") if isinstance(body.get("client"), dict) else None,
+        canvas=canvas,
         provider=provider,
     )
 
-    # Each surface created once; see `brain/finishing/lifecycle.py`. The client
-    # says what it holds when it can, because only it knows.
-    said = held_by_client(body)
-    lifecycle = SurfaceLifecycle(session.surfaces if said is None else said)
-    # A press proves its surface is on the client, whatever else it says.
-    if action is not None:
-        lifecycle.held.add(action.surface_id)
-    session.surfaces = lifecycle.held
-
-    def surfaced(event: dict[str, Any]) -> bytes | None:
-        conformant = lifecycle.event(event)
-        return _sse(conformant) if conformant is not None else None
-
     async def events() -> AsyncIterator[bytes]:
-        # The session id goes out first, so a client that did not send one
-        # knows what to send next time. Everything after it is a turn event.
         yield _sse({"type": "session", "sessionId": session_id})
+        for problem in renderer.refused:
+            yield _sse({"type": "warning", "message": f"Not read: {problem}"})
+        for event in ui_events(stale, done=True):
+            yield _sse(event)
 
-        # A press the host can answer itself.
-        #
-        # Dropping an activity from a day plan has nothing to decide: the
-        # outcome is completely determined by what was pressed. Sending it to
-        # the model costs five to fifteen seconds and a chance of it redrawing
-        # the surface while it is there. See `host_actions.py` for why the list
-        # is short and why the edit happens here rather than in the browser.
+        # A press the host answers itself: nothing to decide, so no model turn.
+        action = renderer.action
         if action is not None and host_actions.handles(action.name):
             patch = host_actions.apply(action.name, turn.trip, action.context)
             if patch is not None:
                 trip = model.merge(turn.trip, patch)
                 sessions.save(session_id, trip=trip)
-                # The same messages any other trip change produces, so every
-                # renderer applies them the way it already does — the card they
-                # pressed on first, then the panels beside it.
-                pressed = trip_updates(action.surface_id, trip)
-                if pressed:
-                    out = surfaced(
-                        {
-                            "type": "ui",
-                            "surfaceId": action.surface_id,
-                            "messages": pressed,
-                            "done": True,
-                        }
-                    )
-                    if out:
-                        yield out
-                for event in panel_events(trip):
-                    out = surfaced(event)
-                    if out:
-                        yield out
+                places, _ = await places_and_currency(provider, trip)
+                values = lambda _surface: data.session_values(trip, places)  # noqa: E731
+                for event in ui_events(canvas.provide(values), done=True):
+                    yield _sse(event)
                 yield _sse({"type": "trip", "trip": trip})
                 yield _sse({"type": "resume", "trip": trip})
                 yield _sse({"type": "done", "stopReason": "host"})
@@ -447,21 +373,13 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
         async for event in run_turn(turn):
             if event["type"] == "__result__":
                 result = event["result"]
-                # The continuation, handed to the client.
-                #
-                # Everything needed to take the next turn: where Google's copy
-                # of the conversation is, and what has been decided. The client
-                # holds it opaquely and sends it back, which is what makes any
-                # instance able to answer any turn — the session store below is
-                # then a cache, not the only copy.
-                #
-                # It is not state the client has to understand. It is a receipt.
+                # The receipt: everything needed for the next turn, held by the
+                # client and sent back, so any instance can answer it.
                 yield _sse(
                     {
                         "type": "resume",
                         "interactionId": result.interaction_id,
                         "trip": result.trip,
-                        "shape": result.shape,
                         "setup": result.setup,
                     }
                 )
@@ -469,36 +387,21 @@ async def chat(request: Request, x_goog_api_key: str = Header(default="")) -> St
                     session_id,
                     interaction_id=result.interaction_id,
                     trip=result.trip,
-                    shape=result.shape,
                     setup=result.setup,
-                    panels=result.panels,
                 )
                 continue
-            # The trip, written down the moment it moves.
-            #
-            # The session used to be saved only from the receipt above, which
-            # `run_turn` yields at the very end of a turn. A traveller who
-            # pressed a fare the moment it appeared — the whole point of drawing
-            # it the moment it lands — aborted the stream before that, so this
-            # instance never recorded the trip and the client was left holding
-            # the warm-up receipt, which carries an interaction id and no trip.
-            # The next turn then ran against an empty trip and the agent asked
-            # for the route, the dates and the party again. All of it was on
-            # screen at the time, in a sidebar drawn by the turn before.
+            # Written the moment it moves, so a stream the traveller cancels by
+            # pressing something still leaves the trip recorded.
             if event["type"] == "trip" and isinstance(event.get("trip"), dict):
                 sessions.save(session_id, trip=event["trip"])
-            out = surfaced(event)
-            if out:
-                yield out
+            yield _sse(event)
 
     return StreamingResponse(
         events(),
         media_type="text/event-stream",
         headers={
             "cache-control": "no-store",
-            # Proxies that buffer a stream turn streaming into a slow
-            # request/response, which looks to the traveller exactly like the
-            # empty-screen wait this whole design is about avoiding.
+            # A buffering proxy turns a stream into a slow response.
             "x-accel-buffering": "no",
             "connection": "keep-alive",
         },
@@ -563,39 +466,29 @@ async def voice(socket: WebSocket) -> None:
         await socket.close()
         return
 
-    # The query string first, because that is where the client puts it.
-    #
-    # This read the opening frame and only the opening frame, and no client has
-    # ever sent it there — `voice.ts` sets `?sessionId=` on the URL and opens
-    # with `{type, apiKey, client}`. So `opening.get("sessionId")` was always
-    # None and every voice socket minted a *fresh* conversation.
-    #
-    # Which is three reported bugs and one line. The trip a call built was
-    # written under an id nothing else read, so the panel beside the
-    # conversation stayed empty however much was decided out loud. The trip the
-    # typed conversation held was never handed to the call, so speaking after
-    # typing started from nothing. And a Live resumption handle had nowhere to
-    # live that the next connection would look, so releasing the microphone
-    # really did forget everything — not because a session ended, but because
-    # the next one was a different session by construction.
-    #
-    # The frame is still accepted, for a client that would rather send it there.
+    # The query string first, because that is where the client puts it
+    # (`voice.ts` sets `?sessionId=`). A call is the same conversation as the
+    # typed one: same trip, same panel, and the Live resumption handle kept
+    # where the next connection will look. The opening frame is also accepted.
     session_id = str(
         socket.query_params.get("sessionId") or opening.get("sessionId") or sessions.new_id()
     )
     stored = sessions.get(session_id)
 
-    # Each surface created once, as on the typed door. The voice client says
-    # what it holds in its opening frame; without that, the conversation's own
-    # record is used, and it is the same record the typed door keeps.
-    said = held_by_client(opening)
-    lifecycle = SurfaceLifecycle(stored.surfaces if said is None else said)
-    stored.surfaces = lifecycle.held
+    renderer = inbound.read(opening)
+    canvas = stored.canvas
+    unrenderable = canvas.negotiate(renderer.capabilities)
+    if unrenderable is not None:
+        await socket.send_json({"type": "error", "message": unrenderable})
+        await socket.close()
+        return
+    stale = canvas.reconcile(renderer.surfaces)
 
     async def send(message: dict[str, Any]) -> None:
-        conformant = lifecycle.event(message)
-        if conformant is not None:
-            await socket.send_json(conformant)
+        await socket.send_json(message)
+
+    for event in ui_events(stale, done=True):
+        await send(event)
 
     async def incoming():
         while True:
@@ -624,15 +517,8 @@ async def voice(socket: WebSocket) -> None:
         # looks like.
         resume=stored.live_handle,
         on_resume=lambda handle: sessions.set_live_handle(session_id, handle),
-        # What the panels are drawn for, carried in and written back. A call
-        # draws the panel like any other turn, so it reads and records the same
-        # receipt the typed door does rather than guessing from the trip.
-        shape=stored.shape,
-        on_shape=lambda value: sessions.set_shape(session_id, value),
-        # How the agent composed the panels, carried in and written back, so a
-        # choice made out loud replays the panel the same way a typed one does.
-        panels=dict(stored.panels),
-        on_panels=lambda value: sessions.set_panels(session_id, value),
+        # The same mirror of the renderer the typed door keeps.
+        canvas=canvas,
         # Same reading of "today" as the typed path: a call plans dates too.
         client_hints=opening.get("client") if isinstance(opening.get("client"), dict) else None,
     )

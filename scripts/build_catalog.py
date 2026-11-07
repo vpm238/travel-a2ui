@@ -2,12 +2,9 @@
 """Builds the `a2ui-travel` catalog by extending the A2UI v1.0 basic catalog.
 
 The basic catalog comes from the A2UI SDK itself — `a2ui.core.basic_catalog`'s
-bundled v1.0 catalog — and gives us layout and form primitives. It used to be a
-copy vendored from 0.9.1 and patched toward 1.0, and the patches missed things:
-`Text` still offered `h1`…`h5`, which v1.0 removed (a heading is Markdown in
-the text), so every heading this app drew was rejected by `@a2ui/web_core`'s
-renderer, while our own validator, reading our copy, passed it. Taking the
-catalog from the SDK means the two cannot disagree. A travel product needs a handful of domain components on top — a flight option, a
+bundled v1.0 catalog — and gives us layout and form primitives, so the
+catalog the server validates against and the one the renderers draw cannot
+disagree. A travel product needs a handful of domain components on top — a flight option, a
 hotel card, an itinerary day, a price summary — so that the agent composes
 *travel* nouns instead of re-deriving them from rows and columns every turn.
 
@@ -69,7 +66,7 @@ You are composing travel UI. A few house rules that matter more than anything el
   fare card per result: re-typing what a lookup just handed you is the largest
   thing a turn says and the only part of it that can be wrong.
 
-      fares = Flights("Outbound · JFK → MAD", "/trip/selectedOutbound")
+      fares = Flights("Outbound · JFK → MAD", "/trip/selectedFlight")
 
   Pass the heading, the path your choice is recorded at, and the hop when it is
   not the first. The macro draws that heading itself, so do not also write a
@@ -84,11 +81,9 @@ You are composing travel UI. A few house rules that matter more than anything el
   is the longest thing you say and nothing about the plan exists until it is
   written, so draw the highlights while you write it. Without this the
   traveller waits at an empty space for the whole plan.
-- **And then sends the plan's heading with it.** `save_trip({days: […], draw:
-  {heading: "Four days in Berlin"}})` draws `Itinerary()` the moment the write
-  lands. Saying `Itinerary()` in a block of your own afterwards is correct and
-  costs a whole further round for nine characters — measured at 16.7s. The
-  result tells you the card is up; say one sentence and end the turn.
+- **Then draw the plan with `Itinerary("Four days in Berlin")`.** It binds
+  `/days`, which the host fills the moment `save_trip({days: […]})` lands, so
+  draw it in the same reply as the write and end the turn with one sentence.
 - Every option the user could plausibly act on needs an `action`. A flight the
   user cannot select is a screenshot, not an interface.
 - And every one of them needs a name. A card is read aloud in the order it is
@@ -103,9 +98,10 @@ You are composing travel UI. A few house rules that matter more than anything el
   The one exception is DateRangePicker, whose bound values are calendar dates
   ("2026-04-12"): a trip day is a day, not an instant in some time zone.
 - When you present a set of options, bind the user's current choice into the data
-  model so a later turn can read it back — e.g. `$/trip/selectedOutbound`.
+  model so a later turn can read it back — e.g. `$/trip/selectedFlight`.
 - Keep a surface to one job. An inline card answers the message it is attached
-  to; the sidebar refines the trip in flight; the home surface summarizes.
+  to; the sidebar is the read-only record of what is settled; the home surface
+  summarizes.
 - `accessibility` also carries `live: "polite"` for a value that re-reckons
   itself and `hidden: true` for decoration. Leave the block off anything whose
   own text already reads as a sentence.\
@@ -118,6 +114,10 @@ def dyn_str(desc: str) -> dict[str, Any]:
 
 def dyn_num(desc: str) -> dict[str, Any]:
     return {"$ref": f"{COMMON}/DynamicNumber", "description": desc}
+
+
+def dyn_value(desc: str) -> dict[str, Any]:
+    return {"$ref": f"{COMMON}/DynamicValue", "description": desc}
 
 
 def dyn_bool(desc: str) -> dict[str, Any]:
@@ -180,25 +180,17 @@ def _lat_lng(desc: str) -> dict[str, Any]:
 def _map_pin(desc: str) -> dict[str, Any]:
     """A point on the map. Coordinates are required; the label is not.
 
-    `label` used to be required, and it cost a turn every time somebody asked
-    for a multi-city route. A marker wants a label — it is a place, and an
-    unnamed pin says nothing — but the ends of a `routes` leg are the two ends
-    of a drawn line, and the model writes them the obvious way:
+    A marker wants a label, but the ends of a `routes` leg are the two ends of
+    a drawn line, and the model writes them the obvious way:
 
         routes=[{origin: {lat: 37.62, lng: -122.38},
                  destination: {lat: 41.98, lng: -87.90}}]
 
-    That failed, and failed badly. One missing `label` inside `routes[0]` takes
-    down the whole `GoogleMap` branch of `allOf`, so `unevaluatedProperties`
-    then reports `center`, `zoom` and `routes` as unexpected too — an error
-    naming four things when one was wrong. And because a message fails whole,
-    the surface with it: the traveller watched the entire form — three date
-    inputs, two traveller counters — get drawn, vanish and be asked again.
-
-    So the renderer's own view wins, because it was always the honest one: it
-    reads `label` through `resolveText`, which yields an empty string when
-    there is none, and route ends are already drawn with `label: ''`. An
-    unlabelled point is a point.
+    A required `label` would reject that, and one missing `label` inside
+    `routes[0]` fails the whole `GoogleMap` branch of `allOf`, so the error
+    names `center`, `zoom` and `routes` too and the whole message is refused.
+    The renderer reads `label` through `resolveText`, which yields an empty
+    string when there is none, so an unlabelled point is simply a point.
     """
     return {
         "type": "object",
@@ -345,10 +337,11 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
         {
             "title": dyn_str("What it is, e.g. 'Prado Museum'."),
             "time": dyn_str("Start time as a display string, e.g. '10:00'."),
-            "category": enum(
-                "Drives the icon and colour the host uses.",
-                ["food", "sight", "transit", "stay", "outdoors", "shopping", "event", "free"],
-                "sight",
+            # A string rather than a static enum, so a template over the day
+            # plan can give each row its own category from the data.
+            "category": dyn_str(
+                "Drives the icon and colour: one of 'food', 'sight', 'transit',"
+                " 'stay', 'outdoors', 'shopping', 'event', 'free'. Defaults to 'sight'."
             ),
             "location": dyn_str("Where it happens, e.g. 'Paseo del Prado 23'."),
             "duration": dyn_str("How long to budget, e.g. '2h'."),
@@ -476,15 +469,32 @@ TRAVEL_COMPONENTS: dict[str, dict[str, Any]] = {
                 "Bound path the chosen option's `value` is written to, e.g."
                 " `$/trip/origin`."
             ),
-            "options": static_list_of(
-                "Every place that may be chosen. Static values only.",
-                {
-                    "value": "What is stored when chosen, e.g. 'JFK' or 'Madrid'.",
-                    "label": "The place as a person names it, e.g. 'New York'.",
-                    "code": "Its airport code, e.g. 'JFK'.",
-                    "detail": "A second line, e.g. 'Spain' or 'North America'.",
-                },
-            ),
+            # Bindable, so a form the model composes can offer the places the
+            # host publishes at `/places/origins` and `/places/destinations`
+            # instead of the model typing twenty airports out.
+            "options": {
+                "description": (
+                    "Every place that may be chosen: a list of {value, label, code?, detail?},"
+                    " or a binding to one, e.g. $/places/origins. `value` is what is stored"
+                    " when chosen ('JFK', 'Madrid'); `label` is the place as a person names it."
+                ),
+                "anyOf": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "value": {"type": "string"},
+                                "label": {"type": "string"},
+                                "code": {"type": "string"},
+                                "detail": {"type": "string"},
+                            },
+                            "required": ["value", "label"],
+                        },
+                    },
+                    {"$ref": f"{COMMON}/DataBinding"},
+                ],
+            },
             "kind": enum(
                 "Which end of the trip this is; sets the icon.",
                 ["origin", "destination"],

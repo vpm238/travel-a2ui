@@ -171,13 +171,8 @@ export function Catalog() {
                     {/*
                       The component itself, first and largest.
 
-                      This page used to lead with a name and a signature —
-                      `FlightOption(airline, departTime, …)` — with the rendered
-                      component hidden behind a click. That is a reference
-                      manual for something whose entire argument is that it
-                      *looks* like a flight. Anyone deciding whether the catalog
-                      is any good is deciding by eye, and the eye had nothing to
-                      go on until it clicked twenty times.
+                      The signature comes second: a catalog whose argument is
+                      that a component *looks* like a flight is judged by eye.
                     */}
                     <button
                       type="button"

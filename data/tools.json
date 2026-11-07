@@ -52,27 +52,9 @@
             "type": "boolean",
             "description": "Only when the traveler asked for a rough or seasonal figure rather than their trip. Prices an indicative date, which you must then label as indicative on screen."
           },
-          "draw": {
-            "type": "object",
-            "description": "What to put on screen *while this runs*, so the traveler watches an interface fill in rather than waiting at an empty space. The list is drawn the moment the lookup starts and the rows land in it when they come back. Omit it only if you are drawing something else yourself.",
-            "properties": {
-              "heading": {
-                "type": "string",
-                "description": "One line above the list, e.g. 'Outbound · JFK → MAD · Sun 12 Apr'."
-              },
-              "selected": {
-                "type": "string",
-                "description": "Data path holding the current choice, e.g. '/trip/selectedOutbound', so the chosen card stays marked."
-              },
-              "hop": {
-                "type": "integer",
-                "description": "Which hop these are for, when it is not the first — hop two is '/legs/0'. The press carries it so the choice lands on that leg."
-              },
-              "placeholders": {
-                "type": "integer",
-                "description": "How many blank rows to stand the list up with while the lookup runs, e.g. 3. A template over an empty array draws nothing, so without these the heading goes up over empty space; with them the renderer shows each row as pending until the real ones land. Omit it for a lookup whose result is not a list."
-              }
-            }
+          "hop": {
+            "type": "integer",
+            "description": "Which hop of the route this search is for, counted from one: the first flight is hop 1, legs[0] is hop 2. Pass it on a trip with more than one hop, and the same hop to the list you draw, so each hop's list keeps its own results."
           }
         },
         "required": [
@@ -111,27 +93,9 @@
             "type": "boolean",
             "description": "Only for an explicitly rough figure. See search_flights."
           },
-          "draw": {
-            "type": "object",
-            "description": "What to put on screen *while this runs*, so the traveler watches an interface fill in rather than waiting at an empty space. The list is drawn the moment the lookup starts and the rows land in it when they come back. Omit it only if you are drawing something else yourself.",
-            "properties": {
-              "heading": {
-                "type": "string",
-                "description": "One line above the list, e.g. 'Outbound · JFK → MAD · Sun 12 Apr'."
-              },
-              "selected": {
-                "type": "string",
-                "description": "Data path holding the current choice, e.g. '/trip/selectedOutbound', so the chosen card stays marked."
-              },
-              "hop": {
-                "type": "integer",
-                "description": "Which hop these are for, when it is not the first — hop two is '/legs/0'. The press carries it so the choice lands on that leg."
-              },
-              "placeholders": {
-                "type": "integer",
-                "description": "How many blank rows to stand the list up with while the lookup runs, e.g. 3. A template over an empty array draws nothing, so without these the heading goes up over empty space; with them the renderer shows each row as pending until the real ones land. Omit it for a lookup whose result is not a list."
-              }
-            }
+          "hop": {
+            "type": "integer",
+            "description": "Which hop of the route this search is for, counted from one: the first flight is hop 1, legs[0] is hop 2. Pass it on a trip with more than one hop, and the same hop to the list you draw, so each hop's list keeps its own results."
           }
         },
         "required": [
@@ -150,20 +114,6 @@
           "destination": {
             "type": "string",
             "description": "City name or airport code. Omit to list all."
-          },
-          "draw": {
-            "type": "object",
-            "description": "What to put on screen *while this runs*. The highlights are drawn the moment the lookup starts and land in the list when they come back. Worth passing on any planning turn: writing the day plan into save_trip is the longest thing you say, and nothing about the plan exists to promise until it is written, so without this the traveler waits at an empty space for all of it.",
-            "properties": {
-              "heading": {
-                "type": "string",
-                "description": "One line above the list, e.g. 'Worth your time in Berlin'."
-              },
-              "placeholders": {
-                "type": "integer",
-                "description": "How many blank rows to stand the list up with while the lookup runs, e.g. 3. A template over an empty array draws nothing, so without these the heading goes up over empty space; with them the renderer shows each row as pending until the real ones land. Omit it for a lookup whose result is not a list."
-              }
-            }
           }
         },
         "required": [],
@@ -462,36 +412,6 @@
           "needsStay": {
             "type": "boolean",
             "description": "Whether the first stop needs somewhere to stay. False when they already have somewhere. Later stops carry this on their leg."
-          },
-          "draw": {
-            "type": "object",
-            "description": "The card to put on screen the moment this call lands, so it costs no further round. Send it on every turn that records something and then shows something — which is most of them. Drawing the same card in a block of your own afterwards is correct and spends an entire extra round on it. The result will tell you it is up; say one sentence and end the turn.",
-            "properties": {
-              "macro": {
-                "type": "string",
-                "enum": [
-                  "Ask",
-                  "Itinerary",
-                  "Trip"
-                ],
-                "description": "`Ask` for the form of what is still missing — and only when something is. A traveller who gave you the route, the dates and the party has no gap, and a form asking for the party asks them to type what they just said; price it instead. `Itinerary` for the day plan, when this call carried `days`. `Trip` for the standing panel, when the turn's notes say it is a row behind: it lands on the panel's own surface rather than this turn's card, and it is the one cheap moment to add a row, since a row is a component and the bound values cannot add one."
-              },
-              "heading": {
-                "type": "string",
-                "description": "One line above it, e.g. 'Madrid in April' or 'Four days in Berlin'."
-              },
-              "label": {
-                "type": "string",
-                "description": "`Ask` only: what the button says. Defaults to 'Find flights'."
-              },
-              "money": {
-                "type": "boolean",
-                "description": "With `macro: \"Trip\"`, whether the panel shows what has been committed so far and what is left of the budget. The host totals it and knows the currency; this is whether to show it. Ask for it from the first fare or nightly rate onwards — before anything is priced there is nothing to total and it draws nothing."
-              }
-            },
-            "required": [
-              "macro"
-            ]
           },
           "airline": {
             "type": "string",

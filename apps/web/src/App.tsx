@@ -4,20 +4,10 @@
  * Four views, one per modality, over one conversation and one surface store —
  * so switching tabs does not switch context.
  *
- * Three pickers used to sit in this header and none of them do now, for the
- * same reason each time: a control is only worth its space if the answer it
- * takes is the answer the app uses.
- *
- * - **Skill.** Three generated shapes were kept so they could be compared, they
- *   were compared (`tools/eval/skills.py`), and one won. A picker with one
- *   option asks a question with no answer.
- * - **Model** and **Effort.** These governed the reply and not the record: the
- *   panel was hardcoded to the small model with the picked one wired in as its
- *   *fallback*, so choosing the better model changed half the screen. Worse,
- *   the stored default meant a first visit ran the conversation on Flash Lite
- *   while `/api/meta` advertised Flash 3.8.
- *
- * One model now, chosen server-side and named in `/api/meta`. The runtime
+ * The header offers only choices the app keeps: a control is worth its space
+ * only if the answer it takes is the answer the app uses. There is one skill
+ * set, so no skill picker; one model for the conversation and the panel,
+ * chosen server-side and named in `/api/meta`, so no model picker. The runtime
  * picker stays, because Interactions and Live are genuinely different agents
  * and the difference is the point.
  *
@@ -290,10 +280,8 @@ export default function App() {
       </footer>
 
       {/*
-        Asked for, not imposed. The form used to mount whenever there was no key
-        anywhere — on page load, full screen, with no way to close it — which
-        covered the Catalog and Wire tabs, the two views that run no model and
-        need no key. Now it opens when somebody tries to run a model without
+        Asked for, not imposed: the Catalog and Wire tabs run no model and need
+        no key, so the form never covers them. It opens when somebody tries to run a model without
         one (`agent.keyRequested`) or asks for it from the header, and it can
         always be dismissed.
       */}

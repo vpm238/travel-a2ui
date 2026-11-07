@@ -99,13 +99,11 @@ class TravelApi {
   /// behaviour this replaces.
   Stream<TurnEvent> chat({
     String message = '',
-    Map<String, dynamic>? action,
+    List<Map<String, dynamic>> a2ui = const [],
+    Map<String, dynamic>? metadata,
     String? sessionId,
     Map<String, dynamic>? resume,
     String surface = 'inline',
-    String surfaceId = 'inline-1',
-    String? model,
-    String? skill,
     List<String> surfaces = const [],
   }) async* {
     final request = http.Request('POST', _url('/api/chat'))
@@ -114,21 +112,20 @@ class TravelApi {
     if (apiKey.isNotEmpty) request.headers['x-goog-api-key'] = apiKey;
     request.body = jsonEncode({
       if (message.isNotEmpty) 'message': message,
-      if (action != null) 'action': action,
+      // A2UI v1.0 renderer-to-agent messages: the press, and anything the
+      // processor refused. See `docs/transport.md`.
+      if (a2ui.isNotEmpty) 'a2ui': a2ui,
+      // `a2uiRendererCapabilities` and `a2uiRendererDataModel`, every request.
+      if (metadata != null) 'metadata': metadata,
+      'surfaces': surfaces,
       if (sessionId != null) 'sessionId': sessionId,
-      // The last turn's receipt, handed back unread. The server keeps its own
-      // copy, but only on the instance that answered — and the next turn may
-      // land on another one, which has never heard of this conversation.
+      // The last turn's receipt, handed back unread: the next turn may land on
+      // a server instance that has never heard of this conversation.
       if (resume != null) 'resume': resume,
       'surface': surface,
-      'surfaceId': surfaceId,
-      if (model != null) 'model': model,
-      if (skill != null) 'skill': skill,
       // What day it is here. The server runs in UTC and would otherwise plan
       // "tomorrow" against its own calendar rather than the traveller's.
-      // The surfaces this client holds, so the server sends an update to one
-      // it already has instead of creating it a second time.
-      'client': {'today': _localToday(), 'surfaces': surfaces},
+      'client': {'today': _localToday()},
     });
 
     final response = await http.Client().send(request);

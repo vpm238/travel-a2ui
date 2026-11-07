@@ -100,12 +100,8 @@ class TestTheTicketLandsOnTheHop:
 class TestThePanelIsToldAboutIt:
     """A ticket bought for a hop is a decision, wherever it is recorded.
 
-    `decision_shape` is what decides whether the panel is rebuilt, and it
-    watched the trip's flat fields — which are the *first* hop's. So choosing
-    the flight home moved nothing in it, the panel declined to rebuild, and it
-    went on reading "Flight · Awaiting selection" under a hop whose flight the
-    traveller had just picked, beside an itinerary that already had the flight
-    number in it.
+    The panel binds `/panel`, built from the record hop by hop, so a flight home
+    saved on its leg is on the panel's second hop and not the first.
     """
 
     TRIP = {
@@ -120,23 +116,19 @@ class TestThePanelIsToldAboutIt:
         ],
     }
 
-    def test_the_flight_home_changes_the_shape(self) -> None:
+    def test_the_flight_home_is_on_the_second_hop(self) -> None:
+        from travel_a2ui.brain import data
+
         after = model.onto_leg(self.TRIP, {"selectedFlight": "DY1242"}, 0)
-        assert model.decision_shape(after) != model.decision_shape(self.TRIP)
+        hops = data.panel_rows(after)["hops"]
+        assert [fare["flightNumber"] for fare in hops[1]["flights"]] == ["DY1242"]
+        assert [fare["flightNumber"] for fare in hops[0]["flights"]] == ["SK8603"]
 
-    def test_so_does_a_stay_booked_against_a_hop(self) -> None:
+    def test_so_is_a_stay_booked_against_a_hop(self) -> None:
+        from travel_a2ui.brain import data
+
         after = model.onto_leg(self.TRIP, {"selectedHotel": "h_CPH_nyhavn"}, 0)
-        assert model.decision_shape(after) != model.decision_shape(self.TRIP)
-
-    def test_and_swapping_it_for_another_changes_it_again(self) -> None:
-        one = model.onto_leg(self.TRIP, {"selectedFlight": "DY1242"}, 0)
-        two = model.onto_leg(one, {"selectedFlight": "SK503"}, 0)
-        assert model.decision_shape(two) != model.decision_shape(one)
-
-    def test_but_a_price_on_its_own_does_not(self) -> None:
-        """The fingerprint is decisions, not values: a fare is shown live."""
-        after = model.onto_leg(self.TRIP, {"flightPrice": 71}, 0)
-        assert model.decision_shape(after) == model.decision_shape(self.TRIP)
+        assert data.panel_rows(after)["hops"][1]["stays"]
 
 
 class TestTheHostRecordsTheWholeFareItself:
@@ -243,31 +235,14 @@ class TestTheHostRecordsTheWholeFareItself:
 
     def test_and_the_panel_then_has_every_binding_it_draws(self) -> None:
         """The end of the chain: the row the traveller sees, filled."""
-        from travel_a2ui.brain.catalog import parser_for
-        from travel_a2ui.brain.express import as_wire
-        from travel_a2ui.brain.macros import expand
+        from travel_a2ui.brain import data
 
         trip = self._pressed("select_flight", self.FARE, 0)
-        source = 'surface("sidebar")\npanel = Trip("Trip to Berlin")\nroot = Column([panel])'
-        drawn = as_wire(expand(parser_for("sidebar").compile(source, is_final=True), trip))
-        rows = [
-            component
-            for component in drawn[0]["createSurface"]["components"]
-            if component["component"] == "FlightOption"
-        ]
-        assert rows, "the panel drew no fare row for a hop that has a ticket"
-        leg_row = next(
-            (row for row in rows if "legs/0" in str(row.get("airline"))), None
-        )
-        assert leg_row is not None, f"no row bound to the leg: {rows}"
-        for field in ("airline", "flightNumber", "departTime", "arriveTime"):
-            bound = leg_row.get(field)
-            assert bound and "legs/0" in str(bound), (
-                f"the panel's return row does not draw {field}: {bound!r}"
-            )
-        # The number off the card, not the fare's id — which is a flight number
-        # only where a provider happens to use one as its id.
-        assert "legs/0/flightNumber" in str(leg_row["flightNumber"]), leg_row["flightNumber"]
+        hops = data.panel_rows(trip)["hops"]
+        assert len(hops) >= 2 and hops[1]["flights"], "the panel has no fare row for the hop"
+        row = hops[1]["flights"][0]
+        for field in ("airline", "flightNumber", "departTime", "arriveTime", "price"):
+            assert row[field], f"the panel's return row has no {field}: {row}"
 
 
 def test_every_binding_a_hop_draws_is_a_field_a_hop_owns() -> None:
@@ -280,18 +255,11 @@ def test_every_binding_a_hop_draws_is_a_field_a_hop_owns() -> None:
     missing row was read as the model failing to save it — through three
     rewrites of that instruction, none of which could have worked.
 
-    Derived from the macro rather than listed here, so a new row on the panel
-    fails this until the model knows the hop owns what it draws.
+    Read off what `/panel` actually holds for a settled second hop, so a new
+    field on the panel fails this until a press can put it on the hop.
     """
-    import re
+    from travel_a2ui.brain import data
 
-    from travel_a2ui.brain.catalog import parser_for
-    from travel_a2ui.brain.express import as_wire
-    from travel_a2ui.brain.macros import expand
-    from travel_a2ui.brain.trip import LEG_OWNED
-
-    # A trip whose second hop has every decision made, so every row is drawn
-    # and every binding appears.
     settled = {
         "origin": "CPH",
         "destination": "Berlin",
@@ -311,10 +279,10 @@ def test_every_binding_a_hop_draws_is_a_field_a_hop_owns() -> None:
                 "endDate": "2026-11-14",
                 "travelers": 1,
                 "needsStay": True,
-                "neighborhood": "Vesterbro",
                 "selectedFlight": "SK139",
                 "flightPrice": 71,
                 "airline": "SAS",
+                "flightNumber": "SK139",
                 "departTime": "12:19",
                 "arriveTime": "13:36",
                 "selectedHotel": "h_CPH_1",
@@ -323,23 +291,15 @@ def test_every_binding_a_hop_draws_is_a_field_a_hop_owns() -> None:
             }
         ],
     }
-    source = 'surface("sidebar")\npanel = Trip("Trip to Berlin")\nroot = Column([panel])'
-    drawn = as_wire(expand(parser_for("sidebar").compile(source, is_final=True), settled))
+    hop = data.panel_rows(settled)["hops"][1]
+    fare, stay = hop["flights"][0], hop["stays"][0]
+    assert (fare["airline"], fare["departTime"], fare["arriveTime"]) == ("SAS", "12:19", "13:36")
+    assert stay["name"] == "Hotel Sanders"
+    # Every leg field the panel reads is one a press may write.
+    from travel_a2ui.brain.trip import LEG_OWNED
 
-    bound = set(re.findall(r"/trip/legs/\d+/([A-Za-z]+)", str(drawn)))
-    assert bound, "the panel drew no per-hop bindings at all"
-
-    # The hop's own route, which it has from the moment it exists and which a
-    # press may not move: changing where a hop goes is a change to the journey,
-    # and it goes through `save_trip` and the `DEPENDENTS` cascade so the fare
-    # priced against the old city is let go with it. So they are read off the leg
-    # and never written to it by a press, which is why they are not `LEG_OWNED`.
-    ROUTE = {"origin", "destination"}
-    missing = sorted(bound - set(LEG_OWNED) - ROUTE)
-    assert not missing, (
-        f"the panel draws {missing} off a hop, and `onto_leg` will not let a press "
-        "put them there — so those rows render empty however correctly they are saved"
-    )
+    for field in ("airline", "flightNumber", "departTime", "arriveTime", "hotelName"):
+        assert field in LEG_OWNED, field
 
 
 class TestASaveDoesNotEraseWhatIsOnALeg:

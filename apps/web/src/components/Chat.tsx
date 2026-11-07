@@ -147,8 +147,7 @@ export function Chat({ agent }: { agent: Agent }) {
     // conversation beside it — the Live session already holds the thread.
     //
     // `inCall` and not `listening`: somebody who paused the microphone to read
-    // the screen is still in the call, and this used to send what they typed
-    // to the typed door instead.
+    // the screen is still in the call, and what they type belongs to it.
     if (agent.voice.inCall) {
       setDraft('');
       agent.voice.say(text);
@@ -374,11 +373,10 @@ export function Chat({ agent }: { agent: Agent }) {
         {/*
           The microphone belongs to the framework that has one.
 
-          It used to sit here unconditionally, and pressing it quietly opened a
-          second runtime on a different API with its own conversation history —
-          which made two agent frameworks look like one app with a feature. The
-          traveller picks the framework in the header now, and Live is the one
-          that listens. Typing still works in both.
+          Voice is a second runtime on a different API with its own
+          conversation history, so it is not a composer feature: the traveller
+          picks the framework in the header, and Live is the one that listens.
+          Typing works in both.
         */}
         {agent.canSpeak ? (
           <button

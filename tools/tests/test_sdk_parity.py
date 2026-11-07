@@ -1,8 +1,8 @@
 """The catalog the model is shown, as the A2UI SDK prunes it.
 
-`scripts/build_skills.py` narrows the travel catalog with the SDK's
-`ComponentPruningTransformer` and `FunctionPruningTransformer` before the
-`SkillGenerator` writes a prompt from it. These pin what that leaves: exactly
+`brain/catalog.py` narrows the travel catalog with the SDK's
+`ComponentPruningTransformer` and `FunctionPruningTransformer`, and adds the
+macros, before the processor writes a prompt from it. These pin what that leaves: exactly
 the allow-list in `agent-components.json`, with the unions narrowed to match,
 the definitions that make a catalog a catalog intact, and the macros added on
 top — so a change to the allow-list, or to the SDK's pruning, shows up here
@@ -32,19 +32,18 @@ pytest.importorskip(
     reason="the reference A2UI SDK is not installed (pip install a2ui-agent-sdk)",
 )
 
-import build_skills  # noqa: E402
-
-ALLOW = json.loads(build_skills.PRUNING.read_text(encoding="utf-8"))
+from travel_a2ui.brain.catalog import AGENT_COMPONENTS as ALLOW, CATALOG_JSON, model_catalogs  # noqa: E402
+from travel_a2ui.brain.macros import MACRO_NAMES  # noqa: E402
 
 
 @pytest.fixture(scope="module")
 def source() -> dict:
-    return json.loads(build_skills.CATALOG.read_text(encoding="utf-8"))
+    return CATALOG_JSON
 
 
 @pytest.fixture(scope="module")
-def shown(source, tmp_path_factory):
-    return build_skills.pruned_catalog(source, tmp_path_factory.mktemp("catalog"))
+def shown():
+    return model_catalogs()[0]
 
 
 def _union(document: dict, name: str) -> set[str]:
@@ -56,8 +55,8 @@ def _union(document: dict, name: str) -> set[str]:
 
 
 def test_only_the_allowed_components_and_the_macros(shown):
-    macros = {"Ask", "Flights", "Highlights", "Itinerary", "Stays", "Trip"}
-    assert set(shown.components) == set(ALLOW["allowedComponents"]) | macros
+    assert set(MACRO_NAMES) == {"Booked", "Flights", "Highlights", "Itinerary", "Stays", "Trip"}
+    assert set(shown.components) == set(ALLOW["allowedComponents"]) | set(MACRO_NAMES)
 
 
 def test_only_the_allowed_functions(shown, source):

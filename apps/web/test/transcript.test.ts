@@ -1,11 +1,8 @@
 /**
  * What a press says in the traveller's own chat line.
  *
- * It used to be the action's context, printed verbatim:
- *
- *     commit surface — paths: ["/trip/origin", ...], startDate: "2027-04-12T00:00:00Z"
- *
- * These pin the readable version, without teaching the client what a trip is:
+ * Not the action's context verbatim (`paths: ["/trip/origin", ...],
+ * startDate: "2027-04-12T00:00:00Z"`). These pin the readable version, without teaching the client what a trip is:
  * the label comes from the surface, and values are formatted by shape.
  */
 

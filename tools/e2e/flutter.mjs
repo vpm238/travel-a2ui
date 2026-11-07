@@ -209,17 +209,13 @@ try {
   if (barShown) {
     // The fare that was pressed: the first card's flight number.
     const pressed = ((await readable()).match(/\b[A-Z]{2}\d{2,4}\b/) ?? [''])[0];
-    const before = (await readable()).split(pressed).length - 1;
     await tripBar.click({ timeout: 10_000 });
     await page.waitForTimeout(1500);
     const sheet = await readable();
     check(sheet.includes('Your trip to Madrid'), 'the bar opens the agent\'s trip panel', sheet.slice(-400));
-    // Once more than before: on its card in the feed, and now in the cart.
-    check(
-      Boolean(pressed) && sheet.split(pressed).length - 1 > before,
-      `and the chosen flight (${pressed}) is in it`,
-      sheet.slice(-400),
-    );
+    // In the sheet itself: what follows the modal barrier, which hides the feed.
+    const panel = sheet.split('Dismiss').at(-1) ?? '';
+    check(Boolean(pressed) && panel.includes(pressed), `and the chosen flight (${pressed}) is in it`, panel.slice(-400));
     check(!/\$\d/.test(sheet.split('Your trip to Madrid').at(-1) ?? ''), 'in the trip\'s currency, not dollars');
   }
 

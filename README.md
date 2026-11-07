@@ -170,7 +170,7 @@ that is to replace them:
 
 | To change… | Edit | And then |
 | --- | --- | --- |
-| what the agent can draw | `catalogs/a2ui-travel/catalog.json` | write the React component, register it |
+| what the agent can draw | `scripts/build_catalog.py` (it writes `catalogs/a2ui-travel/catalog.json`) | write the React and Flutter views, register them |
 | what it can look up | `data/tools.json` | one `switch` in `brain/tools/run.py` |
 | how it decides what is next | `prompts/flow.md` | nothing — it is markdown |
 | what the model is told about components | *nothing* | `npm run generate` writes it from the catalog |
@@ -239,8 +239,9 @@ bricks and neither needs to know anything about travel.
 for exactly this — agents that reply with interfaces. It defines the message
 shapes ("create a surface", "here are its components", "here is its data") and
 leaves the components themselves to a *catalog* the app supplies. Our catalog is
-`catalogs/a2ui-travel/catalog.json`: 30 components, including `FlightOption`,
-`HotelCard`, `DateRangePicker` and `ItineraryDay`.
+`catalogs/a2ui-travel/catalog.json`: 33 components — the SDK's v1.0 basic set
+plus fifteen travel ones, including `FlightOption`, `HotelCard`,
+`DateRangePicker` and `ItineraryDay`.
 
 **It writes them in a shorthand called Express.** Raw A2UI is JSON, which is
 verbose to generate. A2UI Express is a compact notation for the same tree:
@@ -259,10 +260,11 @@ program.** So the interface can be compiled and painted while the model is still
 typing the rest of it, instead of appearing all at once at the end.
 
 **The screen fills in before the data arrives.** When the agent decides to search
-for flights, the *shape* of the answer is already known: four cards, each with an
-airline, a time, a price. So the layout is drawn immediately — bound, blank, and
-shimmering — and the real numbers stream into it when the search returns. You
-watch an interface fill in rather than a spinner spin.
+for flights, the *shape* of the answer is already known: a list of fares, each
+with an airline, a time, a price. So the agent draws that list first, bound to
+`$/flights`, and then calls the search; when the rows come back the host puts
+them into the surface's data model and the cards fill in. You watch an interface
+fill in rather than a spinner spin.
 
 **Nothing is invented.** The tools that fetch travel data cannot return an empty
 success. If there are no flights under your price cap, the tool widens the search
@@ -271,14 +273,65 @@ says so and offers ones it knows, rather than inventing an airport code. Every
 price on screen carries a note saying where the number came from. See
 [Notes on the parts that are simulated](#notes-on-the-parts-that-are-simulated).
 
+### The model draws; the host supplies data
+
+**Every surface is composed by the model.** The server never draws one of its
+own, never rewrites what the model wrote, and never patches a surface on the
+way out. Its part is data, and checking.
+
+**Macros are templates, not screens.** The catalog adds six macros —
+`Flights()`, `Stays()`, `Highlights()`, `Itinerary()`, `Trip()` and `Booked()` — and each is
+a template over a data root the host publishes, expanded into plain catalog
+components by the SDK's `MacroExpander` before anything is sent. The model
+decides whether to use one, where it goes and what surrounds it:
+
+```
+surface("inline-2")
+head = Text("### Outbound · JFK → MAD · Sun 12 Apr")
+fares = Flights()
+root = Column([head, fares])
+```
+
+**The host fills what a surface binds, and only that.** The roots are the
+record (`/trip`, and views of it: `/plan`, `/panel`, `/booked`, `/days`,
+`/money`, `/places`) and the rows of the latest lookups (`/flights`, `/hotels`,
+`/highlights`, and each hop's own at `/fares/N` and `/rooms/N`). A card this
+turn draws that binds `$/flights` gets the fares, as `updateDataModel`, when the
+search returns; a surface that binds nothing gets nothing; a card from an
+earlier turn keeps the rows it was drawn with. The full table is [`prompts/data.md`](prompts/data.md), which is also
+what the model is told.
+
+**Everything is checked against a mirror of the renderer before it is sent.**
+The server keeps a `RendererState` per conversation — the SDK's own model of
+what a renderer holds (`brain/ui.py`, `Canvas`) — and every message is applied
+to it first. A block the SDK refuses is never sent: the reason goes back to the
+model, once, and it draws again (a `retry` event). A surface that cannot be
+answered as drawn — a date asked for in a text box, a form with no
+`sendDataModel` — is reported the same way (`brain/controls.py`). The model
+corrects its own work; the host does not.
+
+**The panel is drawn once and kept current by data.** After the first turn that
+settles a destination, if the client holds no panel, a short panel turn asks the
+model for one, and it draws `Trip()`. From then on it moves by `updateDataModel`
+alone: pressing a fare reaches the panel in one data update, not in another
+model turn, and a panel is never redrawn or replayed to catch up.
+
+**The renderer answers in A2UI too.** A press is an A2UI v1.0 action message, a
+surface the renderer could not show is an A2UI error message, and every request
+carries the renderer's capabilities (`a2uiRendererCapabilities`) and the data
+model of every surface that asks to send one (`a2uiRendererDataModel`). The
+server validates each with the SDK's v1.0 models, and reads what the traveller
+changed by comparing that data model with its mirror of what it sent.
+[`docs/transport.md`](docs/transport.md) has the wire format for both doors.
+
 ### What decides the next screen
 
 This is the part most worth stealing, and the part that took longest to get
 right.
 
 The obvious way to build this is a state machine: seven stages, a `next_step()`
-that looks at the trip and returns the one after it, and a surface per stage.
-That is how this started, and it works exactly until somebody says *"a friend
+that looks at the trip and returns the one after it, and a surface per stage. It
+works exactly until somebody says *"a friend
 joins us in Chicago and comes back with us"*. Now there are three hops with two
 different party sizes, one of them needs a hotel and one does not, and there is
 no ordering of seven stages that describes it. Every trip that is not the common
@@ -296,8 +349,8 @@ Three consequences, and they are what make it hold together:
 **Everything is a decision, whatever shape it arrives in.** Typing "three of us
 on the way back" is one. Tapping a fare out of four is one — *choosing one of
 many is a decision*, not a step towards one. Ticking "no bed needed here" is one.
-Each lands on the trip record the same way, and the panel on the right redraws
-itself from it without costing a turn.
+Each lands on the trip record the same way, and the panel on the right moves
+with it, as data, without costing a turn.
 
 **What is open decides what is drawn.** The trip is not a form with a progress
 bar; it is a record with open questions in it, and the interface is the
@@ -311,8 +364,8 @@ case — it is the same walk, over a longer route.
 `prompts/`: [`flow.md`](prompts/flow.md), which is the loop above and a table of
 gap → step → tool → components, and [`journey.md`](prompts/journey.md), which is
 how a route is read ("the journey is hops, and every hop is its own ticket" —
-including the hop home, which is how the agent stopped stranding people in
-Madrid). Neither one names a step number. What components exist and how to write
+including the hop home, so nobody is left in Madrid). Neither one names a step
+number. What components exist and how to write
 them is *generated* from the catalog and never authored. Judgement in prose,
 vocabulary from a schema, and nothing in between hard-coding an order.
 
@@ -320,16 +373,16 @@ Two things are fixed, deliberately, and only two: the trip's field names, so the
 panel, the tools and the prompt cannot disagree about what has been decided; and
 that a decision is asked for in a control its answer cannot be wrong in — a date
 in a date picker, a party size in a counter. Everything else — how many legs, how
-many days, what the surface's data model holds — is the agent's to shape for the
-trip in front of it.
+many days, which surface asks what — is the agent's to shape for the trip in
+front of it.
 
 And because none of that is deterministic, it is measured rather than asserted.
 [`tools/eval/flow.py`](tools/eval/flow.py) plays whole conversations — the words,
 then the presses, resolved through the surface's own bindings exactly as a
 renderer would send them — and scores the *run*: did the route come home, was a
-question re-asked after it was answered, did any turn draw nothing. Every turn of
-the stranding bug was individually fine. The journey was not, and only a harness
-that plays journeys could see it.
+question re-asked after it was answered, did any turn draw nothing. A run in
+which every turn is individually fine can still strand someone abroad, and only
+a harness that plays journeys sees it.
 
 ### The shape of the system
 
@@ -347,6 +400,7 @@ that plays journeys could see it.
                     │                  │
                     │  · the agent     │  ← decides what to say and draw
                     │  · the skill     │  ← teaches the model the catalog
+                    │  · the canvas    │  ← a mirror of each renderer
                     │  · the tools     │  ← flights, hotels, weather, costs
                     │  · the trip      │  ← what has actually been decided
                     └────────┬─────────┘
@@ -358,8 +412,8 @@ that plays journeys could see it.
                   └─────────────────────┘
 ```
 
-Three ways to see it, two ways to talk to it, one server that decides what the
-interface is. The clients contain no travel logic at all — a client knows how to
+Three ways to see it, two ways to talk to it, one model that composes the
+interface and one server that checks it and fills it with data. The clients contain no travel logic at all — a client knows how to
 draw a `FlightOption` and nothing about what a trip is.
 
 **You can switch the runtime and watch the same components come back.** The app
@@ -381,6 +435,7 @@ Start wherever matches what you want:
 | See every component, drawn | **[docs/catalog.md](docs/catalog.md)** — each one pictured beside the line of Express that made it |
 | Understand the flows and the edge cases | **[docs/user-flows.md](docs/user-flows.md)** — including which rules are enforced in code rather than asked of the model |
 | Understand how it is built | **[docs/architecture.md](docs/architecture.md)** — the long version, decision by decision |
+| Write another client | **[docs/transport.md](docs/transport.md)** — what goes over the wire, both ways |
 | Deploy it | **[docs/deploying.md](docs/deploying.md)** — Cloud Run, and the one setting not to change |
 
 ---
@@ -453,13 +508,13 @@ Every push to `main` deploys. The live service is
 and it serves all of it: the React client at `/`, the Flutter client at
 `/flutter`, and the agent API.
 
-**[docs/deploying.md](docs/deploying.md)** has the one-time setup for both
-targets — including the `gcloud` commands that create the Workload Identity
+**[docs/deploying.md](docs/deploying.md)** has the one-time setup — including the `gcloud` commands that create the Workload Identity
 pool, and why its `attribute-condition` is not optional.
 
 One detail worth knowing before you scale it: the service runs with
 `--max-instances 1`, and that is a correctness constraint rather than a cost
-one. Conversations live in the server's memory — nothing is written to disk,
+one. Conversations, and the server's mirror of each renderer, live in the
+server's memory — nothing is written to disk,
 which is what "we do not store your conversation" has to mean if it means
 anything — so a second instance would hold a second set of conversations, and a
 traveller whose next request landed on it would find their trip gone. Raising
@@ -480,7 +535,7 @@ start — a module reading a data file nobody copied, a static mount pointing at
 directory that is not there. Cloud Run reports all of it identically ("failed to
 start and listen on the port"), several minutes after the build went green, in a
 log the deploy does not show you. Importing the app at build time turns that into
-a build failure that names the file. It has already caught two.
+a build failure that names the file.
 
 ---
 
@@ -489,33 +544,47 @@ a build failure that names the file. It has already caught two.
 Nothing here is coupled to travel except the names, and the fastest way to see
 that is to replace them. In rough order of effort:
 
-**Swap the catalog.** `catalogs/a2ui-travel/catalog.json` is the vocabulary: one
-JSON Schema entry per component. Add `InvoiceLine` beside `FlightOption`, write
-its view in `renderers/react/src/components/travel.tsx` (and
+**Swap the catalog.** `scripts/build_catalog.py` builds the vocabulary — the
+SDK's v1.0 basic catalog plus one JSON Schema entry per travel component — and
+writes `catalogs/a2ui-travel/catalog.json`. Add `InvoiceLine` beside
+`FlightOption` there, write its view in
+`renderers/react/src/components/travel.tsx` (and
 `renderers/flutter/lib/components.dart`), add it to `TRAVEL_VIEWS`, and the
 model can draw invoices. A client that cannot draw a component the catalog
-offers refuses the catalog at startup, by name. [`docs/catalog.md`](docs/catalog.md) is generated from
-that file — every component pictured as the renderer actually draws it, with the
-one line of Express that produced it — so it is also the shape to copy.
+offers refuses the catalog at startup, by name.
+[`docs/catalog.md`](docs/catalog.md) is generated from that file — every
+component pictured as the renderer actually draws it, with the one line of
+Express that produced it — so it is also the shape to copy.
 
 **Narrow what the model sees.** `catalogs/a2ui-travel/agent-components.json` is
-the allow-list. Renderers keep their full registry; only the *prompt* is pruned,
-so trimming it costs a client nothing and saves tokens on every single turn.
+the allow-list, applied in `brain/catalog.py` with the SDK's
+`ComponentPruningTransformer` and `FunctionPruningTransformer`. Renderers keep
+their full registry; only what the *model* is offered is pruned, so trimming it
+costs a client nothing and saves tokens on every turn.
+
+**Add a macro.** `brain/macros.py` holds the five templates. A macro binds a
+data root and nothing else; if it needs data the host does not publish yet, add
+the root in `brain/data.py` and a line to `prompts/data.md`.
+
+**Change the worked examples.** `catalogs/a2ui-travel/examples/*.json` are A2UI
+JSON, one turn per file — the wire format, written once. The SDK decompiles
+them into Express for the prompt and the skills, and
+`apps/server/tests/test_examples.py` checks each against the catalog.
 
 **Regenerate the skill.** `npm run generate` runs the official A2UI
-`SkillGenerator` over the pruned catalog and writes `skills/`. You do not write
-the component documentation the model reads — the catalog is the source, and a
-component you add documents itself.
+`SkillGenerator` over the same processor the server parses the model with, and
+writes `skills/`. You do not write the component documentation the model reads
+— the catalog is the source, and a component you add documents itself.
 
 **Change the tools.** `data/tools.json` is one array of
 `{name, description, input_schema}`, and `brain/tools/run.py` is one `switch` over
-it. The contracts are provider-neutral on purpose: `gemini_tools()` is a
-six-line adapter over it, so a second provider costs six lines rather than a
-second copy of the schemas.
+it. The contracts are provider-neutral on purpose: `gemini_tools()` is a short
+adapter over it, so a second provider costs a few lines rather than a second
+copy of the schemas.
 
-**Then the parts you should not need to touch**: the compiler, the renderer, the
-streaming split, the commit binding, the panel plumbing. Those are the A2UI
-layer, and they do not know what a trip is.
+**Then the parts you should not need to touch**: the SDK processor, the renderer
+SDKs, the canvas mirror and the data roots. Those are the A2UI layer, and they do
+not know what a trip is.
 
 Two rules are worth stealing whatever you build. Anything that must not vary
 belongs in the host, not the prompt — a rule in a prompt is a request to a model,
@@ -553,9 +622,11 @@ rather than a limitation.
 
 - **Scope**: decisions, not controls. The route stop by stop, the flight and
   stay chosen, the dates, what it comes to, how far through the plan you are.
-- **Lifetime**: singular and replaced. Writing to `sidebar` again rebuilds it;
-  it is not a feed. Values sync from the trip with no model in the path, so
-  changing the route on an inline card updates it immediately.
+- **Lifetime**: singular, drawn once. The model composes it the first time the
+  trip has a destination (`Trip()`, bound to `$/panel` and `$/trip`); after that
+  the host keeps it current with `updateDataModel` and no model in the path, so
+  changing the route on an inline card updates it immediately. It is never
+  redrawn or replayed to catch up.
 - **One interaction: Change.** It releases that decision — and whatever was
   decided because of it — and the agent re-opens it *inline*, pre-filled. Two
   places that can edit one value is how a conversation loses track of its own
@@ -569,7 +640,8 @@ Read first, and not in reply to anything.
 
 - **Scope**: the number that matters most right now, then anything needing a
   decision, then context — weather, the map, the next day.
-- **Lifetime**: singular, regenerated when the trip or the day changes.
+- **Lifetime**: singular, composed when you ask for it from the Home tab — a
+  dashboard summarises a trip, so it waits until there is one.
 - **Generative layout**: not a fixed dashboard. Ask it to "put the packing list
   on top" or "show the budget as a meter" and the layout changes, because the
   layout is the model's output.
@@ -579,11 +651,11 @@ Read first, and not in reply to anything.
 | | Rendered in the app by | Composed by |
 |---|---|---|
 | Inline | `apps/web/src/components/Chat.tsx` | the agent, per answer — keyed `inline-3`, so the transcript is a list of things that were asked |
-| Sidebar | `apps/web/src/components/Sidebar.tsx` | the agent, singular — writing to it again rebuilds it |
-| Home | `apps/web/src/components/Home.tsx` | the agent, singular, regenerated when the trip or the day changes |
+| Sidebar | `apps/web/src/components/Sidebar.tsx` | the agent, once — then kept current by data |
+| Home | `apps/web/src/components/Home.tsx` | the agent, singular, when asked for |
 
-**They are placements, not screens.** A surface that replaces itself behaves
-like a panel wherever it lands, and one keyed to the message it answers behaves
+**They are placements, not screens.** A surface that stays put and moves with
+the data behaves like a panel wherever it lands, and one keyed to the message it answers behaves
 like a card — which is why the Flutter client gets the same three without being
 told what any of them mean.
 
@@ -599,8 +671,9 @@ use" is one click away rather than a JSON schema away.
   <img src="docs/screenshots/04-catalog-dark.png" alt="The component catalog, with signatures" width="820">
 </p>
 
-**Wire** shows any live surface in both representations, the Express the agent
-wrote and the JSON the host received, because "what did the model actually emit"
+**Wire** shows any live surface in both representations — the A2UI JSON the
+renderer holds, and the same messages as Express, decompiled by the SDK on the
+server (`POST /api/express`) — because "what did the model actually emit"
 is the first question anyone asks about generative UI.
 
 <p align="center">
@@ -623,33 +696,35 @@ Speech is a property of the *backend*, not of the client. Every client can liste
 if the Live framework is selected; none of them contains any audio logic beyond a
 microphone and a speaker.
 
-**It is not a call.** That is not a wording preference, it is the design, and
-getting it wrong broke the feature for a week. A call has a beginning and an end
-you press a button for, and the screen is somewhere you go. Here the screen is
-already in front of you the entire time — talking is simply one way to use it, in
-the way the assistant on your phone is. So there is a microphone that opens and
-closes, over a session that outlives both, and stopping talking ends a *sentence*.
-It used to end the conversation, which is exactly why speaking and then stopping
-appeared to do nothing: the session was torn down before the answer could arrive.
+**It is not a call.** A call has a beginning and an end you press a button for,
+and the screen is somewhere you go. Here the screen is already in front of you
+the entire time — talking is simply one way to use it, in the way the assistant
+on your phone is. So there is a microphone that opens and closes, over a session
+that outlives both, and stopping talking ends a *sentence*, not the session: the
+answer still arrives.
 
-The model is handed the six server-composed builders and told to draw rather
-than read a list aloud. That is not a shortcut here, it is the only route: a
-spoken reply *is* audio, so Express written into one is read out rather than
-compiled, and calling a named tool is the only way the session can reach a
-screen. A live turn:
+The model draws by calling one tool, `render_a2ui_express`, with an Express
+block. That is the only route, not a shortcut: a spoken reply *is* audio, so
+Express written into one would be read out rather than drawn. The block goes
+through the same SDK processor and the same mirror of the renderer as a typed
+turn; a block with no `surface(...)` line becomes a new card (`voice-1`,
+`voice-2`, …). A live turn:
 
 ```
 TOOL    save_trip {travelers: 2, startDate: 2027-04-12, …}
-TOOL    show_flight_options {origin: JFK, destination: Madrid, …}
-SURFACE mcp-flights: Text, FlightOption ×4, Text, Column
+TOOL    render_a2ui_express  → voice-1: Text, Flights()
+TOOL    search_flights {origin: JFK, destination: MAD, …}  → rows into $/flights
 agent:  "…the cheapest is Delta for about 352, the fastest is TAP
          for around 362 nonstop."
 ```
 
 It rounded the numbers, named two of four options, and left the rest to the
-screen — which is what voice and a screen together are *for*. The relay shares
-the session with the typed conversation, so saying "make it three of us" moves
-the same panel.
+screen — which is what voice and a screen together are *for*. The model is
+handed a summary of the search, not the rows; the rows go to the card as data.
+A press during the call is the same A2UI v1.0 action a typed turn sends, in a
+`press` frame: it is recorded on the trip first and then told to the model. The
+relay shares the session with the typed conversation, so saying "make it three
+of us" moves the same panel.
 
 Switching framework reloads the page and starts a fresh conversation with an
 empty trip. Two APIs with two conversation histories is difference enough
@@ -662,7 +737,7 @@ Four things cost an evening each and are worth knowing if you build one:
   instant you stop speaking never sends that silence, so the model sits waiting
   for audio that is not coming. There is a frame for saying so —
   `send_realtime_input(audio_stream_end=True)` — and sending it is the difference
-  between a reply and nothing at all.
+  between a reply and nothing at all. The client sends `audio_end` for it.
 - **Inbound frames arrive as a `Blob`**, so `TextDecoder().decode` on one produces
   rubbish and every frame vanishes without throwing.
 - **The Live API rejects an entire `setup`** if a function declaration carries
@@ -670,38 +745,39 @@ Four things cost an evening each and are worth knowing if you build one:
   schemas all do. One bad key and nothing connects.
 - **There is no agent object to point at.** Interactions has one; Live does not,
   so the first spoken turn has to do a handshake that binds the catalog, the
-  skill and the tools. That used to be a setup banner beside a microphone that
-  was `disabled` until you had dealt with it. A microphone you cannot press is
-  not a microphone: the tap does the handshake now, and the only thing left on
-  screen is a failure with a retry.
+  skill and the tools. The tap on the microphone does it — a microphone you
+  cannot press is not a microphone — and `ready` is sent only once the Live API
+  has accepted it, so a bad key never looks bound.
 
 ---
 
 ## How it fits together
 
-**One brain, four doors, two renderers.** That sentence is the architecture, and
+**One brain, two doors, two renderers.** That sentence is the architecture, and
 the directories are named after it.
 
 ```
-                         ┌──────────────────────────────────────┐
-data/          ─────────►│  brain/                              │
-catalogs/      ─────────►│    skills   what the agent is told    │
-prompts/*.md   ─────────►│    tools    what it can call          │
-                         │    trip     what it remembers         │
-                         │    surface  what every surface goes   │
-                         │             through before it ships   │
-                         └──────────────────────────────────────┘
+                         ┌────────────────────────────────────────────┐
+data/          ─────────►│  brain/                                    │
+catalogs/      ─────────►│    catalog  the catalog, and the SDK       │
+prompts/*.md   ─────────►│             processor that reads the model │
+                         │    ui       the canvas: a mirror of each   │
+                         │             renderer, and the data it is   │
+                         │             owed                           │
+                         │    skills   what the agent is told         │
+                         │    tools    what it can call               │
+                         │    trip     what it remembers              │
+                         └────────────────────────────────────────────┘
                                           │
-              ┌───────────────┬───────────┴───────────┬──────────────┐
-              ▼               ▼                       ▼              ▼
-      doors/interactions  doors/live            doors/http
-      Gemini              Gemini Live           mounts the
-      Interactions API    API, spoken           other two and
-      typed, over SSE     over a socket         serves the clients
-              │               │                       │
-              └───────────────┴───────────┬───────────┘
+                        ┌─────────────────┴─────────────────┐
+                        ▼                                   ▼
+               the typed door                      the voice door
+               doors/http.py + interactions/       doors/live.py
+               Gemini Interactions API, SSE        Gemini Live API, WebSocket
+                        │                                   │
+                        └─────────────────┬─────────────────┘
                                           ▼
-                                 A2UI JSON messages
+                       A2UI v1.0 messages, both ways (docs/transport.md)
                                           │
                           ┌───────────────┴───────────────┐
                           ▼                               ▼
@@ -709,21 +785,22 @@ prompts/*.md   ─────────►│    tools    what it can call   
                   React                            Flutter
 ```
 
-The **brain** holds every decision worth making: the skills, the tools, the trip
-record, the passes a surface goes through. It has no idea which door a request
-came through, and nothing in it imports a transport.
+The **brain** holds every decision worth making: the catalog and the processor
+that reads the model, the canvas every message is checked against, the skills,
+the tools and the trip record. It has no idea which door a request came through,
+and nothing in it imports a transport.
 
-The **doors** hold transport and nothing else. `interactions` is the reference
-one; `live` is the same brain over a bidirectional audio socket; `http` mounts
-both and serves the clients. When a door starts wanting to know what a trip is,
-that knowledge
-belongs in the brain and the door should be asking for it.
+The **doors** hold transport and nothing else. The typed door is `http.py` and
+the turn loop in `interactions/`; the voice door is `live.py`, the same brain
+over a bidirectional audio socket; `http.py` also serves the clients. When a door
+starts wanting to know what a trip is, that knowledge belongs in the brain and
+the door should be asking for it.
 
 The **renderers** draw A2UI, send actions back, and wait for the next A2UI, and
 they are the official SDKs: `@a2ui/react` over `@a2ui/web_core` in the browser,
 `a2ui_flutter` over `a2ui_core` in Flutter. Each SDK holds the surfaces, resolves
 every binding and function call, and draws the basic components. What this
-repository adds is a catalog: fourteen travel views and two functions
+repository adds is a catalog: fifteen travel views and two functions
 (`calcNights`, `equals`), the same on both clients. Neither holds travel logic or
 any opinion about what a trip is.
 
@@ -734,32 +811,37 @@ client code to work is a feature that has left the protocol.
 
 Everything the model is given is a file on disk rather than a string in code,
 and that is deliberate. The tool descriptions live in `data/tools.json`, the
-role and the surface briefs in `prompts/*.md`. Both servers read the same files,
+role and the surface briefs in `prompts/*.md`. Both doors read the same files,
 so a change to what the agent is told is reviewable as a diff — and there is no
 second, hand-typed copy to drift. A retyped prompt is a different agent, and the
 difference does not look like a bug from either side.
 
-Three things are generated and checked in, so a stale one fails CI rather than
+Four things are generated and checked in, so a stale one fails CI rather than
 shipping quietly:
 
 | Generated | From | Regenerate |
 |---|---|---|
 | `catalogs/a2ui-travel/catalog.json` | the SDK's v1.0 basic catalog, `derive`d with the travel components | `python3 scripts/build_catalog.py` |
-| `catalogs/a2ui-travel/examples/compiled/*.json` | the `.express` examples | `python3 scripts/build_examples.py` |
-| `skills/**/SKILL.md` | the catalog, via the SDK's `SkillGenerator` | `python3 scripts/build_skills.py` |
+| `skills/**/SKILL.md` | the server's processor, via the SDK's `SkillGenerator` | `python3 scripts/build_skills.py` |
+| `apps/web/src/generated/catalog-reference.json` | the catalog, for the Catalog tab | `python3 scripts/build_catalog_reference.py` |
+| `renderers/flutter/test/fixtures/flights.json` | the server's own pipeline, for the Flutter tests | `python3 scripts/build_fixtures.py` |
 
-`npm run generate` does all three; `npm run check` fails if any is stale, and
-also checks the goldens described under [Tests](#tests).
+`npm run generate` does all four; `npm run check` fails if any is stale.
 
 ---
 
 ## The skills
 
 A **skill** is the document that teaches the model the catalog: what components
-exist, what each one takes, and how to write them. It is generated from
-`catalog.json` by the A2UI SDK's own `SkillGenerator` rather than written by
-hand, so a component added to the catalog is a component the model knows about
-on the next build — and cannot describe one that is not there.
+exist, what each one takes, and how to write them. It is generated by the A2UI
+SDK's own `SkillGenerator` rather than written by hand, from the very processor
+the server parses the model with — `SkillGenerator(PROCESSOR.format)`, whose
+format already holds the pruned catalog, the macros and the worked examples. So
+the prompt snippet the model is given (`PROCESSOR.prompt_snippet`), the parser
+that reads its answer and the skills another agent loads are one configuration.
+A component added to the catalog is one the model knows about on the next build,
+and `apps/server/tests/test_skills.py` fails if the skills and what the model is
+taught ever differ. Nothing is edited after generation.
 
 The design principle it implements is worth stating on its own:
 
@@ -778,11 +860,10 @@ skills/
     └── a2ui-travel/SKILL.md                        this catalog's components
 ```
 
-Three shapes used to be generated — this one, the same catalog as a single
-Express skill, and the same interfaces as raw A2UI JSON — and you could switch
-between them in the running app. The point was to answer "what is Express
-actually buying you" by measurement rather than by argument, so it was measured
-(`tools/eval/skills.py`, four asks, three samples each):
+One shape ships, `express-modular`: a core skill for the notation and one per
+catalog. It was chosen by measurement, four asks with three samples each,
+against the same catalog as a single Express skill and the same interfaces as
+raw A2UI JSON:
 
 | Variant | drew the right component | compiled first time |
 |---|---|---|
@@ -791,11 +872,8 @@ actually buying you" by measurement rather than by argument, so it was measured
 | `direct-json-monolithic` | 3/12 | 3/12 |
 
 Direct JSON drew nothing at all on three of the four asks, and took longest
-doing it. Between the two Express shapes, five more samples on the scenarios
-where they differed put modular ahead again with no scenario going the other
-way — so there is one shape now, and no picker for a question with one answer.
-`VARIANTS` in `scripts/build_skills.py` is one line: put a shape back and re-run
-the evaluation whenever a new model makes the question live again.
+doing it. `VARIANT` in `scripts/build_skills.py` names the shape; re-run the
+comparison whenever a new model makes the question live again.
 
 The modular shape is also what scales past one domain: an agent working on
 travel loads `a2ui-core` + `a2ui-travel` and never pays for the charting
@@ -817,8 +895,7 @@ directory contains nothing but `SKILL.md`.
 The notation the agent writes:
 
 ```
-surface("inline-flights")
-$/trip/selectedOutbound = ""
+surface("inline-2")
 heading = Text("### Outbound · JFK → MAD · Sun 12 Apr")
 f1 = FlightOption("Iberia", "18:40", "08:15 +1", "JFK", "MAD", "$412",
                   Event("select_flight", {id: "IB6250"}),
@@ -836,11 +913,14 @@ Three properties make it worth a compiler:
 - **Variables are ids.** The model does not have to invent an id for every
   nested component and then remember it.
 
-The server compiles it with the official A2UI Python SDK (`a2ui-agent-sdk`):
-`ExpressParser` and its streaming `open_stream()`, which heals a half-written
-string and holds a component until its value arrives. The Wire view's Express
-is the SDK's `ExpressDecompiler`, served at `POST /api/express`. Nothing here
-reimplements the compiler.
+The server reads it with the official A2UI Python SDK (`a2ui-agent-sdk`): an
+`A2uiRequestProcessor` (`brain/catalog.py`) whose `open_stream()` yields prose
+and A2UI as the model types, healing a half-written string and holding a
+component until its value arrives. Macros are expanded by the SDK's
+`MacroExpander`, and every message is applied to a `RendererState` before it is
+sent. The Wire view's Express is the same processor's decompiler, served at
+`POST /api/express`. Nothing here reimplements the parser, the validator or the
+decompiler.
 
 ## Layout
 
@@ -849,7 +929,7 @@ travel-a2ui/
 ├── data/                       the facts: destinations, airlines, lodging, tool contracts
 ├── prompts/                    what the agent is told: its role, and each surface's brief
 ├── catalogs/
-│   └── a2ui-travel/            generated: the SDK's v1.0 basic catalog derived, + 14 travel components
+│   └── a2ui-travel/            catalog.json (generated), agent-components.json, examples/*.json
 ├── apps/
 │   ├── server/                 ★ the whole backend: brain/ and doors/
 │   └── web/                    React client: the flows, /catalog, and the wire inspector
@@ -857,16 +937,17 @@ travel-a2ui/
 │   ├── react/                  the travel catalog for @a2ui/react: 14 views, 2 functions, the design
 │   └── flutter/                the same catalog for a2ui_flutter
 ├── tools/
-│   ├── parity/                 the goldens, and the scripts that write them
 │   ├── sample/                 records the sample trip a first visit opens on
 │   ├── e2e/                    a whole browser turn against a scripted model
 │   ├── eval/                   the flows graded against a real model, mechanically
+│   ├── validate/               whole journeys and a voice call, against a real model
 │   └── screenshots/            the README's pictures and docs/catalog.md, reproducibly
 ├── scripts/                    setup, generation, and repo extraction
 ├── docs/
 │   ├── catalog.md              every component, pictured — generated, never written
 │   ├── user-flows.md           the flows, and which rules are code rather than prompt
 │   ├── demo-script.md          what to type, and what should come back
+│   ├── transport.md            what goes over the wire, both ways
 │   └── architecture.md         how a turn goes end to end, and why
 └── skills/                     generated SKILL.md files, checked in
 ```
@@ -876,114 +957,93 @@ Inside the server, the same two packages, and what is in them:
 ```
 apps/server/src/travel_a2ui/
 ├── brain/
-│   ├── catalog.py      the components that exist, loaded once
-│   ├── skills.py       the contract the model is given, assembled
-│   ├── trip/           fields · values · route · problems · asking · edits · shape
+│   ├── catalog.py      the catalog, and the SDK processor that reads the model
+│   ├── ui.py           the canvas: a mirror of each renderer, and drawing into it
+│   ├── macros.py       Flights · Stays · Highlights · Itinerary · Trip
+│   ├── data.py         the data roots a surface can bind, and their rows
+│   ├── inbound.py      what a renderer sends, read as A2UI v1.0
+│   ├── controls.py     whether a surface can be answered as drawn
+│   ├── presses.py      a press, recorded on the trip and told to the model
+│   ├── host_actions.py the few presses the host answers itself
+│   ├── skills.py       the system prompt, assembled
+│   ├── trip/           fields · values · route · problems · asking · edits
 │   ├── tools/          contracts · answers · share · run
-│   ├── finishing.py    the four passes every surface goes through on its way out
-│   ├── builders.py     the surfaces this app draws without a model
-│   ├── controls.py     which control a decision may be asked in
-│   ├── express.py      compiling the A2UI the model emits, as it streams
 │   └── providers/
 │       └── fixture/    tables · numbers · routes · places · provider
 └── doors/
     ├── settings.py     which model answers, how hard it thinks, and what day it is
-    ├── http.py         the SSE door the web client uses
-    ├── live.py         the websocket door a voice call uses
+    ├── http.py         the typed door (SSE), and the clients
+    ├── live.py         the voice door (WebSocket)
     └── interactions/   press · turn · panels · warmup
 ```
 
 Nothing in `brain/` imports from `doors/`, which is the one rule that keeps the
-split honest. It was not always true: the catalog and the model choices used to
-live in `doors/interactions.py`, and the brain reached back for them through
-imports written inside function bodies to dodge the resulting cycle.
-
-The Python server is the whole backend, and it is two packages: `brain/` — the
-skills, the tools, the trip record, the surface passes — and `doors/`, which is
-that brain reachable four ways. A second, TypeScript implementation of the agent
-and the trip model used to live here too; it is gone, and the goldens in
-`tools/parity/` are what made retiring it a non-event — they still pin the
-behaviour, now over one implementation rather than two.
+split honest: `doors/` is that brain, reachable two ways.
 
 ---
 
 ## Tests
 
 ```bash
-npm test                              # TypeScript: the travel catalog and the SDK adapter
-npm run check                         # every generated artifact and every golden
-python3 -m pytest apps/server/tests   # the Python server
-python3 -m pytest tools/tests         # the build tooling
-npm run e2e                           # a whole browser turn, against a scripted model
+npm test                              # TypeScript: the travel catalog, the client
+npm run check                         # every generated artifact
+(cd apps/server && python -m pytest -q)   # the Python server
+python -m pytest tools/tests          # the build tooling
+npm run e2e                           # a whole browser turn, against the scripted server
 ```
 
 None of it needs an API key.
 
-### The goldens, and why there are seven
+### The goldens
 
-They were written when two servers implemented the same agent, and the
-dangerous failure there is not a break — a break is visible — but *silent
-disagreement*: both answer, both draw something, and only the details differ. So
-every layer where that could happen got a golden file the TypeScript wrote and
-the Python had to reproduce exactly.
-
-There is one server now, and the goldens are why deleting the other one was a
-non-event. They kept their value in the process: a golden over code is an alarm
-for a change nobody meant to make, which is the same job on one implementation
-as on two. Only the prompt golden is *meant* to move, because it is assembled
-from markdown people edit on purpose — so that one is re-recorded deliberately
-and CI fails if you forget.
+Three files in `apps/server/tests/goldens/` pin behaviour nobody should change
+by accident:
 
 | Golden | Pins |
 | --- | --- |
 | `fixtures.json` | what the fixtures generate — the same airlines, times and fares |
 | `trip.json` | the trip model: which decisions are open, and what a route's hops need |
 | `tools.json` | the tools' *manners* — how a refusal is worded, which stop of a route a call is about |
-| `builders.json` | the six server-composed layouts, as Express, including the refusals |
-| `prompt.json` | the whole system prompt, byte for byte, across seven trips and three surfaces |
-| `skeleton.json` | the compiled skeleton the host pre-draws, which the Flutter tests render |
-| `finishing.json` | the four passes the server makes over a surface before it goes out |
 
-One of them earned its keep the day this paragraph was written, in a way worth
-repeating: a golden that reads the clock is not a golden. `get_weather` with no
-date meant "from today", today meant `date.today()`, and the recorded forecast
-began on whatever weekday it was captured on — green on that weekday, red on the
-other six. Anything a golden covers has to be handed the day it is running on
-rather than allowed to ask.
-
-The working rule, which has paid for itself repeatedly: **write the golden from
-the incumbent before porting, then check the golden fails when you break the
-port.** Doing it that way found nine divergences in the tool layer alone, a
-32-bit arithmetic bug, a case where two colliding keys came out in a different
-order in each language — and two bugs that turned out to be in the *original*, so
-a faithful port was the thing that surfaced them.
+A golden over code is an alarm for a change nobody meant to make. One rule
+keeps them honest: **a golden that reads the clock is not a golden.** Anything a
+golden covers is handed the day it runs on rather than allowed to ask, or the
+recording is green on the weekday it was made and red on the other six.
 
 ### What the rest cover
 
-- **Streaming** — sentinels split across chunks, partial trees rendering, syntax
-  errors reported only once a block is finished.
+- **The turn** — against a scripted model, because everything that goes wrong
+  in a turn is about *order* and none of it throws: prose and A2UI come out
+  separately, a surface paints before the turn ends, a macro reaches the
+  renderer expanded, a lookup's rows land where a surface bound them while the
+  model is told where rather than handed them, and a press is on the trip before
+  the model is asked (`test_interactions.py`).
+- **Corrections go to the model** — a refused block is explained and retried
+  once, a renderer error reaches the model, a surface that cannot be answered is
+  reported, and a turn that promises and draws nothing is nudged once.
+- **The panel** — asked for once when there is a trip and no panel, never drawn
+  again, and moved by data when a decision lands.
+- **The wire, both ways** — every recorded message is valid v1.0 for this
+  catalog and replays into one renderer (`test_spec_conformance.py`); actions,
+  errors, capabilities and data models are read with the SDK's v1.0 models, and
+  a renderer that supports none of the catalogs is told so (`test_http.py`).
+- **The examples** — every worked example in `catalogs/a2ui-travel/examples/`
+  is valid against the catalog, and every Express block in the docs and the
+  prompts draws without complaint.
+- **The skills** — what is on disk is what the generator writes, the model is
+  taught what the skills say, and no skill ships a script.
 - **The SDK assembly** — that each client can draw every component the catalog
-  offers, that the basic ones are the SDK's own, and, in Flutter, that every
-  component's SDK-compiled reference example renders.
-- **The agent loop** — against a scripted model, because everything that goes
-  wrong in a turn is about *order* and none of it throws: that a surface paints
-  before the turn ends, that the skeleton goes out before the tool runs and the
-  fill after it, that a value the traveller set reaches the trip without the
-  model being asked, and that parallel tool results come back in one message.
-- **The surface lifecycle** — each surface created once, updates only to
-  surfaces that exist, and a whole recorded conversation accepted by
-  `@a2ui/web_core` with nothing refused.
-- **The skills** — that the model-facing fields leak no implementation detail,
-  that the modular pair covers the monolith, and that no skill ships a script.
+  offers, that the basic ones are the SDK's own, and, in Flutter, that each
+  component reads only the properties its catalog entry declares and that a
+  surface from the server's own pipeline renders.
 - **Every catalog function** — driven from `catalog.json` rather than from the
-  code, so a function declared and not implemented fails. That is the gap
-  `formatString` shipped through: it never implemented its own spec, nothing
-  threw, and the tests agreed because they were written from the implementation.
-- **Voice** — the `setup` frame the Live API would accept, and that a surface
-  tool hands the model a summary rather than the flight list.
+  code, so a function declared and not implemented fails.
+- **Voice** — the `setup` frame the Live API would accept, a block drawn through
+  the processor as a new card, a lookup that fills the card and is not read out,
+  and a v1.0 press recorded and told.
 - **End to end** — a real browser: type a message, watch a surface appear
-  mid-stream, click a flight, and assert the click reaches the model as the next
-  turn with the surface's data model attached (`sendDataModel`).
+  mid-stream, click a flight, and assert the click reaches the server as an A2UI
+  v1.0 action with the surface's data model beside it.
 
 ---
 
@@ -1002,22 +1062,11 @@ Every answer carries its own **provenance** — a source, a plain-language label
 and a sentence explaining it — and `/api/meta` advertises it so the chrome can
 say it once rather than every card carrying a badge.
 
-An earlier version of this section claimed the fixtures could be swapped for a
-real API and nothing above would change. That was an assertion rather than a
-seam, and being an assertion it hid four ways to answer a question with
-something untrue:
-
-| asked | answered |
-| --- | --- |
-| flights under $1 | an empty list, under a heading that said flights |
-| flights to Reykjavik | four flights to `REY`, an airport code taken from the first three letters |
-| hotels in Reykjavik | four Madrid hotels in Lavapiés, priced in euros, captioned "4 stay(s) in MAD" |
-| anything at all | nothing on screen said the numbers were invented |
-
-All four are one bug: a function that could not say *"I don't know"* said
-something else instead. So the seam is real now, in
-`apps/server/src/travel_a2ui/brain/providers/`, and not-knowing is the only
-alternative to knowing:
+The seam for real data is `apps/server/src/travel_a2ui/brain/providers/`, and
+it is built so a provider cannot answer a question with something untrue —
+flights under $1 as an empty list under a heading that says flights, an airport
+code made from the first three letters of a city, Madrid hotels captioned as
+Reykjavik. Not-knowing is the only alternative to knowing:
 
 - A provider **cannot** return an empty success. The constructor refuses to
   build one, so "no results" is unrepresentable rather than merely discouraged.
@@ -1026,9 +1075,9 @@ alternative to knowing:
   asked for.
 - A destination the provider has never heard of is a **refusal with
   alternatives**, not an invented airport code.
-- `AmadeusProvider` is the live implementation, and ships unconfigured. Set
-  `AMADEUS_CLIENT_ID` and the same surfaces are drawn from real inventory, with
-  the provenance on screen changing to say so.
+
+The fixture provider is the only one that ships; a live one implements the same
+interface (`TravelProvider` in `providers/types.py`).
 
 ---
 

@@ -1,11 +1,6 @@
 """The model, through the Interactions API.
 
-The Worker hand-rolls this: an SSE reader, a line splitter, a dispatch over
-`event_type` strings, and a buffer per step for tool arguments that arrive as
-partial JSON. About 200 lines, and three of its bugs were in the parsing rather
-than in the agent.
-
-Here the SDK does it. `client.aio.interactions.create(stream=True)` yields typed
+The Google GenAI SDK does the transport. `client.aio.interactions.create(stream=True)` yields typed
 events, so what is left is the part that is actually this app's: turning a
 stream of steps into one result the agent loop can act on.
 

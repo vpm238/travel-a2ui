@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Records the sample trip a first visit opens on.
 
-A first visit used to open on a heading, three suggestions and — with no key —
-a full-screen form. Nothing on the page showed what the agent *does*, which is
-the one thing a visitor came to find out, and finding out cost a key.
+A first visit opens on this sample, so a visitor sees what the agent *does*
+before being asked for a key.
 
 The sample is a real conversation with this agent, recorded through the same
 door a browser uses and replayed by the browser through the same handler as a
@@ -24,9 +23,12 @@ you run to fix it.
 What is kept is what a browser keeps. What is dropped is what belongs to the
 recording rather than the conversation: the session id, token usage, timings,
 and the interaction id — a pointer into the recorder's own Gemini account,
-which nobody replaying this could follow. The trip and its shape stay, because
-that is how the next live turn picks up from the sample (`_resumed` in
-`doors/http.py`), exactly as it would from any turn a browser had seen.
+which nobody replaying this could follow. The trip stays, because that is how
+the next live turn picks up from the sample (`_resumed` in `doors/http.py`),
+exactly as it would from any turn a browser had seen.
+
+A press goes out as a browser sends one: the A2UI v1.0 action message in
+`a2ui`, and the surfaces the renderer holds.
 
 The key is read from the server's environment, never from here, and nothing
 this writes contains it.
@@ -137,6 +139,17 @@ def _said(message: Any, row: dict[str, Any], data: dict[str, Any]) -> str | None
     return re.sub(r"\s+", " ", said).replace(" ,", ",").strip() or None
 
 
+def _rows_at(data: dict[str, Any], path: str) -> Any:
+    """The value at a list's path (`/flights`, `/fares/2`), from the root updates."""
+    if path in data:
+        return data[path]
+    head, _, rest = path.lstrip("/").partition("/")
+    cursor: Any = data.get(f"/{head}", data.get(head))
+    for part in [piece for piece in rest.split("/") if piece]:
+        cursor = cursor.get(part) if isinstance(cursor, dict) else None
+    return cursor if cursor is not None else []
+
+
 def _press(
     drawn: list[tuple[str, dict[str, Any]]], wanted: str, trip: dict[str, Any], data: dict[str, Any]
 ) -> dict[str, Any] | None:
@@ -154,12 +167,14 @@ def _press(
         if isinstance(node.get("children"), dict) and "componentId" in node["children"]
     }
     for surface_id, node in reversed(nodes):
-        if kind_of(node) != wanted:
+        # The conversation's own cards: a fare on the panel is a record with a
+        # Change button, not a choice.
+        if kind_of(node) != wanted or surface_id in STANDING:
             continue
         event = (node.get("action") or {}).get("event") or {}
         if not event.get("name"):
             continue
-        rows = data.get(lists.get(node.get("id"), ""), [])
+        rows = _rows_at(data, lists.get(node.get("id"), ""))
         row = rows[0] if isinstance(rows, list) and rows and isinstance(rows[0], dict) else {}
         context = {key: _resolve(value, row, data) for key, value in (event.get("context") or {}).items()}
         if not any(value not in (None, "") for value in context.values()):
@@ -185,6 +200,7 @@ def record(base: str) -> dict[str, Any]:
     drawn: list[tuple[str, dict[str, Any]]] = []
     turns: list[dict[str, Any]] = []
     served: str | None = None
+    held: set[str] = set()
 
     with httpx.Client(base_url=base, timeout=180) as client:
         meta = client.get("/api/meta").json()
@@ -192,14 +208,15 @@ def record(base: str) -> dict[str, Any]:
             raise SystemExit("The server has no key. Start it with GEMINI_API_KEY set.")
 
         for number, step in enumerate(STEPS, 1):
-            body: dict[str, Any] = {"sessionId": session, "surface": "inline"}
+            body: dict[str, Any] = {"sessionId": session, "surface": "inline", "surfaces": sorted(held)}
             if resume:
                 body["resume"] = resume
             if "press" in step:
                 action = _press(drawn, step["press"], trip, data)
                 if action is None:
                     raise SystemExit(f"step {number}: no {step['press']} on screen to press")
-                body["action"] = action
+                action["timestamp"] = dt.datetime.now(dt.timezone.utc).isoformat()
+                body["a2ui"] = [{"version": "1.0", "action": action}]
                 turn: dict[str, Any] = {"action": _renamed(action)}
             else:
                 body["message"] = step["say"]
@@ -218,8 +235,8 @@ def record(base: str) -> dict[str, Any]:
             for event in events:
                 kind = event.get("type")
                 if kind == "resume":
-                    resume = {key: event[key] for key in ("interactionId", "trip", "shape", "setup") if event.get(key)}
-                    event = {key: value for key, value in event.items() if key in ("type", "trip", "shape")}
+                    resume = {key: event[key] for key in ("interactionId", "trip", "setup") if event.get(key)}
+                    event = {key: value for key, value in event.items() if key in ("type", "trip")}
                 if kind == "trip" and isinstance(event.get("trip"), dict):
                     trip = event["trip"]
                 if kind == "served_by":
@@ -227,6 +244,10 @@ def record(base: str) -> dict[str, Any]:
                 if kind == "ui":
                     for message in event.get("messages", []):
                         drawn.append((event["surfaceId"], message))
+                        if "createSurface" in message:
+                            held.add(message["createSurface"]["surfaceId"])
+                        if "deleteSurface" in message:
+                            held.discard(message["deleteSurface"]["surfaceId"])
                         update = message.get("updateDataModel")
                         if isinstance(update, dict) and isinstance(update.get("path"), str):
                             data[update["path"]] = update.get("value")

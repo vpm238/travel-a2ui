@@ -4,8 +4,8 @@ What lives here is deliberately small:
 
   - the id of the last interaction, which is how the conversation continues,
   - the trip, which is the part worth keeping: what the traveller decided, and
-  - the decision shape when the standing surfaces were last drawn, so the server
-    knows when the panel is owed a redraw.
+  - the canvas: the agent's mirror of the surfaces its renderer holds
+    (`brain/ui.py`), which the A2UI SDK checks every block against.
 
 The transcript is **not** here. The Interactions API keeps it server-side and
 `previous_interaction_id` chains to it, so a tenth turn sends one message rather
@@ -36,7 +36,9 @@ import secrets
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Iterable
+
+from .brain.ui import Canvas
 
 #: How long an untouched conversation is kept.
 #:
@@ -70,12 +72,6 @@ class Session:
     interaction_id: str | None = None
     #: What the traveller has decided.
     trip: dict[str, Any] = field(default_factory=dict)
-    #: The trip's decision shape when the standing surfaces were last drawn.
-    #:
-    #: Kept here rather than in the browser because the *server* decides when a
-    #: panel is owed a redraw: a client that does not know what a trip is cannot
-    #: be the thing watching for one to change.
-    shape: str | None = None
     #: The setup — the stable half of the prompt — this conversation is bound to.
     #:
     #: Sent once, when the conversation starts. Held so that a later turn can
@@ -102,44 +98,23 @@ class Session:
     #: `session_resumption_update` carries a fresh handle as the session runs;
     #: the newest one is kept, and the next connection opens with it.
     live_handle: str | None = None
-    #: The Express the agent last composed for each standing surface.
-    #:
-    #: A panel is the one surface in this app that outlives the turn that drew
-    #: it, and its rows are conditional — `Trip()` draws a fare row only once a
-    #: fare is chosen. So a row's first appearance needs components, which bound
-    #: data cannot add, and somebody has to draw the panel again.
-    #:
-    #: The agent is asked to, and does not. Measured over a full walk with the
-    #: hint in the turn's notes, with `Trip` offered on `save_trip`'s `draw`, and
-    #: with the brief saying to write the block first: not once. Every panel move
-    #: came from `_rebuild_panels` — a whole further model turn after the answer
-    #: had landed, 18.4s after a fare was chosen and 29.6s after a stay.
-    #:
-    #: Which leaves this. The panel is *composed* by the agent, once, and the
-    #: composition is kept here; when the record moves under it the host
-    #: re-renders that same Express against the new record. No model call, and no
-    #: host opinion about what a panel holds — it replays the agent's own
-    #: declaration, and when there is nothing to replay it asks the agent for one
-    #: rather than inventing it.
-    panels: dict[str, str] = field(default_factory=dict)
-    #: The surfaces this conversation has created on its client, so each is
-    #: created once. A request that says what its client holds overrides it;
-    #: see `brain/finishing/lifecycle.py`.
-    surfaces: set[str] = field(default_factory=set)
+    #: The surfaces this conversation's renderer holds, mirrored.
+    canvas: Canvas = field(default_factory=Canvas)
     turns: int = 0
-    #: How many inline surfaces this conversation has handed out.
-    #:
-    #: Separate from `turns`, which counts turns that *finished*. A turn that
-    #: fails still drew a card, and reusing its id would mean the next question
-    #: replaces the one that went wrong — leaving the traveller looking at a
-    #: card whose error message was overwritten by an unrelated question.
+    #: How many inline surfaces this conversation has handed out. Separate from
+    #: `turns`: a turn that fails still drew a card, and its id is not reused.
     inline_surfaces: int = 0
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
-    def next_inline_surface_id(self) -> str:
-        """A surface id no card in this conversation is already using."""
-        self.inline_surfaces += 1
+    def next_inline_surface_id(self, held: Iterable[str] = ()) -> str:
+        """A surface id no card in this conversation is using, here or on the client."""
+        numbers = [
+            int(surface_id.split("-", 1)[1])
+            for surface_id in [*held, *self.canvas.surfaces]
+            if surface_id.startswith("inline-") and surface_id.split("-", 1)[1].isdigit()
+        ]
+        self.inline_surfaces = max([self.inline_surfaces, *numbers]) + 1
         return f"inline-{self.inline_surfaces}"
 
     def as_dict(self) -> dict[str, Any]:
@@ -147,7 +122,6 @@ class Session:
             "id": self.id,
             "interactionId": self.interaction_id,
             "trip": self.trip,
-            "shape": self.shape,
             "setup": self.setup,
             "turns": self.turns,
             "createdAt": int(self.created_at * 1000),
@@ -205,9 +179,7 @@ class SessionStore:
         *,
         interaction_id: str | None | _Unchanged = UNCHANGED,
         trip: dict[str, Any] | None = None,
-        shape: str | None = None,
         setup: str | None = None,
-        panels: dict[str, str] | None = None,
     ) -> Session:
         """Records a turn.
 
@@ -224,15 +196,8 @@ class SessionStore:
                 session.interaction_id = interaction_id
             if trip is not None:
                 session.trip = trip
-            if shape is not None:
-                session.shape = shape
             if setup is not None:
                 session.setup = setup
-            if panels:
-                # Merged, not replaced: a turn that redrew the sidebar and not
-                # the home summary must not forget how the home summary was
-                # composed. See `Session.panels`.
-                session.panels = {**session.panels, **panels}
             session.turns += 1
             session.updated_at = now
             self._sessions[session_id] = session
@@ -244,39 +209,6 @@ class SessionStore:
         with self._lock:
             session = self._sessions.get(session_id) or Session(id=session_id)
             session.trip = {**session.trip, **patch}
-            session.updated_at = time.time()
-            self._sessions[session_id] = session
-            return session
-
-    def set_panels(self, session_id: str, panels: dict[str, str]) -> Session:
-        """Remembers how the agent composed the standing panels, merged.
-
-        Written by a call as well as a typed turn, and not a turn, like the
-        shape below: learning how the panel was composed is not the traveller
-        saying something.
-        """
-        with self._lock:
-            session = self._sessions.get(session_id) or Session(id=session_id)
-            session.panels = {**session.panels, **(panels or {})}
-            session.updated_at = time.time()
-            self._sessions[session_id] = session
-            return session
-
-    def set_shape(self, session_id: str, shape: str | None) -> Session:
-        """Remembers which decisions the standing panels were drawn for.
-
-        Written by a call as well as a typed turn, because both draw the panel
-        and either can be the one that drew it. A call used to derive this from
-        the trip at connect time, which told it a panel existed whenever the
-        trip had decisions in it — so the panel was never drawn in a call that
-        opened on a trip without one.
-
-        Not a turn, for the same reason as the handle below: drawing a panel is
-        not the traveller saying something.
-        """
-        with self._lock:
-            session = self._sessions.get(session_id) or Session(id=session_id)
-            session.shape = shape
             session.updated_at = time.time()
             self._sessions[session_id] = session
             return session

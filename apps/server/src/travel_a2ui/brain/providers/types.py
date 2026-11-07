@@ -1,28 +1,15 @@
 """The contract every travel data source answers, and why it is shaped this way.
 
-The code this replaced called a fixture module directly, under a comment
-promising you could swap it for real API calls and nothing above would change.
-That was an assertion rather than a seam, and being an assertion it hid four
-ways to answer a question with something untrue:
+A provider either finds something or says it does not know. Answering a
+question with something untrue is the failure this shape exists to rule out:
+an empty list under a heading that says "flights", four flights to an airport
+code made up from a city's first three letters, Madrid hotels for a search in
+Reykjavik, or invented numbers with nothing saying so.
 
-  asked                  answered
-  ---------------------  ------------------------------------------------
-  flights under $1       an empty list, under a heading that said flights
-  flights to Reykjavik   four flights to REY, an airport code taken from
-                         the first three letters
-  hotels in Reykjavik    four Madrid hotels in Lavapiés, priced in euros,
-                         captioned "4 stay(s) in MAD"
-  anything               nothing anywhere said the numbers were invented
-
-All four are one bug: a function that could not say "I don't know" said
-something else instead. So not-knowing is the only alternative to knowing here,
-and `found()` refuses to build a success with nothing in it.
-
-Python cannot express the TypeScript's `[T, ...T[]]` — a list type that cannot
-be empty — so the guarantee that was the compiler's there is a runtime check
-here. Which is why `found()` raises rather than returning: reaching it with an
-empty list means a provider decided it had succeeded at finding nothing, and
-there is no sensible way to render that.
+So not-knowing is the only alternative to knowing, and `found()` refuses to
+build a success with nothing in it. It raises rather than returning: reaching
+it with an empty list means a provider decided it had succeeded at finding
+nothing, and there is no sensible way to render that.
 """
 
 from __future__ import annotations
@@ -35,7 +22,7 @@ from typing import Any, Literal, Protocol, Sequence
 class Provenance:
     """Where an answer came from, carried with the answer rather than assumed."""
 
-    #: Stable id for the source: `fixture`, `amadeus`.
+    #: Stable id for the source, e.g. `fixture`.
     source: str
     #: True when these numbers describe the real world.
     live: bool

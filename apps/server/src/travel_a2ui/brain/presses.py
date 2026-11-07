@@ -6,8 +6,10 @@ asked anything, and then tells the model what happened in a sentence. Both
 doors do this — a typed turn and a voice call — so it lives here, in the brain,
 and each door hands it the press it received.
 
-An action here is anything with A2UI's action shape: `name`, `surface_id`,
-`context` and, when the surface asked for it, `data_model`.
+An action here is a v1.0 renderer action (`brain/inbound.py`): `name`,
+`surface_id`, `context`, `user_message`. What the traveller changed on screen
+arrives separately, as the record fields that differ from what the agent last
+put there (`Canvas.edits`).
 """
 
 from __future__ import annotations
@@ -17,7 +19,22 @@ from dataclasses import dataclass
 from typing import Any
 
 from . import trip as model
-from .finishing import STANDING_SURFACES
+from .ui import STANDING_SURFACES
+
+
+#: What a `change` on a panel card re-opens, by the card's `what`.
+_CHANGED = {"flight": "selectedFlight", "stay": "selectedHotel"}
+
+
+def _changed_field(context: dict[str, Any] | None) -> str | None:
+    """The trip field a panel card's `change` names: `legs/2/selectedFlight`."""
+    if not isinstance(context, dict):
+        return None
+    field_name = _CHANGED.get(str(context.get("what") or ""))
+    if field_name is None:
+        return None
+    leg = _leg_pressed(context)
+    return f"legs/{leg}/{field_name}" if leg is not None else field_name
 
 
 def _leg_pressed(context: dict[str, Any] | None) -> int | None:
@@ -97,16 +114,11 @@ async def stop_of_fare(
 def _commit(saved: dict[str, Any], proposed: dict[str, Any], today: str) -> tuple[dict, list[str]]:
     """Applies what a surface sent, minus anything that would break the trip.
 
-    `save_trip` has always validated, so a model that invented a return date
-    before the departure was told so. A *commit* went nowhere near it: the
-    traveller's own values were merged straight in, and a picker handing back
-    20 April → 12 April priced four flights against a trip with negative nights.
-
-    The rule itself is `model.sieve`, so a value arriving from a press is held
-    to exactly what a value arriving from the model is held to. It used to live
-    here, and `save_trip` had its own stricter one — refuse the call, not the
-    field — which is how a stay the traveller had chosen was lost to a hop's
-    dates being a day out.
+    A picker can hand back 20 April → 12 April as readily as a model can invent
+    it, so a press is validated too. The rule is `model.sieve`, the one
+    `save_trip` uses: a value arriving from a press is held to exactly what a
+    value arriving from the model is held to, field by field, so one bad field
+    never costs the traveller the rest.
     """
     return model.sieve(saved, proposed, today)
 
@@ -118,11 +130,9 @@ def _commit(saved: dict[str, Any], proposed: dict[str, Any], today: str) -> tupl
 #: `selectedHotel`. One shared mapping told a traveller choosing a hotel to
 #: save it as a flight.
 #:
-#: Spelling it out at all is the point. This sentence used to say "whatever it
-#: settled belongs on `legs[N]`", and the model read "it settled" as the flight
-#: id: `legs[0].selectedFlight` landed every time; `airline`, `departTime` and
-#: `arriveTime` never did, through two live runs and two rewrites of the same
-#: rule in the brief and in `save_trip`'s argument descriptions.
+#: Spelling every field out is the point: told only that "whatever it settled
+#: belongs on `legs[N]`", the model records the flight id and drops `airline`,
+#: `departTime` and `arriveTime`.
 _SAVES_AS: dict[str, tuple[tuple[str, str], ...]] = {
     "select_flight": (
         ("id", "selectedFlight"),
@@ -208,7 +218,11 @@ class RecordedPress:
 
 
 async def record_press(
-    action: Any, trip: dict[str, Any], provider: Any, today: str
+    action: Any,
+    trip: dict[str, Any],
+    provider: Any,
+    today: str,
+    edits: dict[str, Any] | None = None,
 ) -> RecordedPress:
     """Writes what a press settled onto the trip, before any model hears of it.
 
@@ -217,15 +231,16 @@ async def record_press(
     function for both doors: a typed turn and a voice call record the same press
     the same way, onto the same hop.
 
-    The action's own context wins over the rest of the surface: the context is
-    what the button declared it was sending, and the surrounding data model
-    (`sendDataModel`) fills in anything the traveller set that no binding
-    named. A fare's context says `id` and `price` where the trip says
+    The action's own context wins over `edits`: the context is what the
+    button declared it was sending, and the edits are whatever else the
+    traveller changed on a surface that sends its data model. A fare's context says `id` and `price` where the trip says
     `selectedFlight` and `flightPrice`; `as_trip_fields` renames them. The hop
     comes from the fare's own route when it can (`stop_of_fare`) and from the
     `hop` the list was drawn with when it cannot.
     """
-    from_surface = model.normalize((action.data_model or {}).get("trip"))
+    if edits is None:
+        edits = (action.data_model or {}).get("trip") if action is not None else None
+    from_surface = model.screen_patch(trip, edits)
     from_context = {
         **model.normalize(action.context),
         **model.normalize(as_trip_fields(action)),
@@ -264,12 +279,15 @@ def describe_action(action: Any, leg: Any = _FROM_CONTEXT) -> str:
     """
     said = json.dumps(action.context or {}, ensure_ascii=False)
     where = action.surface_id
+    words = getattr(action, "user_message", None)
+    if words:
+        said = f"{said} — in their words: \"{words}\""
 
     # A panel is a record, not a form. An interaction there is a request to
     # re-open a decision in the conversation, where there is one place to edit
     # a value and a history of when it changed.
     if where in STANDING_SURFACES:
-        field_name = (action.context or {}).get("field")
+        field_name = (action.context or {}).get("field") or _changed_field(action.context)
         if field_name:
             return (
                 f'[interface] The traveler pressed "{action.name}" on the {where} for '

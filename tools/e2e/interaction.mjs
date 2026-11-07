@@ -19,7 +19,8 @@
  * Every turn is a canned SSE stream compiled by the real compiler, so this
  * costs nothing and needs no key.
  *
- *   npm run dev:worker
+ *   GEMINI_API_KEY=scripted python3 tools/e2e/scripted_server.py 8130   # another terminal
+ *   BASE_URL=http://127.0.0.1:8130/ \
  *   node tools/e2e/interaction.mjs
  */
 
@@ -29,6 +30,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { compileAll } from './compile.mjs';
+
+/** The press a request carried, as the A2UI v1.0 renderer message it is. */
+const pressOf = (body) => body?.a2ui?.find((message) => message?.version === '1.0' && message.action)?.action;
 
 const BASE = (process.env.BASE_URL ?? 'http://127.0.0.1:8787').replace(/\/$/, '');
 const failures = [];
@@ -44,20 +48,17 @@ const catalog = JSON.parse(
 /**
  * Compile the way the server does.
  *
- * This harness stands in for the server, so it has to run the server's passes
- * too — otherwise it tests a surface no client would ever actually receive. It
- * does, literally: `compile.py` is the SDK's parser, the macros and the
- * finishing passes, including the one that matters here — every edited path
- * bound into the commit button, and a button added to a surface that has none.
+ * This harness stands in for the server, so it reads its canned Express the
+ * way the server does: `compile.py` is the SDK processor, the macros and the
+ * mirror of the renderer that validates every message.
  */
 const compile = (surfaceId, source) => compileAll([{ surfaceId, source }])[0].messages;
 
 /**
  * Turn one: everything the trip still needs, in one surface, with one button.
  *
- * Three editors and a commit. This is the shape the prompt asks for and the
- * shape the old app got wrong — it used to ask for one thing, receive it, and
- * ask for the next in a fresh surface that had forgotten the first.
+ * Three editors and a commit: the shape the prompt asks for, rather than one
+ * question per surface.
  */
 const SETUP = `surface("inline-1")
 $/trip/origin = "JFK"
@@ -70,12 +71,13 @@ who = TravelerCounter("Travellers", $/trip/travelers, min=1, max=8)
 go = Button(Text("Search flights"), "primary", Event("search", {origin: $/trip/origin, startDate: $/trip/startDate, travelers: $/trip/travelers}))
 root = Column([head, where, when, who, go], align="stretch")`;
 
-/** Turn two: a card with no button at all — the server has to add one. */
-const NO_BUTTON = `surface("inline-2")
+/** Turn two: a card whose values travel in its data model (`sendDataModel`). */
+const NO_BUTTON = `surface("inline-2", sendDataModel=true)
 $/trip/budget = 2000
 head = Text("### How much are you spending?")
 budget = Slider("Total budget", 500, 6000, $/trip/budget)
-root = Column([head, budget], align="stretch")`;
+save = Button(Text("Use this budget"), "primary", Event("set_budget"))
+root = Column([head, budget, save], align="stretch")`;
 
 /**
  * The panel: what is settled, and one way to change each of it.
@@ -176,24 +178,23 @@ check('the button sent exactly one turn', chatTurns() === afterFirst + 1, `${cha
 // Kotlin renderer posts for the same press, with nothing taught to it.
 check(
   'as an A2UI action, not a synthesised message',
-  typeof commit?.action?.name === 'string' && commit?.message === undefined,
-  JSON.stringify({ name: commit?.action?.name, message: commit?.message }),
+  typeof pressOf(commit)?.name === 'string' && commit?.message === undefined,
+  JSON.stringify({ name: pressOf(commit)?.name, message: commit?.message }),
 );
 check(
   'carrying all three values at once, in the action context',
-  commit?.action?.context?.origin === 'LHR' &&
-    String(commit?.action?.context?.startDate ?? '').startsWith('2026-04-12') &&
-    commit?.action?.context?.travelers === 3,
-  JSON.stringify(commit?.action?.context ?? {}),
+  pressOf(commit)?.context?.origin === 'LHR' &&
+    String(pressOf(commit)?.context?.startDate ?? '').startsWith('2026-04-12') &&
+    pressOf(commit)?.context?.travelers === 3,
+  JSON.stringify(pressOf(commit)?.context ?? {}),
 );
 check(
   'and says which component was pressed',
-  typeof commit?.action?.sourceComponentId === 'string',
-  String(commit?.action?.sourceComponentId),
+  typeof pressOf(commit)?.sourceComponentId === 'string',
+  String(pressOf(commit)?.sourceComponentId),
 );
 check('and it reads as a message in the conversation', (await page.locator('.bubble--event').count()) > 0);
-// Readable, not the wire: the line used to be `commit surface — paths:
-// ["/trip/origin", ...], startDate: "2026-04-12T00:00:00Z"`.
+// Readable, not the wire: no JSON pointers, ISO timestamps or quoted keys.
 const said = (await page.locator('.bubble--event').last().textContent()) ?? '';
 check(
   'in words a traveller would use',
@@ -202,8 +203,8 @@ check(
 );
 check(
   'and the date was stored as the calendar day it is',
-  String(commit?.action?.context?.startDate) === '2026-04-12',
-  String(commit?.action?.context?.startDate),
+  String(pressOf(commit)?.context?.startDate) === '2026-04-12',
+  String(pressOf(commit)?.context?.startDate),
 );
 
 // --- the previous surface goes grey and stops responding ------------------
@@ -231,30 +232,26 @@ check(
   JSON.stringify(seeded),
 );
 
-// --- a card with no commit button is not a dead end ------------------------
-console.log('\nno button on the card');
+// --- a card's values reach the agent in its data model ---------------------
+console.log('\nthe values a card sends');
 const before = chatTurns();
 await page.locator('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface input[type="range"]').first().fill('3400');
 await page.waitForTimeout(400);
 check('moving the slider sent nothing', chatTurns() === before);
 
-// The server guarantees a way out: a surface of editors with nothing to press
-// gets a commit button before it ever reaches the browser. That used to be a
-// bar the React app drew for itself, which meant an iOS client shipped the dead
-// end this is testing for.
 const commitButton = page
   .locator('.chat__feed .turn__surface:not(.turn__surface--spent) .a2-surface .a2ui-button')
   .last();
-check('the surface came with a way to send anyway', (await commitButton.count()) > 0);
+check('the card has its own button', (await commitButton.count()) > 0);
 await commitButton.click();
 await page.waitForTimeout(900);
 check('and pressing it sends the values', chatTurns() === before + 1, `${chatTurns() - before}`);
 check(
-  // In the surface's data model, which the server asked for with
-  // `sendDataModel`; nothing gathers paths into the button's context any more.
+  // In `a2uiRendererDataModel`, the renderer's data model for every surface
+  // created with `sendDataModel`, sent in the request's metadata.
   'with the edited value in the data model it sends',
-  sent.at(-1)?.action?.dataModel?.trip?.budget === 3400,
-  JSON.stringify(sent.at(-1)?.action?.dataModel?.trip ?? {}),
+  sent.at(-1)?.metadata?.a2uiRendererDataModel?.surfaces?.[pressOf(sent.at(-1))?.surfaceId]?.trip?.budget === 3400,
+  JSON.stringify(sent.at(-1)?.metadata?.a2uiRendererDataModel ?? {}),
 );
 
 // --- the panel is a record, not a form ------------------------------------
@@ -295,8 +292,8 @@ if ((await page.locator('.sidebar .a2-surface').count()) > 0) {
     // The browser routes it inline and sends the action untouched. What the
     // press *means* is the server's to say, so there is no sentence here to
     // assert — only the action and where it was aimed.
-    asked?.surface === 'inline' && asked?.action?.name === 'change',
-    `${asked?.surface}: ${JSON.stringify(asked?.action ?? {}).slice(0, 90)}`,
+    asked?.surface === 'inline' && pressOf(asked)?.name === 'change',
+    `${asked?.surface}: ${JSON.stringify(pressOf(asked) ?? {}).slice(0, 90)}`,
   );
   check(
     'and it reads as a message like any other',

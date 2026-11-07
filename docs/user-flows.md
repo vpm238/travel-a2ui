@@ -1,6 +1,6 @@
 # User flows, and the edge cases that shaped them
 
-Written before the code it describes, and kept in step with it since. The
+The flows the app is built around, and the edge cases that shaped them. The
 implementation notes at the end of each section say where a rule is *enforced*
 rather than merely requested, because the difference matters: a rule in the
 prompt is a request to a model, and a rule in the host is a guarantee.
@@ -17,13 +17,13 @@ Everything follows from that split:
 | --- | --- | --- |
 | Contains | the question being asked right now | what has been settled |
 | Interactive | yes, the newest card only | no — except "change this" |
-| Lifetime | one card per turn, kept as a record | one surface, replaced as the trip moves |
-| Written by | the agent, per turn | the agent, from the trip |
+| Lifetime | one card per turn, kept as a record | one surface, drawn once and kept current by data |
+| Written by | the agent, per turn | the agent, once; the host keeps its data current |
 
 A control that edits something appears **only inline**. The panel never asks you
-anything. This started as two places you could change the same value, and the
-result was a conversation that could not tell you where an answer came from —
-so the panel gave up its controls and kept the record.
+anything: two places that can change the same value leave a conversation that
+cannot tell you where an answer came from, so the panel keeps the record and the
+conversation does the deciding.
 
 ---
 
@@ -35,19 +35,21 @@ so the panel gave up its controls and kept the record.
    each exists, and where the party size differs.
 2. It works out what is *missing* for the next step and asks for **all of it in
    one surface**: dates, departure airport, how many people — each in a control
-   the answer cannot be wrong in. Airports are a `ChoicePicker` of the airports
-   this deployment actually serves; dates are a `DateRangePicker`; the party is
-   a `TravelerCounter`. Pre-filled with anything they already said.
+   the answer cannot be wrong in. Airports are an `AirportPicker` bound to
+   `$/places/origins`, the airports this deployment actually serves; dates are a
+   `DateRangePicker`; the party is a `TravelerCounter`. Bound to `$/trip/...`,
+   so anything they already said is filled in by the host.
 3. One button. Editing sends nothing.
-4. Pressing it sends one message. Everything above greys out.
+4. Pressing it sends one A2UI action, with the card's data model beside it.
+   Everything above greys out.
 
 **Edge cases**
 
 | Case | What happens |
 | --- | --- |
 | No dates given | It asks. It does **not** price "a sample week in April" — the pricing tools refuse without dates and return what to ask for. |
-| No departure airport | **Asked, never inferred.** A timezone covers a continent-slice — `America/New_York` offered JFK to someone in Atlanta, 1,211 km away, with a fare attached — so the guess is gone and the question is a row of airport pills. |
-| A date asked for in a text box | Refused before it is drawn. `data/controls.json` says which control each decision may be asked in, the prompt teaches it and the host checks it, so the model rewrites the surface rather than the traveller mistyping "April 12ish". |
+| No departure airport | **Asked, never inferred.** A time zone covers a continent-slice — `America/New_York` would offer JFK to someone in Atlanta, 1,211 km away — so the question is an `AirportPicker`. |
+| A date asked for in a text box | Caught as soon as it is drawn. `data/controls.json` says which control each decision may be asked in; the prompt teaches it and the host checks the drawn surface against it, telling the model once, so the model fixes the surface rather than the traveller mistyping "April 12ish". |
 | "Roughly what does April cost?" | Answered, and labelled *indicative*, because they asked for a rough figure rather than their trip. |
 | Dates in the past | Refused at save, with the reason. April 2026 asked for in September 2026 means April 2027. |
 | Return before departure | Refused at save. |
@@ -66,8 +68,8 @@ change the surface and wait. Three choices on one card are one answer.
 | Case | What happens |
 | --- | --- |
 | Several things to set at once | One surface, one button, all values sent together. |
-| The agent forgets a button | The server adds one before the surface is sent, bound to everything the card edits. A card of sliders you cannot submit is a dead end. |
-| The agent forgets to bind a field | The server binds it. Nothing the traveler set is dropped because the model named three paths out of four. |
+| Every value set on the card | Arrives with the press. The card is created with `sendDataModel`, so its whole data model is reported beside the action and the host records what changed — nothing depends on the model listing every path in the button. |
+| A card that asks but never sends | A card asking for trip fields without `sendDataModel` is reported to the model as soon as it is drawn, and the model fixes it. The host does not rewrite it. |
 | Tapping an old card | Impossible. Only the newest surface is interactive. |
 | A multi-leg trip | One surface per leg, each labelled with its own route, dates and party size. Tapping a fare decides that leg only. |
 
@@ -84,9 +86,9 @@ change it.
 
 | Case | What happens |
 | --- | --- |
-| A value changes on an inline card | The panel updates immediately, with no model turn — the server sends `updateDataModel`. Trip facts are shared state, not something the agent re-renders. |
-| The plan moves on | Same: the checklist is bound to `/plan`, which the server keeps current. The agent drew the shape once. |
-| Nothing decided yet | The panel says what the agent is about to ask, rather than showing an empty form. |
+| A value changes on an inline card | The panel updates in the same response, with no model turn — the server sends `updateDataModel`. Trip facts are shared state, not something the agent re-renders. |
+| The plan moves on | Same: the panel is bound to `/panel` and `/plan`, which the server keeps current. The agent drew it once. |
+| Nothing decided yet | There is no panel yet. After the first turn that settles a destination, the server asks the model to draw it, once. |
 | Something the trip does not need | Struck through and marked *not needed*. Never asked about again. |
 | A stop still missing something | Flagged on that stop — `dates?`, `stay?` — not as a trip-wide gap. |
 
@@ -95,8 +97,8 @@ change it.
 The important one, and the reason the panel is read-only.
 
 1. In the panel, press **Change** on a locked decision.
-2. That decision is **released** — cleared from the trip, so nothing downstream
-   still prices against it.
+2. The agent **releases** that decision (`release_decision`) — clearing it from
+   the trip, so nothing downstream still prices against it.
 3. The agent re-opens it **inline**, pre-filled with what was there, alongside
    anything that depended on it.
 4. You change it and commit, exactly like the first time.
@@ -134,8 +136,9 @@ the one place the panel is **editable in place**.
 
 1. The agent draws a card per day, each with its activities in time order.
 2. Every activity carries **remove**, and the day carries **add something else**.
-3. Removing is immediate and local — the data model changes, no model turn, no
-   waiting. `callFunction` recomputes the day's hours as it goes.
+3. Removing is a host action (`drop_activity`): the server takes it off the
+   day and sends the new `/days`, with no model turn. Adding something asks the
+   agent.
 4. The turn commits when they press **looks good** or **more options**, which is
    what makes a dozen small edits one message instead of a dozen.
 
@@ -153,7 +156,7 @@ the one place the panel is **editable in place**.
 A finished trip is a thing you send to whoever is coming.
 
 1. The last surface carries **share** beside the plan.
-2. Sharing produces the trip as a readable page — the route, each hop, each
+2. Sharing (`share_plan`) produces the trip as a readable page — the route, each hop, each
    stay, the days, and what it comes to — not a screenshot of the app.
 3. Nothing is booked and the page says so. The provenance label travels with it:
    sample fares are labelled sample fares wherever they end up.
@@ -196,39 +199,43 @@ is a guarantee.
 | --- | --- | --- |
 | Editors never send | the renderer | A model that adds an action to a slider should not be able to break the interaction model. |
 | Only the newest surface is interactive | the host (`inert`) | The agent has no idea what else is on screen. |
-| Trip values pre-fill every surface | **the server** (`createSurface.dataModel`) | Prompting a model to remember state it cannot see is how it forgets — and doing it in the browser is how only one client gets it right. |
-| A panel stays current as the trip moves | **the server** (`updateDataModel`) | Same reason. It is a message every renderer already applies, so it costs a mobile client nothing. |
-| Everything on a surface is sent together | **the server** (`bind_commit_context`) | Every path the editors write to is bound into the commit button before the surface leaves the server. |
-| A card of editors is never a dead end | **the server** (`bindCommitContext`) | A surface with editors and no button gets one. This used to be a bar the React app drew, which meant the Flutter client shipped the dead end. |
+| The surface itself | **the model** | Every surface is composed by the agent; the host never rewrites one. |
+| Trip values fill every surface that binds them | **the server** (`Canvas.provide`, `updateDataModel`) | Prompting a model to remember state it cannot see is how it forgets — and doing it in the browser is how only one client gets it right. |
+| A panel stays current as the trip moves | **the server** (`updateDataModel` on `/panel`, `/plan`, `/trip`) | Same reason. It is a message every renderer already applies, so it costs a mobile client nothing. |
+| What the traveller set reaches the agent | **the renderer** (`sendDataModel`, `a2uiRendererDataModel`) and **the server** (`Canvas.edits`) | A2UI's own mechanism: the data model is reported with every request, and the server records what changed before the model is asked. |
+| Nothing is sent that a renderer would refuse | **the server** (the wire mirror, `RendererState`) | Every message is applied to a mirror of the renderer before it leaves; a refused block goes back to the model once. |
 | No prices without dates and a route | the tools | A model in a hurry prices a plausible week and calls it a sample. |
 | A date range that ends before it starts | the tools | Silent corruption of everything downstream. |
 | One surface, one button, ask for everything | the skill | A judgement call about layout, which is the model's job — and now one it cannot get *wrong* in a way that loses an answer. |
 | Which control a decision may be asked in | **`data/controls.json`**, taught by the skill and checked by the host | One table read twice. A rule stated in a prompt and enforced by a separate hand-kept list is two rules, and they drift the first time somebody edits one. |
-| A component the catalog does not define | the host, before compiling | The SDK drops an invented component silently, so a surface made only of them compiles to an empty box with no error anywhere. |
-| A child nobody defined | the host, via the SDK validator | `Column([head, footer])` with no `footer` is valid Express and renders a hole. Compiling is not validating. |
-| A flight for every hop, including home | **the trip model** | The model believed a one-leg trip was complete the moment the outbound was chosen, and moved on to hotels with the traveller still in New York. |
-| What this deployment has data for | **the data**, and the prompt says so | The list of airports in the prompt was a promise `search_flights` refused to keep: it invented a fare from any three letters, so the typed agent priced a trip the voice agent had just refused. |
+| A component the catalog does not define | the SDK processor | The block is refused with the SDK's reason, and the model writes it again. |
+| A child nobody defined | the SDK processor | `Column([head, footer])` with no `footer` is refused rather than drawn with a hole. |
+| A flight for every hop, including home | **the trip model** | A model that treats a one-leg trip as complete once the outbound is chosen moves on to hotels with the traveller still in New York. |
+| What this deployment has data for | **the data**, and the prompt says so | The airports a picker offers are `/places`, the ones `search_flights` can price, so neither agent offers a trip the other refuses. |
 | Say what a price is priced against | the skill, from a value the tools supply | The wording is the model's; the facts are not. |
 | Lead the trip; know when to stop | the skill, from the model's plan | Same split: the sequence is computed, the phrasing is not. |
 
-Four of those moved from the browser to the server, and the reason is the same
-in every case: a rule enforced in the web app is a rule only the web app obeys.
-The same session opened in the Flutter renderer now gets pre-filled
-controls, a live panel, and a surface it can always submit — with no
-travel-specific client code, because there is none left to write.
+None of those rules lives in a client, because a rule enforced in the web app
+is a rule only the web app obeys. The same session opened in the Flutter
+renderer gets pre-filled controls and a live panel with no travel-specific
+client code.
 
-What crosses the wire when you press something is A2UI's own action envelope:
+What crosses the wire when you press something is A2UI v1.0's own action
+message, with the renderer's data model as metadata
+([transport.md](transport.md)):
 
 ```json
-{ "action": { "name": "search_flights", "surfaceId": "inline-1",
-              "sourceComponentId": "go", "timestamp": "…",
-              "context": { "origin": "JFK", "startDate": "2027-04-12" } } }
+{ "a2ui": [{ "version": "1.0",
+             "action": { "name": "search_flights", "surfaceId": "inline-1",
+                         "sourceComponentId": "go", "timestamp": "…",
+                         "context": {} } }],
+  "metadata": { "a2uiRendererDataModel": { "version": "1.0", "surfaces": {
+                  "inline-1": { "trip": { "origin": "JFK", "startDate": "2027-04-12" } } } } } }
 ```
 
-It used to be a sentence this app composed and nothing parsed. What that press
-*means* — that a tap on the read-only panel is a request to re-open a decision,
-say — is now said once, on the server, because it is a fact about this agent and
-not about the tap.
+What that press *means* — that a tap on the read-only panel is a request to
+re-open a decision, say — is said once, on the server, because it is a fact
+about this agent and not about the tap.
 
 So: **not all of it is better skills.** The prompt carries taste — what to draw,
 what to say, when to have an opinion. The parts that must not vary are code,
@@ -242,11 +249,7 @@ carries an action, what the trip ended up containing. Nothing is judged by
 another model, because a grader that is itself a language model makes the suite
 exactly as trustworthy as the thing it grades.
 
-It has already earned its keep. Three findings on the first two runs: a block
-that would not compile because the model wrote `duration:` where the grammar
-wants `duration=`; a compile error nobody was ever told about, least of all the
-model that could fix it; and a panel drawing controls because "lead the trip"
-and "the panel is read-only" contradicted each other on a panel turn. None of
-those were visible from the code, and none would have been caught by a scripted
-test — the scripted tests pass a model that behaves, and the question was
-whether it does.
+It catches what a scripted test cannot: a block written `duration:` where the
+grammar wants `duration=`, or a panel drawing controls because "lead the trip"
+and "the panel is read-only" contradict each other on a panel turn. The scripted
+tests pass a model that behaves; the question is whether it does.

@@ -1,4 +1,4 @@
-// The fourteen travel components, drawn in Flutter.
+// The fifteen travel components, drawn in Flutter.
 //
 // Everything else a surface can hold — Text, Row, Column, List, Card, Button,
 // the editors — is the A2UI SDK's own: `a2ui_flutter`'s basic catalog draws it,

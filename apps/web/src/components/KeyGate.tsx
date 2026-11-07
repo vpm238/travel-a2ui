@@ -23,9 +23,8 @@ export function KeyGate({
   const [touched, setTouched] = useState(false);
 
   const trimmed = value.trim();
-  // A soft check on length only. It used to require an `AIza` prefix, which is
-  // wrong: AI Studio also issues keys beginning `AQ.`, and that check warned on
-  // a perfectly good key. The point is to catch a pasted placeholder or a
+  // A soft check on length only: AI Studio issues keys beginning `AIza` and
+  // `AQ.`, and Google is free to add more. The point is to catch a pasted placeholder or a
   // truncated paste, not to police a format Google is free to change.
   const looksWrong = touched && trimmed.length > 0 && trimmed.length < 20;
 

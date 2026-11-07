@@ -11,3 +11,4 @@ export { createTravelCatalog, travelComponentNames, type CatalogDocument } from 
 export { calcNights, equals } from './functions.js';
 export { renderMarkdown } from './markdown.js';
 export { Icon, hasIcon, type IconName, type IconProps } from './components/icons.js';
+export { ariaFrom, type AriaAttributes } from './accessibility.js';

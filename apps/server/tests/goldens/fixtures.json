@@ -1,0 +1,780 @@
+{
+  "flights: madrid, plain": {
+    "ok": true,
+    "items": [
+      {
+        "id": "TP2754",
+        "airline": "TAP Air Portugal",
+        "flightNumber": "TP558",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "12:01",
+        "arriveTime": "22:35",
+        "duration": "10h 34m",
+        "stops": "1 stop · LIS",
+        "price": "$314",
+        "priceValue": 314,
+        "cabin": "economy",
+        "badge": "Cheapest"
+      },
+      {
+        "id": "AA3086",
+        "airline": "American",
+        "flightNumber": "AA154",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "14:34",
+        "arriveTime": "22:29",
+        "duration": "7h 55m",
+        "stops": "Nonstop",
+        "price": "$346",
+        "priceValue": 346,
+        "cabin": "economy"
+      },
+      {
+        "id": "AF4342",
+        "airline": "Air France",
+        "flightNumber": "AF369",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "08:55",
+        "arriveTime": "19:05",
+        "duration": "10h 10m",
+        "stops": "1 stop · CDG",
+        "price": "$347",
+        "priceValue": 347,
+        "cabin": "economy"
+      },
+      {
+        "id": "DL2029",
+        "airline": "Delta",
+        "flightNumber": "DL856",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "09:05",
+        "arriveTime": "16:47",
+        "duration": "7h 42m",
+        "stops": "Nonstop",
+        "price": "$387",
+        "priceValue": 387,
+        "cabin": "economy",
+        "badge": "Fastest"
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "note": "4 option(s) for JFK → MAD.",
+    "relaxed": [],
+    "currency": "USD"
+  },
+  "flights: dated and business": {
+    "ok": true,
+    "items": [
+      {
+        "id": "TP7008",
+        "airline": "TAP Air Portugal",
+        "flightNumber": "TP622",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "15:39",
+        "arriveTime": "02:30 +1",
+        "duration": "10h 51m",
+        "stops": "1 stop · LIS",
+        "price": "$989",
+        "priceValue": 989,
+        "cabin": "business",
+        "badge": "Cheapest"
+      },
+      {
+        "id": "AF3236",
+        "airline": "Air France",
+        "flightNumber": "AF971",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "18:38",
+        "arriveTime": "05:20 +1",
+        "duration": "10h 42m",
+        "stops": "1 stop · CDG",
+        "price": "$1,063",
+        "priceValue": 1063,
+        "cabin": "business"
+      },
+      {
+        "id": "IB4263",
+        "airline": "Iberia",
+        "flightNumber": "IB906",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "19:22",
+        "arriveTime": "03:01 +1",
+        "duration": "7h 39m",
+        "stops": "Nonstop",
+        "price": "$1,194",
+        "priceValue": 1194,
+        "cabin": "business"
+      },
+      {
+        "id": "AA6612",
+        "airline": "American",
+        "flightNumber": "AA348",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "13:52",
+        "arriveTime": "21:30",
+        "duration": "7h 38m",
+        "stops": "Nonstop",
+        "price": "$1,238",
+        "priceValue": 1238,
+        "cabin": "business",
+        "badge": "Fastest"
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "note": "4 option(s) for JFK → MAD on 2027-04-12.",
+    "relaxed": [],
+    "currency": "USD"
+  },
+  "flights: nonstop only": {
+    "ok": true,
+    "items": [
+      {
+        "id": "TP8727",
+        "airline": "TAP Air Portugal",
+        "flightNumber": "TP974",
+        "origin": "LHR",
+        "destination": "LIS",
+        "departTime": "15:25",
+        "arriveTime": "18:21",
+        "duration": "2h 56m",
+        "stops": "Nonstop",
+        "price": "$141",
+        "priceValue": 141,
+        "cabin": "economy",
+        "badge": "Cheapest"
+      },
+      {
+        "id": "TP2088",
+        "airline": "TAP Air Portugal",
+        "flightNumber": "TP798",
+        "origin": "LHR",
+        "destination": "LIS",
+        "departTime": "17:11",
+        "arriveTime": "19:57",
+        "duration": "2h 46m",
+        "stops": "Nonstop",
+        "price": "$143",
+        "priceValue": 143,
+        "cabin": "economy",
+        "badge": "Fastest"
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "note": "2 option(s) for LHR → LIS.",
+    "relaxed": [],
+    "currency": "USD"
+  },
+  "flights: impossible price cap": {
+    "ok": true,
+    "items": [
+      {
+        "id": "DL7277",
+        "airline": "Delta",
+        "flightNumber": "DL943",
+        "origin": "LAX",
+        "destination": "NRT",
+        "departTime": "16:28",
+        "arriveTime": "04:01 +1",
+        "duration": "11h 33m",
+        "stops": "Nonstop",
+        "price": "$505",
+        "priceValue": 505,
+        "cabin": "economy",
+        "badge": "Cheapest"
+      },
+      {
+        "id": "UA6603",
+        "airline": "United",
+        "flightNumber": "UA756",
+        "origin": "LAX",
+        "destination": "NRT",
+        "departTime": "20:40",
+        "arriveTime": "08:05 +1",
+        "duration": "11h 25m",
+        "stops": "Nonstop",
+        "price": "$518",
+        "priceValue": 518,
+        "cabin": "economy"
+      },
+      {
+        "id": "AA6803",
+        "airline": "American",
+        "flightNumber": "AA222",
+        "origin": "LAX",
+        "destination": "NRT",
+        "departTime": "08:43",
+        "arriveTime": "19:55",
+        "duration": "11h 12m",
+        "stops": "Nonstop",
+        "price": "$550",
+        "priceValue": 550,
+        "cabin": "economy",
+        "badge": "Fastest"
+      },
+      {
+        "id": "UA2393",
+        "airline": "United",
+        "flightNumber": "UA909",
+        "origin": "LAX",
+        "destination": "NRT",
+        "departTime": "08:28",
+        "arriveTime": "19:47",
+        "duration": "11h 19m",
+        "stops": "Nonstop",
+        "price": "$585",
+        "priceValue": 585,
+        "cabin": "economy"
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "note": "Nothing matched the $1 cap — closest 4 for LAX → NRT.",
+    "relaxed": [
+      "the $1 cap"
+    ],
+    "currency": "USD"
+  },
+  "flights: no departure city, and not asked to guess": {
+    "ok": false,
+    "reason": "unknown-origin",
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "message": "Flights need somewhere to leave from.",
+    "recover": [
+      "New York (JFK)",
+      "Chicago (ORD)",
+      "San Francisco (SFO)",
+      "Denver (DEN)",
+      "Los Angeles (LAX)",
+      "Miami (MIA)"
+    ]
+  },
+  "flights: no departure city, explicitly rough": {
+    "ok": true,
+    "items": [
+      {
+        "id": "TP2754",
+        "airline": "TAP Air Portugal",
+        "flightNumber": "TP558",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "12:01",
+        "arriveTime": "22:35",
+        "duration": "10h 34m",
+        "stops": "1 stop · LIS",
+        "price": "$314",
+        "priceValue": 314,
+        "cabin": "economy",
+        "badge": "Cheapest"
+      },
+      {
+        "id": "AA3086",
+        "airline": "American",
+        "flightNumber": "AA154",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "14:34",
+        "arriveTime": "22:29",
+        "duration": "7h 55m",
+        "stops": "Nonstop",
+        "price": "$346",
+        "priceValue": 346,
+        "cabin": "economy"
+      },
+      {
+        "id": "AF4342",
+        "airline": "Air France",
+        "flightNumber": "AF369",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "08:55",
+        "arriveTime": "19:05",
+        "duration": "10h 10m",
+        "stops": "1 stop · CDG",
+        "price": "$347",
+        "priceValue": 347,
+        "cabin": "economy"
+      },
+      {
+        "id": "DL2029",
+        "airline": "Delta",
+        "flightNumber": "DL856",
+        "origin": "JFK",
+        "destination": "MAD",
+        "departTime": "09:05",
+        "arriveTime": "16:47",
+        "duration": "7h 42m",
+        "stops": "Nonstop",
+        "price": "$387",
+        "priceValue": 387,
+        "cabin": "economy",
+        "badge": "Fastest"
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "note": "4 option(s) for JFK → MAD. Typical fares: no departure city — sampled from New York (JFK).",
+    "relaxed": [
+      "no departure city — sampled from New York (JFK)"
+    ],
+    "currency": "USD"
+  },
+  "hotels: madrid, five nights": {
+    "ok": true,
+    "items": [
+      {
+        "id": "h_MAD_0",
+        "name": "Pensão Alta",
+        "neighborhood": "Lavapiés",
+        "rating": "4.3 (594)",
+        "price": "€102 / night",
+        "priceValue": 102,
+        "amenities": [
+          "Late check-out",
+          "Bikes",
+          "Breakfast"
+        ],
+        "badge": "Best value"
+      },
+      {
+        "id": "h_MAD_1",
+        "name": "Pensão Nueve",
+        "neighborhood": "Chueca",
+        "rating": "4.1 (1137)",
+        "price": "€168 / night",
+        "priceValue": 168,
+        "amenities": [
+          "Breakfast",
+          "Kitchenette"
+        ]
+      },
+      {
+        "id": "h_MAD_3",
+        "name": "Pensão Nueve",
+        "neighborhood": "La Latina",
+        "rating": "4.9 (655)",
+        "price": "€194 / night",
+        "priceValue": 194,
+        "amenities": [
+          "Air-con",
+          "Bikes",
+          "Rooftop",
+          "Kitchenette"
+        ]
+      },
+      {
+        "id": "h_MAD_4",
+        "name": "Casa Alta",
+        "neighborhood": "Chueca",
+        "rating": "4.8 (1992)",
+        "price": "€214 / night",
+        "priceValue": 214,
+        "amenities": [
+          "Rooftop",
+          "Laundry",
+          "Late check-out",
+          "Breakfast"
+        ]
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "note": "4 stay(s) in Madrid for 5 night(s).",
+    "relaxed": [],
+    "currency": "EUR"
+  },
+  "hotels: impossible nightly cap": {
+    "ok": true,
+    "items": [
+      {
+        "id": "h_CDG_3",
+        "name": "Villa Lumière",
+        "neighborhood": "Belleville",
+        "rating": "4.4 (1601)",
+        "price": "€181 / night",
+        "priceValue": 181,
+        "amenities": [
+          "Kitchenette",
+          "Bikes"
+        ],
+        "badge": "Best value"
+      },
+      {
+        "id": "h_CDG_4",
+        "name": "Pensão Verano",
+        "neighborhood": "Le Marais",
+        "rating": "4.3 (211)",
+        "price": "€236 / night",
+        "priceValue": 236,
+        "amenities": [
+          "Rooftop",
+          "Air-con",
+          "Breakfast",
+          "Laundry"
+        ]
+      },
+      {
+        "id": "h_CDG_2",
+        "name": "Residencia Verano",
+        "neighborhood": "Canal Saint-Martin",
+        "rating": "4.0 (1486)",
+        "price": "€249 / night",
+        "priceValue": 249,
+        "amenities": [
+          "Rooftop",
+          "Breakfast"
+        ]
+      },
+      {
+        "id": "h_CDG_0",
+        "name": "Pensão Nueve",
+        "neighborhood": "Saint-Germain",
+        "rating": "4.5 (1996)",
+        "price": "€283 / night",
+        "priceValue": 283,
+        "amenities": [
+          "Kitchenette",
+          "Laundry",
+          "Breakfast",
+          "Air-con"
+        ]
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "note": "Nothing under the €1 a night cap. Closest 4 in Paris.",
+    "relaxed": [
+      "the €1 a night cap"
+    ],
+    "currency": "EUR"
+  },
+  "weather: madrid in april": {
+    "ok": true,
+    "items": [
+      {
+        "place": "Madrid",
+        "days": [
+          {
+            "day": "Mon",
+            "high": "21°",
+            "low": "14°",
+            "condition": "rain"
+          },
+          {
+            "day": "Tue",
+            "high": "20°",
+            "low": "15°",
+            "condition": "sun"
+          },
+          {
+            "day": "Wed",
+            "high": "19°",
+            "low": "13°",
+            "condition": "rain"
+          },
+          {
+            "day": "Thu",
+            "high": "21°",
+            "low": "14°",
+            "condition": "fog"
+          },
+          {
+            "day": "Fri",
+            "high": "23°",
+            "low": "17°",
+            "condition": "fog"
+          }
+        ],
+        "note": "Rain on more than one day — pack a shell."
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "note": "Rain on more than one day — pack a shell.",
+    "relaxed": []
+  },
+  "estimate: two travelers, seven nights": {
+    "lines": [
+      {
+        "label": "Flights (2 travelers)",
+        "amount": "$938"
+      },
+      {
+        "label": "Stay (7 nights)",
+        "amount": "$1,490"
+      },
+      {
+        "label": "Food and drink",
+        "amount": "$880",
+        "note": "estimated"
+      },
+      {
+        "label": "Local transport",
+        "amount": "$192",
+        "note": "metro and taxis"
+      }
+    ],
+    "total": "$3,500",
+    "totalValue": 3500,
+    "currency": "USD"
+  },
+  "flights: a departure airport nobody wrote down": {
+    "ok": true,
+    "items": [
+      {
+        "id": "DL3244",
+        "airline": "Delta",
+        "flightNumber": "DL830",
+        "origin": "BOS",
+        "destination": "LIS",
+        "departTime": "14:27",
+        "arriveTime": "03:01 +1",
+        "duration": "12h 34m",
+        "stops": "1 stop · JFK",
+        "price": "$313",
+        "priceValue": 313,
+        "cabin": "economy",
+        "badge": "Cheapest"
+      },
+      {
+        "id": "AF3687",
+        "airline": "Air France",
+        "flightNumber": "AF220",
+        "origin": "BOS",
+        "destination": "LIS",
+        "departTime": "15:06",
+        "arriveTime": "03:21 +1",
+        "duration": "12h 15m",
+        "stops": "1 stop · CDG",
+        "price": "$327",
+        "priceValue": 327,
+        "cabin": "economy"
+      },
+      {
+        "id": "LH4984",
+        "airline": "Lufthansa",
+        "flightNumber": "LH580",
+        "origin": "BOS",
+        "destination": "LIS",
+        "departTime": "07:21",
+        "arriveTime": "19:29",
+        "duration": "12h 8m",
+        "stops": "1 stop · FRA",
+        "price": "$341",
+        "priceValue": 341,
+        "cabin": "economy"
+      },
+      {
+        "id": "AA6713",
+        "airline": "American",
+        "flightNumber": "AA100",
+        "origin": "BOS",
+        "destination": "LIS",
+        "departTime": "11:40",
+        "arriveTime": "22:38",
+        "duration": "10h 58m",
+        "stops": "1 stop · LAX",
+        "price": "$355",
+        "priceValue": 355,
+        "cabin": "economy",
+        "badge": "Fastest"
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "note": "4 option(s) for BOS → LIS.",
+    "relaxed": [],
+    "currency": "USD"
+  },
+  "flights: a destination nobody wrote down": {
+    "ok": true,
+    "items": [
+      {
+        "id": "DL1833",
+        "airline": "Delta",
+        "flightNumber": "DL277",
+        "origin": "JFK",
+        "destination": "REY",
+        "departTime": "13:17",
+        "arriveTime": "01:28 +1",
+        "duration": "12h 11m",
+        "stops": "1 stop · LAX",
+        "price": "$251",
+        "priceValue": 251,
+        "cabin": "economy",
+        "badge": "Cheapest"
+      },
+      {
+        "id": "LH8947",
+        "airline": "Lufthansa",
+        "flightNumber": "LH882",
+        "origin": "JFK",
+        "destination": "REY",
+        "departTime": "09:36",
+        "arriveTime": "21:26",
+        "duration": "11h 50m",
+        "stops": "1 stop · FRA",
+        "price": "$259",
+        "priceValue": 259,
+        "cabin": "economy"
+      },
+      {
+        "id": "TP5237",
+        "airline": "TAP Air Portugal",
+        "flightNumber": "TP542",
+        "origin": "JFK",
+        "destination": "REY",
+        "departTime": "15:18",
+        "arriveTime": "01:43 +1",
+        "duration": "10h 25m",
+        "stops": "1 stop · LIS",
+        "price": "$265",
+        "priceValue": 265,
+        "cabin": "economy",
+        "badge": "Fastest"
+      },
+      {
+        "id": "UA1858",
+        "airline": "United",
+        "flightNumber": "UA948",
+        "origin": "JFK",
+        "destination": "REY",
+        "departTime": "13:57",
+        "arriveTime": "00:53 +1",
+        "duration": "10h 56m",
+        "stops": "1 stop · DEN",
+        "price": "$278",
+        "priceValue": 278,
+        "cabin": "economy"
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "note": "4 option(s) for JFK → REY.",
+    "relaxed": [],
+    "currency": "USD"
+  },
+  "hotels: a destination nobody wrote down": {
+    "ok": true,
+    "items": [
+      {
+        "id": "h_REY_1",
+        "name": "The Aurora",
+        "neighborhood": "The Lanes",
+        "rating": "4.0 (1489)",
+        "price": "$139 / night",
+        "priceValue": 139,
+        "amenities": [
+          "Air-con",
+          "Breakfast",
+          "Laundry",
+          "Kitchenette"
+        ],
+        "badge": "Best value"
+      },
+      {
+        "id": "h_REY_4",
+        "name": "Pensão Alta",
+        "neighborhood": "The Lanes",
+        "rating": "4.2 (1926)",
+        "price": "$244 / night",
+        "priceValue": 244,
+        "amenities": [
+          "Air-con",
+          "Breakfast",
+          "Bikes",
+          "Late check-out"
+        ]
+      },
+      {
+        "id": "h_REY_0",
+        "name": "Pensão Bruma",
+        "neighborhood": "Harbour",
+        "rating": "4.9 (200)",
+        "price": "$258 / night",
+        "priceValue": 258,
+        "amenities": [
+          "Bikes",
+          "Rooftop"
+        ]
+      },
+      {
+        "id": "h_REY_2",
+        "name": "Casa Nueve",
+        "neighborhood": "Harbour",
+        "rating": "4.3 (1381)",
+        "price": "$258 / night",
+        "priceValue": 258,
+        "amenities": [
+          "Breakfast",
+          "Kitchenette",
+          "Air-con"
+        ]
+      }
+    ],
+    "provenance": {
+      "source": "fixture",
+      "live": false,
+      "label": "Sample data",
+      "detail": "Prices, schedules and hotels are generated for this demo and are not real. City guidance is real. A live provider replaces this one behind the same interface."
+    },
+    "note": "4 stay(s) in Reykjavik for 4 night(s).",
+    "relaxed": [],
+    "currency": "USD"
+  }
+}

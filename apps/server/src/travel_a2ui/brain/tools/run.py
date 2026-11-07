@@ -228,11 +228,8 @@ async def _run(name: str, args: dict[str, Any], context: ToolContext) -> tuple[A
 
         # **What is sound is recorded; only the offending field is turned away.**
         #
-        # This used to refuse the whole call, and `save_trip` takes the whole
-        # trip — so one hop's dates being a day out threw away the chosen stay,
-        # the party and the route that came with them. The model then read a
-        # trip with no stay in it and drew the fares again at somebody who had
-        # just picked a hotel.
+        # `save_trip` takes the whole trip, so refusing the call would throw
+        # away a chosen stay because one hop's dates were a day out.
         #
         # The sieve is the model's, the same one a button press goes through,
         # so a value is refused for the same reason wherever it came from.

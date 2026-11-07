@@ -1,4 +1,4 @@
-// The travel catalog, assembled from the A2UI SDK and fourteen travel views.
+// The travel catalog, assembled from the A2UI SDK and fifteen travel views.
 //
 // The document arrives from `/api/catalog`: the same JSON the agent is taught
 // from and the server validates against. `Catalog.fromJson` from `a2ui_core`

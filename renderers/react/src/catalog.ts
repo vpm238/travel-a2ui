@@ -1,15 +1,8 @@
 /**
  * The travel catalog, as the A2UI SDK renders it.
  *
- * This package used to be a renderer: its own message store, its own binding
- * resolver, its own function evaluator and check runner, and its own drawing of
- * every basic component — a reimplementation of `@a2ui/web_core`, which is what
- * the A2UI team's review called it. It drifted the way reimplementations do:
- * checks read `call` where 1.0 writes `@call` and so never ran, a pointer
- * writer would follow `__proto__`, and our basic `Text` accepted heading
- * variants v1.0 had removed.
- *
- * Now it is a catalog and nothing else:
+ * It is a catalog and nothing else — no message store, binding resolver or
+ * function evaluator of its own, because those are `@a2ui/web_core`'s:
  *
  *   - the **schema** is ours, `catalogs/a2ui-travel/catalog.json`, loaded with
  *     `Catalog.fromJson` — the same document the server compiles against;
@@ -22,9 +15,16 @@
  * Messages, state, bindings, checks and actions are all `@a2ui/web_core`'s.
  */
 
-import { Catalog, createFunctionImplementation } from '@a2ui/web_core/v1_0';
+import {
+  Catalog,
+  createFunctionImplementation,
+  type CatalogApi,
+  type ComponentApi,
+  type FunctionApi,
+  type FunctionImplementation,
+} from '@a2ui/web_core/v1_0';
 import { basicCatalog } from '@a2ui/web_core/catalogs/basic/v1';
-import { createComponentImplementation } from '@a2ui/react/v0_9';
+import { createComponentImplementation, type ReactCatalogComponent } from '@a2ui/react';
 
 import { calcNights, equals } from './functions.js';
 import { TRAVEL_VIEWS } from './components/travel.js';
@@ -50,27 +50,32 @@ const TRAVEL_FUNCTIONS: Record<string, (args: AnyRecord) => unknown> = { calcNig
  * or evaluate, because a catalog that offers the agent something the renderer
  * cannot show is the one mistake a catalog must not make.
  */
-export function createTravelCatalog(document: CatalogDocument): Catalog<any, any> {
-  const schemas = Catalog.fromJson(document) as unknown as Catalog<any, any>;
-  const basic = basicCatalog as unknown as Catalog<any, any>;
+export function createTravelCatalog(document: CatalogDocument): Catalog<ReactCatalogComponent, FunctionImplementation> {
+  const schemas: CatalogApi = Catalog.fromJson(document);
 
-  const components = [...schemas.components.entries()].map(([name, api]) => {
-    const fromSdk = basic.components.get(name);
+  const components: ReactCatalogComponent[] = [...schemas.components.entries()].map(([name, api]) => {
+    const fromSdk = basicCatalog.components.get(name);
     if (fromSdk) return fromSdk;
     const view = TRAVEL_VIEWS[name];
     if (!view) throw new Error(`The catalog offers ${name}, and nothing here draws it.`);
-    return createComponentImplementation(api, view as never);
+    return createComponentImplementation(api, view);
   });
 
-  const functions = [...schemas.functions.entries()].map(([name, api]) => {
-    const fromSdk = basic.functions.get(name);
+  const functions: FunctionImplementation[] = [...schemas.functions.entries()].map(([name, api]) => {
+    const fromSdk = basicCatalog.functions.get(name);
     if (fromSdk) return fromSdk;
     const execute = TRAVEL_FUNCTIONS[name];
     if (!execute) throw new Error(`The catalog offers ${name}(), and nothing here evaluates it.`);
-    return createFunctionImplementation(api as never, ((args: AnyRecord) => execute(args)) as never);
+    return createFunctionImplementation(api, (args: AnyRecord) => execute(args));
   });
 
-  return schemas.withEntries(components, functions);
+  // `fromJson` types its entries as schemas (`ComponentApi`, `FunctionApi`),
+  // and `withEntries` keeps the type it was called on. The entries handed to it
+  // are implementations, which is what this narrows to.
+  return (schemas as Catalog<ComponentApi, FunctionApi>).withEntries(
+    components,
+    functions,
+  ) as unknown as Catalog<ReactCatalogComponent, FunctionImplementation>;
 }
 
 /** Every component the travel catalog draws itself; the rest are the SDK's. */

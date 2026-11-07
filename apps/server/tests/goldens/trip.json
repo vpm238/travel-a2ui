@@ -1,0 +1,1457 @@
+{
+  "model": {
+    "fields": [
+      {
+        "key": "destination",
+        "kind": "text",
+        "label": "where you are going",
+        "stage": "route",
+        "note": "City or airport. Everything else is priced against it."
+      },
+      {
+        "key": "origin",
+        "kind": "code",
+        "label": "which airport you are flying from",
+        "stage": "route",
+        "note": "Three-letter code. Never assumed — suggested from the browser, confirmed by the traveler."
+      },
+      {
+        "key": "startDate",
+        "kind": "date",
+        "label": "when you are leaving",
+        "stage": "dates",
+        "note": "YYYY-MM-DD. No fare is real without it."
+      },
+      {
+        "key": "endDate",
+        "kind": "date",
+        "label": "when you are coming back",
+        "stage": "dates",
+        "note": "YYYY-MM-DD. With startDate it gives the number of nights."
+      },
+      {
+        "key": "travelers",
+        "kind": "count",
+        "label": "how many of you are going",
+        "stage": "party",
+        "note": "Adults and older children — everyone needing a seat and a bed."
+      },
+      {
+        "key": "cabin",
+        "kind": "choice",
+        "label": "which cabin",
+        "stage": "flight",
+        "options": [
+          "economy",
+          "premium",
+          "business",
+          "first"
+        ],
+        "note": "Defaults to economy when nobody says otherwise."
+      },
+      {
+        "key": "nonstopOnly",
+        "kind": "flag",
+        "label": "whether to exclude connections",
+        "stage": "flight",
+        "note": "A preference, not a requirement: it filters the search."
+      },
+      {
+        "key": "maxFare",
+        "kind": "money",
+        "label": "the most you would pay per seat",
+        "stage": "flight",
+        "note": "Per traveler, one way. Filters the search rather than the display."
+      },
+      {
+        "key": "selectedFlight",
+        "kind": "text",
+        "label": "the flight you chose",
+        "stage": "flight",
+        "note": "The id from the card they tapped. Its fare feeds the total."
+      },
+      {
+        "key": "flightPrice",
+        "kind": "money",
+        "label": "what that flight costs",
+        "stage": "flight",
+        "note": "Per traveler. Saved alongside the id so the total is theirs, not an average."
+      },
+      {
+        "key": "airline",
+        "kind": "text",
+        "label": "who flies it",
+        "stage": "flight",
+        "note": "Read off the card they tapped, so the panel can say what the flight is. Without it the panel binds to a key the trip has not got, and the renderer shows a field waiting for data that is never coming."
+      },
+      {
+        "key": "flightNumber",
+        "kind": "text",
+        "label": "the flight number",
+        "stage": "flight",
+        "note": "The marketing number off the card they tapped, e.g. 'IB6250'. Not the id: a provider's id names an offer, and a panel showing it reads as a flight nobody can find on a departures board."
+      },
+      {
+        "key": "departTime",
+        "kind": "text",
+        "label": "when it leaves",
+        "stage": "flight",
+        "note": "The display string from the card, e.g. '07:15'. Saved for the same reason as airline."
+      },
+      {
+        "key": "arriveTime",
+        "kind": "text",
+        "label": "when it lands",
+        "stage": "flight",
+        "note": "The display string from the card, e.g. '11:40'. Saved for the same reason as airline."
+      },
+      {
+        "key": "neighborhood",
+        "kind": "text",
+        "label": "which part of town",
+        "stage": "stay",
+        "note": "Narrows the stays that come back."
+      },
+      {
+        "key": "maxNightly",
+        "kind": "money",
+        "label": "the most per night",
+        "stage": "stay",
+        "note": "Filters stays. Distinct from the trip budget."
+      },
+      {
+        "key": "needsStay",
+        "kind": "flag",
+        "label": "whether the first stop needs somewhere to stay",
+        "stage": "stay",
+        "note": "False when they have somewhere already — staying with family, a conference booking it. Every other stop says this on its own leg; the first stop is the flat fields, so it says it here. Without it there was no way to answer the question for the first city, and the agent went on asking."
+      },
+      {
+        "key": "selectedHotel",
+        "kind": "text",
+        "label": "where you are staying",
+        "stage": "stay",
+        "note": "The id from the card they tapped."
+      },
+      {
+        "key": "hotelName",
+        "kind": "text",
+        "label": "what it is called",
+        "stage": "stay",
+        "note": "The name off the card they tapped. `selectedHotel` is an id — 'h_BER_savigny' — and a panel bound to it shows the id or nothing."
+      },
+      {
+        "key": "nightlyPrice",
+        "kind": "money",
+        "label": "what that stay costs a night",
+        "stage": "stay",
+        "note": "Saved with the id, for the same reason as flightPrice."
+      },
+      {
+        "key": "budget",
+        "kind": "money",
+        "label": "what the whole trip should come to",
+        "stage": "budget",
+        "note": "All in, for everyone. What the progress meter measures against."
+      },
+      {
+        "key": "spent",
+        "kind": "money",
+        "label": "what is committed so far",
+        "stage": "budget",
+        "note": "Booked, not estimated."
+      },
+      {
+        "key": "notes",
+        "kind": "text",
+        "label": "anything else worth remembering",
+        "stage": "budget",
+        "note": "One line. Preferences and constraints that do not have a field."
+      },
+      {
+        "key": "days",
+        "kind": "days",
+        "label": "the day-by-day plan",
+        "stage": "plan",
+        "note": "The itinerary itself, one entry per day, each with its activities in time order. Recorded rather than merely drawn: an itinerary that lives only in the surface that drew it cannot be edited, revisited or shared, which is why removing an activity had nowhere to go."
+      },
+      {
+        "key": "planned",
+        "kind": "flag",
+        "label": "a day-by-day plan",
+        "stage": "plan",
+        "note": "Set once the itinerary has been drawn and the traveler is happy with it."
+      },
+      {
+        "key": "oneWay",
+        "kind": "flag",
+        "label": "whether the journey comes back",
+        "stage": "route",
+        "note": "True when it does not: one way, staying on, sorting the way home later. The route then ends where it ends, and nothing should go looking for the missing hop. Record it here, not as `skip: ['return']`: \"return\" is not a stage, so that is dropped and the way home gets asked about again."
+      },
+      {
+        "key": "skip",
+        "kind": "stages",
+        "label": "the parts that do not apply",
+        "stage": "route",
+        "note": "Stages this trip does not need — driving rather than flying, staying with family, no fixed budget. A skipped stage counts as settled and is never asked about again."
+      },
+      {
+        "key": "assumed",
+        "kind": "fields",
+        "label": "the values nobody confirmed",
+        "stage": "route",
+        "note": "Fields filled in without being told. They pre-fill controls but do not settle a stage, so the traveler is still asked."
+      },
+      {
+        "key": "legs",
+        "kind": "legs",
+        "label": "the other stops",
+        "stage": "route",
+        "note": "Additional stops beyond the first, each with its own dates. The flat fields describe the first leg; this is how a two-city trip stops being two half-described trips."
+      }
+    ],
+    "tripKeys": [
+      "destination",
+      "origin",
+      "startDate",
+      "endDate",
+      "travelers",
+      "cabin",
+      "nonstopOnly",
+      "maxFare",
+      "selectedFlight",
+      "flightPrice",
+      "airline",
+      "flightNumber",
+      "departTime",
+      "arriveTime",
+      "neighborhood",
+      "maxNightly",
+      "needsStay",
+      "selectedHotel",
+      "hotelName",
+      "nightlyPrice",
+      "budget",
+      "spent",
+      "notes",
+      "days",
+      "planned",
+      "oneWay",
+      "skip",
+      "assumed",
+      "legs"
+    ],
+    "requirements": {
+      "priceFlights": [
+        "destination",
+        "origin",
+        "startDate"
+      ],
+      "priceStay": [
+        "destination",
+        "startDate",
+        "endDate"
+      ],
+      "totalTrip": [
+        "destination",
+        "startDate",
+        "endDate",
+        "travelers"
+      ],
+      "planDays": [
+        "destination",
+        "startDate",
+        "endDate"
+      ]
+    },
+    "bindings": {
+      "destination": "/trip/destination",
+      "origin": "/trip/origin",
+      "startDate": "/trip/startDate",
+      "endDate": "/trip/endDate",
+      "travelers": "/trip/travelers",
+      "cabin": "/trip/cabin",
+      "nonstopOnly": "/trip/nonstopOnly",
+      "maxFare": "/trip/maxFare",
+      "selectedFlight": "/trip/selectedFlight",
+      "flightPrice": "/trip/flightPrice",
+      "airline": "/trip/airline",
+      "flightNumber": "/trip/flightNumber",
+      "departTime": "/trip/departTime",
+      "arriveTime": "/trip/arriveTime",
+      "neighborhood": "/trip/neighborhood",
+      "maxNightly": "/trip/maxNightly",
+      "needsStay": "/trip/needsStay",
+      "selectedHotel": "/trip/selectedHotel",
+      "hotelName": "/trip/hotelName",
+      "nightlyPrice": "/trip/nightlyPrice",
+      "budget": "/trip/budget",
+      "spent": "/trip/spent",
+      "notes": "/trip/notes",
+      "days": "/trip/days",
+      "planned": "/trip/planned",
+      "oneWay": "/trip/oneWay",
+      "skip": "/trip/skip",
+      "assumed": "/trip/assumed",
+      "legs": "/trip/legs"
+    }
+  },
+  "coerce": [
+    {
+      "key": "travelers",
+      "input": "3",
+      "output": 3
+    },
+    {
+      "key": "travelers",
+      "input": 3.7,
+      "output": 4
+    },
+    {
+      "key": "travelers",
+      "input": [
+        "4"
+      ],
+      "output": 4
+    },
+    {
+      "key": "travelers",
+      "input": "lots",
+      "output": null
+    },
+    {
+      "key": "startDate",
+      "input": "2027-04-12T00:00:00Z",
+      "output": "2027-04-12"
+    },
+    {
+      "key": "startDate",
+      "input": "not a date",
+      "output": null
+    },
+    {
+      "key": "cabin",
+      "input": [
+        "business"
+      ],
+      "output": "business"
+    },
+    {
+      "key": "cabin",
+      "input": "BUSINESS",
+      "output": "business"
+    },
+    {
+      "key": "cabin",
+      "input": "spaceship",
+      "output": null
+    },
+    {
+      "key": "destination",
+      "input": "  Madrid  ",
+      "output": "Madrid"
+    },
+    {
+      "key": "nonstopOnly",
+      "input": "true",
+      "output": true
+    },
+    {
+      "key": "nonstopOnly",
+      "input": false,
+      "output": false
+    },
+    {
+      "key": "maxFare",
+      "input": "450",
+      "output": 450
+    },
+    {
+      "key": "legs",
+      "input": [
+        {
+          "destination": "Lisbon"
+        }
+      ],
+      "output": [
+        {
+          "destination": "Lisbon"
+        }
+      ]
+    },
+    {
+      "key": "legs",
+      "input": {
+        "destination": "Lisbon"
+      },
+      "output": [
+        {
+          "destination": "Lisbon"
+        }
+      ]
+    },
+    {
+      "key": "assumed",
+      "input": [
+        "travelers",
+        "nonsense"
+      ],
+      "output": [
+        "travelers"
+      ]
+    },
+    {
+      "key": "unknownKey",
+      "input": "x",
+      "output": null
+    }
+  ],
+  "trips": {
+    "empty": {
+      "normalize": {},
+      "nights": null,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [
+          "destination",
+          "origin",
+          "startDate"
+        ],
+        "priceStay": [
+          "destination",
+          "startDate",
+          "endDate"
+        ],
+        "totalTrip": [
+          "destination",
+          "startDate",
+          "endDate",
+          "travelers"
+        ],
+        "planDays": [
+          "destination",
+          "startDate",
+          "endDate"
+        ]
+      },
+      "canDo": {
+        "priceFlights": false,
+        "priceStay": false,
+        "totalTrip": false,
+        "planDays": false
+      },
+      "summarize": {
+        "decided": [],
+        "missing": [
+          "destination",
+          "origin",
+          "startDate",
+          "endDate",
+          "travelers"
+        ],
+        "problems": []
+      },
+      "basisOf": "",
+      "stops": [],
+      "partyVaries": false,
+      "journey": []
+    },
+    "destination only": {
+      "normalize": {
+        "destination": "Madrid"
+      },
+      "nights": null,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [
+          "origin",
+          "startDate"
+        ],
+        "priceStay": [
+          "startDate",
+          "endDate"
+        ],
+        "totalTrip": [
+          "startDate",
+          "endDate",
+          "travelers"
+        ],
+        "planDays": [
+          "startDate",
+          "endDate"
+        ]
+      },
+      "canDo": {
+        "priceFlights": false,
+        "priceStay": false,
+        "totalTrip": false,
+        "planDays": false
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          }
+        ],
+        "missing": [
+          "origin",
+          "startDate",
+          "endDate",
+          "travelers"
+        ],
+        "problems": []
+      },
+      "basisOf": "Madrid",
+      "stops": [
+        {
+          "destination": "Madrid"
+        }
+      ],
+      "partyVaries": false,
+      "journey": [
+        {
+          "hop": 0,
+          "from": null,
+          "to": "Madrid",
+          "wants": [
+            "dates",
+            "who is on it",
+            "a ticket"
+          ],
+          "last": true,
+          "decisions": []
+        }
+      ]
+    },
+    "ready to price flights": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2
+      },
+      "nights": 7,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2027-04-12",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2027-04-19",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          }
+        ],
+        "missing": [],
+        "nights": 7,
+        "problems": []
+      },
+      "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2
+        }
+      ],
+      "partyVaries": false,
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "a ticket",
+            "somewhere to stay",
+            "things to do"
+          ],
+          "last": true,
+          "nights": 7,
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    },
+    "dates backwards": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-19",
+        "endDate": "2027-04-12",
+        "travelers": 2
+      },
+      "nights": null,
+      "problems": [
+        {
+          "field": "endDate",
+          "message": "2027-04-12 is not after 2027-04-19."
+        }
+      ],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2027-04-19",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2027-04-12",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          }
+        ],
+        "missing": [],
+        "problems": [
+          {
+            "field": "endDate",
+            "message": "2027-04-12 is not after 2027-04-19."
+          }
+        ]
+      },
+      "basisOf": "JFK → Madrid · 19–12 Apr · 2 travellers",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "startDate": "2027-04-19",
+          "endDate": "2027-04-12",
+          "travelers": 2
+        }
+      ],
+      "partyVaries": false,
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "a ticket"
+          ],
+          "last": true,
+          "startDate": "2027-04-19",
+          "endDate": "2027-04-12",
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    },
+    "in the past": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2020-04-12",
+        "endDate": "2020-04-19",
+        "travelers": 2
+      },
+      "nights": 7,
+      "problems": [
+        {
+          "field": "startDate",
+          "message": "2020-04-12 is in the past."
+        }
+      ],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2020-04-12",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2020-04-19",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          }
+        ],
+        "missing": [],
+        "nights": 7,
+        "problems": [
+          {
+            "field": "startDate",
+            "message": "2020-04-12 is in the past."
+          }
+        ]
+      },
+      "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "startDate": "2020-04-12",
+          "endDate": "2020-04-19",
+          "travelers": 2
+        }
+      ],
+      "partyVaries": false,
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "a ticket",
+            "somewhere to stay",
+            "things to do"
+          ],
+          "last": true,
+          "nights": 7,
+          "startDate": "2020-04-12",
+          "endDate": "2020-04-19",
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    },
+    "assumed": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "travelers": 2,
+        "assumed": [
+          "travelers"
+        ]
+      },
+      "nights": null,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [
+          "startDate"
+        ],
+        "priceStay": [
+          "startDate",
+          "endDate"
+        ],
+        "totalTrip": [
+          "startDate",
+          "endDate"
+        ],
+        "planDays": [
+          "startDate",
+          "endDate"
+        ]
+      },
+      "canDo": {
+        "priceFlights": false,
+        "priceStay": false,
+        "totalTrip": false,
+        "planDays": false
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          },
+          {
+            "key": "assumed",
+            "value": [
+              "travelers"
+            ],
+            "label": "the values nobody confirmed"
+          }
+        ],
+        "missing": [
+          "startDate",
+          "endDate"
+        ],
+        "problems": []
+      },
+      "basisOf": "JFK → Madrid · 2 travellers",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "travelers": 2
+        }
+      ],
+      "partyVaries": false,
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "dates",
+            "a ticket"
+          ],
+          "last": true,
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    },
+    "chosen": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2,
+        "selectedFlight": "IB426",
+        "flightPrice": 352,
+        "selectedHotel": "h_MAD_1",
+        "nightlyPrice": 140
+      },
+      "nights": 7,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2027-04-12",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2027-04-19",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          },
+          {
+            "key": "selectedFlight",
+            "value": "IB426",
+            "label": "the flight you chose"
+          },
+          {
+            "key": "flightPrice",
+            "value": 352,
+            "label": "what that flight costs"
+          },
+          {
+            "key": "selectedHotel",
+            "value": "h_MAD_1",
+            "label": "where you are staying"
+          },
+          {
+            "key": "nightlyPrice",
+            "value": 140,
+            "label": "what that stay costs a night"
+          }
+        ],
+        "missing": [],
+        "nights": 7,
+        "problems": []
+      },
+      "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2,
+          "selectedHotel": "h_MAD_1",
+          "selectedFlight": "IB426",
+          "flightPrice": 352,
+          "nightlyPrice": 140
+        }
+      ],
+      "partyVaries": false,
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "things to do"
+          ],
+          "last": true,
+          "nights": 7,
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2,
+          "selectedFlight": "IB426",
+          "flightPrice": 352,
+          "selectedHotel": "h_MAD_1",
+          "nightlyPrice": 140,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            },
+            {
+              "key": "selectedFlight",
+              "label": "the flight for this hop",
+              "value": "IB426"
+            },
+            {
+              "key": "selectedHotel",
+              "label": "where you are staying here",
+              "value": "h_MAD_1"
+            }
+          ]
+        }
+      ]
+    },
+    "multi-leg, party varies": {
+      "normalize": {
+        "origin": "SFO",
+        "destination": "Chicago",
+        "startDate": "2027-04-10",
+        "endDate": "2027-04-12",
+        "travelers": 1,
+        "legs": [
+          {
+            "destination": "New York",
+            "startDate": "2027-04-12",
+            "endDate": "2027-04-16"
+          },
+          {
+            "destination": "SFO",
+            "startDate": "2027-04-16",
+            "travelers": 2
+          }
+        ]
+      },
+      "nights": 2,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Chicago",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "SFO",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2027-04-10",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2027-04-12",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 1,
+            "label": "how many of you are going"
+          },
+          {
+            "key": "legs",
+            "value": [
+              {
+                "destination": "New York",
+                "startDate": "2027-04-12",
+                "endDate": "2027-04-16"
+              },
+              {
+                "destination": "SFO",
+                "startDate": "2027-04-16",
+                "travelers": 2
+              }
+            ],
+            "label": "the other stops"
+          }
+        ],
+        "missing": [],
+        "nights": 2,
+        "problems": []
+      },
+      "basisOf": "SFO → Chicago · 10–12 Apr · 1–2 travellers",
+      "stops": [
+        {
+          "destination": "Chicago",
+          "origin": "SFO",
+          "startDate": "2027-04-10",
+          "endDate": "2027-04-12",
+          "travelers": 1
+        },
+        {
+          "destination": "New York",
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-16",
+          "origin": "Chicago",
+          "travelers": 1
+        },
+        {
+          "destination": "SFO",
+          "startDate": "2027-04-16",
+          "travelers": 2,
+          "origin": "New York"
+        }
+      ],
+      "partyVaries": true,
+      "journey": [
+        {
+          "hop": 0,
+          "from": "SFO",
+          "to": "Chicago",
+          "wants": [
+            "a ticket",
+            "somewhere to stay",
+            "things to do"
+          ],
+          "nights": 2,
+          "startDate": "2027-04-10",
+          "endDate": "2027-04-12",
+          "travelers": 1,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "hop": 1,
+          "from": "Chicago",
+          "to": "New York",
+          "wants": [
+            "a ticket",
+            "somewhere to stay",
+            "things to do"
+          ],
+          "partyInherited": true,
+          "nights": 4,
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-16",
+          "travelers": 1,
+          "decisions": [
+            {
+              "key": "legs/0/travelers",
+              "label": "who is on this hop",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "hop": 2,
+          "from": "New York",
+          "to": "SFO",
+          "wants": [
+            "a ticket"
+          ],
+          "last": true,
+          "startDate": "2027-04-16",
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "legs/1/travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    },
+    "skipped a stage": {
+      "normalize": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2
+      },
+      "nights": 7,
+      "problems": [],
+      "missingFor": {
+        "priceFlights": [],
+        "priceStay": [],
+        "totalTrip": [],
+        "planDays": []
+      },
+      "canDo": {
+        "priceFlights": true,
+        "priceStay": true,
+        "totalTrip": true,
+        "planDays": true
+      },
+      "summarize": {
+        "decided": [
+          {
+            "key": "destination",
+            "value": "Madrid",
+            "label": "where you are going"
+          },
+          {
+            "key": "origin",
+            "value": "JFK",
+            "label": "which airport you are flying from"
+          },
+          {
+            "key": "startDate",
+            "value": "2027-04-12",
+            "label": "when you are leaving"
+          },
+          {
+            "key": "endDate",
+            "value": "2027-04-19",
+            "label": "when you are coming back"
+          },
+          {
+            "key": "travelers",
+            "value": 2,
+            "label": "how many of you are going"
+          }
+        ],
+        "missing": [],
+        "nights": 7,
+        "problems": []
+      },
+      "basisOf": "JFK → Madrid · 12–19 Apr · 2 travellers",
+      "stops": [
+        {
+          "destination": "Madrid",
+          "origin": "JFK",
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2
+        }
+      ],
+      "partyVaries": false,
+      "journey": [
+        {
+          "hop": 0,
+          "from": "JFK",
+          "to": "Madrid",
+          "wants": [
+            "a ticket",
+            "somewhere to stay",
+            "things to do"
+          ],
+          "last": true,
+          "nights": 7,
+          "startDate": "2027-04-12",
+          "endDate": "2027-04-19",
+          "travelers": 2,
+          "decisions": [
+            {
+              "key": "travelers",
+              "label": "who is on this hop",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "askFor": [
+    "",
+    "where you are going",
+    "where you are going and which airport you are flying from",
+    "where you are going, which airport you are flying from and when you are leaving"
+  ],
+  "merge": [
+    {
+      "into": {},
+      "patch": {
+        "destination": "Madrid"
+      },
+      "result": {
+        "destination": "Madrid"
+      }
+    },
+    {
+      "into": {
+        "destination": "Madrid"
+      },
+      "patch": {
+        "destination": "Lisbon"
+      },
+      "result": {
+        "destination": "Lisbon"
+      }
+    },
+    {
+      "into": {
+        "travelers": 2,
+        "assumed": [
+          "travelers"
+        ]
+      },
+      "patch": {
+        "travelers": 3
+      },
+      "result": {
+        "travelers": 3
+      }
+    },
+    {
+      "into": {
+        "destination": "Madrid"
+      },
+      "patch": {
+        "legs": [
+          {
+            "destination": "Lisbon"
+          }
+        ]
+      },
+      "result": {
+        "destination": "Madrid",
+        "legs": [
+          {
+            "destination": "Lisbon"
+          }
+        ]
+      }
+    },
+    {
+      "into": {
+        "destination": "Madrid"
+      },
+      "patch": null,
+      "result": {
+        "destination": "Madrid"
+      }
+    }
+  ],
+  "confirm": [
+    {
+      "trip": {
+        "travelers": 2,
+        "assumed": [
+          "travelers",
+          "cabin"
+        ]
+      },
+      "fields": [
+        "travelers"
+      ],
+      "result": {
+        "travelers": 2,
+        "assumed": [
+          "cabin"
+        ]
+      }
+    }
+  ],
+  "release": [
+    {
+      "keys": [
+        "startDate"
+      ],
+      "trip": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "endDate": "2027-04-19",
+        "travelers": 2
+      },
+      "cleared": [
+        "startDate",
+        "selectedFlight",
+        "flightPrice",
+        "selectedHotel",
+        "nightlyPrice"
+      ]
+    },
+    {
+      "keys": [
+        "destination"
+      ],
+      "trip": {
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2
+      },
+      "cleared": [
+        "destination",
+        "selectedFlight",
+        "flightPrice",
+        "selectedHotel",
+        "nightlyPrice"
+      ]
+    },
+    {
+      "keys": [],
+      "trip": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2,
+        "selectedFlight": "IB426",
+        "flightPrice": 352,
+        "selectedHotel": "h_MAD_1",
+        "nightlyPrice": 140
+      },
+      "cleared": []
+    }
+  ],
+  "unskip": [
+    {
+      "stage": "stay",
+      "result": {
+        "destination": "Madrid",
+        "origin": "JFK",
+        "startDate": "2027-04-12",
+        "endDate": "2027-04-19",
+        "travelers": 2
+      }
+    }
+  ]
+}

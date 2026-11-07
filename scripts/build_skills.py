@@ -1,23 +1,11 @@
 #!/usr/bin/env python3
-"""Generates the agent's skills with the official A2UI SkillGenerator.
+"""Exports the agent's A2UI instructions as skills, with the SDK's SkillGenerator.
 
-This used to be `tools/skillgen`, a port of the SDK's catalog crawler and prompt
-generator written because the published SDK could not compile the grammar the
-skills teach — it rejected `Text("Hi", variant="h3")` outright. That is fixed
-upstream: 0.6.0 parses keyword arguments, emits v0.9.1 or v1.0 on request, takes
-a surface id, and streams. `SkillGenerator` landed with it.
-
-So the port is gone and this drives the real thing. What survives is the part
-upstream does not have:
-
-  **What the model is shown.** The SDK's `ComponentPruningTransformer` and
-  `FunctionPruningTransformer` narrow the catalog to the allow-list beside it;
-  functions are where the tokens were, a block of check-rule validators for a
-  `checks=` argument this agent never writes. `prune.py` keeps only the worked
-  examples that use what survives.
-
-  **Metadata.** `Skill.metadata` carries the fields the Worker reads back out of
-  the frontmatter to report which skill is loaded.
+The skills are generated from the processor the server parses the model with
+(`brain/catalog.py`): `SkillGenerator(PROCESSOR.format)`. That format already
+holds the pruned catalog, the macros and the worked examples, so the skills
+another agent loads teach exactly what this agent's model is taught and held to.
+Nothing is patched after generation.
 
     python3 scripts/build_skills.py            # write
     python3 scripts/build_skills.py --check    # fail if what is on disk is stale
@@ -26,9 +14,7 @@ upstream does not have:
 from __future__ import annotations
 
 import argparse
-import json
 import pathlib
-import shutil
 import sys
 import tempfile
 import warnings
@@ -36,277 +22,80 @@ import warnings
 warnings.filterwarnings("ignore")
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
 
-from prune import Vocabulary, uses_only  # noqa: E402
+from a2ui.skill import SkillGenerator  # noqa: E402
 
-CATALOG = ROOT / "catalogs" / "a2ui-travel" / "catalog.json"
-EXAMPLES = ROOT / "catalogs" / "a2ui-travel" / "examples"
-PRUNING = ROOT / "catalogs" / "a2ui-travel" / "agent-components.json"
+from travel_a2ui.brain.catalog import CATALOG_ID, PROCESSOR, PROTOCOL_VERSION  # noqa: E402
+
 SKILLS = ROOT / "skills"
 
-#: Asked of the server rather than written down twice.
-#:
-#: This was its own `"v1.0"`, a second copy of a decision that lives in
-#: `brain/catalog.py`, and 0.10.0 renamed the wire spelling under both of them.
-#: The server's copy is derived from the SDK now; this one defers to it, so
-#: there is one answer and the skill a model reads cannot disagree with the
-#: envelope the server sends.
-from travel_a2ui.brain.catalog import PROTOCOL_VERSION  # noqa: E402
-#: The SDK prefixes catalog skills with `a2ui-`, so this is "travel" rather than
-#: "a2ui-travel" — naming it the latter produces `a2ui-a2ui-travel`.
-CATALOG_NAME = "travel"
-
-DESCRIPTION = (
-    "Plans trips as interactive UI: flight and hotel options, day-by-day "
-    "itineraries, price breakdowns and trip controls the traveler can act on."
-)
+#: The one shape this app ships: the SDK's modular skill set, a core skill for
+#: the notation and one per catalog.
+VARIANT = "express-modular"
 
 
-#: Messages this agent ever sends. `deleteSurface` is here because releasing a
-#: decision can retire a card; the rest are the surface lifecycle. Everything
-#: else in the spec's server-to-client schema is somebody else's feature.
-ALLOWED_MESSAGES = ["createSurface", "updateComponents", "updateDataModel", "deleteSurface"]
+#: The catalog skill's name. The generator derives one from the catalog id's
+#: last path segment, which is already `a2ui-travel`, so it is named here.
+CATALOG_SKILL = "a2ui-travel"
 
 
-def pruned_catalog(schema: dict, scratch: pathlib.Path):
-    """The catalog the model is shown, pruned by the SDK's own transformers.
-
-    `CatalogConfig.from_path` loads it the way the SDK intends, against the
-    bundled spec schemas for the version, and applies the two pruning
-    transformers: components to `allowedComponents`, functions to
-    `allowedFunctions`. Messages are pruned by the format instead; see
-    `make_format`, which is handed `allowed_messages`.
-    """
-    from a2ui.catalog_transformers import (
-        ComponentPruningTransformer,
-        FunctionPruningTransformer,
-    )
-    from a2ui.processor.catalog_config import CatalogConfig
-
-    path = scratch / "catalog.json"
-    path.write_text(json.dumps(schema, indent=2), encoding="utf-8")
-
-    allow = json.loads(PRUNING.read_text(encoding="utf-8"))
-    config = CatalogConfig.from_path(
-        str(path),
-        transformers=[
-            ComponentPruningTransformer(allow["allowedComponents"]),
-            FunctionPruningTransformer(allow["allowedFunctions"]),
-        ],
-        protocol_version=PROTOCOL_VERSION.removeprefix("v"),
-    )
-    # Macros are added *after* pruning, deliberately. Pruning keeps the prompt
-    # to components this agent actually draws, and a macro is not in that list
-    # — it is the shorthand the model writes instead of them. Adding it first
-    # would mean pruning it straight back out, and the model would never learn
-    # the one call that saves it writing seven hundred tokens of day plan.
-    from travel_a2ui.brain.macros import with_macros
-
-    return with_macros(config.transformed_catalog)
-
-
-def make_format(inference_format: str, catalog, examples: list[list[dict]]):
-    """One configured InferenceFormat, over an already-pruned catalog."""
-    if inference_format == "express":
-        from a2ui.inference_formats.express.format import ExpressFormat
-
-        return ExpressFormat(
-            catalogs=[catalog],
-            version=PROTOCOL_VERSION,
-            examples=examples,
-            allowed_messages=ALLOWED_MESSAGES,
-        )
-
-    from a2ui.inference_formats.direct_json.format import DirectJsonFormat
-
-    # Direct JSON names spec versions without the `v`; Express keeps it. It
-    # builds its own catalogs from configs, so the pruned one is handed over
-    # afterwards rather than through the constructor.
-    return DirectJsonFormat(
-        catalogs=[catalog], examples=examples, allowed_messages=ALLOWED_MESSAGES
-    )
-
-
-#: `<format>-<shape>`, in a sibling directory named for both.
-#:
-#: There were three, and generating all three was the point: the same catalog as
-#: one Express skill, as Express split into notation and catalog, and as raw
-#: A2UI JSON, so they could be compared on the same traffic rather than argued
-#: about. `tools/eval/skills.py` compared them — four asks, three samples each —
-#: and modular won on every axis; direct JSON drew nothing at all on three of
-#: the four asks. See `SKILL_VARIANTS` in `apps/server/src/travel_a2ui/skills.py`
-#: for the table.
-#:
-#: The directory name still carries both axes, because the skill *name* inside
-#: it is `a2ui-core` + `a2ui-travel` and should stay clean: a skill that has to
-#: rename itself to say which generator produced it is a skill whose description
-#: is doing the wrong job. Changing this list and re-running is all it takes to
-#: bring a retired shape back for another measurement.
-VARIANTS: list[tuple[str, str]] = [
-    ("express", "modular"),
-]
-
-
-def vocabulary_of(schema: dict) -> Vocabulary:
-    """What the pruned catalog still offers, against everything it declares."""
-    allow = json.loads(PRUNING.read_text(encoding="utf-8"))
-    components, functions = set(schema["components"]), set(schema["functions"])
-    return Vocabulary(
-        allowed_components=set(allow["allowedComponents"]) & components,
-        known_components=components,
-        allowed_functions=set(allow["allowedFunctions"]) & functions,
-        known_functions=functions,
-    )
-
-
-def staged_examples(vocabulary: Vocabulary, into: pathlib.Path) -> list[list[dict]]:
-    """The examples that survive pruning, compiled, one message list each.
-
-    An example calling a pruned component teaches the model a call the prompt
-    no longer documents, which is the failure this filter exists to prevent.
-
-    Handed over as compiled messages rather than as a glob. agent-sdk 0.9 takes
-    `examples` as the messages themselves — the format no longer reads the
-    disk — so the staging directory is gone and the compiled JSON beside each
-    example is read instead. Those are generated by `build_examples.py` and are
-    checked, so this cannot drift from what the examples actually compile to.
-    """
-    into.mkdir(parents=True, exist_ok=True)
-    turns: list[list[dict]] = []
-    for path in sorted(EXAMPLES.glob("*.express")):
-        if not uses_only(path.read_text(encoding="utf-8"), vocabulary):
-            continue
-        compiled = EXAMPLES / "compiled" / f"{path.stem}.json"
-        if not compiled.exists():
-            raise SystemExit(f"{compiled.name} is missing — run build_examples.py first.")
-        turns.append(json.loads(compiled.read_text(encoding="utf-8")))
-    if not turns:
-        raise SystemExit("Pruning removed every example — check agent-components.json.")
-    return turns
-
-
-#: Upstream's grammar rules illustrate `_template` with `itemTemplate =
-#: Image($url)`, hardcoded rather than drawn from the catalog. Prune `Image` and
-#: the prompt teaches a call it does not document — the exact contradiction the
-#: example filter exists to prevent, arriving through the one section pruning
-#: cannot reach. Substituted here until the rule takes its example from the
-#: catalog it is generated against.
-GRAMMAR_FIXUPS = [
-    ("itemTemplate = Image($url)", "itemTemplate = Text($name)"),
-    ("root = Card(...)", "root = Column(...)"),
-]
-
-
-def repair_grammar(markdown: str, vocabulary: Vocabulary) -> str:
-    """Rewrites hardcoded grammar examples that name a pruned component."""
-    for stale, replacement in GRAMMAR_FIXUPS:
-        if stale in markdown and not uses_only(stale, vocabulary):
-            markdown = markdown.replace(stale, replacement)
-    return markdown
-
-
-def metadata(inference_format: str, catalog_id: str, catalogs: list[str]) -> dict:
-    """What the Worker reads back out of the frontmatter to report what is loaded."""
-    return {
-        "protocol_version": PROTOCOL_VERSION.removeprefix("v"),
-        "inference_format": inference_format,
-        "catalogs": catalogs,
-        "catalog_id": catalog_id,
-    }
-
-
-SDK_MISSING = """\
-The A2UI agent SDK with SkillGenerator is not installed.
-
-  pip install a2ui-agent-sdk
-
-This used to say "build it from source at commit d27d708", with a JDK and
-antlr4-tools, because `SkillGenerator` was merged upstream and not yet in a
-wheel. 0.9.0 carries it. The pin lives in one place now — the CI workflow —
-and the day that moves, this is a wheel version, not a commit.
-"""
+def skills() -> list:
+    """The core skill and the catalog skill, as `SkillGenerator` writes them."""
+    generator = SkillGenerator(PROCESSOR.format)
+    return [generator.generate_core_skill(), generator.generate_catalog_skill(name=CATALOG_SKILL)]
 
 
 def build(out: pathlib.Path) -> list[pathlib.Path]:
-    try:
-        from a2ui.skill import SkillGenerator
-    except ImportError as error:  # pragma: no cover - environment, not logic
-        raise SystemExit(SDK_MISSING) from error
-
-    schema = json.loads(CATALOG.read_text(encoding="utf-8"))
-    vocabulary = vocabulary_of(schema)
-
-    catalog_id = str(schema.get("catalogId") or schema.get("$id") or "")
+    generated = skills()
+    catalogs = [skill.name for skill in generated if skill.name != "a2ui-core"]
     written: list[pathlib.Path] = []
-
-    with tempfile.TemporaryDirectory() as scratch:
-        glob = staged_examples(vocabulary, pathlib.Path(scratch) / "examples")
-
-        catalog = pruned_catalog(schema, pathlib.Path(scratch))
-
-        for inference_format, shape in VARIANTS:
-            fmt = make_format(inference_format, catalog, glob)
-            generator = SkillGenerator(fmt)
-
-            if shape == "monolithic":
-                skills = [generator.generate_skill(name="a2ui", description=DESCRIPTION)]
-                catalogs = [f"a2ui-{CATALOG_NAME}"]
-            else:
-                skillset = generator.generate_skillset()
-                skills = list(skillset.values())
-                # The SDK derives a catalog skill's name from the catalog *id*,
-                # and ours is a URL whose last segment is already `a2ui-travel`
-                # — so its `a2ui-` prefix lands on top of one. What the package
-                # is called is ours to decide; the content is what came from the
-                # generator.
-                for skill in skills:
-                    if skill.name.startswith("a2ui-a2ui-"):
-                        skill.name = skill.name.replace("a2ui-a2ui-", "a2ui-", 1)
-                        skill.filename = f"{skill.name}/SKILL.md"
-                catalogs = [skill.name for skill in skills if skill.name != "a2ui-core"]
-
-            directory = out / f"{inference_format.replace('_', '-')}-{shape}"
-            for skill in skills:
-                skill.metadata = metadata(inference_format, catalog_id, catalogs)
-                target = directory / skill.name / "SKILL.md"
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text(
-                    repair_grammar(skill.to_markdown(), vocabulary), encoding="utf-8"
-                )
-                written.append(target)
-
+    for skill in generated:
+        skill.metadata = {
+            "protocol_version": PROTOCOL_VERSION,
+            "inference_format": "express",
+            "catalogs": catalogs,
+            "catalog_id": CATALOG_ID,
+        }
+        target = out / VARIANT / skill.filename
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(skill.to_markdown(), encoding="utf-8")
+        written.append(target)
     return written
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--check",
-        action="store_true",
-        help="Do not write; exit non-zero if any generated skill differs from disk.",
-    )
+    parser.add_argument("--check", action="store_true", help="exit non-zero if a skill on disk is stale")
     args = parser.parse_args()
 
     if args.check:
         with tempfile.TemporaryDirectory() as scratch:
             probe = pathlib.Path(scratch)
-            stale = []
-            for path in build(probe):
-                target = SKILLS / path.relative_to(probe)
-                if not target.exists() or target.read_text("utf-8") != path.read_text("utf-8"):
-                    stale.append(str(path.relative_to(probe)))
-            if stale:
-                print("Stale skills: " + ", ".join(stale), file=sys.stderr)
-                print("Regenerate with: python3 scripts/build_skills.py", file=sys.stderr)
-                return 1
+            generated = {path.relative_to(probe) for path in build(probe)}
+            on_disk = {
+                path.relative_to(SKILLS)
+                for path in (SKILLS / VARIANT).rglob("SKILL.md")
+            }
+            stale = sorted(
+                str(path)
+                for path in generated | on_disk
+                if path not in generated
+                or path not in on_disk
+                or (probe / path).read_text("utf-8") != (SKILLS / path).read_text("utf-8")
+            )
+        if stale:
+            print("Stale skills: " + ", ".join(stale), file=sys.stderr)
+            print("Regenerate with: python3 scripts/build_skills.py", file=sys.stderr)
+            return 1
         print("All generated skills are up to date.")
         return 0
 
-    written = build(SKILLS)
-    for path in written:
+    import shutil
+
+    shutil.rmtree(SKILLS / VARIANT, ignore_errors=True)
+    for path in build(SKILLS):
         print(f"wrote {path.relative_to(ROOT)}")
-    print(f"\n{len(written)} skill file(s) written to {SKILLS.relative_to(ROOT)}.")
     return 0
 
 

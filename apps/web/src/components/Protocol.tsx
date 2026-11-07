@@ -3,11 +3,9 @@
  *
  * Every live surface, in both forms: the A2UI JSON the renderer holds, and the
  * Express that produces it. The Express is recovered by the A2UI SDK's own
- * decompiler, on the server (`POST /api/express`) — this view used to carry a
- * TypeScript port of it, and of the compiler and the schema crawler it leaned
- * on, so that a page which only *shows* the protocol shipped one. It is usually
- * about a third the size of the JSON, which is the argument for the notation in
- * one number rather than one paragraph.
+ * decompiler, on the server (`POST /api/express`), so the page carries no copy
+ * of it. The Express is usually about a third the size of the JSON, which is
+ * the argument for the notation in one number rather than one paragraph.
  *
  * This is a debugging view that earns its place in the product: "what did the
  * model actually emit" is the first question anyone asks about generative UI,

@@ -1,7 +1,8 @@
 """The real server, with a scripted model in place of Gemini.
 
-Every other piece is the real one — the real agent events, the real surface
-passes, the real catalog, the real SSE transport, the real static mounts. Only
+Every other piece is the real one: the real turn loop, the real A2UI
+processor and macros, the real catalog, the real SSE transport, the real
+static mounts. Only
 `stream_interaction` is replaced, and only because the alternative is an end-to-
 end test that needs an API key and costs money to run, which means it does not
 run.
@@ -27,7 +28,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "apps" / "s
 os.environ.setdefault("SAMPLE_TRIP", "0")
 
 from travel_a2ui.doors import interactions
-from travel_a2ui import gemini# noqa: E402
+from travel_a2ui import gemini  # noqa: E402
 from travel_a2ui.gemini import InteractionResult, ToolCall, Usage  # noqa: E402
 
 A2UI_OPEN = "<a2ui>"
@@ -52,39 +53,36 @@ SCRIPT: list[tuple[list[str], list[ToolCall]]] = [
         [
             "Here are four, cheapest first. ",
             A2UI_OPEN,
-            '\nsurface("inline-1")\n',
-            'head = Text("### Flights to Madrid")\n',
-            "row = FlightOption($airline, $departTime, $arriveTime, $origin, $destination, "
-            '$price, Event("select_flight", {id: $id, price: $price}), duration=$duration, '
-            "stops=$stops, flightNumber=$flightNumber)\n",
-            "list = List(_template($/flights, row))\n",
+            '\nhead = Text("### Flights to Madrid")\n',
+            'fares = Flights(_, "/trip/selectedFlight")\n',
             'foot = Text("Sample data", variant="caption")\n',
-            "root = Column([head, list, foot])\n",
+            "root = Column([head, fares, foot])\n",
             A2UI_CLOSE,
             " Tap one and I will hold it.",
         ],
         [],
     ),
-    # Round three answers a fare press: the host has already recorded the fare,
-    # and the agent puts the trip panel up (`draw: {macro: "Trip"}`), which is
-    # what a client's cart or sidebar shows.
+    # Round three answers a fare press: the host has already recorded the fare.
     (
         ["Holding that one. "],
         [
             ToolCall(
                 id="call-2",
                 name="save_trip",
-                args={
-                    "destination": "Madrid",
-                    "origin": "JFK",
-                    "startDate": "2099-04-12",
-                    "travelers": 1,
-                    "draw": {"macro": "Trip", "heading": "Your trip to Madrid"},
-                },
+                args={"destination": "Madrid", "origin": "JFK", "startDate": "2099-04-12", "travelers": 1},
             )
         ],
     ),
-    (["It is on your trip."], []),
+    # And round four puts the trip panel up, which a client's sidebar or cart shows.
+    (
+        [
+            "It is on your trip.",
+            A2UI_OPEN,
+            '\nsurface("sidebar")\npanel = Trip("Your trip to Madrid", true)\nroot = Column([panel])\n',
+            A2UI_CLOSE,
+        ],
+        [],
+    ),
 ]
 
 
@@ -117,11 +115,8 @@ def _reset() -> None:
     scripted.round = 0  # type: ignore[attr-defined]
 
 
-# Patched on the module the agent imported it from, because that is the
-# reference the loop actually calls.
-# Every module that holds its own reference, not only the package: `turn` and
-# `panels` import the function by name, so patching the package alone left the
-# real client in the path and a scripted turn asked Gemini with a dummy key.
+# Patched in every module that holds its own reference to it: `turn` and
+# `panels` import the function by name.
 from travel_a2ui.doors.interactions import panels as _panels, turn as _turn, warmup as _warmup  # noqa: E402
 
 async def background(**kwargs: Any) -> AsyncIterator[dict[str, Any]]:

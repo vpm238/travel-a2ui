@@ -43,8 +43,9 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps" / "server" / "src"))
 
+from travel_a2ui.brain import data  # noqa: E402
 from travel_a2ui.brain import trip as model
-from travel_a2ui.brain.finishing import STANDING_SURFACES as STANDING  # noqa: E402
+from travel_a2ui.brain.ui import STANDING_SURFACES as STANDING, Canvas  # noqa: E402
 from travel_a2ui.doors.interactions import SurfaceAction, TurnRequest, run_turn  # noqa: E402
 
 DEFAULT_MODEL = "gemini-3.8-flash"
@@ -109,6 +110,12 @@ def pressable(
     nodes: list[dict[str, Any]], wanted: str, trip: dict[str, Any], data: dict[str, Any]
 ) -> tuple[str, dict[str, Any]] | None:
     """The press a traveller would make on the newest card of this kind."""
+    #: Which list each row template draws, by the template's id.
+    lists = {
+        node["children"]["componentId"]: node["children"].get("path")
+        for node in nodes
+        if isinstance(node.get("children"), dict) and "componentId" in node["children"]
+    }
     for node in reversed(nodes):
         if wanted != "*" and kind_of(node) != wanted:
             continue
@@ -135,26 +142,16 @@ def pressable(
             # `{"id.@path": "id", "price.@path": "price"}`, the binding names
             # themselves rather than the fare they point at.
             #
-            # Which is why this validator reported "0 hop(s) ticketed" on scripts
-            # the real browser walks cleanly: `tools/validate/press.mjs` pressed
-            # the same card through Chromium, recorded the flight and watched the
-            # panel gain its row. Two instruments, one of them reading its own
-            # rename as a product bug.
             if field[-1] in ("path", "@path") and isinstance(value, str):
                 if value.startswith("/"):
                     context[field[0]] = resolve(value, trip, data)
                 else:
-                    # A row template's binding, resolved against the rows the
-                    # host filled — which is the card the traveller sees.
-                    rows = next(
-                        (
-                            found
-                            for _, found in reversed(list(data.items()))
-                            if isinstance(found, list) and found and isinstance(found[0], dict)
-                        ),
-                        [],
-                    )
-                    context[field[0]] = rows[0].get(value) if rows else None
+                    # A row template's binding, resolved against the first row
+                    # of the list that template draws: the card the traveller sees.
+                    listed = lists.get(node.get("id"), "")
+                    rows = resolve(listed, trip, data) if listed else []
+                    row = rows[0] if isinstance(rows, list) and rows and isinstance(rows[0], dict) else {}
+                    context[field[0]] = row.get(value)
             elif field[-1] in ("literalString", "literalNumber", "literalBoolean"):
                 context[field[0]] = value
             else:
@@ -205,7 +202,43 @@ SCRIPTS: dict[str, dict[str, Any]] = {
             {"say": "leaving April 10th 2027"},
             {"say": "sort out the flights"},
         ],
-        "wants": {"hops": 3, "counters": 3},
+        "wants": {"hops": 3, "counters": 3, "parties": [1, 2, 2]},
+    },
+    "five hops": {
+        "why": "Past three hops: every hop keeps its party, every ticket is shown when asked.",
+        "steps": [
+            {
+                "say": "Two of us the whole way, leaving April 10th 2027: SFO to Chicago for "
+                "two nights, then New York for three, then Boston for two, then Miami for "
+                "three, then home to SFO. No hotels, we have places to stay."
+            },
+            {"say": "show me the flights"},
+            {"press": "FlightOption"},
+            {"press": "FlightOption"},
+            {"press": "FlightOption"},
+            {"press": "FlightOption"},
+            {"say": "and the flight home from Miami"},
+            {"press": "FlightOption"},
+            {"say": "show me all my flights"},
+        ],
+        "wants": {"hops": 5, "tickets": 5, "party": 2, "shown": 5},
+    },
+    "mixed parties": {
+        "why": "A party that changes hop by hop, every hop ticketed, then the whole thing summed up.",
+        "steps": [
+            {
+                "say": "Three of us fly Boston to Chicago on May 3rd 2027 for two nights, a "
+                "friend joins us there and the four of us go on to Denver for three nights, "
+                "then only two of us fly home to Boston. No hotels needed."
+            },
+            {"say": "show me the flights"},
+            {"press": "FlightOption"},
+            {"press": "FlightOption"},
+            {"say": "and the flight home"},
+            {"press": "FlightOption"},
+            {"say": "give me a summary of the whole trip and what the flights come to"},
+        ],
+        "wants": {"hops": 3, "tickets": 3, "parties": [3, 4, 2], "shown": 3, "total": True},
     },
     "berlin": {
         "why": "The demo prompt: two out, one back, a hotel by the Kurfürstendamm.",
@@ -244,6 +277,9 @@ async def play(name: str, model_id: str, effort: str, quiet: bool) -> dict[str, 
     record: list[dict[str, Any]] = []
     counters: list[str] = []
     asked: list[list[str]] = []
+    #: The renderer this script stands in for, as the server mirrors it.
+    canvas = Canvas()
+    shown: list[str] = []
 
     if not quiet:
         print(f"\n{'=' * 78}\n{name} — {script['why']}\n{'=' * 78}")
@@ -275,7 +311,7 @@ async def play(name: str, model_id: str, effort: str, quiet: bool) -> dict[str, 
             if not quiet:
                 print(f"\n-- {number}. [press {action_name} {json.dumps(context, ensure_ascii=False)}]")
             kwargs["action"] = SurfaceAction(
-                name=action_name, surface_id="inline-1", context=context
+                name=action_name, surface_id=shown[-1] if shown else "inline-1", context=context
             )
         else:
             if not quiet:
@@ -287,11 +323,11 @@ async def play(name: str, model_id: str, effort: str, quiet: bool) -> dict[str, 
             model=model_id,
             trip=dict(trip),
             surface="inline",
-            surface_id="inline-1",
-            skill="express-modular",
+            surface_id=f"inline-{number}",
             effort=effort,
             interaction_id=resume,
             setup=setup,
+            canvas=canvas,
             **kwargs,
         )
 
@@ -309,17 +345,11 @@ async def play(name: str, model_id: str, effort: str, quiet: bool) -> dict[str, 
                 retries.append(event["reason"])
             elif kind in ("error", "ui_error"):
                 retries.append(str(event.get("message")))
-            # Any surface that is not a standing panel, rather than the one
-            # id this script asks on.
-            #
-            # It used to match `inline-1` exactly, which was true while every
-            # card came from a block the agent wrote. The host now draws the
-            # card itself when a tool call carries `draw:` — that is the whole
-            # point of it — and a turn that relied on the pre-draw recorded no
-            # components at all here, so this validator reported "nothing to
-            # press" about a card a browser could see and press.
+            # Any surface that is not a standing panel.
             elif kind == "ui" and event["surfaceId"] not in STANDING:
                 drawn.extend(event["messages"])
+                if event["surfaceId"] not in shown:
+                    shown.append(event["surfaceId"])
                 for message in event["messages"]:
                     update = message.get("updateDataModel")
                     if isinstance(update, dict) and isinstance(update.get("path"), str):
@@ -386,6 +416,22 @@ async def play(name: str, model_id: str, effort: str, quiet: bool) -> dict[str, 
                 "retries": retries,
                 "components": [kind_of(node) for node in nodes],
                 "bound": sorted(bound),
+                # What this turn put in front of the traveller: its words, and
+                # the data of every card it drew, as the renderer holds it.
+                "seen": "".join(said)
+                + json.dumps(
+                    [
+                        canvas.data_of(surface)
+                        for surface in {
+                            body.get("surfaceId")
+                            for message in drawn
+                            for key, body in message.items()
+                            if key != "version" and isinstance(body, dict)
+                        }
+                        if surface
+                    ],
+                    ensure_ascii=False,
+                ),
                 "trip": trip,
             }
         )
@@ -457,9 +503,45 @@ def verdicts(run: dict[str, Any]) -> list[tuple[bool, str]]:
         check(len(hops) == wants["hops"], f"{wants['hops']} hops — got {len(hops)}")
     if "counters" in wants:
         distinct = len(set(run["counters"]))
+        recorded = [hop.get("travelers") for hop in hops]
+        # A party the traveller already stated, recorded hop by hop, needs no
+        # counter; one that was not has to be asked of every hop.
         check(
-            distinct >= wants["counters"],
-            f"a party counter for each of {wants['counters']} hops — got {distinct}",
+            distinct >= wants["counters"] or recorded == wants.get("parties"),
+            f"every hop's party asked or recorded as said — {distinct} counters, parties {recorded}",
+        )
+    if "party" in wants:
+        parties = [hop.get("travelers") for hop in hops]
+        check(
+            all(party == wants["party"] for party in parties),
+            f"every hop keeps its party of {wants['party']} — got {parties}",
+        )
+    if "shown" in wants:
+        last = next((turn for turn in reversed(run["turns"]) if turn.get("components")), {})
+        booked = data.session_values(trip, None)["booked"]
+        tickets = len(booked)
+        named = sum(1 for fare in booked if fare["flightNumber"] and fare["flightNumber"] in last.get("seen", ""))
+        check(
+            named >= min(tickets, wants["shown"]),
+            f"asked to see them, all {tickets} booked flights are on screen — {named} named",
+        )
+    if "parties" in wants and "counters" not in wants:
+        recorded = [hop.get("travelers") for hop in hops]
+        check(recorded == wants["parties"], f"each hop keeps its own party {wants['parties']} — got {recorded}")
+    if wants.get("total"):
+        # Each fare times the party on its hop, worked out here independently
+        # of the host's arithmetic, against what the summary turn showed.
+        expected = sum(
+            float(hop["flightPrice"]) * int(hop.get("travelers") or 1)
+            for hop in hops
+            if isinstance(hop.get("flightPrice"), (int, float))
+        )
+        last = next((turn for turn in reversed(run["turns"]) if turn.get("components") or turn.get("seen")), {})
+        seen = last.get("seen", "").replace(",", "")
+        figure = f"{expected:.0f}"
+        check(
+            expected > 0 and figure in seen,
+            f"the summary shows the flights' total, {figure} (each fare times its hop's party)",
         )
     if wants.get("oneWay"):
         check(trip.get("oneWay") is True, "the trip records that it does not come back")

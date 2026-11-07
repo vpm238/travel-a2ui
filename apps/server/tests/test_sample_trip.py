@@ -86,15 +86,3 @@ def test_each_turn_was_answered(turn: dict) -> None:
     kinds = [event["type"] for event in turn["events"]]
     assert "done" in kinds
     assert "ui" in kinds or "text" in kinds
-
-
-def test_no_card_in_it_says_its_heading_twice() -> None:
-    """What the agent drew, rather than what it was taught. See the examples' twin."""
-    from test_finished_payloads_validate import _headings_said_twice
-
-    repeated = [
-        (surface_id, _headings_said_twice(messages))
-        for _, surface_id, messages in _surface_events()
-        if _headings_said_twice(messages)
-    ]
-    assert not repeated, f"Re-record with tools/sample/record.py: {repeated}"

@@ -8,13 +8,14 @@
  * something in it, and have that click become the next turn.
  *
  * So this drives the real app in a real browser and intercepts `/api/chat`,
- * replaying a canned turn. The stub runs the *real* `ExpressStreamParser` and
- * compiler over a scripted model output — the same code the Worker runs — so
- * what reaches the browser is exactly the event sequence a live turn produces,
+ * replaying a canned turn. The stub reads a scripted model output through the
+ * server's own pipeline (`compile.py`: the SDK processor, the macros and the
+ * renderer mirror) — the same code a live turn runs — so what reaches the browser is exactly the event sequence a live turn produces,
  * including the partial `ui` events from a block split mid-constructor. No API
  * key, no model, no cost, and it fails loudly when the wiring rots.
  *
- *   npm run dev:worker      # in another terminal
+ *   GEMINI_API_KEY=scripted python3 tools/e2e/scripted_server.py 8130   # another terminal
+ *   BASE_URL=http://127.0.0.1:8130/ \
  *   node tools/e2e/chat.mjs [--screenshot docs/screenshots/01-chat-light.png]
  */
 
@@ -24,6 +25,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { compileAll } from './compile.mjs';
+
+/** The press a request carried, as the A2UI v1.0 renderer message it is. */
+const pressOf = (body) => body?.a2ui?.find((message) => message?.version === '1.0' && message.action)?.action;
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:8787/';
 const shotIndex = process.argv.indexOf('--screenshot');
@@ -78,15 +82,6 @@ const catalog = JSON.parse(
   readFileSync(join(here, '..', '..', 'catalogs', 'a2ui-travel', 'catalog.json'), 'utf8'),
 );
 /**
- * The protocol the catalog declares — not a literal.
- *
- * This said `'v0.9.1'` in three places, through the whole 1.0 migration. The
- * probe went on passing, because the renderer reads both spellings of a binding
- * on purpose, so what it was actually proving is that the renderer still
- * handles 0.9 — and not that it handles what production now sends: components
- * inline in `createSurface`, bindings as `@path`.
- */
-/**
  * The canned surfaces, compiled by the A2UI SDK through the server's own
  * pipeline (`compile.py`). The first block is also compiled cut off part-way,
  * as a stream delivers it, so the browser has to survive a partial surface
@@ -104,7 +99,7 @@ function toSse(events) {
 }
 
 /**
- * Runs the model's raw output through the same splitter the Worker uses.
+ * The events of a turn that drew the canned block.
  *
  * The chunk boundaries matter: the block is cut mid-constructor, so the parser
  * has to tolerate a truncated tail and the browser has to survive a partial
@@ -162,7 +157,7 @@ await page.route('**/api/chat', async (route) => {
             done: true,
             messages: [
               {
-                version: 'v0.9.1',
+                version: catalog.protocolVersion,
                 updateDataModel: {
                   surfaceId: 'sidebar',
                   path: '/trip/selectedFlight',
@@ -231,18 +226,18 @@ await page.waitForFunction(() => document.querySelectorAll('.bubble--event').len
 
 // Find the turn the click produced rather than assuming an index: the sidebar
 // rebuilds itself on its own schedule and may get there first.
-const fromClick = sent.find((body) => body.action?.name === 'select_flight');
+const fromClick = sent.find((body) => pressOf(body)?.name === 'select_flight');
 check('clicking a flight sends another turn', Boolean(fromClick));
 check('it goes out as an A2UI action, not a sentence', fromClick?.message === undefined);
 check(
   'the chosen flight id travels in the action context',
-  JSON.stringify(fromClick?.action?.context ?? {}).includes('IB6250'),
-  JSON.stringify(fromClick?.action?.context ?? {}),
+  JSON.stringify(pressOf(fromClick)?.context ?? {}).includes('IB6250'),
+  JSON.stringify(pressOf(fromClick)?.context ?? {}),
 );
 check(
   'and the surface it was pressed on is named',
-  typeof fromClick?.action?.surfaceId === 'string',
-  String(fromClick?.action?.surfaceId),
+  typeof pressOf(fromClick)?.surfaceId === 'string',
+  String(pressOf(fromClick)?.surfaceId),
 );
 
 // The panel is A2UI now — there is no React list of trip keys to read, so the

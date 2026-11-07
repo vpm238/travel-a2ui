@@ -164,7 +164,6 @@ async def play(name: str, model_id: str, effort: str, verbose: bool) -> dict[str
             trip=dict(trip),
             surface="inline",
             surface_id="inline-1",
-            skill="express-modular",
             effort=effort,
             interaction_id=resume,
             setup=setup,

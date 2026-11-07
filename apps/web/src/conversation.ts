@@ -17,12 +17,9 @@ import type { SkillVariant, SurfaceAction } from './api.js';
 /**
  * The trip, as far as this client is concerned: whatever the server sent.
  *
- * Deliberately opaque. The client used to import the real field list and the
- * planner from the trip package and decide for itself when a panel was stale;
- * that logic moved to the server so the Flutter client would get a
- * panel too, and the imports outlived it — `TRIP_KEYS` and `plan` were still
- * being pulled in and never called. Naming the shape here is the honest
- * version: this is a renderer, and it does not know what a trip is.
+ * Deliberately opaque: this is a renderer, and it does not know what a trip
+ * is. Every client gets the same panel because the server, not the client,
+ * keeps it current.
  */
 export type Trip = Record<string, unknown>;
 
@@ -128,12 +125,8 @@ export interface Usage {
 /**
  * What the traveller actually chooses.
  *
- * The model and the thinking effort used to be in here and are not any more.
- * They were offered as a choice the app did not keep — the answer used what you
- * picked and the panel beside it was hardcoded to the small model — and the
- * stored default meant a first visit ran the *conversation* on Flash Lite while
- * `/api/meta` said the default was Flash 3.8. Sending nothing lets the server
- * decide, which it was always doing anyway for half the screen.
+ * No model or effort: the server chooses one for the conversation and the
+ * panel alike, so sending nothing is the honest default.
  */
 /**
  * How ready the agent is to answer quickly.
@@ -160,17 +153,13 @@ export const EMPTY_USAGE: Usage = {
 /**
  * An interaction, in the shape A2UI already defines for one.
  *
- * This used to be a sentence — `[interface] search_flights (origin: "JFK")` —
- * assembled here and parsed by nobody. It looked harmless and was not: a
- * synthetic prose format is an application protocol layered on top of A2UI, and
- * a second renderer has no idea it exists. What every A2UI renderer
- * *does* already do is resolve an action's bound context and hand it over,
- * which is this, with no host in the middle inventing anything.
+ * Not a prose sentence: a synthetic prose format would be an application
+ * protocol on top of A2UI that no other renderer knows. Every A2UI renderer
+ * already resolves an action's bound context and hands it over, which is this.
  *
- * `context` is the answer the traveler is sending. `dataModel` is the rest of
- * the surface, sent opaquely so the server can keep the trip exact without any
- * client knowing what a trip is; a generic client that omits it still works,
- * because the agent reads `context`.
+ * `context` is the answer the traveller is sending. The surfaces' data models
+ * travel separately, as `a2uiRendererDataModel` metadata on every request
+ * (`docs/transport.md`); the copy here is only for the transcript's label.
  */
 /**
  * Finds a component on a surface. The renderer's store answers it today; the
@@ -186,12 +175,8 @@ export type ComponentLookup = (surfaceId: string, id: string) => Record<string, 
  * has no equivalent of an A2UI action. The wire carries the action; this is so
  * the conversation has a line where the traveler's turn was.
  *
- * It used to print the action's context verbatim:
- *
- *     commit surface — paths: ["/trip/origin","/trip/startDate"], startDate: "2027-04-12T00:00:00Z"
- *
- * which is the protocol talking, in the traveller's own speech bubble. Now it
- * says what was pressed, in the words the surface already put on it, then the
+ * Not the action's context verbatim, which would put the protocol in the
+ * traveller's own speech bubble. It says what was pressed, in the words the surface already put on it, then the
  * values it carried, written for a person:
  *
  *     Send — origin: JFK, start date: 12 Apr 2027
@@ -327,36 +312,16 @@ function sentenceCase(text: string): string {
   return text ? text[0]!.toUpperCase() + text.slice(1) : text;
 }
 
-/** A press from the SDK, as the action this app sends. */
-export function actionFrom(press: SurfacePress): SurfaceAction {
+/** A press from the SDK, as the app holds it; `dataModel` names it in the transcript. */
+export function actionFrom(press: SurfacePress, dataModel: Record<string, unknown> = {}): SurfaceAction {
   return {
     name: press.name,
     surfaceId: press.surfaceId,
-    ...(press.sourceComponentId ? { sourceComponentId: press.sourceComponentId } : {}),
+    sourceComponentId: press.sourceComponentId ?? '',
     ...(press.userMessage ? { userMessage: press.userMessage } : {}),
     timestamp: press.timestamp || new Date().toISOString(),
     context: press.context ?? {},
-    dataModel: press.dataModel ?? {},
+    dataModel,
   };
 }
 
-/**
- * Does this batch of A2UI redraw a surface, or only refresh the values in it?
- *
- * `updateDataModel` moves a value in a surface that is already on screen —
- * a price, a night count, the trip's origin — and the host sends a batch of
- * those to the standing panels at the end of every turn. `createSurface` and
- * `updateComponents` are the ones that change what the surface *is*.
- *
- * The distinction matters to exactly one caller, and it is load-bearing there:
- * a panel is current for the decisions as they stand only if it was drawn for
- * them, and a value refresh is not drawing.
- */
-export function redrawsSurface(messages: unknown[]): boolean {
-  return messages.some(
-    (message) =>
-      typeof message === 'object' &&
-      message !== null &&
-      ('createSurface' in message || 'updateComponents' in message),
-  );
-}

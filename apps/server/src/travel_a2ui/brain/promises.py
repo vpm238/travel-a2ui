@@ -1,16 +1,10 @@
 """Turns that say what they are about to do, and then end.
 
-Both doors hit this and neither prompt stops it. The spoken brief forbids "Let
-me…" by name and, asked for flights six times, the model said "Let me find some
-flights for you" and ended the turn five of them. The typed brief now forbids it
-too, and a multi-city first turn still answers "Let me record your multi-city
-route and get your travel dates" with nothing drawn.
-
-A 5-in-6 instruction-following gap is not a wording problem. What both doors do
-instead is hand the turn back once, with what it actually did — and that needs
-the same two things on either side, which is why they live here rather than in
-whichever door was written first. A door importing this is a door using the
-brain; a door importing the other door is an architecture nobody meant.
+A model told not to answer "Let me find some flights for you" with nothing
+drawn still does it, in both doors, often enough that it is not a wording
+problem. So both doors hand such a turn back once, with what it actually did.
+The check lives in the brain so the two doors share it rather than one
+importing the other.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 /*
  * The travel theme.
  *
- * One token set drives everything on screen: the app shell, the fourteen travel
+ * One token set drives everything on screen: the app shell, the fifteen travel
  * components, and — through the `--a2ui-*` variables, which pierce shadow DOM —
  * the A2UI SDK's own basic components. The SDK declares its defaults inside
  * `:where()`, at zero specificity, so plain `:root` wins without a fight.

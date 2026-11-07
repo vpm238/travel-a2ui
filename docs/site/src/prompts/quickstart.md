@@ -90,7 +90,7 @@ mobile** from one backend:
           Python agent server  (apps/server/src/travel_a2ui/)
           · brain/  decides: the agent loop, tools, the trip, macros
           · doors/  transport: HTTP + SSE, voice WebSocket
-          · A2UI agent SDK: compiles and validates what the model writes
+          · A2UI agent SDK: parses and validates what the model writes
                        |
                      Gemini (Interactions API; Live API for voice)
 ```
@@ -154,11 +154,14 @@ for line in sys.stdin:
 ```
 
 The script plays one conversation; `curl -X POST localhost:8130/__test__/reset`
-starts it again. Expect `createSurface`, then `updateDataModel` for `/flights`,
-then `updateComponents` and more `updateDataModel`. Rerun without the filter if
-they want to see whole messages. Then open http://127.0.0.1:8130 in a browser,
-type anything and press a flight. The press appears as "from the interface":
-that is an **action** going back.
+starts it again. Expect a `createSurface` for `inline-1`, then one
+`updateDataModel` for `/flights`. Rerun without the filter if they want to see
+whole messages: before the A2UI arrive a `tool` event (the search) and its
+`tool_result`. Then open http://127.0.0.1:8130 in a browser, type anything and
+press a flight. The press appears as "from the interface": that is an
+**action** going back, as an A2UI v1.0 renderer-to-agent message. The request
+also carries the renderer's capabilities and the data model of every surface
+that asks for answers; `docs/transport.md` describes the whole exchange.
 
 Now name the pieces, pointing at what they just saw:
 
@@ -169,16 +172,17 @@ Now name the pieces, pointing at what they just saw:
 | **Components** | A flat list of typed nodes with ids; `root` is drawn first | the `components` array |
 | **Data model** | A JSON document per surface; components bind to it by path | `{"@path": "airline"}`, rows at `/flights` |
 | **Messages** | `createSurface`, `updateComponents`, `updateDataModel`, `deleteSurface` | the stream above |
-| **Actions** | What a press sends back, with bound values resolved | `select_flight` with the flight `id` |
+| **Actions** | What a press sends back, as a v1.0 action with bound values resolved | `select_flight` with the flight `id` |
 | **Functions** | Pure functions the client evaluates against the data model | `formatCurrency`; the catalog's own `calcNights` |
 | **Renderer** | Applies messages and draws components with native widgets | React and Flutter clients |
 
-Point out that the cards arrive *before* the data: the components are bound to
-`/flights`, and fill in when the search's `updateDataModel` lands. The other
-events in the stream (`text`, `tool`, `trip`) are this app's envelope, from
+Point out that the components carry no flight data: `FlightOption` is a
+template repeated for each row at `/flights`, and the rows arrive in one
+`updateDataModel` from the host. The other events in the stream (`text`,
+`tool`, `trip`) are this app's envelope, from
 `apps/server/src/travel_a2ui/doors/interactions/turn.py`.
 
-**Check:** *Why can the cards be drawn before the search returns?*
+**Check:** *Where do the flight cards get their airline and price from?*
 
 ## Part 4: Outcome 2, what is A2UI and what is deterministic
 
@@ -199,23 +203,34 @@ defines, and every message is validated against it.
   (`renderers/react/src/catalog.ts`) and the Flutter client
   (`renderers/flutter/lib/catalog.dart`).
 
-**Macros are deterministic components the model can call.** Open
+**The model composes every surface.** The server never draws a surface and
+never rewrites one. Open `apps/server/src/travel_a2ui/brain/ui.py`: every
+message the model's Express produces is applied to a mirror of what the
+renderer holds (the SDK's `RendererState`) before it is sent. A block that
+does not apply goes back to the model with the reason, once; the host does not
+fix it up.
+
+**Macros are templates the model calls.** Open
 `apps/server/src/travel_a2ui/brain/macros.py`. A macro is a one-line component
-the model writes, such as `Flights(...)`, `Stays(...)`, `Itinerary()`,
-`Trip()` or `Ask()`. Before anything is sent, the host expands it into real
-components built from data it already holds. It uses the A2UI SDK's
-`MacroExpander` (`MACROS` and `expand` near the end of the file).
+the model writes: `Flights(...)`, `Stays(...)`, `Highlights()`, `Itinerary()`
+or `Trip()`. The server expands it with the A2UI SDK's `MacroExpander`
+(`EXPANDER` and `expand` near the end of the file) into catalog components
+bound to data the host publishes (`/flights`, `/hotels`, `/trip`, `/panel`;
+the table is in `prompts/data.md`). The host sends the data, and only for the
+paths a surface binds (`apps/server/src/travel_a2ui/brain/data.py`).
 
 - The model still decides *whether*, *when* and *where* to draw a list of
-  flights. The macro saves it from re-typing four `FlightOption`s of data the
-  tool just returned. That costs hundreds of output tokens, and it is where a
-  model could disagree with what was actually found.
+  flights, and what goes around it. The macro saves it from retyping four
+  `FlightOption`s of data the tool just returned. That costs hundreds of output
+  tokens, and it is where a model could disagree with what was actually found.
+- The trip panel is the same: the model draws it once with `Trip()`, and the
+  host keeps it current with `updateDataModel`, never by redrawing it.
 - Macros are in the model's catalog (`with_macros`) and its skill, but **not**
   in `catalog.json`. Renderers never see a macro.
-- Show it: compile one line and watch it become four components:
+- Show it: compile one line and watch it become catalog components:
 
   ```bash
-  printf '%s' '[{"surfaceId":"inline-1","source":"fares = Flights(\"Outbound · JFK → MAD\", \"/trip/selectedOutbound\")\nroot = Column([fares])"}]' \
+  printf '%s' '[{"surfaceId":"inline-1","source":"fares = Flights(\"Outbound · JFK → MAD\", \"/trip/selectedFlight\")\nroot = Column([fares])"}]' \
   | python tools/e2e/compile.py | python3 -m json.tool
   ```
 
@@ -229,7 +244,8 @@ Then walk the table, opening one or two files they are curious about:
 | What to ask next: `prompts/flow.md` | That a date is asked in a date picker: `apps/server/src/travel_a2ui/brain/controls.py` |
 | | Recording a press onto the trip: `apps/server/src/travel_a2ui/brain/presses.py` |
 | | Presses answered with no model at all: `apps/server/src/travel_a2ui/brain/host_actions.py` |
-| | Surface lifecycle (create once, then update): `apps/server/src/travel_a2ui/brain/finishing/lifecycle.py` |
+| What goes on every surface, the panel included | That every message applies to what the renderer holds: `apps/server/src/travel_a2ui/brain/ui.py` |
+| | The data each surface binds, kept current: `apps/server/src/travel_a2ui/brain/data.py` |
 | | In the client: rendering, data binding, functions such as `calcNights` |
 
 The rule the app follows: *anything that must not vary belongs in code, not in
@@ -255,13 +271,17 @@ specific catalog. Open both:
 They are **generated, never hand-written.** The pipeline:
 
 ```
-scripts/build_catalog.py  →  catalog.json  →  scripts/build_skills.py  →  skills/*/SKILL.md
- (basic catalog + travel)                     (A2UI SDK SkillGenerator,
-                                               catalog + macros)
+scripts/build_catalog.py  →  catalog.json ┐
+brain/macros.py, catalogs/a2ui-travel/examples/*.json ┴→ A2uiRequestProcessor (brain/catalog.py)
+                                                         ├→ SkillGenerator(processor.format) → skills/*/SKILL.md
+                                                         ├→ processor.prompt_snippet → this agent's own prompt
+                                                         └→ the parser that reads what the model writes
 ```
 
-`npm run generate` runs all of it, and `npm run check` fails CI if a skill
-drifts from the catalog. Contrast with `prompts/`: `flow.md` and `role.md` are
+One processor configuration teaches other agents (the skills), teaches this
+one (the prompt snippet), and holds it to the result (the parser), so the three
+cannot disagree; `apps/server/tests/test_skills.py` checks it. `npm run
+generate` runs all of it, and `npm run check` fails CI if a skill drifts. Contrast with `prompts/`: `flow.md` and `role.md` are
 authored judgement (what to ask, when). Both reach the model in one system
 prompt; only the skills are derived.
 
@@ -291,15 +311,18 @@ on each side.
   root = Column([head, list])
   ```
 
-- **On the server, the A2UI agent SDK's `ExpressParser` compiles it** to A2UI
-  messages and validates them against the catalog
-  (`apps/server/src/travel_a2ui/brain/catalog.py`). A half-written program
-  still compiles, so the surface paints while the model is still writing.
+- **On the server, the A2UI agent SDK's request processor reads it**
+  (`A2uiRequestProcessor.open_stream`, set up in
+  `apps/server/src/travel_a2ui/brain/catalog.py`): it parses the Express as it
+  streams, turns it into A2UI messages and validates them against the catalog.
+  Messages go out as the model writes, so the surface paints before the reply
+  is finished.
 - **A2UI messages are the JSON on the wire**: the `createSurface`,
   `updateComponents` and `updateDataModel` they captured in Part 3.
 - **In the client, a `MessageProcessor` applies them.** It keeps each surface's
-  components and data model, resolves bindings, evaluates functions and turns
-  presses into actions. React uses `@a2ui/web_core`'s, in
+  components and data model, resolves bindings, evaluates functions, and
+  reports presses, errors, capabilities and the data model back as A2UI v1.0
+  messages. React uses `@a2ui/web_core`'s, in
   `apps/web/src/surfaces.ts`. Flutter uses `a2ui_core`'s, in
   `renderers/flutter/lib/chat.dart`. The renderer draws what the processor
   holds.
@@ -347,8 +370,8 @@ a file.
 ## Part 8: Outcome 5, renderers
 
 A **renderer** implements the catalog's components with native widgets and
-uses a `MessageProcessor` to apply messages and send actions. It contains no
-app logic.
+uses a `MessageProcessor` to apply messages and send actions and errors back.
+It contains no app logic.
 
 - **In this app:** React on the web (`@a2ui/react`, `@a2ui/web_core`;
   components in `renderers/react/src/components/travel.tsx`) and Flutter on

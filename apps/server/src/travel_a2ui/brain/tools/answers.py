@@ -254,16 +254,10 @@ def _estimate(
     Arithmetic over numbers the caller already has, so it queries nothing and
     stays here rather than behind the provider interface.
 
-    **A trip with stops is costed stop by stop.** This used to take one fare,
-    one party size and one destination and multiply: a San Francisco → Chicago →
-    New York → home trip where a second person joins in Chicago came out as one
-    hop for one person, and the total was confidently, invisibly wrong. Every
-    hop has its own ticket and its own number of people on it; every stop that
-    needs a bed has its own nights. So each is a line, and the total is their
-    sum.
-
-    A single-stop trip produces exactly what it did before, which is what keeps
-    the goldens meaningful.
+    **A trip with stops is costed stop by stop.** Every hop has its own ticket
+    and its own number of people on it (a second person may join in Chicago);
+    every stop that needs a bed has its own nights. So each is a line, and the
+    total is their sum.
     """
     from ..providers.fixture import _js_round, _money, _rng, _seed, code_for_seed
 

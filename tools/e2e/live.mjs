@@ -2,15 +2,13 @@
 /**
  * A spoken turn, drawn — in a real browser, against a real model.
  *
- * This is the test that would have caught the bug the whole Live feature had.
- * The relay was fine: driven directly over a WebSocket it answered speech with
- * speech, called `save_trip` and `show_flight_options`, and sent A2UI down. The
- * browser never sent a byte, because both `AudioContext`s were constructed
- * after `await getUserMedia` — the user gesture is spent by then, so Chrome's
- * autoplay policy starts them *suspended*, a suspended capture context never
- * fires `audioprocess`, and nothing throws anywhere.
+ * Driving the relay over a WebSocket proves the server; only a browser proves
+ * the page actually captures and plays audio. Both `AudioContext`s have to be
+ * made inside the user gesture: made after `await getUserMedia`, Chrome's
+ * autoplay policy starts them suspended, capture never fires, and nothing
+ * throws anywhere.
  *
- * So nothing short of a real browser could see it, and a real browser needs a
+ * So nothing short of a real browser can check it, and a real browser needs a
  * microphone. Chromium's fake device supplies one, which also grants the
  * permission prompt — the point is not what the fake microphone says (it is a
  * beep), it is that opening it leaves the contexts *running*. The turn itself

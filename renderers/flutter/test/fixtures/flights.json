@@ -1,0 +1,217 @@
+{
+  "opening": [
+    {
+      "version": "1.0",
+      "createSurface": {
+        "surfaceId": "inline-1",
+        "catalogId": "https://travel-a2ui.dev/catalogs/a2ui-travel/catalog.json",
+        "components": [
+          {
+            "component": "Text",
+            "id": "fares__text_1",
+            "text": "### Finding flights to Madrid",
+            "variant": "body"
+          },
+          {
+            "component": "FlightOption",
+            "id": "fares__flightoption_1",
+            "accessibility": {
+              "label": {
+                "@call": "formatString",
+                "args": {
+                  "value": "${airline} ${flightNumber}, ${departTime} ${origin} to ${arriveTime} ${destination}, ${stops}, ${price} ${total}"
+                }
+              }
+            },
+            "airline": {
+              "@path": "airline"
+            },
+            "departTime": {
+              "@path": "departTime"
+            },
+            "arriveTime": {
+              "@path": "arriveTime"
+            },
+            "origin": {
+              "@path": "origin"
+            },
+            "destination": {
+              "@path": "destination"
+            },
+            "price": {
+              "@path": "price"
+            },
+            "action": {
+              "event": {
+                "name": "select_flight",
+                "context": {
+                  "id": {
+                    "@path": "id"
+                  },
+                  "price": {
+                    "@path": "price"
+                  },
+                  "airline": {
+                    "@path": "airline"
+                  },
+                  "flightNumber": {
+                    "@path": "flightNumber"
+                  },
+                  "departTime": {
+                    "@path": "departTime"
+                  },
+                  "arriveTime": {
+                    "@path": "arriveTime"
+                  },
+                  "from": {
+                    "@path": "origin"
+                  },
+                  "to": {
+                    "@path": "destination"
+                  }
+                },
+                "userMessage": {
+                  "@call": "formatString",
+                  "args": {
+                    "value": "Chose ${airline} ${flightNumber}, ${departTime} → ${arriveTime}, ${price}"
+                  }
+                }
+              }
+            },
+            "duration": {
+              "@path": "duration"
+            },
+            "stops": {
+              "@path": "stops"
+            },
+            "flightNumber": {
+              "@path": "flightNumber"
+            },
+            "total": {
+              "@path": "total"
+            },
+            "badge": {
+              "@path": "badge"
+            }
+          },
+          {
+            "component": "List",
+            "id": "fares__list_1",
+            "children": {
+              "path": "/flights",
+              "componentId": "fares__flightoption_1"
+            },
+            "direction": "vertical",
+            "align": "stretch"
+          },
+          {
+            "component": "Column",
+            "id": "fares",
+            "children": [
+              "fares__text_1",
+              "fares__list_1"
+            ],
+            "justify": "start",
+            "align": "stretch"
+          },
+          {
+            "id": "root",
+            "component": "Column",
+            "children": [
+              "fares"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "filled": [
+    {
+      "version": "1.0",
+      "updateDataModel": {
+        "surfaceId": "inline-1",
+        "path": "/flights",
+        "value": [
+          {
+            "id": "TP2077",
+            "airline": "TAP Air Portugal",
+            "flightNumber": "TP787",
+            "origin": "JFK",
+            "destination": "MAD",
+            "departTime": "11:00",
+            "arriveTime": "21:44",
+            "duration": "10h 44m",
+            "stops": "1 stop · LIS",
+            "price": "€292",
+            "priceValue": 292,
+            "cabin": "economy",
+            "badge": "Cheapest",
+            "perUnit": "€292",
+            "units": 2,
+            "total": "€584",
+            "totalValue": 584,
+            "priceLabel": "€292 each · €584 for 2"
+          },
+          {
+            "id": "AF2635",
+            "airline": "Air France",
+            "flightNumber": "AF109",
+            "origin": "JFK",
+            "destination": "MAD",
+            "departTime": "16:09",
+            "arriveTime": "03:04 +1",
+            "duration": "10h 55m",
+            "stops": "1 stop · CDG",
+            "price": "€346",
+            "priceValue": 346,
+            "cabin": "economy",
+            "perUnit": "€346",
+            "units": 2,
+            "total": "€692",
+            "totalValue": 692,
+            "priceLabel": "€346 each · €692 for 2"
+          },
+          {
+            "id": "AA2236",
+            "airline": "American",
+            "flightNumber": "AA645",
+            "origin": "JFK",
+            "destination": "MAD",
+            "departTime": "10:10",
+            "arriveTime": "18:01",
+            "duration": "7h 51m",
+            "stops": "Nonstop",
+            "price": "€353",
+            "priceValue": 353,
+            "cabin": "economy",
+            "perUnit": "€353",
+            "units": 2,
+            "total": "€706",
+            "totalValue": 706,
+            "priceLabel": "€353 each · €706 for 2"
+          },
+          {
+            "id": "IB2118",
+            "airline": "Iberia",
+            "flightNumber": "IB772",
+            "origin": "JFK",
+            "destination": "MAD",
+            "departTime": "18:04",
+            "arriveTime": "01:47 +1",
+            "duration": "7h 43m",
+            "stops": "Nonstop",
+            "price": "€358",
+            "priceValue": 358,
+            "cabin": "economy",
+            "badge": "Fastest",
+            "perUnit": "€358",
+            "units": 2,
+            "total": "€716",
+            "totalValue": 716,
+            "priceLabel": "€358 each · €716 for 2"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -19,17 +19,13 @@
  * component that reads them.
  *
  * Trip facts live at `/trip` in every surface's data model, and the server puts
- * them there. This file used to hold a list of travel field names and two
- * functions that copied values between surfaces with it. That worked, and it
- * made the web app the only client that could behave correctly, because the
- * behaviour lived in the client rather than in the protocol. The server does it
- * now, in A2UI's own words — so the Flutter client gets pre-filled controls and
- * a live panel with no travel-specific code at all, and this app forgets what a
- * trip is, which is the point.
+ * them there, in A2UI's own words (`updateDataModel`), so every client — the
+ * Flutter one included — gets pre-filled controls and a live panel with no
+ * travel-specific code at all. This app does not know what a trip is.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Surfaces, type SurfacePress } from './surfaces.js';
+import { Surfaces, actionMessage, type SurfacePress } from './surfaces.js';
 
 import { consumeKeyFromUrl } from './apiKey.js';
 import { instantiateLive, startVoice as openVoice, type VoiceSession } from './voice.js';
@@ -67,7 +63,6 @@ import {
   actionFrom,
   describeForTranscript,
   type ComponentLookup,
-  redrawsSurface,
   withSurface,
   withText,
 } from './conversation.js';
@@ -99,7 +94,6 @@ export type { LiveStatus } from './storage.js';
 /** How a message is sent — which surface it answers, and whether it shows. */
 interface SendOptions {
   surface?: SurfaceKind;
-  surfaceId?: string;
   fromSurface?: boolean;
   /** Keep the transcript clean for background surfaces like the home screen. */
   silent?: boolean;
@@ -126,7 +120,7 @@ export function useAgent() {
    */
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    (window as unknown as Record<string, unknown>)['__A2UI_MAPS_KEY'] = meta?.mapsApiKey ?? '';
+    window.__A2UI_MAPS_KEY = meta?.mapsApiKey ?? '';
   }, [meta?.mapsApiKey]);
   const [metaError, setMetaError] = useState<string | null>(null);
   // A key in the URL wins over a stored one and is consumed on the first read,
@@ -166,23 +160,6 @@ export function useAgent() {
    */
   const resumeRef = useRef<Resume | undefined>(undefined);
 
-  /**
-   * The shape of the decisions, and the shape the panel on screen was drawn for.
-   *
-   * The panel is redrawn by the agent when the trip's decisions change — a new
-   * control is needed, not just a new value — and the server does that in the
-   * tail of a turn, after the answer has painted. Which is precisely when a
-   * traveller presses the fare they have just been shown: the press aborts the
-   * stream, and the rebuild goes with it. The panel was then permanently one
-   * press behind — nothing at all until a flight was chosen, then nothing again
-   * until a hotel was, and then everything at once.
-   *
-   * So the client keeps both shapes and asks for the panel itself when they
-   * disagree. That request is its own, and no press can cancel it.
-   */
-  const tripShapeRef = useRef<string | undefined>(undefined);
-  const panelShapeRef = useRef<string | undefined>(undefined);
-
   const [prefs, setPrefsState] = useState<Prefs>(() => {
     try {
       const stored = readStored(PREFS_KEY);
@@ -206,11 +183,8 @@ export function useAgent() {
       if (stored) {
         const parsed = JSON.parse(stored) as { id: BackendId | 'worker'; origin: string };
         setApiOrigin(parsed.origin ?? '');
-        // `worker` is what this runtime was called before the agent loop moved
-        // off Cloudflare. Somebody who used the app then still has it in local
-        // storage, and an id the server no longer advertises matches nothing —
-        // which showed up as a runtime chip reading "worker" rather than a
-        // label. Read the old spelling, keep the new one.
+        // An id stored under an older name reads as the Python runtime, so a
+        // chip never shows an id the server does not advertise.
         const id: BackendId = parsed.id === 'worker' ? 'python' : parsed.id;
         return { ...parsed, id };
       }
@@ -258,12 +232,8 @@ export function useAgent() {
   /**
    * Somebody tried to run a model with no key anywhere, and should be asked.
    *
-   * Asked *then*, not on arrival. The key form used to mount the moment the
-   * page loaded without one, as a full-screen overlay with no way to dismiss
-   * it — over the Catalog and Wire tabs, which run no model and need no key,
-   * and which the README sends people to first for exactly that reason. So
-   * the one view built to be tried keyless was the one a keyless visitor could
-   * not reach.
+   * Asked *then*, not on arrival: the Catalog and Wire tabs run no model and
+   * need no key, and a keyless visitor should be able to reach them.
    */
   const [keyRequested, setKeyRequested] = useState(false);
   /**
@@ -410,21 +380,6 @@ export function useAgent() {
             // the server seeds `/trip` into the surface it creates and sends
             // `updateDataModel` for the panels. Applying them is the whole job.
             store.apply(event.messages);
-            // A panel that is *redrawn* is the panel for the decisions as they
-            // stand. A panel that is merely refreshed is not.
-            //
-            // This read "any event for a standing surface", and the server
-            // sends one of those at the end of every turn: `panel_events`
-            // pushes the trip's values into the panels as `updateDataModel`,
-            // with no components in it and no model in the path. So the mark
-            // was set on every turn whether or not a panel had been drawn, the
-            // two shapes below could never disagree, and the catch-up this
-            // comment describes had been dead code since it was written. The
-            // panel went stale on the deployed app — "Stay in Berlin ·
-            // Awaiting selection", with the stay booked — and nothing noticed.
-            if (STANDING.has(event.surfaceId) && redrawsSurface(event.messages)) {
-              panelShapeRef.current = tripShapeRef.current;
-            }
             if (!silent) {
               patchTurn(assistantId, (turn) => ({
                 parts: withSurface(turn.parts, event.surfaceId),
@@ -475,22 +430,21 @@ export function useAgent() {
             break;
           case 'trip':
             setTrip(event.trip);
-            // What the panel would have to be redrawn for, noted while the turn
-            // is still streaming. See `panelShapeRef`.
-            if (event.shape !== undefined) tripShapeRef.current = event.shape;
+            break;
+          case 'warning':
+            console.warn('[agent]', event.message);
             break;
           case 'resume':
             // A recorded receipt carries what was decided and no conversation.
             // Merged, so a warm conversation opened meanwhile is kept.
             if (replay) {
-              resumeRef.current = { ...resumeRef.current, trip: event.trip, shape: event.shape };
+              resumeRef.current = { ...resumeRef.current, trip: event.trip };
               break;
             }
             // Kept, not read. See `resumeRef`.
             resumeRef.current = {
               interactionId: event.interactionId,
               trip: event.trip,
-              shape: event.shape,
               // Carried rather than dropped. Without it the server falls back
               // to its own session, and the claim that the client holds the
               // thread is only true while there is one server.
@@ -608,15 +562,19 @@ export function useAgent() {
         await streamTurn(
           {
             sessionId,
-            ...(action ? { action } : { message }),
+            ...(message ? { message } : {}),
+            // The press and anything the renderer refused, as A2UI v1.0
+            // renderer-to-agent messages, and the renderer's capabilities and
+            // data model as metadata. All of it the SDK's.
+            a2ui: [...store.takeErrors(), ...(action ? [actionMessage(action)] : [])],
+            metadata: store.metadata(),
+            surfaces: store.ids(),
             surface,
-            skill: prefsRef.current.skill,
             // No model and no effort: the server picks, and picks the same one
             // for the answer and for the panel beside it.
-            ...(options.surfaceId ? { surfaceId: options.surfaceId } : {}),
             ...(resumeRef.current ? { resume: resumeRef.current } : {}),
             ...((): object => {
-              const hints = clientHints(store.ids());
+              const hints = clientHints();
               return hints ? { client: hints } : {};
             })(),
           },
@@ -627,28 +585,6 @@ export function useAgent() {
         setBusy(false);
         setLiveSurface(null);
         abortRef.current = null;
-        // The panel, if this turn did not get round to drawing it.
-        //
-        // The server redraws the standing surfaces in the tail of a turn, after
-        // the answer has painted — and that is exactly when somebody presses
-        // the fare they were just shown, which aborts the stream and takes the
-        // rebuild with it. Asking here puts the request on its own connection,
-        // where no press can reach it. It fires only when the decisions have
-        // actually moved since the panel was drawn, so a turn whose tail
-        // finished costs nothing extra.
-        //
-        // Marked only when the panel actually arrives, by the `ui` handler
-        // above — not optimistically here. `send` declines while another turn
-        // is running, which is exactly the case this exists for: the press that
-        // cancelled the rebuild is already in flight. Claiming the panel was
-        // current would mean never asking again.
-        if (
-          !options.silent &&
-          tripShapeRef.current !== undefined &&
-          tripShapeRef.current !== panelShapeRef.current
-        ) {
-          void drawSurfaceRef.current?.('sidebar');
-        }
       }
     },
     [busy, handlerFor, lookup, patchTurn, sessionId, store],
@@ -672,15 +608,10 @@ export function useAgent() {
    * Asks the server to draw a standing surface.
    *
    * The one thing a client legitimately knows that the server does not is
-   * *which surface it is showing*. Everything else about a panel — when it is
-   * stale, what to ask for, what may go on it — is the agent's, and used to be
-   * here: the sidebar watched three trip field names and composed a prose
-   * prompt ("Rebuild the panel for where the trip stands now…") to send as a
-   * silent turn. That is the private protocol recommendation 4 removed from
-   * form submission, rebuilt for panels, and a client that does not know to
-   * send it never gets a panel at all.
-   *
-   * So this says only which surface, and the server decides the rest.
+   * *which surface it is showing*. Everything else about a panel — what may go
+   * on it, how it stays current — is the agent's and the server's, so this
+   * says only which surface. A client that never calls it still gets a panel:
+   * the server runs a panel turn once the trip has a destination.
    */
   // Whatever they were trying to say when they were asked for a key, said now
   // that there is one. On the key, not on a click, so a key pasted into the
@@ -701,23 +632,16 @@ export function useAgent() {
   }, []);
 
   const drawSurface = useCallback(
-    (surface: 'sidebar' | 'home', note?: string) =>
-      send(note ?? '', { surface, surfaceId: surface, silent: true }),
+    (surface: 'sidebar' | 'home', note?: string) => send(note ?? '', { surface, silent: true }),
     [send],
   );
-
-  // `send` catches up a stale panel when a turn ends, and is defined above
-  // this. A ref rather than reordering the two: they are mutually recursive by
-  // nature — drawing a panel is itself a turn — and a ref says so plainly.
-  const drawSurfaceRef = useRef<typeof drawSurface | undefined>(undefined);
-  drawSurfaceRef.current = drawSurface;
 
 
   /**
    * Relays a press into a live call, when there is one. Returns whether it did.
    *
-   * A ref for the same reason `drawSurfaceRef` is one: the voice session is set
-   * up below this, and a press and a call are mutually involved by nature.
+   * A ref because the voice session is set up below this, and a press and a
+   * call are mutually involved by nature.
    */
   const relayPressRef = useRef<((action: SurfaceAction) => boolean) | undefined>(undefined);
 
@@ -725,24 +649,14 @@ export function useAgent() {
     (event: SurfacePress) => {
       // During a call, a press belongs to the call.
       //
-      // This handler used to go straight to `send` below — the typed door —
-      // whatever was happening. `Chat.tsx` checks for a call before sending
-      // what somebody *typed*, and nothing checked before sending what they
-      // *pressed*, so tapping a fare mid-call opened a separate typed turn
-      // against a thread the Live session had never heard of. From the
-      // traveller's side the agent simply did not react, and the press left no
-      // line in the call either: the Live API has no equivalent of an A2UI
-      // action, so a press only exists in a call if the client says it out
-      // loud.
-      //
-      // `tools/validate/voice.py` presses by sending that sentence itself and
-      // says it "mirrors `describeForTranscript` in `apps/web/src/useAgent.ts`"
-      // — which was true of the sentence and not of the sending. It has been
-      // testing a relay the client never performed.
+      // Sent through the typed door, a fare tapped mid-call would open a
+      // separate turn against a thread the Live session has never heard of.
+      // So it goes to the relay as a v1.0 action, which records it and tells
+      // the Live session what was chosen (`docs/transport.md`, voice frames).
       //
       // Before the `busy` guard, deliberately: `busy` is the typed door's flow
       // control and a call has its own.
-      if (relayPressRef.current?.(actionFrom(event))) return;
+      if (relayPressRef.current?.(actionFrom(event, store.data(event.surfaceId)))) return;
 
       if (busy) return;
 
@@ -759,12 +673,12 @@ export function useAgent() {
       // ask me again inline — is the server's to say, in the sentence it builds
       // for the model, because that sentence is about how this agent works and
       // not about what the traveler pressed.
-      void send(actionFrom(event), {
+      void send(actionFrom(event, store.data(event.surfaceId)), {
         surface: surface === 'inline' ? surface : 'inline',
         fromSurface: true,
       });
     },
-    [busy, send],
+    [busy, send, store],
   );
 
   // The SDK reports presses to the processor's action listener, which is fixed
@@ -800,7 +714,7 @@ export function useAgent() {
     // landing in the same tick would otherwise start two conversations.
     warmedRef.current = true;
     setWarmth('warming');
-    const warmed = await warmUp(keyRef.current, prefsRef.current.skill);
+    const warmed = await warmUp(keyRef.current);
     if (warmed.interactionId) {
       // Only if nothing has happened since. Somebody who typed fast enough to
       // finish a real turn already holds a better receipt than this one.
@@ -831,8 +745,8 @@ export function useAgent() {
    * The button exists for when this has not happened — no key yet, or the
    * request failed — and not as a gate. Nothing here disables the composer
    * while it runs: a control you cannot use until you have used another control
-   * is the shape that made the microphone unusable, and the worst case here is
-   * a first turn that takes the time it always used to.
+   * is a control that does not work, and the worst case here is only a slower
+   * first turn.
    */
   useEffect(() => {
     if (!apiKey) return;
@@ -923,7 +837,7 @@ export function useAgent() {
   // ------------------------------------------------------------- voice
   //
   // A call is the same conversation by another route: the relay runs in the
-  // same Durable Object, so the trip it changes is this trip, and the surfaces
+  // same server session, so the trip it changes is this trip, and the surfaces
   // it draws land in this store. Nothing here knows what a flight is.
 
   /**
@@ -1088,16 +1002,13 @@ export function useAgent() {
    * Tap to talk. Tap again when you have finished talking.
    *
    * That is the whole interaction, and it is the one people already have with
-   * the assistant on their phone. What was here instead was a *call*: the first
-   * press dialled, the second hung up, and — because hanging up tears the
-   * session down — speaking and then pressing stop threw away the answer on its
-   * way back. Nobody dials an assistant.
+   * the assistant on their phone. It is not a call: pressing again ends what
+   * you said, not the session, so the answer still arrives.
    *
    * The setup is folded in rather than asked for. The Live API keeps no agent
    * object, so the first turn needs a handshake that binds the catalog, the
-   * skill and the tools; that used to be a banner and a disabled microphone
-   * until you pressed something. A microphone you cannot press is not a
-   * microphone. Now the tap does it, and the button shows it is busy.
+   * skill and the tools. The tap does it, and the button shows it is busy; a
+   * microphone you cannot press is not a microphone.
    */
   const toggleVoice = useCallback(async () => {
     // A session whose socket has gone is not a session. It answers every method
@@ -1144,6 +1055,7 @@ export function useAgent() {
         sessionId,
         apiKey: keyRef.current,
         surfaces: store.ids(),
+        metadata: () => store.metadata(),
         onSpeakingChange: setAgentSpeaking,
         // The relay ends when either side does, so an upstream session that
         // reaches its own limit takes this socket with it — without anybody
@@ -1157,13 +1069,10 @@ export function useAgent() {
         onEvent: (event) => {
           switch (event.type) {
             case 'ui':
-              store.apply(event.messages as never);
-              // The panel lives beside the conversation, as on the typed side:
-              // a redraw marks it current, and it never joins the transcript.
-              if (STANDING.has(event.surfaceId)) {
-                if (redrawsSurface(event.messages as never)) panelShapeRef.current = tripShapeRef.current;
-                break;
-              }
+              store.apply(event.messages);
+              // The panel lives beside the conversation, as on the typed side,
+              // and never joins the transcript.
+              if (STANDING.has(event.surfaceId)) break;
               // Spoken surfaces join the transcript like any other, so the
               // record of a spoken turn reads the same as a typed one.
               appendVoiceTurn({ kind: 'surface', surfaceId: event.surfaceId });

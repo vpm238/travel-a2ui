@@ -2,7 +2,7 @@
   "name": "travel-a2ui",
   "version": "0.1.0",
   "private": true,
-  "description": "A travel chat + itinerary builder whose backend is a managed agent that speaks A2UI Express.",
+  "description": "A travel planner whose agent answers in A2UI: the model composes every surface, rendered by React and Flutter from the same messages.",
   "license": "Apache-2.0",
   "type": "module",
   "workspaces": [
@@ -17,16 +17,15 @@
     "test:watch": "vitest",
     "e2e": "node tools/e2e/chat.mjs && node tools/e2e/interaction.mjs && node tools/e2e/frameworks.mjs && node tools/e2e/keys.mjs && node tools/e2e/sample.mjs",
     "typecheck": "tsc -b renderers/react && tsc -p apps/web --noEmit",
-    "generate": "python3 scripts/build_catalog.py && python3 scripts/build_examples.py && python3 scripts/build_skills.py",
+    "generate": "python3 scripts/build_catalog.py && python3 scripts/build_skills.py && python3 scripts/build_catalog_reference.py && python3 scripts/build_fixtures.py",
     "check:catalog": "python3 scripts/build_catalog.py --check",
-    "check:examples": "python3 scripts/build_examples.py --check",
     "check:skills": "python3 scripts/build_skills.py --check",
-    "check": "npm run check:catalog && npm run check:examples && npm run check:skills && npm run check:reference && npm run check:prompt",
+    "check": "npm run check:catalog && npm run check:skills && npm run check:reference && npm run check:fixtures",
     "screenshots": "node tools/e2e/chat.mjs --screenshot docs/screenshots/01-chat-light.png && node tools/screenshots/capture.mjs docs/screenshots",
     "check:catalog-page": "node tools/screenshots/catalog.mjs --check",
     "docs:catalog": "node tools/screenshots/catalog.mjs",
-    "check:prompt": "python3 tools/parity/capture.py --check",
-    "check:reference": "python3 scripts/build_catalog_reference.py --check"
+    "check:reference": "python3 scripts/build_catalog_reference.py --check",
+    "check:fixtures": "python3 scripts/build_fixtures.py --check"
   },
   "devDependencies": {
     "happy-dom": "^15.11.7",

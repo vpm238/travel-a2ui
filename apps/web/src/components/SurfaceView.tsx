@@ -8,7 +8,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import { A2uiSurface, MarkdownContext } from '@a2ui/react/v0_9';
+import { A2uiSurface, MarkdownContext } from '@a2ui/react';
 import { renderMarkdown } from '@travel-a2ui/renderer';
 
 import type { Surfaces } from '../surfaces.js';
@@ -37,7 +37,7 @@ export function SurfaceView({
   return (
     <MarkdownContext.Provider value={renderMarkdown}>
       <div className="a2-surface" data-surface={surfaceId} inert={!interactive}>
-        <A2uiSurface surface={surface as never} />
+        <A2uiSurface surface={surface} />
       </div>
     </MarkdownContext.Provider>
   );

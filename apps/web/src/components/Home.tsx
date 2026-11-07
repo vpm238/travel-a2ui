@@ -5,13 +5,10 @@
  * stat tiles when there are numbers worth watching, a decision when one is
  * pending, weather and a map for context.
  *
- * It used to build itself — on opening this tab, and again beside the sidebar
- * on every turn that changed the shape of the trip. Both are gone. A dashboard
- * is a summary, and a conversation is where the trip is still being decided, so
- * rebuilding it mid-chat summarised something that did not exist yet; it also
- * cost a model call per turn for a surface nobody was looking at, and put stat
- * tiles and progress meters in front of a model whose job that turn was a date
- * picker.
+ * It does not build itself. A dashboard is a summary, and a conversation is
+ * where the trip is still being decided, so building it mid-chat would
+ * summarise something that does not exist yet, and spend a model call on a
+ * surface nobody is looking at.
  *
  * So it waits. The button below is the trigger, and by the time somebody presses
  * it there is a conversation and a trip to build from.

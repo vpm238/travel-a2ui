@@ -83,7 +83,9 @@ class _ChatScreenState extends State<ChatScreen> {
   /// decided. Kept, never read — see `resume` in `api.dart`.
   Map<String, dynamic>? _resume;
   bool _busy = false;
-  int _surfaceCounter = 0;
+
+  /// Errors the processor reported, to forward with the next request.
+  final _unsentErrors = <Map<String, dynamic>>[];
 
   /// The surface a press is still allowed to come from.
   String? _liveSurface;
@@ -101,7 +103,50 @@ class _ChatScreenState extends State<ChatScreen> {
       catalogs: [widget.catalog],
       defaultVersion: A2uiProtocolVersion.v1_0,
       onAction: _onAction,
+      onError: (error) => _report(ErrorMessage(version: '1.0', error: error)),
     );
+    // Which surfaces exist is the SDK's to say: a card joins the conversation
+    // when it is created and leaves when it is deleted.
+    _processor.model.onSurfaceCreated.subscribe((surface) => _created(surface.id));
+    _processor.model.onSurfaceDeleted.subscribe(_deleted);
+  }
+
+  void _report(ErrorMessage error) {
+    _unsentErrors.add(error.toJson());
+    if (_unsentErrors.length > 20) _unsentErrors.removeAt(0);
+  }
+
+  /// What every request says on the renderer's behalf.
+  Map<String, dynamic> _metadata() {
+    final capabilities = _processor.getRendererCapabilities(
+      const CapabilitiesOptions(versions: [A2uiProtocolVersion.v1_0]),
+    );
+    final dataModel = _processor.getRendererDataModel(version: A2uiProtocolVersion.v1_0);
+    return {
+      'a2uiRendererCapabilities': capabilities.toJson(),
+      if (dataModel != null) 'a2uiRendererDataModel': dataModel,
+    };
+  }
+
+  void _created(String surfaceId) {
+    if (!mounted) return;
+    setState(() {
+      if (_standing.contains(surfaceId)) {
+        _panel = surfaceId;
+        _panelChanged = true;
+      } else if (!_parts.whereType<Drawn>().any((part) => part.surfaceId == surfaceId)) {
+        _parts.add(Drawn(surfaceId));
+      }
+    });
+    _toBottom();
+  }
+
+  void _deleted(String surfaceId) {
+    if (!mounted) return;
+    setState(() {
+      _parts.removeWhere((part) => part is Drawn && part.surfaceId == surfaceId);
+      if (_panel == surfaceId) _panel = null;
+    });
   }
 
   @override
@@ -113,10 +158,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// Somebody pressed something. That is their turn.
   ///
-  /// Sent as the action the renderer produced. The context is what the button
-  /// declared it was sending; the surface's data model rides along when the
-  /// surface was created with `sendDataModel`, which is how every value the
-  /// traveller set reaches the agent, not only the ones a binding named.
+  /// Sent as the v1.0 `ActionMessage` the SDK defines. What the traveller set
+  /// on a surface created with `sendDataModel` goes in the request's
+  /// `a2uiRendererDataModel`, which `getRendererDataModel` builds.
   void _onAction(A2uiRendererAction action) {
     if (_busy) return;
     // A press on the panel is a request to re-open a decision, and deciding
@@ -125,34 +169,18 @@ class _ChatScreenState extends State<ChatScreen> {
     // permitted to draw was the one button this client silently ignored.
     if (action.surfaceId != _liveSurface && !_standing.contains(action.surfaceId)) return;
 
-    final surface = _processor.model.getSurface(action.surfaceId);
-    _send(
-      action: {
-        'name': action.name,
-        'surfaceId': action.surfaceId,
-        'sourceComponentId': action.sourceComponentId,
-        'timestamp': action.timestamp.toIso8601String(),
-        'context': action.context,
-        if (action.userMessage case final String said) 'userMessage': said,
-        // Only when the surface asked for it, as A2UI's `sendDataModel` says.
-        if (surface != null && surface.sendDataModel) 'dataModel': surface.dataModel.get('/'),
-      },
-    );
+    _send(action: ActionMessage(version: '1.0', action: action).toJson());
   }
 
   Future<void> _send({String message = '', Map<String, dynamic>? action}) async {
     if (_busy) return;
     if (message.isEmpty && action == null) return;
 
-    // A new inline surface per turn: two different questions get two different
-    // cards, and the previous one stays as the record of what was asked.
-    _surfaceCounter += 1;
-    final surfaceId = 'inline-$_surfaceCounter';
-
+    final errors = List<Map<String, dynamic>>.of(_unsentErrors);
+    _unsentErrors.clear();
     setState(() {
       _busy = true;
       if (message.isNotEmpty) _parts.add(SaidByYou(message));
-      _liveSurface = surfaceId;
     });
     _composer.clear();
     _toBottom();
@@ -162,10 +190,10 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final stream = widget.api.chat(
         message: message,
-        action: action,
+        a2ui: [...errors, if (action != null) action],
+        metadata: _metadata(),
         sessionId: _sessionId,
         resume: _resume,
-        surfaceId: surfaceId,
         surfaces: [for (final surface in _processor.model.allSurfaces) surface.id],
       );
 
@@ -174,11 +202,15 @@ class _ChatScreenState extends State<ChatScreen> {
           case 'session':
             _sessionId = event.raw['sessionId'] as String?;
 
+          case 'start':
+            // The server names this turn's card; a press is allowed from it.
+            _liveSurface = event.raw['surfaceId'] as String?;
+
           case 'resume':
             _resume = {
               'interactionId': event.raw['interactionId'],
               'trip': event.raw['trip'],
-              'shape': event.raw['shape'],
+              'setup': event.raw['setup'],
             };
 
           case 'text':
@@ -214,38 +246,16 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _draw(TurnEvent event) {
-    // The server keeps the A2UI lifecycle: a surface is created once and
-    // updated after that, so the SDK processor takes the batch as it comes. A
-    // message it refuses is reported and the rest still apply.
+    // A message the processor refuses is shown, forwarded to the agent with the
+    // next request, and the rest still apply. Which cards exist follows from
+    // `onSurfaceCreated` and `onSurfaceDeleted`.
     final refused = _processor.processMessagesWithErrors(event.messages);
     for (final error in refused) {
+      _report(error);
       setState(() => _parts.add(Failed('That surface could not be read: ${error.error.message}')));
     }
-
-    // The panel lives beside the conversation, not inside it.
-    //
-    // A turn touches three surfaces: the card it drew, and the two standing
-    // panels the server refreshes from the trip. Filing all three as chat parts
-    // put the whole trip summary — Change buttons and all — in the middle of
-    // the feed, under the question still being answered, every single turn. It
-    // reads exactly like the agent drawing the panel inline, which is what it
-    // was mistaken for; it was this client filing a panel refresh as
-    // conversation.
-    if (_standing.contains(event.surfaceId)) {
-      // Nothing to append: the panel watches the store and redraws itself.
-      if (_processor.model.getSurface(event.surfaceId) != null) {
-        setState(() {
-          _panel = event.surfaceId;
-          _panelChanged = true;
-        });
-      }
-      return;
-    }
-
-    final existing = _parts.whereType<Drawn>().any((part) => part.surfaceId == event.surfaceId);
-    if (!existing && _processor.model.getSurface(event.surfaceId) != null) {
-      setState(() => _parts.add(Drawn(event.surfaceId)));
-      _toBottom();
+    if (_standing.contains(event.surfaceId) && _processor.model.getSurface(event.surfaceId) != null) {
+      setState(() => _panelChanged = true);
     }
   }
 

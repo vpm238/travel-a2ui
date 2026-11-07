@@ -112,13 +112,10 @@ class FixtureProvider:
 
         # What to price in, and why the caller decides.
         #
-        # A trip used to show its fares in dollars and its stays in the
-        # destination's currency, and then totalled them together: a card
-        # reading "€112 / night" became "$336" three nights later in the same
-        # summary. One currency per trip fixes it, and only the caller knows
-        # what a trip's currency is — the provider is handed one hop and cannot
-        # tell a Copenhagen–Berlin outbound from the Berlin–Copenhagen return.
-        # Unset keeps dollars, which is what every direct caller got before.
+        # One currency per trip, so fares and stays total without mixing
+        # euros and dollars. Only the caller knows a trip's currency — the
+        # provider is handed one hop and cannot tell a Copenhagen–Berlin
+        # outbound from the Berlin–Copenhagen return. Unset means dollars.
         fare_currency = str(query.get("currency") or "USD")
 
 
@@ -144,11 +141,10 @@ class FixtureProvider:
 
             # Whether it stops, and where — through a hub this carrier has.
             #
-            # The hub used to be picked independently of the airline, so a
-            # quarter of the itineraries were things like Iberia via Paris or
-            # Delta via Lisbon. A carrier that cannot fly the route nonstop
-            # always connects, through its own hub; one that can connects only
-            # when the dice say so and it has a hub on the way.
+            # A carrier connects through its own hubs, never another
+            # airline's. One that cannot fly the route nonstop always
+            # connects; one that can connects only when the dice say so and it
+            # has a hub on the way.
             wants_stop = index == 4 or random() < 0.28
             hub = (
                 _pick(airline["via"], random)
@@ -265,12 +261,10 @@ class FixtureProvider:
                 for hotel in curated
             ]
             # The neighbourhood *filters* rather than being written onto every
-            # hotel that comes back. It used to be stamped on, so all five
-            # claimed to be exactly where you asked, wherever they actually
-            # were — "close to Kurfürstendamm" was answered by relabelling
-            # Neukölln. A hotel two streets off the avenue is a hit, through its
-            # own `near` list; one across the city is not, and when nothing
-            # matches `_relax_until_non_empty` says so rather than inventing.
+            # hotel that comes back. A hotel two streets off the avenue is a
+            # hit, through its own `near` list; one across the city is not, and
+            # when nothing matches `_relax_until_non_empty` says so rather than
+            # inventing.
             near_filters: list[tuple[str, Callable[[dict[str, Any]], bool]]] = []
             if neighborhood:
                 wanted = _fold(neighborhood)

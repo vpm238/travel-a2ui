@@ -170,14 +170,10 @@ REFUSABLE: tuple[str, ...] = ("startDate", "endDate", "travelers", "legs")
 def sieve(saved: Trip, proposed: Trip, today: str | None = None) -> tuple[Trip, list[str]]:
     """What of `proposed` can be recorded, and what had to be turned away.
 
-    **Field by field, never the whole call.** `save_trip` used to refuse
-    everything the moment any part of it was wrong, which sounds careful and is
-    not: a model saving a chosen hotel, the party and the route in one call —
-    which is what it does, because the call takes the whole trip — lost the
-    hotel because a hop's dates were a day out. Measured in a real
-    conversation: the traveller pressed a stay, the save was refused whole, the
-    next turn read a trip with no stay in it and drew the fares again. "It does
-    not save the hotel" was this.
+    **Field by field, never the whole call.** `save_trip` takes the whole trip,
+    so a model saves a chosen hotel, the party and the route in one call;
+    refusing the call because a hop's dates were a day out would lose the
+    hotel with it.
     A refused field goes back to what was saved rather than being deleted —
     dropping it outright would lose a value they had already agreed to, which
     is a second wrong answer — and the messages go back to the model so the

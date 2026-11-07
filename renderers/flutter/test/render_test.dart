@@ -1,15 +1,16 @@
 // Rendering real A2UI, from the real catalog, with the A2UI Flutter SDK.
 //
-// The messages here are not hand-written where it matters: the skeleton is
-// `tools/parity/__golden__/skeleton.json`, the bytes the server sends for a
-// flight search, and every component's example is
+// The messages here are not hand-written where it matters: the flight list is
+// `test/fixtures/flights.json`, the bytes the server sends when the model draws
+// `Flights()` and the lookup returns (`scripts/build_fixtures.py`), and every
+// component's example is
 // `apps/web/src/generated/catalog-reference.json`, which the build compiles
 // with the A2UI Python SDK and validates before writing. The catalog is
 // `catalogs/a2ui-travel/catalog.json`, read by `Catalog.fromJson`.
 //
 // What is under test is the assembly, not the SDK: that every component the
 // agent is offered draws, that the basic ones are `a2ui_flutter`'s own, and
-// that the fourteen travel views read what the SDK resolved for them.
+// that the fifteen travel views read what the SDK resolved for them.
 
 import 'dart:convert';
 import 'dart:io';
@@ -100,7 +101,7 @@ void main() {
       }
     });
 
-    test('draws the fourteen travel components itself', () {
+    test('draws the fifteen travel components itself', () {
       final basic = basicCatalog();
       final travel = (_document['components'] as Map).keys.where((name) => !basic.components.containsKey(name));
       expect(travelViews.keys.toSet(), travel.toSet());
@@ -150,11 +151,11 @@ void main() {
     }
   });
 
-  group('the skeleton, as the server sends it', () {
-    final golden = _json('tools/parity/__golden__/skeleton.json');
-    final flights = (golden['search_flights'] as Map).cast<String, dynamic>();
-    final opening = (flights['opening'] as List).cast<Object?>();
-    final filled = (flights['filled'] as List).cast<Object?>();
+  group('a flight list, as the server sends it', () {
+    final fixture = _json('renderers/flutter/test/fixtures/flights.json');
+    final opening = (fixture['opening'] as List).cast<Object?>();
+    final filled = (fixture['filled'] as List).cast<Object?>();
+    final rows = (((filled.first as Map)['updateDataModel'] as Map)['value'] as List).cast<Map>();
 
     testWidgets('paints the heading before any data arrives, and no rows', (tester) async {
       final run = _Run();
@@ -163,7 +164,7 @@ void main() {
 
       expect(find.textContaining('Finding flights', findRichText: true), findsOneWidget);
       // A row with no airline and no fare reads as a flight called nothing.
-      expect(find.textContaining(r'$'), findsNothing);
+      expect(find.text(rows.first['airline'] as String), findsNothing);
     });
 
     testWidgets('fills the rows in when only the data model changes', (tester) async {
@@ -174,9 +175,8 @@ void main() {
       expect(run.apply(filled), isEmpty);
       await tester.pump();
 
-      expect(find.text('Iberia'), findsOneWidget);
-      expect(find.text(r'$412'), findsOneWidget);
-      expect(find.text('18:40'), findsOneWidget);
+      expect(find.text(rows.first['airline'] as String), findsWidgets);
+      expect(find.text(rows.first['departTime'] as String), findsWidgets);
     });
   });
 

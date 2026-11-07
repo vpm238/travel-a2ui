@@ -2,16 +2,21 @@
 /**
  * The travel catalog, as the A2UI SDK renders it.
  *
- * This package used to be a renderer and is now a catalog: the SDK's basic
- * components and functions, plus fourteen travel views and two functions of
+ * This package is a catalog, not a renderer: the SDK's basic
+ * components and functions, plus fifteen travel views and two functions of
  * its own. These pin the assembly — that nothing the agent is offered lacks an
  * implementation, and that the basic ones are the SDK's own, not copies.
  */
 
+import { ariaFrom } from '../src/accessibility.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { A2uiSurface } from '@a2ui/react';
+import { MessageProcessor } from '@a2ui/web_core/v1_0';
 import { basicCatalog } from '@a2ui/web_core/catalogs/basic/v1';
 
 import { calcNights, createTravelCatalog, equals, travelComponentNames } from '../src/index.js';
@@ -121,7 +126,9 @@ describe('the travel views read the catalog', () => {
       for (const part of schema.allOf ?? [schema]) {
         for (const [key, value] of Object.entries<Record<string, any>>(part.properties ?? {})) {
           declared.add(key);
-          for (const item of Object.keys(value.items?.properties ?? {})) items.add(item);
+          for (const variant of [value, ...(value.anyOf ?? []), ...(value.oneOf ?? [])]) {
+            for (const item of Object.keys(variant.items?.properties ?? {})) items.add(item);
+          }
         }
       }
       const isSetter = (key: string) => /^set[A-Z]/.test(key) && declared.has(key[3]!.toLowerCase() + key.slice(4));
@@ -135,5 +142,59 @@ describe('the travel views read the catalog', () => {
     }
     expect(scanned).toBe(Object.keys(document.components).length - basicCatalog.components.size);
     expect(problems).toEqual([]);
+  });
+});
+
+describe('the accessibility block', () => {
+  it('maps to ARIA by the rules the SDK basic components use', () => {
+    expect(ariaFrom({ label: 'Iberia IB6250, $412', description: 'Nonstop', live: 'polite', hidden: false })).toEqual({
+      'aria-label': 'Iberia IB6250, $412',
+      'aria-description': 'Nonstop',
+      'aria-live': 'polite',
+      'aria-hidden': false,
+    });
+  });
+  it('says nothing for an empty or malformed block', () => {
+    expect(ariaFrom(undefined)).toEqual({});
+    expect(ariaFrom({ label: '' })).toEqual({});
+    expect(ariaFrom({ hidden: 'yes' })).toEqual({});
+  });
+  it('reads the block as the binder hands it over, setters and all', () => {
+    expect(ariaFrom({ label: 'Iberia', setLabel: () => undefined, setDescription: () => undefined })).toEqual({
+      'aria-label': 'Iberia',
+    });
+  });
+  it('reaches the drawn card', async () => {
+    const processor = new MessageProcessor([createTravelCatalog(document)], () => undefined);
+    processor.processMessages([
+      {
+        version: '1.0',
+        createSurface: {
+          surfaceId: 'a11y',
+          catalogId: document.catalogId,
+          components: [
+            {
+              id: 'root',
+              component: 'FlightOption',
+              airline: 'Iberia',
+              departTime: '18:40',
+              arriveTime: '08:15 +1',
+              origin: 'JFK',
+              destination: 'MAD',
+              price: '$412',
+              action: { event: { name: 'select_flight' } },
+              accessibility: { label: 'Iberia IB6250, nonstop, $412' },
+            },
+          ],
+        },
+      },
+    ] as never);
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = window.document.createElement('div');
+    window.document.body.appendChild(host);
+    await act(async () => {
+      createRoot(host).render(createElement(A2uiSurface, { surface: processor.model.getSurface('a11y')! }));
+    });
+    expect(host.querySelector('.tv-fare')?.getAttribute('aria-label')).toBe('Iberia IB6250, nonstop, $412');
   });
 });

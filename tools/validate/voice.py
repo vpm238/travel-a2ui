@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 """A spoken call, driven through the real relay — including a press.
 
-`journey.py` drives the typed door. This drives the other one, which is not the
-same agent with a microphone bolted on: a voice call goes through the Live API,
-its surfaces are composed by server tools rather than written as Express, and
-**a press arrives as a sentence**. The Live API has no equivalent of an A2UI
-action to send, so the browser relays the press as the line the transcript
-already shows — `Choose — id: AA3229, price: 281` — and the model has
-to turn that back into a `save_trip`. Nothing in the host records it on the way
-past, which is the one place this runtime costs something, and the one thing
-nobody had ever watched happen.
+`journey.py` drives the typed door. This drives the other one: a voice call
+goes through the Live API, the model draws by calling `render_a2ui_express`
+with Express that the server reads through the same A2UI processor as a typed
+turn, and a press arrives as the A2UI v1.0 action message the browser sends
+(`{"type": "press", "a2ui": [...]}`). The host records it onto the trip before
+the model hears of it.
 
 So this types into a real call and then presses, exactly as `useAgent.ts` does,
 and checks the choice landed on the trip.
@@ -127,18 +124,16 @@ def components(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def is_card(surface_id: Any) -> bool:
+    """A card the call drew (`voice-N`, or an id the model chose), not a panel."""
+    return bool(surface_id) and str(surface_id) not in ("sidebar", "home")
+
+
 def host_cards(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """The pressable cards on the surfaces the *host* composed.
+    """The pressable fare and stay cards on the call's own cards (`voice-N`).
 
-    A voice call draws two kinds of surface. The `show_*` tools compose theirs
-    from provider rows in `brain/builders.py`, onto `voice-1`, `voice-2`, … —
-    those are the host's, and what is on them is deterministic. The trip panel
-    on `sidebar` is Express the model wrote, and what is on it is the model
-    following the brief.
-
-    Only the first kind belongs in a check. Asserting the model labelled its
-    own panel makes this probe fail on a house rule rather than on a bug, which
-    it did on the first run of exactly that check.
+    The panel on `sidebar` is left out: it is a record, and its cards carry
+    Change rather than a choice.
     """
     out: list[dict[str, Any]] = []
     for message in messages:
@@ -146,7 +141,7 @@ def host_cards(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
             body = message.get(key)
             if not isinstance(body, dict):
                 continue
-            if not str(body.get("surfaceId") or "").startswith("voice-"):
+            if not is_card(body.get("surfaceId")):
                 break
             for node in body.get("components") or []:
                 if isinstance(node, dict) and node.get("component") in (
@@ -167,22 +162,13 @@ def first_press(
     """The press on the first card of this kind nobody has pressed yet.
 
     `already` is what makes a second press land on a second card. Everything on
-    screen is pressable, including the fares from two turns ago, so a plain
-    "first FlightOption" pressed the outbound again and the return leg stayed
-    unchosen — which the agent then, correctly, refused to move past.
+    screen is pressable, including the fares from two turns ago, and a plain
+    "first FlightOption" would press the outbound again and leave the return
+    unchosen.
 
-    **The cards are bound now, and used to be literal.** This said so out loud:
-    "only literals — a voice surface is composed by the server from real rows,
-    so its cards carry the id and the price as values rather than as bindings."
-    That was true while `builders.py` wrote a card per fare. It now seeds
-    `$/flights` and calls `Flights()`, which is one template whose every value
-    is `{"@path": "id"}` — so the dict filter here stripped the whole context
-    and the press went out naming nothing. The host recorded nothing, the agent
-    said "choose from the options on your screen", and three checks went red
-    against a relay that was drawing the fares correctly the whole time.
-
-    So a binding is resolved against the rows the surface was seeded with, one
-    row per press, which is what the traveller is actually pressing.
+    The cards are a `Flights()` or `Stays()` template whose values are bound
+    (`{"@path": "id"}`), so a binding is resolved against the rows the host put
+    on the surface, one row per press, which is what the traveller presses.
     """
     seen = already or set()
     for node in nodes:
@@ -212,6 +198,18 @@ def first_press(
     return None
 
 
+def surface_with(messages: list[dict[str, Any]], kind: str) -> str | None:
+    """The newest call card that draws this kind of component."""
+    found = None
+    for message in messages:
+        for key in ("createSurface", "updateComponents"):
+            body = message.get(key)
+            if isinstance(body, dict) and is_card(body.get("surfaceId")):
+                if any(isinstance(node, dict) and node.get("component") == kind for node in body.get("components") or []):
+                    found = body["surfaceId"]
+    return found
+
+
 def pointer_of(value: Any) -> str | None:
     """The pointer a binding names, in either spelling 1.0 might use."""
     if not isinstance(value, dict):
@@ -224,22 +222,39 @@ def pointer_of(value: Any) -> str | None:
 
 
 def seeded_rows(messages: list[dict[str, Any]], kind: str) -> list[Any]:
-    """The rows a voice surface was seeded with, newest first.
-
-    `builders.py` writes them into the block as `$/flights = [...]`, so they
-    arrive inside `createSurface.dataModel` rather than as a later update.
-    """
-    key = "hotels" if kind == "HotelCard" else "flights"
-    out: list[Any] = []
+    """The rows the host sent a voice surface, newest last: `/flights` or `/hotels`."""
+    key, by_hop = ("hotels", "rooms") if kind == "HotelCard" else ("flights", "fares")
+    flat: list[Any] = []
+    hops: dict[str, Any] = {}
     for message in messages:
         model = (message.get("createSurface") or {}).get("dataModel")
         if isinstance(model, dict) and isinstance(model.get(key), list):
-            out = model[key]
+            flat = model[key]
         update = message.get("updateDataModel")
-        if isinstance(update, dict) and str(update.get("path") or "").strip("/") == key:
-            if isinstance(update.get("value"), list):
-                out = update["value"]
-    return out
+        if isinstance(update, dict):
+            path = str(update.get("path") or "").strip("/")
+            if path == key and isinstance(update.get("value"), list):
+                flat = update["value"]
+            elif path == by_hop and isinstance(update.get("value"), dict):
+                hops = update["value"]
+    # The newest list of this kind is what the traveller presses: when it binds
+    # one hop's own rows (`/fares/N`), those rows.
+    template = "FlightOption" if key == "flights" else "HotelCard"
+    newest = None
+    for message in messages:
+        for body_key in ("createSurface", "updateComponents"):
+            body = message.get(body_key)
+            if not isinstance(body, dict):
+                continue
+            nodes = body.get("components") or []
+            kinds = {node.get("id"): node.get("component") for node in nodes if isinstance(node, dict)}
+            for node in nodes:
+                children = node.get("children") if isinstance(node, dict) else None
+                if isinstance(children, dict) and kinds.get(children.get("componentId")) == template:
+                    newest = str(children.get("path") or "")
+    if newest and newest.startswith(f"/{by_hop}/"):
+        return list(hops.get(newest.rsplit("/", 1)[-1]) or [])
+    return flat
 
 
 async def call(base: str, key: str, steps: list[dict[str, Any]], quiet: bool) -> dict[str, Any]:
@@ -307,11 +322,18 @@ async def call(base: str, key: str, steps: list[dict[str, Any]], quiet: bool) ->
                 # leaves the fares from two turns ago sitting there, pressable.
                 # Looking at the last turn alone said "nothing to press" at a
                 # screen with four flights on it.
+                # The call's own cards, not the panel: a fare on the panel is
+                # a record with a Change button, not a choice.
+                cards = [
+                    message
+                    for message in on_screen
+                    if is_card(next((body.get("surfaceId") for body in message.values() if isinstance(body, dict)), ""))
+                ]
                 found = first_press(
-                    components(on_screen),
+                    components(cards),
                     step["press"],
                     pressed,
-                    seeded_rows(on_screen, step["press"]),
+                    seeded_rows(cards, step["press"]),
                 )
                 if found is None:
                     if not quiet:
@@ -322,12 +344,29 @@ async def call(base: str, key: str, steps: list[dict[str, Any]], quiet: bool) ->
                 text = press_sentence(*found)
                 if not quiet:
                     print(f"\n-- {number}. [press] {text}")
+                # The A2UI v1.0 action, as `voice.ts` sends a press into a call.
+                frame = {
+                    "type": "press",
+                    "a2ui": [
+                        {
+                            "version": "1.0",
+                            "action": {
+                                "name": found[0],
+                                "surfaceId": surface_with(on_screen, step["press"]) or "voice-1",
+                                "sourceComponentId": step["press"],
+                                "timestamp": "2027-03-01T10:00:00Z",
+                                "context": found[1],
+                            },
+                        }
+                    ],
+                }
             else:
                 text = step["say"]
+                frame = {"type": "text", "text": text}
                 if not quiet:
                     print(f"\n-- {number}. {text!r}")
 
-            await socket.send(json.dumps({"type": "text", "text": text}))
+            await socket.send(json.dumps(frame))
             await drain("turn_end", 120)
 
             said = " ".join(transcript).strip()
@@ -433,7 +472,7 @@ async def main() -> int:
                 str((node.get("accessibility") or {}).get("label") or "").strip()
                 for node in cards
             ),
-            f"all {len(cards)} host-composed cards carry a label for a screen reader",
+            f"all {len(cards)} cards on the call carry a label for a screen reader",
         ),
     ]
 

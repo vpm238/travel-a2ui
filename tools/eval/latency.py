@@ -65,7 +65,6 @@ async def turn(message: str, resume: dict | None) -> dict:
         trip=dict((resume or {}).get("trip") or {}),
         surface="inline",
         surface_id="inline-1",
-        skill="express-modular",
         interaction_id=(resume or {}).get("interaction_id"),
         setup=(resume or {}).get("setup"),
     )

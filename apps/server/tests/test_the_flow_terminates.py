@@ -130,10 +130,8 @@ class TestOneWay:
     """A journey that is not coming back."""
 
     def test_the_trip_can_say_so(self):
-        # `skip: ["return"]` is what the brief used to ask for, and "return" is
-        # not a stage, so it was dropped on the way in and the trip held no
-        # record at all — then the next turn read the route, saw it landing in
-        # Madrid, and asked about the way home again.
+        # "return" is not a stage, so `skip: ["return"]` is dropped on the way
+        # in; `oneWay` is how the trip records it.
         assert model.coerce("skip", ["return"]) is None
         assert model.coerce("oneWay", True) is True
 
@@ -145,11 +143,13 @@ class TestOneWay:
 
     def test_and_changes_what_the_panel_needs(self):
         settled = {"destination": "MAD", "origin": "JFK", "startDate": "2027-04-12"}
-        assert model.decision_shape(settled) != model.decision_shape({**settled, "oneWay": True})
+        from travel_a2ui.brain import data
+
+        assert data.plan_rows(settled) != data.plan_rows({**settled, "oneWay": True})
 
 
 class TestSaveTripKeepsTheSoundHalf:
-    """One bad field used to throw away everything in the call with it."""
+    """One bad field never throws away everything in the call with it."""
 
     SAVED = {
         "destination": "MAD",
@@ -209,21 +209,12 @@ class TestEveryHopOrNone:
         ],
     }
 
+    LEGS = 2
+
     def counters(self, *paths: str) -> list[dict]:
         return [
-            {
-                "updateComponents": {
-                    "components": [
-                        {
-                            "id": f"who{index}",
-                            "component": "TravelerCounter",
-                            "label": f"Hop {index}",
-                            "value": {"path": path},
-                        }
-                        for index, path in enumerate(paths)
-                    ]
-                }
-            }
+            {"id": f"who{index}", "component": "TravelerCounter", "label": f"Hop {index}", "value": {"@path": path}}
+            for index, path in enumerate(paths)
         ]
 
     def test_the_paths_follow_the_route(self):
@@ -236,37 +227,23 @@ class TestEveryHopOrNone:
     def test_a_single_hop_has_nothing_to_be_inconsistent_about(self):
         alone = {"destination": "MAD", "origin": "JFK", "travelers": 2}
         assert _party_paths(alone) == ()
-        assert half_asked(self.counters("/trip/travelers"), ()) is None
+        assert half_asked(self.counters("/trip/travelers"), 0) == []
 
     def test_two_counters_over_three_hops_is_sent_back(self):
         # Which is what the brief's own worked example drew.
-        complaint = half_asked(
-            self.counters("/trip/travelers", "/trip/legs/0/travelers"),
-            _party_paths(self.ROUTE),
-        )
-        assert complaint is not None
-        assert "/trip/legs/1/travelers" in complaint
-        assert "2 of the 3 hops" in complaint
+        complaint = half_asked(self.counters("/trip/travelers", "/trip/legs/0/travelers"), self.LEGS)
+        assert complaint
+        assert "/trip/legs/1/travelers" in complaint[0]
+        assert "2 of the 3 hops" in complaint[0]
 
     def test_all_three_is_fine(self):
-        assert (
-            half_asked(self.counters(*_party_paths(self.ROUTE)), _party_paths(self.ROUTE))
-            is None
-        )
+        assert half_asked(self.counters(*_party_paths(self.ROUTE)), self.LEGS) == []
 
     def test_and_so_is_asking_none_of_them(self):
         # A flights surface is not asking about the party at all, and nothing
         # here should make it.
-        fares = [
-            {
-                "updateComponents": {
-                    "components": [
-                        {"id": "f1", "component": "FlightOption", "origin": {"path": "/trip/origin"}}
-                    ]
-                }
-            }
-        ]
-        assert half_asked(fares, _party_paths(self.ROUTE)) is None
+        fares = [{"id": "f1", "component": "FlightOption", "origin": {"@path": "/trip/origin"}}]
+        assert half_asked(fares, self.LEGS) == []
 
 
 class TestWhoIsOnAHopThatNobodyAsked:
@@ -345,128 +322,6 @@ class TestTheDaysAreKept:
         assert [item["title"] for item in patch["days"][0]["activities"]] == ["Lunch at Sobrino"]
 
 
-class TestTheRefinePanelKnowsTheRoute:
-    """The one surface a spoken trip refines itself through.
-
-    It is composed here rather than by the model — an MCP host and a voice call
-    get what the server builds — so "one counter per hop" has to hold here too.
-    It held one counter for any journey, so a party that changed along the way
-    was invisible on the only panel that could have corrected it.
-    """
-
-    ROUTE = {
-        "destination": "Chicago",
-        "origin": "SFO",
-        "startDate": "2027-04-10",
-        "travelers": 1,
-        "legs": [
-            {"destination": "New York", "origin": "ORD", "startDate": "2027-04-12", "travelers": 2},
-            {"destination": "San Francisco", "origin": "JFK", "startDate": "2027-04-16", "travelers": 2},
-        ],
-    }
-
-    def panel(self, trip: dict) -> str:
-        from travel_a2ui.brain.providers.fixture import FixtureProvider
-        from travel_a2ui.brain.builders import build_surface
-
-        return asyncio.run(
-            build_surface("show_trip_controls", dict(trip), FixtureProvider(), TODAY)
-        ).express
-
-    def test_a_counter_for_every_hop(self):
-        express = self.panel(self.ROUTE)
-        assert express.count("TravelerCounter") == 3
-        assert "$/filters/legs/0/travelers" in express
-        assert "$/filters/legs/1/travelers" in express
-
-    def test_each_one_is_labelled_by_its_hop_and_pre_filled(self):
-        express = self.panel(self.ROUTE)
-        assert 'TravelerCounter("ORD → New York"' in express
-        assert "$/filters/legs/0/travelers = 2" in express
-
-    def test_and_apply_carries_them_back(self):
-        assert "legs: $/filters/legs" in self.panel(self.ROUTE)
-
-    def test_one_hop_is_still_one_counter(self):
-        # An MCP host calling the tool cold passes no legs, and gets exactly
-        # the panel it always got.
-        express = self.panel({"destination": "Madrid", "travelers": 2})
-        assert express.count("TravelerCounter") == 1
-        assert 'TravelerCounter("Travellers"' in express
-        assert "legs:" not in express
-
-    def test_it_compiles(self):
-        from travel_a2ui.brain.providers.fixture import FixtureProvider
-        from travel_a2ui.brain.builders import build_surface, compile_surface
-        from travel_a2ui.brain.wire import components_of
-
-        surface = asyncio.run(
-            build_surface("show_trip_controls", dict(self.ROUTE), FixtureProvider(), TODAY)
-        )
-        nodes = [
-            node
-            for message in compile_surface(surface)
-            for node in components_of(message)
-        ]
-        assert [node["id"] for node in nodes if node["component"] == "TravelerCounter"] == [
-            "who0",
-            "who1",
-            "who2",
-        ]
-
-
-class TestThePanelIsDrawnWhenItIsAskedFor:
-    """What became of the panel refusal.
-
-    It refused to build the boundaries panel when the boundaries were settled
-    and the call proposed nothing new, telling the model what was open instead.
-    Added and removed the same day: it was written for "why is it asking me for
-    dates again", the real cause was `asks_nothing` in the typed door, and a
-    tool that refuses the call it was made for is the host deciding what the
-    turn is for. The tool's description says when to reach for it; that is the
-    honest channel, and whether this is the turn for it is the agent's call.
-    """
-
-    SETTLED = {
-        "destination": "Madrid",
-        "origin": "JFK",
-        "startDate": "2027-04-12",
-        "endDate": "2027-04-19",
-        "travelers": 2,
-        "selectedFlight": "IB426",
-    }
-
-    def draw(self, asked: dict, trip: dict | None):
-        from travel_a2ui.brain.providers.fixture import FixtureProvider
-        from travel_a2ui.brain.builders import build_surface
-
-        return asyncio.run(
-            build_surface("show_trip_controls", dict(asked), FixtureProvider(), TODAY, trip=trip)
-        )
-
-    def test_a_settled_trip_still_gets_the_panel_it_asked_for(self):
-        assert "DateRangePicker" in self.draw({}, self.SETTLED).express
-
-    def test_the_host_has_no_way_to_refuse_it(self):
-        from travel_a2ui.brain import builders
-
-        assert not hasattr(builders, "_already_settled"), "the refusal grew back"
-
-    def test_the_tool_still_says_when_to_reach_for_it(self):
-        # The guidance moves to where guidance belongs rather than disappearing.
-        tools = json.loads(
-            (
-                pathlib.Path(__file__).resolve().parents[3] / "data" / "surface-tools.json"
-            ).read_text("utf-8")
-        )["tools"]
-        controls = next(tool for tool in tools if tool["name"] == "show_trip_controls")
-        assert "Once the boundaries are settled, stop drawing it" in controls["description"]
-
-    def test_and_a_change_still_draws(self):
-        moved = self.draw({"startDate": "2027-04-19", "endDate": "2027-04-26"}, self.SETTLED)
-        assert "DateRangePicker" in moved.express
-
-
 class TestAGuessIsAnOpenQuestionAndNotAVeto:
     """What became of the assumed-date rule.
 
@@ -510,14 +365,7 @@ class TestAGuessIsAnOpenQuestionAndNotAVeto:
     def test_the_agent_is_told_instead(self):
         from travel_a2ui.brain.skills import build_prompt_parts
 
-        _, volatile = build_prompt_parts(
-            variant="express-modular",
-            surface="inline",
-            surface_id="inline-1",
-            catalog_id="x",
-            trip=dict(self.GUESSED),
-            today=TODAY,
-        )
+        _, volatile = build_prompt_parts(surface="inline", surface_id="inline-1", trip=dict(self.GUESSED), today=TODAY)
         assert "assumed" in volatile
 
 

@@ -1,18 +1,43 @@
 /**
- * The browser's half of the wire protocol.
+ * The browser's half of the transport (`docs/transport.md`).
  *
- * Two things worth knowing:
+ * A turn is a POST to `/api/chat` carrying what the traveller typed, the A2UI
+ * v1.0 renderer-to-agent messages (`a2ui`) and the renderer's metadata, and
+ * answered as server-sent events carrying A2UI v1.0 agent-to-renderer
+ * messages. Two things worth knowing:
  *
  * 1. **The key never goes in a URL.** `EventSource` can only issue a GET with no
- *    custom headers, which would force the API key into a query string, where it
- *    lands in every access log between here and the Worker. So this reads the
- *    SSE stream out of a `fetch` POST body instead — more code, and the only
- *    version of this that is safe to deploy.
+ *    custom headers, which would put the API key in a query string, where it
+ *    lands in every access log on the way. So this reads the SSE stream out of
+ *    a `fetch` POST body instead.
  *
- * 2. **A turn is cancellable.** The `AbortSignal` reaches the Worker, which
+ * 2. **A turn is cancellable.** The `AbortSignal` reaches the server, which
  *    stops writing; the turn itself finishes server-side so the transcript stays
  *    consistent for the next message.
  */
+
+import type { ActionMessage, ActionPayload, RendererErrorMessage } from '@a2ui/web_core/v1_0';
+
+/** What a request carries on the renderer's behalf (`metadata`). */
+export interface RendererMetadata {
+  a2uiRendererCapabilities: unknown;
+  a2uiRendererDataModel?: unknown;
+}
+
+/** A press as the v1.0 renderer-to-agent message it is. */
+export function actionMessage(action: ActionPayload): ActionMessage {
+  return {
+    version: '1.0',
+    action: {
+      name: action.name,
+      surfaceId: action.surfaceId,
+      sourceComponentId: action.sourceComponentId,
+      timestamp: action.timestamp || new Date().toISOString(),
+      context: action.context ?? {},
+      ...(action.userMessage ? { userMessage: action.userMessage } : {}),
+    },
+  };
+}
 
 /** One A2UI message, as the server sends it; `@a2ui/web_core` validates it on arrival. */
 type A2uiMessage = Record<string, unknown>;
@@ -21,10 +46,12 @@ export type SkillVariant = 'express-modular';
 export type SurfaceKind = 'inline' | 'sidebar' | 'home';
 
 export type AgentEvent =
-  | { type: 'start'; model: string; skill: SkillVariant; surfaceId: string }
+  | { type: 'start'; model: string; surfaceId: string }
   | { type: 'text'; delta: string; round?: number }
   | { type: 'ui'; surfaceId: string; messages: A2uiMessage[]; done: boolean }
   | { type: 'ui_error'; message: string; source: string; express?: string }
+  /** Something in the request the server could not read, such as a malformed action. */
+  | { type: 'warning'; message: string }
   | { type: 'retry'; reason: string }
   // The stream failed part-way through and the turn is starting over on the
   // standby model. Everything said so far belongs to the abandoned attempt.
@@ -41,10 +68,7 @@ export type AgentEvent =
   | { type: 'served_by'; model: string }
   | { type: 'tool'; name: string; input: unknown; status: 'running' }
   | { type: 'tool_result'; name: string; result: unknown; isError: boolean }
-  // `shape` is the fingerprint of the trip's *decisions* — what makes the panel
-  // need different controls rather than different values. The server computes
-  // it; the client only compares it with the one its panel was drawn for.
-  | { type: 'trip'; trip: Record<string, unknown>; shape?: string }
+  | { type: 'trip'; trip: Record<string, unknown> }
   | {
       type: 'usage';
       inputTokens: number;
@@ -75,7 +99,6 @@ export type AgentEvent =
       type: 'resume';
       interactionId?: string;
       trip?: Record<string, unknown>;
-      shape?: string;
       setup?: string;
     }
   | { type: 'done'; stopReason: string | null };
@@ -84,14 +107,11 @@ export type AgentEvent =
 export interface Resume {
   interactionId?: string;
   trip?: Record<string, unknown>;
-  shape?: string;
   /**
    * Which prompt the conversation was started against.
    *
-   * The server sends this and the client used to drop it, which quietly undid
-   * the point of handing the receipt over: the server then fell back to its own
-   * in-memory session, so "any instance can answer any turn" was true only
-   * while there was one instance. It is opaque — a hash of the stable half of
+   * Handed back on the next turn, so any server instance can answer it rather
+   * than only the one holding the session in memory. It is opaque — a hash of the stable half of
    * the prompt — and the only thing to do with it is hand it back.
    */
   setup?: string;
@@ -154,85 +174,47 @@ export interface Meta {
 }
 
 /**
- * An interaction on a surface, as A2UI defines one.
+ * A press, as the app holds it: the A2UI v1.0 action body.
  *
- * The shape of `client_to_server.json`'s `action`: what was pressed, where, and
- * the context its bindings resolved to. Every A2UI renderer produces this
- * without being taught — which is the point of sending it instead of a sentence
- * this app made up.
- *
- * `dataModel` is the one addition, and it is opaque: the rest of the surface's
- * values, forwarded so the server can keep trip state exact without any client
- * knowing what a trip is. Leave it out and the agent still has `context`.
+ * On the wire it goes as `{version: "1.0", action}` (`actionMessage` in
+ * `surfaces.ts`); what the traveller set on the surface goes separately, in
+ * the request's `a2uiRendererDataModel`. `dataModel` is local, for naming the
+ * press in the transcript, and is never sent.
  */
-export interface SurfaceAction {
-  name: string;
-  surfaceId: string;
-  sourceComponentId?: string;
-  /** The surface's own sentence for this press, when it wrote one. */
-  userMessage?: string;
-  timestamp?: string;
-  context: Record<string, unknown>;
-  dataModel?: Record<string, unknown>;
-}
+export type SurfaceAction = ActionMessage['action'] & { dataModel?: Record<string, unknown> };
 
 export interface ChatRequest {
   sessionId: string;
-  /** What the traveler typed. Omitted when `action` carries the turn instead. */
+  /** What the traveler typed. Omitted when a press carries the turn instead. */
   message?: string;
-  /** What the traveler pressed. Omitted when they typed. */
-  action?: SurfaceAction;
+  /** A2UI v1.0 renderer-to-agent messages: the press, and any renderer errors. */
+  a2ui?: Array<ActionMessage | RendererErrorMessage>;
+  /** `a2uiRendererCapabilities` and `a2uiRendererDataModel`, on every request. */
+  metadata?: RendererMetadata;
+  /** The surface ids this renderer holds. */
+  surfaces?: string[];
   surface: SurfaceKind;
-  surfaceId?: string;
-  skill: SkillVariant;
   /**
-   * Deliberately no `model` and no `effort`.
-   *
-   * The server defaults both, and it is the only party that can pick one model
-   * for the whole screen. When the client chose, it chose for the reply and not
-   * for the panel beside it — which was hardcoded to the small model with the
-   * client's choice wired in as its *fallback*. Half a choice is worse than
-   * none. `/api/meta` still reports which model is answering.
+   * No `model` and no `effort`: the server picks, and picks the same model for
+   * the answer and for the panel beside it. `/api/meta` reports which.
    */
   /**
-   * What came back on the last turn, handed straight back.
-   *
-   * The server keeps a copy too, but only the one instance that answered has
-   * it, and Cloud Run will happily send the next turn somewhere else. The
-   * client is the only party present for every turn of a conversation, so it
-   * is the one that carries the thread.
+   * What came back on the last turn, handed straight back. The client is the
+   * only party present for every turn, so it carries the thread, and any
+   * server instance can answer the next one.
    */
   resume?: Resume;
   /**
-   * *When* the traveler is. Not where.
-   *
-   * This used to carry a timezone that the server turned into a departure
-   * airport, and that was the mistake: a timezone covers a continent-slice, so
-   * `America/New_York` picked JFK for someone in Atlanta, 1,211 km away, and
-   * said it with a fare attached. Where they are flying from is a question the
-   * agent asks now, in the surface it was drawing anyway.
-   *
-   * What is left is the one thing the server genuinely cannot know. It runs in
-   * UTC; at 18:00 in Los Angeles it has already turned the page, so "tomorrow"
-   * comes back a day late and "this Saturday" is the wrong Saturday.
+   * *When* the traveler is, not where: the server runs in UTC, and "tomorrow"
+   * is the traveller's tomorrow. Where they fly from is asked, never inferred.
    */
-  client?: { today?: string; locale?: string; surfaces?: string[] };
+  client?: { today?: string; locale?: string };
 }
 
-/**
- * What day it is where the traveler is, what language they read, and which
- * surfaces are on screen.
- *
- * The surfaces because only the client knows what it holds — a stream it cut
- * short never delivered what the server sent, and a sample it opened on was
- * never sent by this server at all. The server creates each surface once and
- * sends values only to surfaces that exist (`finishing/lifecycle.py`), and this
- * is what it decides that from.
- */
-export function clientHints(surfaces?: string[]): ChatRequest['client'] {
+/** What day it is where the traveler is, and what language they read. */
+export function clientHints(): ChatRequest['client'] {
   try {
     return {
-      ...(surfaces ? { surfaces } : {}),
       // `en-CA` is the shortest honest way to get a local `YYYY-MM-DD` out of
       // the browser: `toISOString` would convert to UTC first, which is the bug
       // this exists to fix.
@@ -245,46 +227,16 @@ export function clientHints(surfaces?: string[]): ChatRequest['client'] {
 }
 
 /**
- * Which agent framework is answering.
- *
- * Two genuinely different runtimes, and that is the point being made: the
- * components, the catalog, the skills and this front end are one build, and the
- * thing running the agent loop underneath is the traveller's choice.
+ * Which agent runtime is answering.
  *
  *   python  Gemini Interactions API, driven from the Python server this app is
- *           served from. A request/response loop on the traveller's own key,
- *           calling the travel tools directly. Typed.
+ *           served from: a request/response loop calling the travel tools.
+ *   live    Gemini Live API, relayed through the same server: speak or type,
+ *           and it answers out loud while drawing the same surfaces through
+ *           the same A2UI processor.
  *
- *           Named `worker` until the agent loop moved off Cloudflare, and the
- *           rename was overdue: the id is what the client asks the server for,
- *           the server had already been advertising `python`, and nothing
- *           matched — so the runtime chip fell through to printing the raw id
- *           and read "worker" to anybody looking at it.
- *
- *   live    Gemini Live API, relayed through the same session Durable Object.
- *           A bidirectional audio session Google drives; the traveller can
- *           speak or type, and it answers out loud while drawing the same
- *           surfaces from the same six builders.
- *
- * They share nothing, and switching between them reloads the page: a new
- * session, an empty trip, a clean transcript. Two APIs with two conversation
- * histories is enough difference without also reasoning about which parts of a
- * half-decided trip survive the crossing.
- *
- * Two alternatives were built and removed, both worth recording because the
- * reasons are measurements rather than opinions.
- *
- * A Google-hosted Managed Agent on the Antigravity harness: creating and running
- * the agent worked, but its *sandbox* returned `Audience of an ID token must be
- * a URL or service account` for every file and code-execution call. That harness
- * reads its skills off the sandbox filesystem, so the agent ran with no contract
- * at all, and a bring-your-own-key demo has no service-account credential.
- *
- * Cloudflare Code Mode, where the model writes a script instead of calling tools:
- * built, measured, and slower. The pitch is that independent searches collapse
- * into one `Promise.all`; Gemini already issues independent calls together in a
- * single round, so a flights-and-hotels turn was two rounds either way — 5.2s
- * against 4.4s, for the sandbox start. Kept in the history, not in the product.
+ * Switching between them reloads the page: a new session and a clean
+ * transcript.
  */
 export type BackendId = 'python' | 'live';
 
@@ -297,20 +249,15 @@ export interface BackendOption {
   /**
    * Whether this framework listens.
    *
-   * The microphone used to be in the composer unconditionally, and pressing it
-   * quietly opened a second runtime — which made two agent frameworks look like
-   * one app with a feature. The control now belongs to whichever framework
-   * actually has it.
+   * The microphone belongs to whichever framework actually has one, rather
+   * than to the composer: voice is a second runtime, not a feature.
    */
   voice?: boolean;
 }
 
 /**
- * Where API calls go right now.
- *
- * Empty is same-origin. `VITE_API_ORIGIN` still works as a build-time default —
- * it is what the standalone front end uses when it is not served by the Worker
- * at all — but the picker in the header overrides it per session.
+ * Where API calls go right now. Empty is same-origin; `VITE_API_ORIGIN` sets a
+ * build-time default, and the picker in the header overrides it per session.
  */
 let apiOrigin = (import.meta.env['VITE_API_ORIGIN'] as string | undefined)?.replace(/\/$/, '') ?? '';
 
@@ -381,12 +328,12 @@ export interface Warmed {
  * start and nothing else, and an error banner for a request nobody made is
  * worse than the slow turn it is warning about.
  */
-export async function warmUp(apiKey: string, skill: string): Promise<Warmed> {
+export async function warmUp(apiKey: string): Promise<Warmed> {
   try {
     const response = await fetch(api('/api/warm'), {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({ skill }),
+      body: JSON.stringify({}),
     });
     if (!response.ok) return { error: `warm-up failed (${response.status})` };
     return (await response.json()) as Warmed;

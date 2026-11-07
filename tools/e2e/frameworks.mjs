@@ -2,17 +2,11 @@
 /**
  * The agent-framework switch, in a real browser.
  *
- * Two frameworks ship — the Interactions API driven from this Worker, and the
- * Live API relayed through the session Durable Object — and the visible
+ * Two frameworks ship — the Interactions API driven from the Python server,
+ * and the Live API relayed through the same server session — and the visible
  * difference is the microphone. This drives the picker and asserts that the
- * microphone follows the choice.
- *
- * It exists because the bug it catches was invisible to every unit test. The
- * picker decided which frameworks needed an address with `id !== 'worker'`,
- * written when the only second runtime was a managed agent somewhere else. Live
- * is served by this same Worker, so choosing it set a draft and waited forever
- * for a URL it does not have: the entry highlighted, the picker stayed open,
- * and nothing switched. Everything typechecked. Every test passed.
+ * microphone follows the choice, and that choosing a framework served by the
+ * same origin switches at once rather than waiting for an address.
  *
  * It also asserts the other half of the contract: the frameworks share nothing,
  * so switching reloads and the demo starts over. A stale surface from the
@@ -22,7 +16,8 @@
  * Needs no API key — the picker probes `/api/meta` and nothing here sends a
  * turn — so anyone with the repo can run it.
  *
- *   npm run dev:worker            # in another terminal
+ *   GEMINI_API_KEY=scripted python3 tools/e2e/scripted_server.py 8130   # another terminal
+ *   BASE_URL=http://127.0.0.1:8130/ \
  *   node tools/e2e/frameworks.mjs
  */
 
@@ -99,17 +94,13 @@ check(
  * Binding the Live agent, which the traveller should never have to think about.
  *
  * The key here is deliberately fake, so the handshake must fail — and that is
- * the assertion worth having. `ready` used to be sent as soon as the setup
- * frame had been written, without waiting for the Live API to accept it, so any
- * key at all "instantiated" successfully and the app recorded a receipt for a
- * session that did not exist. Nothing downstream could tell.
+ * the assertion worth having: `ready` is sent only once the Live API accepts
+ * the setup, so a bad key never records a receipt for a session that does not
+ * exist.
  *
- * What is *no longer* asserted is that the microphone stays disabled until the
- * handshake lands. It used to be, and it was wrong: a microphone you cannot
- * press is not a microphone, and the setup is the app's problem rather than a
- * button somebody has to find first. Tapping it binds the agent and then
- * listens. What has to stay true is the part about honesty — no receipt for a
- * handshake that did not complete.
+ * The microphone is enabled before the handshake: tapping it binds the agent
+ * and then listens, because the setup is the app's problem rather than a
+ * button somebody has to find first.
  */
 check(
   'the microphone is there to be pressed, setup or no setup',

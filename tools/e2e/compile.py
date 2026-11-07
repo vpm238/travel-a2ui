@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Compiles the browser suites' canned Express with the A2UI SDK, the way the server does.
+"""Reads the browser suites' canned Express the way a turn reads the model.
 
 `chat.mjs` and `interaction.mjs` stage turns by intercepting `/api/chat` and
-answering with A2UI. They used to compile that A2UI themselves with
-`packages/express`, a TypeScript port of the compiler — so the browser tests
-were testing what the port produced, and the port has gone. This is the
-server's own pipeline instead: the SDK's `ExpressParser`, the macros, and the
-finishing passes, so a canned turn is exactly what a real one would be.
+answering with A2UI. That A2UI comes from the server's own pipeline
+(`brain/ui.py`): the SDK processor, the macros, and the mirror of the renderer
+that validates every message, so a canned turn is what a real one sends.
 
 Reads JSON from stdin:
 
@@ -16,8 +14,8 @@ and writes, in the same order:
 
     [{"messages": [...], "partial": [...] | null}, ...]
 
-`partialAt`, when given, also compiles the block cut off at that many
-characters, as a stream delivers it mid-constructor.
+`partialAt`, when given, also reads the block cut off at that many characters,
+as a stream delivers it mid-line: the messages the processor emits by then.
 """
 
 from __future__ import annotations
@@ -30,15 +28,24 @@ import warnings
 warnings.filterwarnings("ignore")
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "apps" / "server" / "src"))
 
-from travel_a2ui.brain.catalog import parser_for  # noqa: E402
-from travel_a2ui.brain.express import as_wire  # noqa: E402
-from travel_a2ui.brain.finishing import finish  # noqa: E402
-from travel_a2ui.brain.macros import expand  # noqa: E402
+from travel_a2ui.brain import data  # noqa: E402
+from travel_a2ui.brain.ui import Canvas, Drawing  # noqa: E402
 
 
-def compiled(surface_id: str, source: str, *, final: bool = True) -> list:
-    messages = parser_for(surface_id).compile(source, is_final=final)
-    return finish(as_wire(expand(messages, {}, {}, "USD")), {})
+def _values(_surface: str) -> dict:
+    return data.session_values({}, None)
+
+
+def read(surface_id: str, source: str, *, cut: int | None = None) -> list:
+    drawing = Drawing(Canvas(), surface_id, _values)
+    text = f"<a2ui>\n{source}\n</a2ui>"
+    events = drawing.feed(text[: cut + len("<a2ui>\n")] if cut is not None else text)
+    if cut is None:
+        events += drawing.close()
+    refused = [event[1] for event in events if event[0] == "rejected"]
+    if refused and cut is None:
+        raise SystemExit(f"{surface_id}: {refused[0]}")
+    return [message for event in events if event[0] == "ui" for message in event[2]]
 
 
 def main() -> int:
@@ -46,13 +53,8 @@ def main() -> int:
     for fixture in json.load(sys.stdin):
         surface_id, source = fixture["surfaceId"], fixture["source"]
         cut = fixture.get("partialAt")
-        partial = None
-        if isinstance(cut, int):
-            try:
-                partial = compiled(surface_id, source[:cut], final=False)
-            except Exception:  # noqa: BLE001 - half a block may not compile yet, which is fine
-                partial = None
-        out.append({"messages": compiled(surface_id, source), "partial": partial})
+        partial = read(surface_id, source, cut=cut) if isinstance(cut, int) else None
+        out.append({"messages": read(surface_id, source), "partial": partial or None})
     json.dump(out, sys.stdout, ensure_ascii=False)
     return 0
 

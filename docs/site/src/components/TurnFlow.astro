@@ -15,7 +15,7 @@ const stages = [
   },
   {
     who: 'A2UI SDK',
-    what: 'Compiles the Express to A2UI JSON and checks it against the catalog, while the model is still writing.',
+    what: 'Parses the Express as it streams, expands macros into catalog components, and checks every message against the catalog and what the renderer holds.',
     wire: 'A2UI messages',
   },
   {
@@ -40,8 +40,8 @@ const stages = [
     }
   </ol>
   <figcaption>
-    A press on what the renderer drew goes back to the agent as an <code>action</code>, which
-    starts the next turn.
+    A press on what the renderer drew goes back to the agent as an A2UI <code>action</code>, with
+    the renderer's data model beside it, and starts the next turn.
   </figcaption>
 </figure>
 

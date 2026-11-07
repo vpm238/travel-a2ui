@@ -28,9 +28,9 @@ TOOLS: list[dict[str, Any]] = json.loads(
 
 #: Fields a surface may not quietly change, even by pressing a button.
 #:
-#: `save_trip` validates; a button press used to not, so a picker sending
-#: 20 Apr → 12 Apr priced four flights against negative nights. The table lives
-#: in the model, with the sieve that applies it.
+#: A button press is validated as `save_trip` is, so a picker sending
+#: 20 Apr → 12 Apr is refused rather than priced. The table lives in the model,
+#: with the sieve that applies it.
 REFUSABLE = model.REFUSABLE
 
 

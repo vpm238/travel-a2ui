@@ -66,6 +66,34 @@ def _legs_merged(saved: Any, patched: list[Any]) -> list[Any]:
     return out
 
 
+def screen_patch(trip: Trip, edits: Any) -> Trip:
+    """What a screen's values change on `trip`, as a patch in the trip's shape.
+
+    A screen reports hops by index, and only what it holds: a counter for the
+    fourth hop's party reports `legs: [{}, {}, {}, {"travelers": 3}]`, or a list
+    with holes in it. Read as a route, that would drop every other hop's
+    cities, dates and fares. So each reported hop is laid over the saved hop at
+    its index, a hole says nothing about its hop, and a screen can neither add
+    a hop nor take one away.
+    """
+    if not isinstance(edits, dict):
+        return {}
+    raw = dict(edits)
+    reported = raw.pop("legs", None)
+    patch = normalize(raw)
+    saved = trip.get("legs") if isinstance(trip.get("legs"), list) else []
+    if isinstance(reported, list) and saved:
+        hops = []
+        for index, was in enumerate(saved):
+            was = was if isinstance(was, dict) else {}
+            now = reported[index] if index < len(reported) and isinstance(reported[index], dict) else {}
+            hops.append({**was, **now})
+        legs = coerce("legs", hops)
+        if legs is not None and legs != saved:
+            patch["legs"] = legs
+    return patch
+
+
 def merge(trip: Trip, patch: Any) -> Trip:
     """A patch applied to a trip, with the patch normalised first.
 
@@ -194,8 +222,8 @@ DEPENDENTS: dict[str, list[str]] = {
     "startDate": ["selectedFlight", "flightPrice", "selectedHotel", "nightlyPrice", "planned"],
     "endDate": ["selectedHotel", "nightlyPrice", "planned"],
     "travelers": ["selectedFlight", "flightPrice", "selectedHotel", "nightlyPrice"],
-    "selectedFlight": ["flightPrice"],
-    "selectedHotel": ["nightlyPrice"],
+    "selectedFlight": ["flightPrice", "airline", "flightNumber", "departTime", "arriveTime"],
+    "selectedHotel": ["nightlyPrice", "hotelName"],
 }
 
 
@@ -204,8 +232,12 @@ def released(keys: Sequence[str]) -> list[str]:
     out: dict[str, None] = {}
     for key in keys:
         out[key] = None
-        for dependent in DEPENDENTS.get(key, []):
-            out[dependent] = None
+        # A hop's own decision (`legs/1/selectedFlight`) releases that hop's
+        # dependents, not the trip's.
+        leg_key = _LEG_KEY.match(key)
+        prefix, field = (f"legs/{leg_key.group(1)}/", leg_key.group(2)) if leg_key else ("", key)
+        for dependent in DEPENDENTS.get(field, []):
+            out[prefix + dependent] = None
     return list(out)
 
 

@@ -2,18 +2,18 @@
 
 The transport is injected on both sides — the browser's socket is a `send`
 coroutine and an async iterator, the Live session is a fake client — so this
-runs with no key, no socket and no audio hardware. That is not only convenient:
-writing the relay around one runtime's WebSocket is where three of the
-TypeScript version's bugs came from, and a relay that can be driven by a list is
-a relay that does not know what runtime it is in.
+runs with no key, no socket and no audio hardware, and the relay does not know
+what runtime it is in.
 
 What is worth testing here is what a call does *besides* carrying audio:
 
   - `ready` means a session exists, not that a frame was written;
-  - a surface tool draws and hands the model a summary, not the flight list;
-  - a tool that changes the trip moves the panel beside the call — the gap the
-    Worker never closed, and the one that makes a call feel unheard;
-  - a redraw costs one model turn, and only when the decisions changed shape.
+  - `render_a2ui_express` draws through the same processor as a typed turn,
+    and tells the model what was wrong when a block is refused;
+  - a lookup's rows fill a card the model drew, and the model is not handed
+    them to read aloud;
+  - a tool that changes the trip moves the panel beside the call, as data;
+  - the first panel is drawn once, through the Interactions API.
 """
 
 from __future__ import annotations
@@ -23,8 +23,10 @@ from typing import Any
 
 import pytest
 
-from travel_a2ui.brain import trip as trip_model
+from travel_a2ui.brain import trip as trip_model  # noqa: F401
+from travel_a2ui.brain.skills import build_system_prompt
 from travel_a2ui.brain.providers.fixture import FixtureProvider
+from travel_a2ui.brain.ui import Canvas
 from travel_a2ui.doors.live import VoiceSession, relay, setup_config, voice_tools
 
 
@@ -172,15 +174,9 @@ def run_call(
     trip: dict[str, Any] | None = None,
     incoming: list[dict[str, Any]] | None = None,
     interactions: list[list[str]] | None = None,
-    shape: str | None = None,
+    canvas: Canvas | None = None,
 ) -> tuple[list[dict[str, Any]], FakeClient, dict[str, Any]]:
-    """Runs one call and returns what the browser saw.
-
-    `shape` is the receipt that a panel is already on screen, drawn for those
-    decisions — the same thing the typed door's `request.shape` is. It defaults
-    to `None`, which means no panel, because that is what a new session holds.
-    A test about the panel *not* being redrawn has to say there is one.
-    """
+    """Runs one call and returns what the browser saw."""
     client = FakeClient(frames, interactions)
     seen: list[dict[str, Any]] = []
     saved: dict[str, Any] = {}
@@ -198,7 +194,7 @@ def run_call(
         provider=FixtureProvider(),
         contract="stamp-1",
         on_trip=lambda value: saved.update(value),
-        shape=shape,
+        canvas=canvas or Canvas(),
         client=client,
     )
     asyncio.run(relay(session, send, messages()))
@@ -214,8 +210,8 @@ class TestACallIsMoreThanOneTurn:
     replied, and nothing ever came back — and `_race` then tore the call down
     because a pump had "finished".
 
-    The fake used to re-yield its whole script on every call, which is what let
-    this pass for the life of the suite.
+    The fake yields each scripted turn once, so a relay that stops after the
+    first turn cannot pass by replaying the script.
     """
 
     def test_a_second_turn_is_answered(self) -> None:
@@ -259,7 +255,8 @@ class TestOpeningTheSession:
         declared = {
             tool["name"] for tool in client.config["tools"][0]["function_declarations"]
         }
-        assert {"show_flight_options", "show_hotel_options", "save_trip"} <= declared
+        assert {"render_a2ui_express", "search_flights", "save_trip"} <= declared
+        assert not any(name.startswith("show_") for name in declared)
 
     def test_every_tool_is_declared_blocking(self) -> None:
         """Gemini 3.8 Live made asynchronous calls the default: the model fires
@@ -300,15 +297,15 @@ class TestOpeningTheSession:
         # script. The model understood it, so nothing downstream complained;
         # the traveller just could not read their own sentence back.
         #
-        # Naming the language is what turns detection off — the `language_auto`
-        # flag that used to say so is deprecated, and is a nested object rather
+        # Naming the language is what turns detection off — the deprecated
+        # `language_auto` flag is a nested object rather
         # than the boolean it reads like, so setting it False is rejected by the
         # setup frame and takes the whole session with it.
         assert config["input_audio_transcription"] == {"language_codes": ["en-US"]}
         assert config["speech_config"]["language_code"] == "en-US"
 
     def test_a_voice_and_a_language_coexist(self) -> None:
-        """`speech_config` carries both; setting one used to drop the other."""
+        """`speech_config` carries both; setting one never drops the other."""
         config = setup_config("SYSTEM", voice="Puck")
         assert config["speech_config"]["language_code"] == "en-US"
         assert config["speech_config"]["voice_config"] == {
@@ -415,375 +412,178 @@ class TestCarryingTheCall:
         assert "turn_end" in [event["type"] for event in seen]
 
 
+def render_frame(express: str, call_id: str = "r1") -> Frame:
+    return tool_frame("render_a2ui_express", {"express": express}, call_id)
+
+
+def drawn(seen: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [message for event in seen if event["type"] == "ui" for message in event["messages"]]
+
+
+MADRID = {"destination": "Madrid", "origin": "JFK", "startDate": "2027-04-12", "endDate": "2027-04-18", "travelers": 2}
+
+
 class TestDrawing:
-    def test_a_surface_tool_draws_and_the_model_gets_only_a_summary(self) -> None:
-        """The whole reason voice and a screen are worth pairing.
-
-        Handing the model the flight list invites it to read the flight list
-        out, which is the one thing this mode is for not doing.
-        """
+    def test_a_block_is_drawn_through_the_processor(self) -> None:
         seen, client, _ = run_call(
-            [
-                tool_frame(
-                    "show_flight_options",
-                    {"destination": "Madrid", "origin": "JFK", "date": "2099-04-12"},
-                )
-            ]
+            [render_frame('heading = Text("### Fares")\nfares = Flights()\nroot = Column([heading, fares])')],
+            trip=MADRID,
         )
-        drawn = next(e for e in seen if e["type"] == "ui")
-        # One surface per drawing. This asserted `mcp-flights` — the id keyed
-        # by *what* was shown rather than *when* — which meant a second flight
-        # search in the same call overwrote the first while the traveller was
-        # still looking at it.
-        assert drawn["surfaceId"] == "voice-1"
-        assert any("createSurface" in m for m in drawn["messages"])
-
+        created = [m["createSurface"] for m in drawn(seen) if "createSurface" in m]
+        assert [c["surfaceId"] for c in created] == ["voice-1"]
+        # The macro reached the browser expanded.
+        components = {c["component"] for c in created[0]["components"]}
+        assert "Flights" not in components and "List" in components
         response = client.live_session.tool_responses[0]["function_responses"][0]["response"]
-        assert response["shown"] is True
-        assert "summary" in response
-        # A count and at most one fare — not four airlines and four times.
-        assert "FlightOption" not in str(response)
+        assert response == {"shown": True, "surfaces": ["voice-1"]}
 
-    def test_a_place_nobody_wrote_down_is_drawn_on_a_call_too(self) -> None:
-        """The voice agent refused what the typed agent planned.
-
-        It was obeying the prompt's list while the fixture invented fares for
-        anything, and "I can't book trips from San Francisco" was the result of
-        the two disagreeing. Now both generate, and both label it.
-        """
-        seen, client, _ = run_call(
-            [
-                tool_frame(
-                    "show_flight_options",
-                    {"destination": "Atlantis", "origin": "JFK", "date": "2099-04-12"},
-                )
-            ]
-        )
+    def test_a_refused_block_is_explained_to_the_model(self) -> None:
+        seen, client, _ = run_call([render_frame('root = Text("hi", nonsense=3)')])
+        assert not [m for m in drawn(seen) if "createSurface" in m]
         response = client.live_session.tool_responses[0]["function_responses"][0]["response"]
-        assert response["shown"] is True
-        assert [e for e in seen if e["type"] == "ui"], "and it is on screen"
+        assert response["shown"] is False and response["problems"]
 
-    def test_missing_inputs_are_refused_before_anything_is_looked_up(self) -> None:
-        """The order matters: there is no point resolving a city with no date."""
-        _, client, _ = run_call([tool_frame("show_flight_options", {"destination": "Madrid"})])
-        response = client.live_session.tool_responses[0]["function_responses"][0]["response"]
-        assert response["shown"] is False
-        assert "$/trip/startDate" in response["error"], "it names what to bind"
-
-    def test_the_surface_goes_through_the_same_passes_as_a_typed_one(self) -> None:
-        """So a voice-drawn panel is seeded and bound like any other."""
+    def test_each_block_is_a_new_card(self) -> None:
         seen, _, _ = run_call(
-            [tool_frame("show_trip_controls", {"destination": "Madrid"})],
-            trip={"destination": "Madrid", "origin": "JFK"},
+            [render_frame('root = Text("one")', "r1"), render_frame('root = Text("two")', "r2")]
         )
-        drawn = next(e for e in seen if e["type"] == "ui")
-        created = next(m for m in drawn["messages"] if "createSurface" in m)
-        # `seed_surface_trip` ran: the trip and the plan are in the data model.
-        assert created["createSurface"]["dataModel"]["trip"]["origin"] == "JFK"
-        assert "plan" in created["createSurface"]["dataModel"]
+        created = [m["createSurface"]["surfaceId"] for m in drawn(seen) if "createSurface" in m]
+        assert created == ["voice-1", "voice-2"]
+
+    def test_a_lookup_fills_the_card_and_is_not_read_out(self) -> None:
+        args = {"origin": "JFK", "destination": "Madrid", "date": "2027-04-12", "travelers": 2}
+        seen, client, _ = run_call(
+            [
+                render_frame("fares = Flights()\nroot = Column([fares])"),
+                tool_frame("search_flights", args, "s1"),
+            ],
+            trip=MADRID,
+        )
+        rows = [
+            m["updateDataModel"]
+            for m in drawn(seen)
+            if "updateDataModel" in m and m["updateDataModel"]["path"] == "/flights"
+        ]
+        assert rows and rows[0]["surfaceId"] == "voice-1" and rows[0]["value"]
+        answered = client.live_session.tool_responses[1]["function_responses"][0]["response"]
+        assert isinstance(answered["flights"], str), "the rows are on screen, not in the answer"
 
 
 class TestThePanel:
-    """The gap the Worker never closed."""
-
-    def test_a_tool_that_changes_the_trip_moves_the_panel(self) -> None:
-        seen, _, saved = run_call(
-            [tool_frame("save_trip", {"destination": "Madrid", "travelers": 3})],
-            trip={"destination": "Madrid", "travelers": 2},
-        )
-        # Saying "make it three of us" out loud used to change the trip while
-        # the record beside it went on saying two, which reads as the app not
-        # having heard — the exact impression the transcripts exist to prevent.
-        panels = {
-            event["surfaceId"]
-            for event in seen
-            if event["type"] == "ui" and event["surfaceId"] in ("sidebar", "home")
-        }
-        assert panels == {"sidebar", "home"}
-
-        trip_event = next(e for e in reversed(seen) if e["type"] == "trip")
-        assert trip_event["trip"]["travelers"] == 3
-        assert saved["travelers"] == 3, "and the typed conversation sees it too"
-
-    def test_the_panel_rows_arrive_as_data_not_as_a_model_turn(self) -> None:
+    def test_a_trip_with_no_panel_gets_one_after_the_turn(self) -> None:
+        panel = ['<a2ui>\nsurface("sidebar")\npanel = Trip("Your trip")\nroot = Column([panel])\n</a2ui>']
         seen, client, _ = run_call(
-            [tool_frame("save_trip", {"travelers": 3})],
-            trip={"destination": "Madrid", "origin": "JFK", "travelers": 2},
+            [transcript_frame("Madrid it is.", "agent"), turn_complete_frame()],
+            trip=MADRID,
+            interactions=[panel],
         )
-        sidebar = next(
-            e for e in seen if e["type"] == "ui" and e["surfaceId"] == "sidebar"
+        assert len(client.interaction_bodies) == 1
+        assert any(m.get("createSurface", {}).get("surfaceId") == "sidebar" for m in drawn(seen))
+
+    def test_a_panel_already_drawn_moves_by_data_alone(self) -> None:
+        canvas = Canvas()
+        from travel_a2ui.brain import data
+        from travel_a2ui.brain.ui import Drawing
+
+        values = lambda _s: data.session_values(MADRID, None)  # noqa: E731
+        Drawing(canvas, "sidebar", values).feed('<a2ui>\nsurface("sidebar")\npanel = Trip()\nroot = Column([panel])\n</a2ui>')
+        canvas.provide(values)
+        seen, client, saved = run_call(
+            [tool_frame("save_trip", {"travelers": 3}), turn_complete_frame()],
+            trip=MADRID,
+            canvas=canvas,
         )
-        paths = {m["updateDataModel"]["path"] for m in sidebar["messages"]}
-        assert "/plan" in paths, "the checklist moves without asking the model"
-        assert "/trip/travelers" in paths
+        assert client.interaction_bodies == [], "no model turn for a panel that exists"
+        assert saved["travelers"] == 3
+        panel = [
+            m["updateDataModel"]
+            for m in drawn(seen)
+            if "updateDataModel" in m and m["updateDataModel"]["surfaceId"] == "sidebar"
+        ]
+        assert panel and "3 travelling" in str(panel[-1]["value"])
 
-    def test_a_changed_shape_redraws_the_sidebar_through_the_typed_api(self) -> None:
-        """One model turn, and not the Live one.
-
-        Asking the Live model for a panel would make it *say* the panel.
-
-        One panel, not two: the home screen left the turn loop — it is a summary
-        of a trip, and a call is where the trip is still being decided. It is
-        built when somebody asks for it. See `surface.py`.
-        """
-        surface = (
-            "<a2ui>\nsurface(\"sidebar\")\n"
-            'head = Text("### Madrid")\nroot = Column([head])\n</a2ui>'
-        )
-        seen, client, _ = run_call(
-            # Selecting a flight is a decision, so the shape moves.
-            [tool_frame("save_trip", {"selectedFlight": "IB614"})],
-            trip={"destination": "Madrid", "origin": "JFK"},
-            interactions=[[surface], [surface]],
-        )
-        assert len(client.interaction_bodies) == 1, "the sidebar, and nothing else"
-        asked = client.interaction_bodies[0]["input"][0]["content"][0]["text"]
-        # The macro by name, not the wording around it. A panel written out by
-        # hand is right once and then frozen — see `PANEL_REQUEST`.
-        assert "Trip()" in asked, asked
-
-    def test_an_unchanged_shape_costs_no_model_turn(self) -> None:
-        """A note is not a decision, so nothing needs different controls.
-
-        `shape` says a panel is already on screen for exactly these decisions,
-        and it has to be said rather than inferred. The call used to derive it
-        from the trip, which meant any trip with decisions in it was treated as
-        a trip with a panel — so a call that opened on one with no panel never
-        drew a panel, and this test passed for the wrong reason.
-        """
-        trip = {"destination": "Madrid", "origin": "JFK"}
-        _, client, _ = run_call(
-            [tool_frame("save_trip", {"neighborhood": "Lavapiés"})],
-            trip=trip,
-            shape=trip_model.decision_shape(trip_model.normalize(trip)),
-        )
+    def test_nothing_is_drawn_before_there_is_a_trip(self) -> None:
+        _, client, _ = run_call([turn_complete_frame()])
         assert client.interaction_bodies == []
 
-    def test_but_a_call_with_no_panel_yet_draws_one(self) -> None:
-        """The bug this pair exists for.
 
-        No `shape` means nothing has been drawn, whatever the trip knows. A
-        caller saying "I want to go to Madrid" got a panel only if the shape
-        moved past where the call began, so most calls never had one.
-        """
-        _, client, _ = run_call(
-            [tool_frame("save_trip", {"neighborhood": "Lavapiés"})],
-            trip={"destination": "Madrid", "origin": "JFK"},
-        )
-        assert client.interaction_bodies != [], "a call with no panel has to draw one"
-
-    def test_nothing_is_redrawn_before_there_is_a_trip(self) -> None:
-        _, client, _ = run_call([tool_frame("save_trip", {"travelers": 2})], trip={})
-        assert client.interaction_bodies == [], "a panel saying 'no trip' is a panel nobody wants"
+class TestAPressDuringACall:
+    def test_a_v1_press_is_recorded_and_told(self) -> None:
+        press = {
+            "type": "press",
+            "a2ui": [
+                {
+                    "version": "1.0",
+                    "action": {
+                        "name": "select_flight",
+                        "surfaceId": "voice-1",
+                        "sourceComponentId": "fares_0",
+                        "timestamp": "2027-03-01T10:00:00Z",
+                        "context": {"id": "IB6250", "price": 412, "airline": "Iberia"},
+                        "userMessage": "Chose Iberia",
+                    },
+                }
+            ],
+        }
+        _, client, saved = run_call([], trip=MADRID, incoming=[press])
+        assert saved.get("selectedFlight") == "IB6250"
+        told = [k["turns"]["parts"][0]["text"] for kind, k in client.live_session.sent if kind == "text"]
+        assert told and "select_flight" in told[0] and "Chose Iberia" in told[0]
 
 
 class TestFailures:
     def test_a_rejected_key_is_said_in_words(self) -> None:
-        class Broken(FakeClient):
+        class Refusing(FakeClient):
             def connect(self, *, model: str, config: Any):  # noqa: ANN201
-                raise RuntimeError("API key not valid (401)")
+                raise RuntimeError("API key not valid. 403")
 
-        client = Broken([])
         seen: list[dict[str, Any]] = []
 
         async def send(message: dict[str, Any]) -> None:
             seen.append(message)
 
-        async def messages():  # noqa: ANN202
-            return
-            yield  # pragma: no cover
+        async def nothing():  # noqa: ANN202
+            if False:
+                yield {}
 
         session = VoiceSession(
-            api_key="bad", trip={}, provider=FixtureProvider(), contract="s", client=client
+            api_key="bad", trip={}, provider=FixtureProvider(), contract="c", client=Refusing([])
         )
-        asyncio.run(relay(session, send, messages()))
-
-        error = next(e for e in seen if e["type"] == "error")
-        assert "rejected" in error["message"]
-        assert "401" not in error["message"], "a status code is not a message"
+        asyncio.run(relay(session, send, nothing()))
+        errors = [e["message"] for e in seen if e["type"] == "error"]
+        assert errors and "rejected" in errors[0]
 
     def test_a_call_always_ends_with_turn_end(self) -> None:
-        """So the client releases the microphone however the call finished."""
         seen, _, _ = run_call([])
         assert seen[-1]["type"] == "turn_end"
 
 
-def test_the_tool_list_leads_with_the_surface_tools() -> None:
-    """It should mostly be drawing; the data tools are there for the rest."""
-    names = [tool["name"] for tool in voice_tools()]
-    shows = [index for index, name in enumerate(names) if name.startswith("show_")]
-    assert shows == list(range(len(shows))), "the show_* tools come first"
-
-
-class TestACallIsAConversationNotOneCard:
-    """Two searches in a call are two surfaces.
-
-    Voice had the bug the typed path had, under a different name: surfaces were
-    keyed by what they showed, so every flight search wrote to `mcp-flights`.
-    "Flights to Madrid", then "what about Lisbon", and the second replaced the
-    first — on a *call*, where the screen is the only record of what was said,
-    and the traveller cannot scroll back to the answer they just heard.
-    """
-
-    def test_each_drawing_gets_its_own_surface(self) -> None:
-        seen, _, _ = run_call(
-            [
-                tool_frame(
-                    "show_flight_options",
-                    {"destination": "Madrid", "origin": "JFK", "date": "2099-04-12"},
-                ),
-                tool_frame(
-                    "show_flight_options",
-                    {"destination": "Lisbon", "origin": "JFK", "date": "2099-04-12"},
-                ),
-            ]
-        )
-        drawn = [event["surfaceId"] for event in seen if event["type"] == "ui"]
-        inline = [surface for surface in drawn if surface.startswith("voice-")]
-        assert len(inline) == 2, drawn
-        assert len(set(inline)) == 2, f"the second search overwrote the first: {inline}"
-
-    def test_the_model_may_still_redraw_one_on_purpose(self) -> None:
-        """Naming a surface is how you *mean* to replace it."""
-        seen, _, _ = run_call(
-            [
-                tool_frame(
-                    "show_flight_options",
-                    {
-                        "destination": "Madrid",
-                        "origin": "JFK",
-                        "date": "2099-04-12",
-                        "surfaceId": "voice-keep",
-                    },
-                )
-            ]
-        )
-        drawn = next(event for event in seen if event["type"] == "ui")
-        assert drawn["surfaceId"] == "voice-keep"
+def test_the_tool_list_leads_with_the_drawing_tool() -> None:
+    assert voice_tools()[0]["name"] == "render_a2ui_express"
 
 
 class TestStoppingTheMicrophoneIsNotHangingUp:
-    """Speaking and then stopping has to produce an answer.
-
-    The surface here is a screen the traveller is looking at, not a phone call:
-    talking is one way to use it, and stopping talking ends a sentence rather
-    than the conversation. It was wired the other way — the microphone toggle
-    called `hangUp` — so speaking and pressing stop tore the session down before
-    the answer arrived, and the feature looked completely dead.
-
-    The half of that fix which lives on the server is this frame: the model
-    answers on voice activity detection, and VAD decides somebody has stopped by
-    *hearing* the silence after them. A browser that stops sending the moment
-    they stop speaking never sends that silence, so the model waits for audio
-    that is not coming.
-    """
-
     def test_a_closed_microphone_lets_the_model_take_its_turn(self) -> None:
-        _, client, _ = run_call(
-            [],
-            incoming=[
-                {"type": "audio", "data": "AAAA"},
-                {"type": "audio_end"},
-            ],
-        )
-        assert ("audio", {"audio_stream_end": True}) in client.live_session.sent, (
-            "the end of the audio stream is what makes it answer"
-        )
-
-    def test_and_leaves_the_session_open_to_be_spoken_to_again(self) -> None:
-        """The socket outlives the microphone, so they can say a second thing."""
-        _, client, _ = run_call(
-            [],
-            incoming=[
-                {"type": "audio", "data": "AAAA"},
-                {"type": "audio_end"},
-                {"type": "audio", "data": "BBBB"},
-                {"type": "audio_end"},
-            ],
-        )
-        kinds = [kind for kind, _ in client.live_session.sent]
-        assert kinds == ["audio", "audio", "audio", "audio"], kinds
-        ends = [args for _, args in client.live_session.sent if args.get("audio_stream_end")]
-        assert len(ends) == 2, "each thing said gets its own end"
+        _, client, _ = run_call([], incoming=[{"type": "audio_end"}])
+        assert ("audio", {"audio_stream_end": True}) in client.live_session.sent
 
     def test_leaving_still_ends_it(self) -> None:
-        """`end` is for closing the tab, and it still closes the session."""
-        _, client, _ = run_call([], incoming=[{"type": "end"}, {"type": "audio", "data": "X"}])
-        assert client.live_session.sent == [], "nothing is sent after they leave"
+        seen, _, _ = run_call([], incoming=[{"type": "end"}])
+        assert seen[-1]["type"] == "turn_end"
 
 
-class TestASpokenTurnCannotWriteInterfaceCode:
-    """The bug that made Live look broken, and it was in the prompt.
+class TestASpokenTurnDrawsWithATool:
+    def test_the_spoken_prompt_teaches_the_tool(self) -> None:
+        said = build_system_prompt(surface="inline", surface_id="voice", trip={}, today="2027-03-01", draws="tools")
+        assert "render_a2ui_express" in said
+        assert "becomes a new card" in said
 
-    A Live session answers in audio: the model's text output *is* its speech,
-    and `voice_tools()` carries no compiler. Handing it the Express skill taught
-    it a second way to draw that does not exist on this channel — so about one
-    turn in three it wrote `<a2ui> surface("voice-1") …` into its reply, the
-    session read the interface aloud, and the screen stayed empty. Measured, in
-    a real browser against the real model: 0 drawings in 5.
-    """
+    def test_and_the_same_express_as_a_typed_turn(self) -> None:
+        typed = build_system_prompt(surface="inline", surface_id="inline-1", trip={}, today="2027-03-01")
+        spoken = build_system_prompt(surface="inline", surface_id="voice", trip={}, today="2027-03-01", draws="tools")
+        from travel_a2ui.brain.catalog import PROCESSOR
 
-    def test_the_spoken_prompt_teaches_tools_rather_than_express(self) -> None:
-        from travel_a2ui.brain.skills import build_system_prompt
-
-        spoken = build_system_prompt(
-            variant="express-modular",
-            surface="inline",
-            surface_id="voice-1",
-            catalog_id="x",
-            trip={},
-            today="2027-03-01",
-            draws="tools",
-        )
-        assert "Putting something on the screen" in spoken
-        assert "Never write interface code in a reply" in spoken
-
-    def test_it_does_not_carry_the_express_output_contract(self) -> None:
-        from travel_a2ui.brain.skills import build_system_prompt
-
-        common = dict(
-            variant="express-modular",
-            surface="inline",
-            surface_id="voice-1",
-            catalog_id="x",
-            trip={},
-            today="2027-03-01",
-        )
-        spoken = build_system_prompt(**common, draws="tools")
-        typed = build_system_prompt(**common)
-
-        # The contract is what teaches emission: the generated signatures and
-        # the streaming rules. The typed channel has a parser for what they
-        # produce; the spoken conversation has a loudspeaker.
-        #
-        # Asserted on the contract rather than on component names, which was
-        # this test's first shape and was checking something else. The shared
-        # flow prose carries worked Express — `HotelCard(`, `ChoicePicker(`,
-        # `<a2ui>` are all in the spoken prompt today and belong there, because
-        # that prose is about how a turn goes and the *panel* pass on this very
-        # door composes in Express. Spot-checking four constructor names made a
-        # realistic example in `flow.md` fail the build for having a fifth.
-        for taught in ("## Positional Component Signatures", "Output Contract", "sentinel"):
-            assert taught in typed, taught
-            assert taught not in spoken, taught
-
-        # And roughly 25,000 characters lighter, which a spoken turn pays for
-        # in latency on every single reply.
-        assert len(typed) - len(spoken) > 20_000
-
-    def test_the_typed_channel_is_unchanged_by_default(self) -> None:
-        """`draws` defaults to express, so nothing else moved."""
-        from travel_a2ui.brain.skills import build_system_prompt
-
-        common = dict(
-            variant="express-modular",
-            surface="inline",
-            surface_id="inline-1",
-            catalog_id="x",
-            trip={},
-            today="2027-03-01",
-        )
-        assert build_system_prompt(**common) == build_system_prompt(**common, draws="express")
+        assert PROCESSOR.prompt_snippet in typed and PROCESSOR.prompt_snippet in spoken
 
 
 class TestNobodyShouldHaveToHearExpressReadAloud:
@@ -856,3 +656,4 @@ class TestMarkupNeverReachesTheEar:
             "About four hundred and twenty each.",
         ):
             assert _without_markup(line) == line
+

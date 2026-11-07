@@ -2,9 +2,7 @@
 
 The CSV and JSON a person edits: airports, airlines and their hubs, the
 destinations and the places inside them, the curated stays, the words a
-generated hotel name is built from. No build step, because the server has a
-filesystem — `scripts/build_fixtures.py` exists only for a Cloudflare Worker,
-which does not.
+generated hotel name is built from. No build step: the server reads them.
 
 Everything here is loaded once at import and read-only afterwards. Adding a city
 is editing a file in `data/`, which is the point.
@@ -29,7 +27,7 @@ FIXTURE_PROVENANCE = Provenance(
     label="Sample data",
     detail=(
         "Prices, schedules and hotels are generated for this demo and are not real. "
-        "City guidance is real. Set AMADEUS_CLIENT_ID to search live inventory."
+        "City guidance is real. A live provider replaces this one behind the same interface."
     ),
 )
 

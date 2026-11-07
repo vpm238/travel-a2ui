@@ -6,7 +6,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    // The Worker serves this directory; source maps make a production bug
+    // The Python server serves this directory; source maps make a production bug
     // debuggable without a separate upload step.
     sourcemap: true,
   },

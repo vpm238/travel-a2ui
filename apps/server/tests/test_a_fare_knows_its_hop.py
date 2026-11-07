@@ -69,12 +69,9 @@ class TestTheFareSaysWhereItFlies:
 
     def test_the_card_carries_its_route(self) -> None:
         """`from`/`to`, never `origin`/`destination`, which are the trip's own."""
-        from travel_a2ui.brain.catalog import parser_for
-        from travel_a2ui.brain.express import as_wire
-        from travel_a2ui.brain.macros import expand
+        from helpers import drawn
 
-        source = 'f = Flights("Return · MAD → JFK")\nroot = Column([f])'
-        wire = as_wire(expand(parser_for("inline-1").compile(source, is_final=True), TRIP))
+        wire = drawn('f = Flights("Return · MAD → JFK")\nroot = Column([f])', trip=TRIP)
         card = next(
             node
             for node in wire[0]["createSurface"]["components"]
@@ -88,13 +85,12 @@ class TestTheFareSaysWhereItFlies:
 
 def pressed(context: dict[str, Any]) -> dict[str, Any]:
     """The trip after a press, through the real turn, with a model that says nothing."""
-    from test_interactions import FakeModel  # noqa: PLC0415
+    from helpers import FakeModel  # noqa: PLC0415
 
     request = TurnRequest(
         api_key="not-a-real-key",
         model="gemini-3-pro-preview",
         provider=FixtureProvider(),
-        shape=None,
         trip=dict(TRIP, legs=[dict(leg) for leg in TRIP["legs"]]),
         action=SurfaceAction(name="select_flight", surface_id="inline-2", context=context),
         client=FakeModel([(["Noted."], [])]),

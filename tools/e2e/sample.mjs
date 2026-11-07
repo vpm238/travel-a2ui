@@ -2,9 +2,7 @@
 /**
  * The sample trip a first visit opens on.
  *
- * A first visit used to open on a heading and three suggestions, and seeing
- * what the agent draws cost a key. Now it opens on a recorded conversation with
- * the agent (`tools/sample/record.py`), replayed through the handler a live
+ * A first visit opens on a recorded conversation with the agent (`tools/sample/record.py`), replayed through the handler a live
  * turn uses. This checks the parts a visitor depends on:
  *
  *   - it is there with no key, and nothing covers it;

@@ -1,19 +1,15 @@
 """The deterministic fixture provider.
 
-Reads `data/` directly — the CSV and JSON a person edits. There is no build step
-here and there does not need to be: `scripts/build_fixtures.py` exists only
-because a Cloudflare Worker has no filesystem, and this server does.
+Reads `data/` directly: the CSV and JSON a person edits, with no build step.
 
 Determinism is the point. The same query returns the same flights on every run,
-so a screenshot stays true and a test can assert on a price. Which means this
-port has a harder job than looking right: it has to reproduce the TypeScript's
-arithmetic exactly, down to the last dollar, and
-`apps/worker/test/__golden__/travel.json` is what says whether it does.
+so a screenshot stays true and a test can assert on a price;
+`tests/goldens/fixtures.json` pins it, down to the last dollar.
 
 Five files, innermost first:
 
   `tables`    the data, read straight from `data/`
-  `numbers`   the arithmetic, which has to match JavaScript's rather than Python's
+  `numbers`   the seeded arithmetic, 32-bit and masked, so every run agrees
   `routes`    which airline flies this, and where it stops on the way
   `places`    finding the place asked for, and inventing one when it is not here
   `provider`  the eight lookups, answered from all of the above

@@ -57,7 +57,7 @@ The host compiler will compile your A2UI Express output into the correct JSON en
 11. Dynamic list templates: If a component expects a template child list, represent it using the _template helper:
      _template($/path/to/list, itemTemplate)
      And define the template component variable on another line, utilizing relative path references prefixed with $:
-     itemTemplate = Text($name)
+     itemTemplate = Image($url)
 
 12. To delete a user interface surface, output the standalone `deleteSurface(surfaceId)` command (no variable assignment):
      deleteSurface("dashboard-surface-1")

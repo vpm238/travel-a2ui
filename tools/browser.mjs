@@ -22,6 +22,7 @@ import { chromium } from 'playwright';
 const PREINSTALLED = [
   '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
   '/opt/pw-browsers/chromium/chrome-linux/chrome',
+  '/opt/pw-browsers/chromium',
 ];
 
 export const executablePath =

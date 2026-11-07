@@ -1,18 +1,16 @@
 # Deploying
 
-One server, one target. It serves the API and the built web
-client from a single origin — one deploy, one URL, nothing to configure for
-cross-origin requests.
+One server, one target. It serves the API, the React client, the Flutter web
+client and the quickstart site from a single origin — one deploy, one URL,
+nothing to configure for cross-origin requests.
 
 | | Server | Target |
 | --- | --- | --- |
 | **Cloud Run** | `apps/server` (Python) | One Cloud Run service, deployed from `main` |
 
-There used to be a second, TypeScript server on a different platform. The
-cutover is done and it is deleted. What made removing it a non-event was the
-goldens in `tools/parity/` — they pinned every layer where two implementations
-could silently disagree, so the second one could go without anybody having to
-trust that it was safe.
+The workflow is `.github/workflows/travel-a2ui-cloudrun.yml` in the development
+repository and `.github/workflows/cloudrun.yml` in the published one; it shows
+up in Actions as **travel-a2ui Cloud Run**.
 
 ---
 
@@ -20,8 +18,10 @@ trust that it was safe.
 
 ### What gets built
 
-The `Dockerfile` at the repository root is two stages. Node builds the React
-client; Python runs it. The toolchain does not travel into the runtime image —
+The `Dockerfile` at the repository root builds in stages: Node builds the React
+client and the quickstart site, a Flutter stage builds the Flutter web client
+(served under `/flutter/`), and a Python stage runs the server. The toolchains
+do not travel into the runtime image —
 Cloud Run pulls the image on every cold start, so its size is startup latency
 and not merely registry space.
 
@@ -112,8 +112,9 @@ which identity to run as, which counts as using that account.
 | `GCP_REGION` | variable | `us-central1` |
 | `WIF_PROVIDER` | secret | `projects/123.../providers/github` |
 | `WIF_SERVICE_ACCOUNT` | secret | `travel-a2ui-deployer@my-project.iam.gserviceaccount.com` |
+| `GOOGLE_MAPS_API_KEY` | secret, optional | a browser key restricted by HTTP referrer, for the map components |
 
-The workflow checks all four before doing anything, so a missing one is a
+The workflow checks the first four before doing anything, so a missing one is a
 message in the first ten seconds rather than an obscure `gcloud` error three
 minutes into a build.
 
@@ -140,10 +141,13 @@ That is a **correctness** constraint, not a cost one.
 
 Conversations live in the server's memory. Nothing is written to disk, which is
 what "we do not store your conversation beyond the session" has to mean if it
-means anything — but it also means a second instance would hold a second,
-entirely separate set of conversations. A traveller whose next request happened
-to land on the other instance would find their trip gone, intermittently, in a
-way that looks exactly like the model forgetting.
+means anything. Each typed turn ends with a `resume` receipt the client hands
+back — the Gemini interaction, the trip and the prompt it was started against —
+so a turn that lands on another instance still continues the same conversation.
+What does not travel is the rest of the session: the server's mirror of what the
+renderer holds (`Canvas`), and a voice call's Live resumption handle. On a
+second instance those start empty, the panel is drawn again, and a call starts
+a fresh Live session.
 
 To raise it, give the sessions somewhere shared to live first: put
 `SessionStore` behind Firestore, Redis or Cloud SQL. The interface in
@@ -166,11 +170,16 @@ gcloud run services update travel-a2ui --set-env-vars GEMINI_API_KEY=...
 The app then stops asking — `/api/meta` reports `keyProvided: true` and the
 client hides the form.
 
+`GOOGLE_MAPS_API_KEY`, when the repository secret is set, is passed through to
+the service and handed to the page by `/api/meta`, because the browser is what
+loads the Maps library. Restrict it by HTTP referrer rather than keeping it
+secret.
+
 ---
 
 ## After a deploy
 
-Whichever target, check the same three things:
+Check the same three things:
 
 ```bash
 curl -fsS https://<url>/healthz              # the process is up

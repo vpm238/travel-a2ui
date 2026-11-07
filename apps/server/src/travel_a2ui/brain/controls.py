@@ -1,230 +1,124 @@
-"""The right control for the thing being asked.
+"""Whether a surface can be answered as drawn.
 
-A date typed into a text box is a date the traveller can get wrong, and the
-model reaches for `TextField` whenever it is not thinking about it — which is
-most of the time, because a text box is the thing that always works. The result
-is an interface that *accepts* "next tuesday", "12/4", "April 12ish" and then
-either refuses them three turns later or prices the wrong week.
+These are checks on what the model drew, reported back to it; the host never
+changes the surface itself. Each one is about whether the traveller can give a
+right answer at all, not about layout:
 
-An interface that cannot express a wrong answer is better than one that
-validates a wrong answer, so this is a check rather than a rule the model is
-merely asked to follow: a component bound to a trip field has to be a control
-that fits the field. A departure airport is a set of pills, because the answer
-is one of twenty-one airports and pills are how you say that. Dates are a date
-picker. A party size is a counter.
+  - A trip field has a control that fits it (`data/controls.json`): a date is a
+    date picker, a party is a counter, an airport is an airport picker. A date
+    typed into a text box is a date someone can get wrong.
+  - A surface that asks for a record field sends its data model
+    (`sendDataModel`), or the answer never reaches the agent.
+  - A party asked per hop is asked of every hop.
 
-The complaint goes back to the model in the same breath as everything else it
-got wrong — see `unreported` in `agent.py` — so a surface that would have asked
-badly is rewritten before anybody sees it, rather than being caught by the
-traveller.
-
-What this is *not*: a layout opinion. It says nothing about which components to
-use for anything that is not a decision the trip records, which is where the
-model's judgement belongs and where it is good.
+The same table is rendered into the prompt (`as_rules`), so the rule the model
+is taught and the rule it is held to are the same rows.
 """
 
 from __future__ import annotations
 
-from .. import ROOT
-from .bindings import path_of
-from .wire import components_of
-
 import json
-import pathlib
 from typing import Any, Iterable
 
-#: The table itself lives in `data/controls.json`, beside the other things a
-#: person edits on purpose.
-#:
-#: Read here *and* rendered into the system prompt by `skills.py`, so the rule
-#: the model is taught and the rule it is held to are the same rows. A prompt
-#: that says one thing and a hand-kept list in Python that says another is two
-#: rules, and they drift the first time somebody edits one.
-_ROWS: list[dict[str, Any]] = json.loads(
-    (ROOT / "data" / "controls.json").read_text("utf-8")
-)["controls"]
+from .. import ROOT
 
-#: Which controls may be bound to which trip fields. Keyed by the tail of the
-#: JSON Pointer, so a leg's own dates (`/trip/legs/0/startDate`) are held to the
-#: same rule as the trip's.
-BY_FIELD: dict[str, tuple[str, ...]] = {
-    row["field"]: tuple(row["allow"]) for row in _ROWS
-}
+_ROWS: list[dict[str, Any]] = json.loads((ROOT / "data" / "controls.json").read_text("utf-8"))[
+    "controls"
+]
 
-#: What to say instead, in the model's own vocabulary.
+#: Which controls may be bound to which trip field, by the field's name.
+BY_FIELD: dict[str, tuple[str, ...]] = {row["field"]: tuple(row["allow"]) for row in _ROWS}
 INSTEAD: dict[str, str] = {row["field"]: row["instead"] for row in _ROWS}
-
-#: Why, so the complaint teaches rather than merely refuses.
 WHY: dict[str, str] = {row["field"]: row["why"] for row in _ROWS}
 
+_CATALOG = json.loads((ROOT / "catalogs" / "a2ui-travel" / "catalog.json").read_text("utf-8"))
 
-def as_rules() -> str:
-    """The table as the lines that go in the prompt."""
-    return "\n".join(
-        f"- **{row['field']}** → {row['instead']} — {row['why']}." for row in _ROWS
-    )
-
-
-#: Components that take an answer, read off the catalog rather than listed here.
-#:
-#: The spec marks them, indirectly but reliably: `Checkable` gives a component
-#: `checks`, client-side validation rules — and only something the traveller can
-#: fill in has anything to validate. So the components carrying it are exactly
-#: the inputs: `TextField`, `ChoicePicker`, `Slider`, `DateTimeInput`,
-#: `DateRangePicker`, `TravelerCounter`, `CheckBox`, `Button`. `FlightOption`,
-#: `PriceSummary` and `Text` do not carry it, because they show a value rather
-#: than collect one.
-#:
-#: Without this the check fired on displays. A fare card is
-#: `FlightOption(origin=$/trip/origin, …)` — it is *showing* which airports the
-#: fare is between — and the rule read the binding, saw `origin`, and said an
-#: airport cannot be answered in a `FlightOption`. True, and beside the point.
-#: In the skill eval it rejected the flights turn on every variant, seven times
-#: out of nine: a check calling correct surfaces wrong, on the one scenario it
-#: was written to help with.
-_CATALOG = json.loads(
-    (ROOT / "catalogs" / "a2ui-travel" / "catalog.json")
-    .read_text("utf-8")
-)
-
+#: Components that take an answer: the catalog marks them `Checkable`.
 ASKING: frozenset[str] = frozenset(
-    name
-    for name, entry in _CATALOG["components"].items()
-    if "$defs/Checkable" in json.dumps(entry)
+    name for name, entry in _CATALOG["components"].items() if "$defs/Checkable" in json.dumps(entry)
 )
 
-#: The properties an answer actually arrives in.
-#:
-#: An input's other properties are its furniture: `label`, `caption`, `min`,
-#: `max`, `options`, and — on a `Button` — `action`, which carries what the
-#: controls above it collected (`Event("search_flights", {origin:
-#: $/trip/origin, …})`) rather than asking for any of it. Reading those as
-#: questions is how this check used to say "a Button cannot ask for an airport",
-#: which is true and not what the button was doing.
-#:
-#: `start` and `end` are here because `DateRangePicker` is the one input whose
-#: answer is two values rather than one.
+#: The properties an answer arrives in. A Button's `action` carries answers
+#: rather than asking for one.
 ANSWER_KEYS = frozenset({"value", "start", "end"})
 
 
-def _bound_paths(node: dict[str, Any]) -> Iterable[str]:
-    """Every data-model path this component *asks* the traveller to fill."""
-    for key, value in node.items():
-        if key not in ANSWER_KEYS or not isinstance(value, dict):
-            continue
-        path = path_of(value)
-        if path is not None:
-            yield path
+def as_rules() -> str:
+    """The table, as lines for the prompt."""
+    return "\n".join(f"- **{row['field']}** → {row['instead']} — {row['why']}." for row in _ROWS)
 
 
-def wrong_controls(messages: Iterable[dict[str, Any]]) -> list[str]:
-    """Complaints about controls that cannot express a right answer.
+def _asked(component: dict[str, Any]) -> list[str]:
+    """The data paths this component asks the traveller to fill."""
+    if str(component.get("component") or "") not in ASKING:
+        return []
+    paths = []
+    for key in ANSWER_KEYS:
+        value = component.get(key)
+        if isinstance(value, dict) and isinstance(value.get("@path"), str):
+            paths.append(value["@path"])
+    return paths
 
-    Reads compiled A2UI rather than Express, so it is one check for every door:
-    the typed agent's inline block, the voice relay's surfaces and anything MCP
-    renders all arrive here in the same shape.
-    """
+
+def wrong_controls(components: Iterable[dict[str, Any]]) -> list[str]:
     said: list[str] = []
-    seen: set[str] = set()
-
-    for message in messages:
-        for node in components_of(message):
-            if not isinstance(node, dict):
-                continue
-            component = str(node.get("component") or "")
-            if component not in ASKING:
-                continue
-            for path in _bound_paths(node):
-                field = path.rsplit("/", 1)[-1]
-                allowed = BY_FIELD.get(field)
-                if not allowed or component in allowed:
-                    continue
-                key = f"{component}:{field}"
-                if key in seen:
-                    continue
-                seen.add(key)
-                said.append(
-                    f"`{component}` is bound to `{path}`, which the traveller "
-                    f"cannot answer correctly in one: use {INSTEAD[field]} instead — "
-                    f"{WHY[field]}."
+    for component in components:
+        name = str(component.get("component") or "")
+        for path in _asked(component):
+            field = path.rsplit("/", 1)[-1]
+            allowed = BY_FIELD.get(field)
+            if allowed and name not in allowed:
+                line = (
+                    f"`{name}` is bound to `{path}`, which cannot be answered correctly "
+                    f"in one: use {INSTEAD[field]} instead — {WHY[field]}."
                 )
-
+                if line not in said:
+                    said.append(line)
     return said
 
 
-def half_asked(messages: Iterable[dict[str, Any]], hops: Iterable[str]) -> str | None:
-    """Why this surface asks some hops a question and not the others, or None.
+def unsent(components: Iterable[dict[str, Any]], sends_data_model: bool) -> list[str]:
+    """A surface that asks for record fields and never sends them."""
+    if sends_data_model:
+        return []
+    asked = sorted(
+        {path for component in components for path in _asked(component) if path.startswith("/trip/")}
+    )
+    if not asked:
+        return []
+    return [
+        f"it asks for {', '.join(f'`{path}`' for path in asked)} but was created without "
+        "sendDataModel, so the answers never reach you. Create it with "
+        'surface("<id>", sendDataModel=true).'
+    ]
 
-    A party size belongs to a hop, not to a journey — somebody joins in Chicago,
-    somebody flies home early — so a route of three hops is three counters. The
-    brief says so, and its worked example drew two counters over three hops for
-    months, which is what the model copied: on a measured SFO → Chicago → New
-    York → home conversation the opening surface asked who was going to Chicago
-    and who was going on from there, and never asked who was flying home. The
-    hop home carried whatever the hop before it said, nobody was shown it, and
-    the fares home were priced for a party nobody had confirmed.
 
-    A prompt cannot guarantee this and has already failed to. This can: either
-    the surface asks every hop or it asks none of them, and a surface that asks
-    some is sent back naming the ones it left out.
+def half_asked(components: Iterable[dict[str, Any]], legs: int = 0) -> list[str]:
+    """A party asked of some hops and not the others.
 
-    `hops` is every path a counter would bind to, in route order. One hop means
-    nothing to be inconsistent about and the check does not run.
+    `legs` is how many hops the route has after the first. A surface either
+    asks who is on every hop or on none of them.
     """
-    expected = [str(path) for path in hops]
-    if len(expected) < 2:
-        return None
-
-    asked: set[str] = set()
-    for message in messages:
-        for node in components_of(message):
-            if not isinstance(node, dict):
-                continue
-            if str(node.get("component") or "") not in ASKING:
-                continue
-            for path in _bound_paths(node):
-                asked.add(path)
-
+    if legs < 1:
+        return []
+    expected = ["/trip/travelers", *(f"/trip/legs/{index}/travelers" for index in range(legs))]
+    asked = {path for component in components for path in _asked(component)}
     answered = [path for path in expected if path in asked]
     if not answered or len(answered) == len(expected):
-        return None
-
-    absent = [path for path in expected if path not in asked]
-    return (
-        f"That surface asks who is on {len(answered)} of the {len(expected)} hops and "
-        f"leaves out {', '.join(f'`{path}`' for path in absent)}. Every hop has its own "
-        "party — somebody joins, somebody flies home early — so the hops you did not ask "
-        "about will be priced for whatever the hop before them said, and nobody will have "
-        "seen it. Draw one `TravelerCounter` per hop, labelled by hop and pre-filled from "
-        "the trip, on the same surface with the same button."
-    )
+        return []
+    missing = [path for path in expected if path not in asked]
+    return [
+        f"it asks who is on {len(answered)} of the {len(expected)} hops and leaves out "
+        f"{', '.join(f'`{path}`' for path in missing)}. Every hop has its own party; "
+        "draw one `TravelerCounter` per hop, labelled by hop."
+    ]
 
 
-#: Why there is no check here for *what* a surface asks about.
-#:
-#: There was one, and it is gone. `asks_nothing` rejected a surface drawn while
-#: the trip was waiting on its boundaries that asked for none of them, and sent
-#: it back to be redrawn with those controls on it. It was written for a real
-#: failure — an opening turn of six `StatTile`s and a `ProgressMeter` over a
-#: trip with no dates in it — and it was still the host deciding what a turn is
-#: for, which in this app is the agent's job and the brief's.
-#:
-#: It cost exactly what that costs. A traveller pressed the first fare, the
-#: press carried `{id, price, hop}` — none of them trip fields, so nothing was
-#: recorded host-side yet — and this read "still waiting on startDate, endDate"
-#: off a date the agent had guessed and nobody had re-stated. The return fares
-#: asked for neither, so the card was sent back and redrawn *with a date picker
-#: on it*, over the flights, one turn after choosing one.
-#:
-#: The fact still reaches the agent: the prompt says what is not yet known and
-#: which goals it blocks, every turn. It is a fact to route around, not a veto.
-#: `two_hops_at_once` went with it, for the same reason — "one hop per card" is
-#: a flow rule, and flow rules live in `prompts/journey.md`.
-#:
-#: What is left here is not about flow. `wrong_controls` says a date cannot be
-#: answered correctly in a text box, and `half_asked` says a question asked of
-#: some hops cannot be answered for the others. Both are about whether a
-#: surface can be answered at all, which is the renderer's contract rather than
-#: the agent's judgement.
-
-
+def problems(components: Iterable[dict[str, Any]], sends_data_model: bool, legs: int = 0) -> list[str]:
+    """Everything that stops this surface being answered, as notes for the model."""
+    components = list(components)
+    return [
+        *wrong_controls(components),
+        *unsent(components, sends_data_model),
+        *half_asked(components, legs),
+    ]

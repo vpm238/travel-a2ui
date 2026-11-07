@@ -7,14 +7,14 @@
  * to.
  *
  * **It is read-only**, and that is a design decision rather than a limitation.
- * It used to carry controls, which meant two places could change the same value
- * and the conversation had no record of which one did. Now deciding happens in
+ * Controls here would mean two places could change the same value and the
+ * conversation would have no record of which one did. Deciding happens in
  * one place — inline, in the conversation — and this is the record. The panel's
  * only interaction is *Change*, which releases a decision and re-opens it
  * inline, pre-filled.
  *
- * There is no React in it any more — not a checklist, not a key/value list of
- * what has been decided. All of it is A2UI the agent composed, which is what
+ * There is no React in it — not a checklist, not a key/value list of what has
+ * been decided. All of it is A2UI the agent composed, which is what
  * makes the panel portable: the Flutter renderer draws this exact panel
  * with no travel-specific code, because there is none left to port.
  *
@@ -43,11 +43,9 @@ export function Sidebar({ agent }: { agent: Agent }) {
   const hasSurface = agent.store.has('sidebar');
 
   /*
-   * When this panel is *stale* is not the browser's business, and used to be:
-   * it watched three trip field names and sent a prose prompt asking for a
-   * redraw. The server owns that now — it holds the trip, so it is the only
-   * thing that can know the decisions changed shape, and it pushes the new
-   * panel down the same turn. All that is left here is the one fact a client
+   * Keeping the panel current is not the browser's business: the agent draws
+   * it once, bound to `/trip` and `/panel`, and the server keeps those current
+   * with `updateDataModel`. All that is left here is the one fact a client
    * genuinely has: this surface is on screen and empty.
    */
   const build = () => agent.drawSurface('sidebar');
