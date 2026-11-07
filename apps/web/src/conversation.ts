@@ -111,6 +111,27 @@ export function withSurface(parts: TurnPart[], surfaceId: string): TurnPart[] {
   return [...parts, { kind: 'surface', surfaceId }];
 }
 
+/** Whether any turn already shows this surface. */
+export function isShown(turns: Turn[], surfaceId: string): boolean {
+  return turns.some((turn) =>
+    turn.parts.some((part) => part.kind === 'surface' && part.surfaceId === surfaceId),
+  );
+}
+
+/**
+ * Files a surface under the turn that first shows it, and nowhere else.
+ *
+ * A later turn can send data to an earlier card (a press selects a flight,
+ * and the card marks it). That event updates the card where it already is; it
+ * does not draw the card a second time under the later turn.
+ */
+export function placeSurface(turns: Turn[], turnId: string, surfaceId: string): Turn[] {
+  if (isShown(turns, surfaceId)) return turns;
+  return turns.map((turn) =>
+    turn.id === turnId ? { ...turn, parts: withSurface(turn.parts, surfaceId) } : turn,
+  );
+}
+
 export interface Usage {
   inputTokens: number;
   outputTokens: number;

@@ -23,7 +23,7 @@ from travel_a2ui.brain.ui import Canvas, Drawing  # noqa: E402
 DOCUMENTS = [
     ROOT / "README.md",
     *sorted((ROOT / "docs").glob("*.md")),
-    ROOT / "docs" / "site" / "src" / "content" / "docs" / "quickstart.mdx",
+    *sorted((ROOT / "docs" / "site" / "src" / "content" / "docs").rglob("*.mdx")),
     ROOT / "docs" / "site" / "src" / "prompts" / "quickstart.md",
     *sorted((ROOT / "prompts").glob("*.md")),
 ]

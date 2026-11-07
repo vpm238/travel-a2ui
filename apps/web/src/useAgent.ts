@@ -53,8 +53,9 @@ import {
   STANDING,
   actionFrom,
   describeForTranscript,
+  isShown,
+  placeSurface,
   type ComponentLookup,
-  withSurface,
   withText,
 } from './conversation.js';
 import type { LiveStatus } from './storage.js';
@@ -343,11 +344,7 @@ export function useAgent() {
             // the server seeds `/trip` into the surface it creates and sends
             // `updateDataModel` for the panels. Applying them is the whole job.
             store.apply(event.messages);
-            if (!silent) {
-              patchTurn(assistantId, (turn) => ({
-                parts: withSurface(turn.parts, event.surfaceId),
-              }));
-            }
+            if (!silent) setTurns((current) => placeSurface(current, assistantId, event.surfaceId));
             break;
           case 'ui_error':
             // Not surfaced as an error yet: the agent gets one attempt to
@@ -825,10 +822,8 @@ export function useAgent() {
         const last = current[current.length - 1];
 
         if (entry.kind === 'surface') {
-          if (last?.role === 'assistant') {
-            const parts = withSurface(last.parts, entry.surfaceId);
-            return [...current.slice(0, -1), { ...last, parts }];
-          }
+          if (last?.role === 'assistant') return placeSurface(current, last.id, entry.surfaceId);
+          if (isShown(current, entry.surfaceId) || STANDING.has(entry.surfaceId)) return current;
           return [
             ...current,
             {

@@ -6,23 +6,21 @@ panel) drawn by a React client and a Flutter client from the same messages.
 
 **If the person wants the quickstart, or to learn A2UI here**, follow
 [`docs/site/src/prompts/quickstart.md`](docs/site/src/prompts/quickstart.md):
-set up the Python server, then the React client, then the Flutter client,
-explaining each as it starts working. It is also published at
+pick React, Flutter or both, run three commands, then explain how A2UI works
+with the app open. It is also published at
 https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/agent.md.
 
 ## Set up, run, test
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e apps/server
-uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src   # the server
-npm install && npm run build                                                # React, at /
-(cd renderers/flutter && flutter pub get && flutter build web --base-href=/flutter/)  # Flutter, at /flutter/
+./scripts/quickstart.sh react     # or flutter, or both: installs, builds, starts on :8080
 ```
 
-The app is at http://127.0.0.1:8080, and a client built while the server runs
-is served without a restart. `npm run setup` does the server and React in one
-go and also regenerates and tests. With no Gemini key, the Catalog and Wire
+React is at http://127.0.0.1:8080 and Flutter at http://127.0.0.1:8080/flutter/;
+a client built while the server runs is served without a restart. For
+development, `npm run setup` also regenerates the generated files and runs the
+tests, and the server alone is
+`uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src`. With no Gemini key, the Catalog and Wire
 tabs and the recorded sample trip still work. For a whole turn with no key, run
 the scripted server: `GEMINI_API_KEY=scripted python tools/e2e/scripted_server.py 8130`.
 

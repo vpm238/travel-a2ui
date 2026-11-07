@@ -12,13 +12,13 @@ export const GET: APIRoute = async () => {
 
   const body = `# A2UI Quickstart
 
-> A quickstart for A2UI on web and mobile, built on Travel A2UI: one Python agent server, a React web client and a Flutter mobile client that draw the same A2UI messages. It sets up each piece locally, server first, then React, then Flutter, explains the catalog, messages, data binding, renderers and actions as each starts working, and deploys to Cloud Run in one click. No API key is needed to begin.
+> A quickstart for A2UI on web and mobile, built on Travel A2UI: one Python agent server, a React web client and a Flutter mobile client that draw the same A2UI messages. There are three quickstarts of three commands each (Python + React, Python + Flutter, Python + both) and a one-prompt version for coding agents. Once it runs, "How A2UI works" explains the core pieces and parent and child components, which parts of the screen are A2UI and which are app code (the catalog), how agent skills are generated from the catalog, agent output (the Express DSL) versus A2UI messages and the MessageProcessor, and the renderers A2UI has.
 
 If you are a coding agent asked to give someone the A2UI quickstart, fetch the agent guide below and follow it.
 
 ## Agent guide
 
-- [A2UI quickstart: instructions for coding agents](${absolute(PROMPT_PATH)}): the steps to set up the Python server, the React client and the Flutter client, what to explain at each, and the one-click deploy
+- [A2UI quickstart: instructions for coding agents](${absolute(PROMPT_PATH)}): pick a quickstart, run its three commands, then explain the five A2UI lessons simply with the app open
 
 ## Pages
 

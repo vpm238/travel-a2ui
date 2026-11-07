@@ -31,6 +31,12 @@ export const PARTNERS = local(PARTNERS_PATH);
 export const BUILD_YOUR_OWN = `${REPO}#build-one-of-your-own`;
 export const FLUTTER_DEMO = `${LIVE_DEMO}/flutter/`;
 
+/** The three quickstarts, and the page that explains what they run. */
+export const QS_REACT = local('quickstart/react/');
+export const QS_FLUTTER = local('quickstart/flutter/');
+export const QS_BOTH = local('quickstart/both/');
+export const CONCEPTS = local('concepts/');
+
 /** The A2UI documentation, one entry per concept the tour teaches. */
 export const A2UI = {
   home: 'https://a2ui.org',

@@ -38,6 +38,17 @@ def test_a_client_built_after_start_is_served_without_a_restart(tmp_path: Path) 
     assert response.status_code == 200 and "hello" in response.text
 
 
+def test_with_only_flutter_built_the_bare_address_opens_flutter(tmp_path: Path) -> None:
+    flutter = tmp_path / "flutter"
+    flutter.mkdir()
+    app = FastAPI()
+    app.mount("/", BuiltClient(tmp_path / "web", "Build React", instead=(flutter, "/flutter/")), name="web")
+    client = TestClient(app, follow_redirects=False)
+    response = client.get("/")
+    assert response.status_code == 307 and response.headers["location"] == "/flutter/"
+    assert "Build React" in client.get("/somewhere").text
+
+
 def test_the_app_mounts_both_clients_whether_or_not_they_are_built() -> None:
     mounted = {getattr(route, "path", None) for route in http.app.routes}
     assert {"/flutter", ""} <= mounted

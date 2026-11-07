@@ -155,39 +155,28 @@ the agent is describing an interface rather than emitting one.
 
 ## Run it on your machine
 
-One Python server and two clients. You need `git`, Python 3.11+, Node 20+, and
-Flutter 3.47+ for the Flutter client.
-
-**1. The Python server**, the agent:
+Three commands. Pick the client: `react`, `flutter` or `both`.
 
 ```bash
-git clone https://github.com/vpm238/travel-a2ui && cd travel-a2ui
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e apps/server
-uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src
+git clone https://github.com/vpm238/travel-a2ui
+cd travel-a2ui
+./scripts/quickstart.sh react
 ```
 
-**2. The React client** (web), in a second terminal:
+| Client | Needs | Open |
+| --- | --- | --- |
+| `react` | Python 3.11+, Node 20+ | http://127.0.0.1:8080 |
+| `flutter` | Python 3.11+, Flutter 3.47+ | http://127.0.0.1:8080/flutter/ |
+| `both` | all three | both |
 
-```bash
-npm install && npm run build
-```
+The script installs the server into `.venv`, builds the client and starts the
+server. React opens on a sample trip with no key; to talk to the agent, and
+for Flutter, paste a Gemini key into the app when it asks, or set
+`GEMINI_API_KEY` before running the script.
 
-Open http://127.0.0.1:8080.
-
-**3. The Flutter client** (mobile):
-
-```bash
-cd renderers/flutter && flutter pub get && flutter build web --base-href=/flutter/
-```
-
-Open http://127.0.0.1:8080/flutter/.
-
-The server serves each client as soon as it is built, without a restart.
-React opens on a sample trip with no key; to talk to the agent, and for
-Flutter, paste a Gemini key into the app when it asks, or start the server
-with `GEMINI_API_KEY` set. `npm run setup` does steps 1 and 2 in one go, and also
-regenerates the generated files and runs the tests.
+The [quickstart site](https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/)
+walks through each one and then explains how A2UI works. For development,
+`npm run setup` also regenerates the generated files and runs the tests.
 
 ---
 

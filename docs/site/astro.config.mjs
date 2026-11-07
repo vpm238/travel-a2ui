@@ -42,7 +42,16 @@ export default defineConfig({
         { tag: 'link', attrs: { rel: 'help', type: 'text/plain', href: `${base}/llms.txt` } },
       ],
       sidebar: [
-        { label: 'Get started', items: [{ label: 'Quickstart', slug: 'quickstart' }] },
+        {
+          label: 'Get started',
+          items: [
+            { label: 'Quickstart', slug: 'quickstart' },
+            { label: 'Python + React', slug: 'quickstart/react' },
+            { label: 'Python + Flutter', slug: 'quickstart/flutter' },
+            { label: 'Python + React + Flutter', slug: 'quickstart/both' },
+          ],
+        },
+        { label: 'Learn', items: [{ label: 'How A2UI works', slug: 'concepts' }] },
         { label: 'Keep going', items: [{ label: 'Partner & consultant demos', slug: 'ecosystem/partners' }] },
       ],
       lastUpdated: false,

@@ -47,7 +47,7 @@ const AGENT_PROMPT = `## Paste this into your coding agent
 ${bootstrapPrompt()}
 \`\`\`
 
-Works in Claude Code, Gemini CLI, Codex, Cursor or any agent that can read a web page. It sets up the Python server, then the React client, then the Flutter client, and explains each one as it starts working. No API key is needed to begin.`;
+Works in Claude Code, Gemini CLI, Codex, Cursor or any agent that can read a web page. It asks whether you want React, Flutter or both, runs three commands, then explains how A2UI works with the app open.`;
 
 const ARCHITECTURE = `\`\`\`text
  React client (web)                 Flutter client (mobile)

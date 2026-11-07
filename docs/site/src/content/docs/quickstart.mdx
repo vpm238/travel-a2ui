@@ -1,175 +1,71 @@
 ---
-title: A2UI quickstart for web and mobile
-description: Set up a small A2UI app on your machine, a Python agent server, a React web client and a Flutter mobile client, and deploy it to Cloud Run in one click.
+title: A2UI quickstart
+description: Run a small A2UI app, a Python agent server with a React web client, a Flutter mobile client or both, in three commands, then learn how A2UI works.
 ---
 
-import { Steps, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 import AgentPrompt from '../../components/AgentPrompt.astro';
 import ArchDiagram from '../../components/ArchDiagram.astro';
-import TurnFlow from '../../components/TurnFlow.astro';
-import { A2UI, BUILD_YOUR_OWN, FLUTTER_DEMO, PARTNERS } from '../../site';
+import { CONCEPTS, QS_BOTH, QS_FLUTTER, QS_REACT } from '../../site';
 
-**A2UI** lets an AI agent answer with an interface instead of a paragraph. This
-quickstart sets up **Travel A2UI**, a trip planner whose agent replies with
-flight cards, date pickers and a live trip panel.
+**A2UI** lets an AI agent answer with an interface instead of a paragraph:
+cards you can tap, dates you can drag, a panel that keeps up with you.
 
-It is a simple app on purpose: **one Python server** holds the agent, and **two
-clients** draw what it sends, **React** on the web and **Flutter** on mobile.
-Both get the same A2UI messages, and neither knows anything about travel.
-
-Hand the setup to your coding agent, which runs each step on your machine and
-explains it as it goes. Or follow the steps here.
+This quickstart runs **Travel A2UI**, a small trip planner built on the official
+A2UI SDKs. It is simple on purpose: **one Python server** holds the agent, and
+a **React** client (web) or a **Flutter** client (mobile) draws what it sends.
+Both clients get the same A2UI messages.
 
 <AgentPrompt />
 
-<ArchDiagram />
+## Or set it up yourself
 
-## Before you start
-
-You need `git`, **Python 3.11+** and **Node 20+**. The Flutter client also
-needs **Flutter 3.47+**.
-
-A Gemini API key is optional for the React client: without one, it opens on a
-recorded sample trip, and you can browse every component. With a free key from
-[AI Studio](https://aistudio.google.com/apikey), you can talk to the agent, and
-the Flutter client asks for one before it starts. Paste it into the app when it
-asks; it stays in your browser.
-
-## 1. The Python server
-
-<Steps>
-
-1. Clone, install and start it:
-
-   ```bash
-   git clone https://github.com/vpm238/travel-a2ui
-   cd travel-a2ui
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -e apps/server
-   uvicorn travel_a2ui.doors.http:app --port 8080 --app-dir apps/server/src
-   ```
-
-2. Leave it running. In another terminal, `curl -s http://127.0.0.1:8080/api/healthz`
-   prints `{"ok":true,...}`.
-
-</Steps>
-
-The server is the agent. It sends the conversation to Gemini, and the model
-answers with UI written against a **catalog**: the components it may use, such
-as `FlightOption` and `DateRangePicker`, plus basics like `Text` and `Column`.
-The A2UI agent SDK checks every message against the catalog before it leaves
-the server.
-
-## 2. The React client (web)
-
-<Steps>
-
-1. In a new terminal, from the repository root:
-
-   ```bash
-   npm install
-   npm run build
-   ```
-
-2. Open [http://127.0.0.1:8080](http://127.0.0.1:8080). The server serves the
-   build, with no restart.
-
-</Steps>
-
-![The React web client: flight cards in the conversation and the trip so far beside it](../../assets/quickstart/chat.png)
-
-Try the **Catalog** tab, which draws every component the agent may use, and the
-**Wire** tab, which shows what the model wrote beside the A2UI JSON the client
-received. With a key, ask for *"Six days in Madrid in April, two of us, around
-$2,500 all in"*.
-
-For hot reload while you edit the client, run `npm run dev:web` and open
-[http://localhost:5173](http://localhost:5173). It talks to the same server.
-
-## 3. The Flutter client (mobile)
-
-<Steps>
-
-1. Build it:
-
-   ```bash
-   cd renderers/flutter
-   flutter pub get
-   flutter build web --base-href=/flutter/
-   ```
-
-2. Open [http://127.0.0.1:8080/flutter/](http://127.0.0.1:8080/flutter/) and
-   paste your Gemini key when it asks.
-
-</Steps>
-
-![The Flutter client in a phone layout, showing the trip with the chosen outbound and return flights](../../assets/quickstart/flutter-trip.png)
-
-The same agent, the same server and the same messages, drawn by a second
-renderer with Flutter's widgets. Nothing on the server changed. Here Flutter is
-built for the web in a phone layout; the same Dart code can target iOS and
-Android. No Flutter? Try the <a href={FLUTTER_DEMO}>hosted one</a>.
-
-## 4. Deploy to Cloud Run
-
-One click, in your own Google Cloud project with billing enabled:
-
-[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/vpm238/travel-a2ui)
-
-It opens Cloud Shell, builds the app (about ten minutes the first time) and
-deploys it to one URL that serves the server and both clients. No key is stored
-on the service: each visitor pastes their own. The repository's
-[`docs/deploying.md`](https://github.com/vpm238/travel-a2ui/blob/main/docs/deploying.md)
-has a one-command version and a deploy on every push.
-
-## How it works
-
-<TurnFlow />
-
-The model writes a compact notation called **Express**. The server's A2UI SDK
-turns it into **A2UI messages** and streams them to the client, whose renderer
-draws them. A flight list, as the model writes it:
-
-```text
-head = Text("### Flights to Madrid")
-row  = FlightOption($airline, $departTime, $arriveTime, $origin, $destination,
-                    $price, Event("select_flight", {id: $id}))
-list = List(_template($/flights, row))
-root = Column([head, list])
-```
-
-`FlightOption` is a template repeated for each row at `/flights`, and the server
-fills `/flights` with what the search found, so the model never retypes it. A
-press on a flight goes back to the agent as an A2UI **action**.
-
-| Idea | What it is | In this app |
-| --- | --- | --- |
-| **Catalog** | The components and functions the agent may use | `catalogs/a2ui-travel/catalog.json` |
-| **Surface** | A region of UI, opened by `createSurface` | each card in the chat; the trip panel |
-| **Data model** | The data a surface shows; components bind to it by path | rows at `/flights` |
-| **Renderer** | Applies the messages and draws native widgets | `@a2ui/react` on the web, `a2ui_flutter` on mobile |
-| **Action** | A press, sent back to the agent | `select_flight` with the flight's `id` |
-| **Skills** | What the model reads to write A2UI, generated from the catalog | `skills/` |
-
-![The Wire tab: the Express the model wrote, beside the A2UI JSON the client received](../../assets/quickstart/wire.png)
-
-## Keep going
+Each takes three commands.
 
 <CardGrid>
   <LinkCard
-    title="Build your own"
-    description="What to change to make this app about something other than travel."
-    href={BUILD_YOUR_OWN}
+    title="Python + React"
+    description="The agent server and the web client. Needs Python and Node."
+    href={QS_REACT}
   />
   <LinkCard
-    title="A2UI documentation"
-    description="Concepts, the v1.0 specification and the renderers."
-    href={A2UI.home}
+    title="Python + Flutter"
+    description="The agent server and the mobile client. Needs Python and Flutter."
+    href={QS_FLUTTER}
   />
   <LinkCard
-    title="Partner and consultant demos"
-    description="A2UI in other products, and how teams brought it into their stack."
-    href={PARTNERS}
+    title="Python + React + Flutter"
+    description="Both clients on one server, drawing the same messages."
+    href={QS_BOTH}
   />
 </CardGrid>
+
+## What you will learn
+
+Once it runs, <a href={CONCEPTS}>How A2UI works</a> explains, with the app open:
+
+1. **The core pieces of A2UI**, and how parent and child components make a
+   surface reliable.
+2. **Which parts of the screen are A2UI** and which are ordinary app code, and
+   the **catalog** that draws the line.
+3. **Agent skills**: what they are and how they are generated from the catalog.
+4. **Agent output versus A2UI messages**: the Express DSL the model writes, the
+   JSON on the wire and the **MessageProcessor** that applies it.
+5. **Renderers**: the two here, and the others A2UI has.
+
+## The architecture
+
+<ArchDiagram />
+
+One server serves the API, the React app at `/` and the Flutter app at
+`/flutter/`. The clients know nothing about travel: each knows how to draw the
+catalog's components, and the agent decides what to draw.
+
+## Put it online
+
+[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/vpm238/travel-a2ui)
+
+One click deploys the server and both clients to Cloud Run in your own Google
+Cloud project. It asks for a project and a region, and the first build takes
+about ten minutes. No key is stored on the service: each visitor pastes their
+own.

@@ -23,7 +23,7 @@ import os
 from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .. import ROOT
@@ -581,19 +581,26 @@ class BuiltClient(StaticFiles):
 
     So a client built while the server is running is served at once, with no
     restart, and one not built yet says how to build it instead of a bare 404.
+    `instead` is another client, `(folder, url)`, that the bare address sends
+    you to when only that one is built.
     """
 
-    def __init__(self, directory: Any, how_to_build: str) -> None:
+    def __init__(self, directory: Any, how_to_build: str, instead: tuple[Any, str] | None = None) -> None:
         super().__init__(directory=directory, html=True, check_dir=False)
         self.folder = directory
         self.how_to_build = how_to_build
+        self.instead = instead
 
     async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
         if self.folder.is_dir():
             await super().__call__(scope, receive, send)
             return
-        if _is_api(scope.get("path", "")):
+        path = scope.get("path", "")
+        if _is_api(path):
             raise HTTPException(status_code=404)
+        if self.instead and path == "/" and self.instead[0].is_dir():
+            await RedirectResponse(self.instead[1])(scope, receive, send)
+            return
         page = f"Not built yet. {self.how_to_build}, then reload this page.\n"
         await PlainTextResponse(page, status_code=404)(scope, receive, send)
 
@@ -618,7 +625,15 @@ def mount_clients() -> None:
     if DOCS_DIST.is_dir():
         app.mount("/docs", StaticFiles(directory=DOCS_DIST, html=True), name="docs")
 
-    app.mount("/", BuiltClient(WEB_DIST, "Build the React client: npm install && npm run build"), name="web")
+    app.mount(
+        "/",
+        BuiltClient(
+            WEB_DIST,
+            "Build the React client: npm install && npm run build",
+            instead=(FLUTTER_DIST, "/flutter/"),
+        ),
+        name="web",
+    )
 
     @app.exception_handler(404)
     async def spa_fallback(request: Request, _exc: Any) -> Any:
