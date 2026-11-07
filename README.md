@@ -18,12 +18,14 @@ in that moment**, not chosen from screens somebody designed in advance.
   <a href="docs/architecture.md">how it works</a>
 </p>
 
-> **A sample application, not an official Google project.** A2UI — the protocol,
-> the specification and the catalogs it builds on — is [the A2UI
-> project's](https://github.com/a2ui-project/a2ui) work. This repository is an
-> independent app built on top of it, not affiliated with or endorsed by Google
-> LLC. Treat it as a worked example of building and deploying a generative-UI
-> application, not as a reference implementation of the protocol.
+## Not affiliated with Google
+
+This is an independent sample application, not an official Google project, and
+it is not affiliated with or endorsed by Google LLC. A2UI — the protocol, the
+specification and the catalogs it builds on — is [the A2UI
+project's](https://github.com/a2ui-project/a2ui) work; this repository is an app
+built on top of it. Treat it as a worked example of building and deploying a
+generative-UI application, not as a reference implementation of the protocol.
 
 > **New to A2UI?** The [quickstart](https://travel-a2ui-vy7stnte2a-uc.a.run.app/docs/quickstart/)
 > is a guided tour of this repository, run by your coding agent or read on your
