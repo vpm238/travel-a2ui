@@ -1,27 +1,18 @@
 #!/usr/bin/env bash
 #
 # Sets up a Google Cloud project to accept deploys from GitHub, and prints the
-# four settings the workflow needs.
-#
-# Two of those four are values you look up; the other two do not exist until
-# this has run, which is the thing that makes the setup confusing the first
-# time. `WIF_PROVIDER` and `WIF_SERVICE_ACCOUNT` are created here.
+# settings the workflow needs. `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT` and
+# `RUNTIME_SERVICE_ACCOUNT` are created here.
 #
 # Run it in Cloud Shell, or anywhere `gcloud` is logged in:
 #
 #     ./scripts/setup-cloud-run.sh [project-id] [region]
 #
-# Safe to run more than once: every step checks for what it would create and
-# says so rather than failing. That matters because the interesting failure
-# mode is a half-finished setup — a pool with no provider, a service account
-# with two of its three roles — which produces an authentication error at
-# deploy time with nothing pointing at the missing piece.
+# Safe to run more than once: every step checks for what it would create.
 #
-# Nothing here is secret in the sense of a password. A Workload Identity
-# provider is a *rule* — "GitHub may act as this account, but only from this
-# repository" — and no key is created, stored or downloaded. That is the whole
-# reason to prefer it: a service-account JSON key is a permanent credential
-# that cannot be rotated by whoever eventually finds it in a log.
+# No key is created, stored or downloaded. A Workload Identity provider is a
+# rule — "GitHub may act as this account, only from this repository's main
+# branch" — rather than a credential.
 
 set -euo pipefail
 
@@ -99,9 +90,8 @@ else
   echo "   pool created"
 fi
 
-# The attribute-condition is the security boundary and is not optional. Without
-# it the provider trusts a token from *any* repository on GitHub, which is one
-# stranger's pull request away from deploying to this project.
+# The attribute-condition is the security boundary: only this repository, and
+# only its main branch, may deploy.
 if gcloud iam workload-identity-pools providers describe "$PROVIDER" \
      --location=global --workload-identity-pool="$POOL" \
      --project "$PROJECT_ID" >/dev/null 2>&1; then
@@ -109,14 +99,14 @@ if gcloud iam workload-identity-pools providers describe "$PROVIDER" \
   echo "   (if you changed REPO, update its --attribute-condition by hand:"
   echo "    gcloud iam workload-identity-pools providers update-oidc $PROVIDER \\"
   echo "      --location=global --workload-identity-pool=$POOL \\"
-  echo "      --attribute-condition=\"assertion.repository == '$REPO'\")"
+  echo "      --attribute-condition=\"assertion.repository == '$REPO' && assertion.ref == 'refs/heads/main'\")"
 else
   gcloud iam workload-identity-pools providers create-oidc "$PROVIDER" \
     --location=global --workload-identity-pool="$POOL" \
     --display-name="GitHub" \
     --issuer-uri="https://token.actions.githubusercontent.com" \
-    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
-    --attribute-condition="assertion.repository == '${REPO}'" \
+    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
+    --attribute-condition="assertion.repository == '${REPO}' && assertion.ref == 'refs/heads/main'" \
     --project "$PROJECT_ID"
   echo "   provider created, scoped to $REPO"
 fi
@@ -134,14 +124,29 @@ else
   echo "   created"
 fi
 
-# Three roles, one per step of the deploy: create and update the service, push
-# the image, and tell Cloud Run which identity the service runs as — which
-# counts as *using* that account and is why the third is needed.
-for role in roles/run.admin roles/artifactregistry.writer roles/iam.serviceAccountUser; do
+# Two project roles: create and update the service, and push the image.
+for role in roles/run.developer roles/artifactregistry.writer; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:${SA}" --role="$role" --condition=None >/dev/null
   echo "   $role"
 done
+
+# ---------------------------------------------------------------------------
+say "4b. The account the service runs as, with no project roles"
+# ---------------------------------------------------------------------------
+RUNTIME_SA="${SA_NAME%-deployer}-runtime@${PROJECT_ID}.iam.gserviceaccount.com"
+if gcloud iam service-accounts describe "$RUNTIME_SA" --project "$PROJECT_ID" >/dev/null 2>&1; then
+  echo "   $RUNTIME_SA already exists"
+else
+  gcloud iam service-accounts create "${SA_NAME%-deployer}-runtime" \
+    --display-name="travel-a2ui runtime" --project "$PROJECT_ID"
+  echo "   created"
+fi
+# The deployer may act as this account, and only this one.
+gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" \
+  --role=roles/iam.serviceAccountUser --member="serviceAccount:${SA}" \
+  --project "$PROJECT_ID" >/dev/null
+echo "   $SA_NAME may deploy services that run as it"
 
 # ---------------------------------------------------------------------------
 say "5. Let that repository impersonate that account"
@@ -161,19 +166,21 @@ Done. Put these in GitHub → the repository → Settings →
 Secrets and variables → Actions.
 
   Variables tab
-    GCP_PROJECT_ID        ${PROJECT_ID}
-    GCP_REGION            ${REGION}
+    GCP_PROJECT_ID           ${PROJECT_ID}
+    GCP_REGION               ${REGION}
+    RUNTIME_SERVICE_ACCOUNT  ${RUNTIME_SA}
 
   Secrets tab
     WIF_PROVIDER          projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL}/providers/${PROVIDER}
     WIF_SERVICE_ACCOUNT   ${SA}
 
-Then: Actions → "travel-a2ui Cloud Run" → Run workflow.
+Then: Actions → "travel-a2ui Cloud Run" → Run workflow. Run the first deploy
+as a project owner, or make the service public once with:
 
-The bottom two are not passwords and not keys — nothing was downloaded here.
-They name a rule that says GitHub may act as this account, and only from
-${REPO}. They are secrets rather than variables because naming your
-infrastructure in public invites people to probe it, not because knowing them
-grants anything.
+  gcloud run services add-iam-policy-binding travel-a2ui --region ${REGION} \
+    --member=allUsers --role=roles/run.invoker
+
+The secrets are not keys; they name a rule. They are secrets only so the
+infrastructure is not named in public.
 ────────────────────────────────────────────────────────────────────────────
 SETTINGS
