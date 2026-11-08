@@ -646,6 +646,11 @@ def _describe_live_error(error: Exception) -> str:
     lowered = text.lower()
     if "api key" in lowered or "401" in text or "403" in text:
         return "That API key was rejected for the Live API."
+    # Over the project's spending cap, the Live API closes with "1011 None.
+    # Your project has exceeded its monthly spending cap...": Google's sentence
+    # says where to raise it, and waiting will not help.
+    if "spend" in lowered:
+        return text[text.lower().find("your project") :].strip() if "your project" in lowered else text
     if "quota" in lowered or "429" in text:
         return "That key has hit its Live API quota. Try again shortly."
     # A model this key cannot see is the failure the raw message explains

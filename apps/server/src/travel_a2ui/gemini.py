@@ -25,10 +25,11 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Callable, Sequence
 
-from google.genai import Client
+from google.genai import Client, types
 
 
 @dataclass
@@ -113,6 +114,19 @@ class GeminiError(Exception):
         self.retryable = retryable
 
 
+#: The SDK retries only server errors itself. A 429 comes straight back, so
+#: `_open` can tell a project over its spending cap (say so, now) from a busy
+#: model (back off, then the fallback); the SDK's own retry of a 429 honoured
+#: its 30-second Retry-After and outlasted every deadline here.
+_HTTP_OPTIONS = types.HttpOptions(retry_options=types.HttpRetryOptions(http_status_codes=[500, 502, 503, 504]))
+
+
+def _google_message(detail: str) -> str:
+    """The `message` inside an API error, or the detail as it came."""
+    found = re.search(r"""['"]message['"]\s*:\s*['"](.+?)['"]\s*[,}]""", detail)
+    return (found.group(1) if found else detail).strip()
+
+
 def _describe(status: int, detail: str) -> GeminiError:
     if status in (401, 403):
         return GeminiError(
@@ -121,6 +135,12 @@ def _describe(status: int, detail: str) -> GeminiError:
             False,
         )
     if status == 429:
+        # A project over its spending cap gets 429 too, and no wait or second
+        # model gets past it. Google's own sentence says what to do, with the
+        # link, so it is passed on and not retried.
+        said = _google_message(detail)
+        if "spend" in said.lower():
+            return GeminiError(said, status, False)
         return GeminiError("That key has hit its rate limit. Wait a moment and try again.", status, True)
     if status == 404:
         return GeminiError("That model is not available to this key. Try another model.", status, False)
@@ -272,7 +292,7 @@ async def stream_interaction(
     `client` is injectable so a test can drive the whole loop off a scripted
     stream. Nothing else about this function knows it is being tested.
     """
-    genai = client or Client(api_key=api_key)
+    genai = client or Client(api_key=api_key, http_options=_HTTP_OPTIONS)
     body = build_body(
         model=model,
         input=input,
